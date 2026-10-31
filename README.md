@@ -1,20 +1,18 @@
-This is a Kotlin Multiplatform project targeting Android, iOS.
+This is a Kotlin Multiplatform project targeting Android, iOS. Android와 iOS는 각자 네이티브 UI(Android는
+Compose, iOS는 SwiftUI)를 쓰고, `sharedLogic`만 두 플랫폼이 공유한다. 디자인 시스템은
+[/design/runveal-tokens.json](./design/runveal-tokens.json)을 공통 소스로 두고 빌드 때 각 플랫폼 언어로
+자동 생성한다 (Android는 `gradle/runveal-tokens.gradle.kts`, iOS는 `gradle/runveal-tokens-swift.gradle.kts`).
 
-* [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
-  you need this entry point for your iOS app. This is also where you should add SwiftUI code for your project.
+* [/androidApp](./androidApp/src) is the Android app. UI는 Jetpack Compose로 작성하고,
+  [/androidApp/src/main/kotlin/com/swyp/runveal/designsystem](./androidApp/src/main/kotlin/com/swyp/runveal/designsystem)
+  아래 디자인 시스템 코드(일부는 자동 생성)를 둔다.
+
+* [/iosApp](./iosApp/iosApp) contains an iOS application. UI는 순수 SwiftUI로 작성하고,
+  [/iosApp/iosApp/DesignSystem](./iosApp/iosApp/DesignSystem) 아래 디자인 시스템 코드(일부는 자동 생성)를 둔다.
 
 * [/sharedLogic](./sharedLogic/src) is for the code that will be shared between app targets in the project.
   The most important subfolder is [commonMain](./sharedLogic/src/commonMain/kotlin). If preferred, you
   can add code to the platform-specific folders here too.
-
-* [/sharedUI](./sharedUI/src) is for code that will be shared across your Compose Multiplatform applications.
-  It contains several subfolders:
-  - [commonMain](./sharedUI/src/commonMain/kotlin) is for code that’s common for all targets.
-  - Other folders are for Kotlin code that will be compiled for only the platform indicated in the folder name.
-    For example, if you want to use Apple’s CoreCrypto for the iOS part of your Kotlin app,
-    the [iosMain](./sharedUI/src/iosMain/kotlin) folder would be the right place for such calls.
-    Similarly, if you want to edit the Desktop (JVM) specific part, the [jvmMain](./sharedUI/src/jvmMain/kotlin)
-    folder is the appropriate location.
 
 ### Running the apps
 
@@ -27,7 +25,7 @@ Use the run configurations provided by the run widget in your IDE's toolbar. You
 
 Use the run button in your IDE's editor gutter, or run tests using Gradle tasks:
 
-- Android tests: `./gradlew :sharedUI:testAndroidHostTest :sharedLogic:testAndroidHostTest`
+- Android tests: `./gradlew :sharedLogic:testAndroidHostTest`
 - iOS tests: `./gradlew :sharedLogic:iosSimulatorArm64Test`
 
 ---
