@@ -1,0 +1,2879 @@
+{
+  "$description": "Runveal Design System - Figma Design System 페이지(Foundations) 기준. W3C Design Tokens Format Module 2025.10 형식. 다크 모드 하나만 있음",
+  "primitive": {
+    "color": {
+      "gold": {
+        "50": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              1,
+              0.9804,
+              0.9098
+            ],
+            "alpha": 1,
+            "hex": "#FFFAE8"
+          },
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/gold/50"
+            }
+          }
+        },
+        "100": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.9843,
+              0.9373,
+              0.7373
+            ],
+            "alpha": 1,
+            "hex": "#FBEFBC"
+          },
+          "$description": "Main brand color",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/gold/100"
+            }
+          }
+        },
+        "200": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.949,
+              0.8784,
+              0.5882
+            ],
+            "alpha": 1,
+            "hex": "#F2E096"
+          },
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/gold/200"
+            }
+          }
+        },
+        "400": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.7961,
+              0.7333,
+              0.4706
+            ],
+            "alpha": 1,
+            "hex": "#CBBB78"
+          },
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/gold/400"
+            }
+          }
+        },
+        "500": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.6784,
+              0.6235,
+              0.3922
+            ],
+            "alpha": 1,
+            "hex": "#AD9F64"
+          },
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/gold/500"
+            }
+          }
+        },
+        "600": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.5216,
+              0.4784,
+              0.3059
+            ],
+            "alpha": 1,
+            "hex": "#857A4E"
+          },
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/gold/600"
+            }
+          }
+        },
+        "700": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.3294,
+              0.302,
+              0.1961
+            ],
+            "alpha": 1,
+            "hex": "#544D32"
+          },
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/gold/700"
+            }
+          }
+        }
+      },
+      "neutral": {
+        "50": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.9569,
+              0.9333,
+              0.9176
+            ],
+            "alpha": 1,
+            "hex": "#F4EEEA"
+          },
+          "$description": "Lightest. Do not use pure white.",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/neutral/50"
+            }
+          }
+        },
+        "200": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.8471,
+              0.8118,
+              0.7961
+            ],
+            "alpha": 1,
+            "hex": "#D8CFCB"
+          },
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/neutral/200"
+            }
+          }
+        },
+        "400": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.6549,
+              0.6118,
+              0.5961
+            ],
+            "alpha": 1,
+            "hex": "#A79C98"
+          },
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/neutral/400"
+            }
+          }
+        },
+        "600": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.4353,
+              0.4118,
+              0.4
+            ],
+            "alpha": 1,
+            "hex": "#6F6966"
+          },
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/neutral/600"
+            }
+          }
+        },
+        "700": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.2667,
+              0.2471,
+              0.2392
+            ],
+            "alpha": 1,
+            "hex": "#443F3D"
+          },
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/neutral/700"
+            }
+          }
+        },
+        "800": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.1529,
+              0.149,
+              0.149
+            ],
+            "alpha": 1,
+            "hex": "#272626"
+          },
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/neutral/800"
+            }
+          }
+        },
+        "900": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.0549,
+              0.0549,
+              0.0549
+            ],
+            "alpha": 1,
+            "hex": "#0E0E0E"
+          },
+          "$description": "Darkest. Do not use pure black.",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/neutral/900"
+            }
+          }
+        }
+      },
+      "blue": {
+        "500": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.2588,
+              0.5255,
+              0.8784
+            ],
+            "alpha": 1,
+            "hex": "#4286E0"
+          },
+          "$description": "Current location",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/blue/500"
+            }
+          }
+        }
+      },
+      "map": {
+        "building": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.1059,
+              0.1059,
+              0.1059
+            ],
+            "alpha": 1,
+            "hex": "#1B1B1B"
+          },
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/map/building"
+            }
+          }
+        },
+        "water": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.0784,
+              0.1059,
+              0.1333
+            ],
+            "alpha": 1,
+            "hex": "#141B22"
+          },
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/map/water"
+            }
+          }
+        },
+        "park": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.0863,
+              0.1255,
+              0.102
+            ],
+            "alpha": 1,
+            "hex": "#16201A"
+          },
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/map/park"
+            }
+          }
+        }
+      },
+      "red": {
+        "500": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              0.949,
+              0.4706,
+              0.4196
+            ],
+            "alpha": 1,
+            "hex": "#F2786B"
+          },
+          "$extensions": {
+            "com.runveal": {
+              "figma": "color/red/500"
+            }
+          }
+        }
+      }
+    },
+    "space": {
+      "2": {
+        "$type": "dimension",
+        "$value": {
+          "value": 2,
+          "unit": "px"
+        },
+        "$extensions": {
+          "com.runveal": {
+            "figma": "space/2"
+          }
+        }
+      },
+      "4": {
+        "$type": "dimension",
+        "$value": {
+          "value": 4,
+          "unit": "px"
+        },
+        "$extensions": {
+          "com.runveal": {
+            "figma": "space/4"
+          }
+        }
+      },
+      "8": {
+        "$type": "dimension",
+        "$value": {
+          "value": 8,
+          "unit": "px"
+        },
+        "$extensions": {
+          "com.runveal": {
+            "figma": "space/8"
+          }
+        }
+      },
+      "12": {
+        "$type": "dimension",
+        "$value": {
+          "value": 12,
+          "unit": "px"
+        },
+        "$extensions": {
+          "com.runveal": {
+            "figma": "space/12"
+          }
+        }
+      },
+      "16": {
+        "$type": "dimension",
+        "$value": {
+          "value": 16,
+          "unit": "px"
+        },
+        "$extensions": {
+          "com.runveal": {
+            "figma": "space/16"
+          }
+        }
+      },
+      "20": {
+        "$type": "dimension",
+        "$value": {
+          "value": 20,
+          "unit": "px"
+        },
+        "$extensions": {
+          "com.runveal": {
+            "figma": "space/20"
+          }
+        }
+      },
+      "24": {
+        "$type": "dimension",
+        "$value": {
+          "value": 24,
+          "unit": "px"
+        },
+        "$extensions": {
+          "com.runveal": {
+            "figma": "space/24"
+          }
+        }
+      },
+      "32": {
+        "$type": "dimension",
+        "$value": {
+          "value": 32,
+          "unit": "px"
+        },
+        "$extensions": {
+          "com.runveal": {
+            "figma": "space/32"
+          }
+        }
+      }
+    },
+    "radius": {
+      "8": {
+        "$type": "dimension",
+        "$value": {
+          "value": 8,
+          "unit": "px"
+        },
+        "$extensions": {
+          "com.runveal": {
+            "figma": "radius/8"
+          }
+        }
+      },
+      "16": {
+        "$type": "dimension",
+        "$value": {
+          "value": 16,
+          "unit": "px"
+        },
+        "$extensions": {
+          "com.runveal": {
+            "figma": "radius/16"
+          }
+        }
+      },
+      "24": {
+        "$type": "dimension",
+        "$value": {
+          "value": 24,
+          "unit": "px"
+        },
+        "$extensions": {
+          "com.runveal": {
+            "figma": "radius/24"
+          }
+        }
+      },
+      "full": {
+        "$type": "dimension",
+        "$value": {
+          "value": 999,
+          "unit": "px"
+        },
+        "$description": "완전한 원형(pill). Compose에서는 CircleShape",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "radius/full"
+          }
+        }
+      },
+      "32": {
+        "$type": "dimension",
+        "$value": {
+          "value": 32,
+          "unit": "px"
+        },
+        "$description": "Home Bottom Panel처럼 안에 탭바를 품는 큰 패널",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "radius/32"
+          }
+        }
+      }
+    }
+  },
+  "semantic": {
+    "bg": {
+      "canvas": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.900}",
+        "$description": "화면 전체 배경",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "bg/canvas"
+          }
+        }
+      },
+      "map": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.900}",
+        "$description": "지도 바탕",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "bg/map"
+          }
+        }
+      },
+      "scrim": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            0.0549,
+            0.0549,
+            0.0549
+          ],
+          "alpha": 0.6,
+          "hex": "#0E0E0E"
+        },
+        "$description": "다이얼로그, 바텀시트 뒤를 덮는 어두운 막 (#0E0E0E 60%)",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "bg/scrim"
+          }
+        }
+      }
+    },
+    "surface": {
+      "default": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            0.1529,
+            0.149,
+            0.149
+          ],
+          "alpha": 0.5,
+          "hex": "#272626"
+        },
+        "$description": "카드, 탭바, 일반 버튼, 지도 위 떠 있는 버튼 (반투명)",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "surface/default"
+          }
+        }
+      },
+      "raised": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.800}",
+        "$description": "불투명한 카드, 상단 헤더",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "surface/raised"
+          }
+        }
+      }
+    },
+    "border": {
+      "default": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.700}",
+        "$description": "일반 버튼, 카드 테두리, 구분선",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "border/default"
+          }
+        }
+      },
+      "subtle": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            0.9569,
+            0.9333,
+            0.9176
+          ],
+          "alpha": 0.06,
+          "hex": "#F4EEEA"
+        },
+        "$description": "글래스 카드 가장자리 하이라이트",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "border/subtle"
+          }
+        }
+      }
+    },
+    "text": {
+      "primary": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.50}",
+        "$description": "제목, 본문, 주요 숫자, 일반 버튼 글자",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "text/primary"
+          }
+        }
+      },
+      "secondary": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.200}",
+        "$description": "보조 설명, 단위(km, %)",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "text/secondary"
+          }
+        }
+      },
+      "tertiary": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.400}",
+        "$description": "라벨, 캡션, 비활성 탭",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "text/tertiary"
+          }
+        }
+      },
+      "accent": {
+        "$type": "color",
+        "$value": "{primitive.color.gold.100}",
+        "$description": "강조 숫자, 증가값(+1.3km)",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "text/accent"
+          }
+        }
+      },
+      "on-accent": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.900}",
+        "$description": "골드 버튼 위 글자",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "text/on-accent"
+          }
+        }
+      }
+    },
+    "icon": {
+      "primary": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.50}",
+        "$description": "기본 아이콘, 일반 버튼 아이콘",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "icon/primary"
+          }
+        }
+      },
+      "on-accent": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.900}",
+        "$description": "골드 버튼 위 아이콘",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "icon/on-accent"
+          }
+        }
+      },
+      "tertiary": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.400}",
+        "$description": "비활성 탭 아이콘, 보조 아이콘",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "icon/tertiary"
+          }
+        }
+      }
+    },
+    "accent": {
+      "default": {
+        "$type": "color",
+        "$value": "{primitive.color.gold.100}",
+        "$description": "골드 버튼, 활성 탭, 선택된 토글",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "accent/default"
+          }
+        }
+      },
+      "glow": {
+        "$type": "color",
+        "$value": "{primitive.color.gold.200}",
+        "$description": "빛 번짐 색",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "accent/glow"
+          }
+        }
+      }
+    },
+    "state": {
+      "pressed-on-accent": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            0.0549,
+            0.0549,
+            0.0549
+          ],
+          "alpha": 0.12,
+          "hex": "#0E0E0E"
+        },
+        "$description": "골드 버튼, 활성 탭 위에 덮는 눌림 오버레이 (#0E0E0E 12%)",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "state/pressed-on-accent"
+          }
+        }
+      },
+      "pressed-on-surface": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            0.9569,
+            0.9333,
+            0.9176
+          ],
+          "alpha": 0.08,
+          "hex": "#F4EEEA"
+        },
+        "$description": "일반 버튼, 지도 위 버튼, 탭 위에 덮는 눌림 오버레이 (#F4EEEA 8%)",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "state/pressed-on-surface"
+          }
+        }
+      }
+    },
+    "map": {
+      "road-explored": {
+        "$type": "color",
+        "$value": "{primitive.color.gold.200}",
+        "$description": "내가 달린 길. 블러가 안 되는 지도 SDK면 road-explored-halo 두 겹",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "map/road-explored"
+          }
+        }
+      },
+      "road-new": {
+        "$type": "color",
+        "$value": "{primitive.color.gold.100}",
+        "$description": "이번 러닝에서 새로 탐험한 길 (effect/glow-gold-strong과 함께). 블러가 안 되는 지도 SDK면 road-new-halo 두 겹",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "map/road-new"
+          }
+        }
+      },
+      "road-today": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.50}",
+        "$description": "오늘 달린 길 중 이미 가본 구간",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "map/road-today"
+          }
+        }
+      },
+      "road-unexplored": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            0.9569,
+            0.9333,
+            0.9176
+          ],
+          "alpha": 0.25,
+          "hex": "#F4EEEA"
+        },
+        "$description": "안 가본 길",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "map/road-unexplored"
+          }
+        }
+      },
+      "rail": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.600}",
+        "$description": "지상 철도",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "map/rail"
+          }
+        }
+      },
+      "boundary": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            0.949,
+            0.8784,
+            0.5882
+          ],
+          "alpha": 0.5,
+          "hex": "#F2E096"
+        },
+        "$description": "내 동네 경계",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "map/boundary"
+          }
+        }
+      },
+      "building": {
+        "$type": "color",
+        "$value": "{primitive.color.map.building}",
+        "$description": "건물",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "map/building"
+          }
+        }
+      },
+      "water": {
+        "$type": "color",
+        "$value": "{primitive.color.map.water}",
+        "$description": "한강, 하천, 호수",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "map/water"
+          }
+        }
+      },
+      "park": {
+        "$type": "color",
+        "$value": "{primitive.color.map.park}",
+        "$description": "공원, 녹지",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "map/park"
+          }
+        }
+      },
+      "location": {
+        "$type": "color",
+        "$value": "{primitive.color.blue.500}",
+        "$description": "현재 위치 점",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "map/location"
+          }
+        }
+      },
+      "road-explored-halo": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            0.949,
+            0.8784,
+            0.5882
+          ],
+          "alpha": 0.15,
+          "hex": "#F2E096"
+        },
+        "$description": "[대체용] 블러가 안 되는 지도 SDK에서만 사용. 내가 달린 길 번짐 (#F2E096 15%), road-explored 아래 두 번째 선",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "map/road-explored-halo"
+          }
+        }
+      },
+      "road-new-halo": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            0.9843,
+            0.9373,
+            0.7373
+          ],
+          "alpha": 0.25,
+          "hex": "#FBEFBC"
+        },
+        "$description": "[대체용] 블러가 안 되는 지도 SDK에서만 사용. 새로 탐험한 길 번짐 (#FBEFBC 25%), road-new 아래 두 번째 선",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "map/road-new-halo"
+          }
+        }
+      },
+      "width": {
+        "explored": {
+          "$type": "dimension",
+          "$value": {
+            "value": 2,
+            "unit": "px"
+          },
+          "$description": "내가 달린 길 선 두께 (dp)",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/width/explored"
+            }
+          }
+        },
+        "explored-halo": {
+          "$type": "dimension",
+          "$value": {
+            "value": 5,
+            "unit": "px"
+          },
+          "$description": "[대체용] 내가 달린 길 번짐 전체 두께 (dp)",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/width/explored-halo"
+            }
+          }
+        },
+        "new": {
+          "$type": "dimension",
+          "$value": {
+            "value": 3,
+            "unit": "px"
+          },
+          "$description": "새로 탐험한 길 선 두께 (dp)",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/width/new"
+            }
+          }
+        },
+        "new-halo": {
+          "$type": "dimension",
+          "$value": {
+            "value": 6,
+            "unit": "px"
+          },
+          "$description": "[대체용] 새로 탐험한 길 번짐 전체 두께 (dp)",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/width/new-halo"
+            }
+          }
+        },
+        "today": {
+          "$type": "dimension",
+          "$value": {
+            "value": 3,
+            "unit": "px"
+          },
+          "$description": "오늘 달린 길 중 이미 가본 구간 선 두께 (dp). 번짐 없음",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/width/today"
+            }
+          }
+        },
+        "unexplored": {
+          "$type": "dimension",
+          "$value": {
+            "value": 1,
+            "unit": "px"
+          },
+          "$description": "안 가본 길 선 두께 (dp)",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/width/unexplored"
+            }
+          }
+        }
+      },
+      "dim": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            0.0549,
+            0.0549,
+            0.0549
+          ],
+          "alpha": 0.4,
+          "hex": "#0E0E0E"
+        },
+        "$description": "경로를 강조하는 지도(러닝 결과)에서 배경 지도 위, 경로 아래에 덮는 어두운 막 (#0E0E0E 40%)",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "map/dim"
+          }
+        }
+      },
+      "road-unexplored-focus": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.400}",
+        "$description": "안 가본 길 보기에서 강조되는 안 가본 길 (neutral/400). 이때 달린 길은 레이어 30%로 흐리게",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "map/road-unexplored-focus"
+          }
+        }
+      },
+      "dong": {
+        "stroke-0": {
+          "$type": "color",
+          "$value": "{primitive.color.neutral.800}",
+          "$description": "동 테두리 0단계 (0% (미탐험)), 두께 1",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/dong/stroke-0",
+              "level": 0,
+              "range": "0%"
+            }
+          }
+        },
+        "stroke-1": {
+          "$type": "color",
+          "$value": "{primitive.color.gold.700}",
+          "$description": "동 테두리 1단계 (1~4%), 두께 1",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/dong/stroke-1",
+              "level": 1,
+              "range": "1~4%"
+            }
+          }
+        },
+        "fill-1": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              1,
+              0.9804,
+              0.9098
+            ],
+            "alpha": 0.02,
+            "hex": "#FFFAE8"
+          },
+          "$description": "동 면 1단계 (1~4%), gold/50 2%",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/dong/fill-1",
+              "level": 1,
+              "range": "1~4%"
+            }
+          }
+        },
+        "stroke-2": {
+          "$type": "color",
+          "$value": "{primitive.color.gold.600}",
+          "$description": "동 테두리 2단계 (5~9%), 두께 1",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/dong/stroke-2",
+              "level": 2,
+              "range": "5~9%"
+            }
+          }
+        },
+        "fill-2": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              1,
+              0.9804,
+              0.9098
+            ],
+            "alpha": 0.04,
+            "hex": "#FFFAE8"
+          },
+          "$description": "동 면 2단계 (5~9%), gold/50 4%",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/dong/fill-2",
+              "level": 2,
+              "range": "5~9%"
+            }
+          }
+        },
+        "stroke-3": {
+          "$type": "color",
+          "$value": "{primitive.color.gold.500}",
+          "$description": "동 테두리 3단계 (10~19%), 두께 1.2",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/dong/stroke-3",
+              "level": 3,
+              "range": "10~19%"
+            }
+          }
+        },
+        "fill-3": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              1,
+              0.9804,
+              0.9098
+            ],
+            "alpha": 0.08,
+            "hex": "#FFFAE8"
+          },
+          "$description": "동 면 3단계 (10~19%), gold/50 8%",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/dong/fill-3",
+              "level": 3,
+              "range": "10~19%"
+            }
+          }
+        },
+        "stroke-4": {
+          "$type": "color",
+          "$value": "{primitive.color.gold.400}",
+          "$description": "동 테두리 4단계 (20~39%), 두께 1.6",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/dong/stroke-4",
+              "level": 4,
+              "range": "20~39%"
+            }
+          }
+        },
+        "fill-4": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              1,
+              0.9804,
+              0.9098
+            ],
+            "alpha": 0.14,
+            "hex": "#FFFAE8"
+          },
+          "$description": "동 면 4단계 (20~39%), gold/50 14%",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/dong/fill-4",
+              "level": 4,
+              "range": "20~39%"
+            }
+          }
+        },
+        "stroke-5": {
+          "$type": "color",
+          "$value": "{primitive.color.gold.200}",
+          "$description": "동 테두리 5단계 (40~69%), 두께 2",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/dong/stroke-5",
+              "level": 5,
+              "range": "40~69%"
+            }
+          }
+        },
+        "fill-5": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              1,
+              0.9804,
+              0.9098
+            ],
+            "alpha": 0.24,
+            "hex": "#FFFAE8"
+          },
+          "$description": "동 면 5단계 (40~69%), gold/50 24%",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/dong/fill-5",
+              "level": 5,
+              "range": "40~69%"
+            }
+          }
+        },
+        "stroke-6": {
+          "$type": "color",
+          "$value": "{primitive.color.gold.100}",
+          "$description": "동 테두리 6단계 (70~100%), 두께 2",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/dong/stroke-6",
+              "level": 6,
+              "range": "70~100%"
+            }
+          }
+        },
+        "fill-6": {
+          "$type": "color",
+          "$value": {
+            "colorSpace": "srgb",
+            "components": [
+              1,
+              0.9804,
+              0.9098
+            ],
+            "alpha": 0.36,
+            "hex": "#FFFAE8"
+          },
+          "$description": "동 면 6단계 (70~100%), gold/50 36%",
+          "$extensions": {
+            "com.runveal": {
+              "figma": "map/dong/fill-6",
+              "level": 6,
+              "range": "70~100%"
+            }
+          }
+        }
+      }
+    },
+    "status": {
+      "error": {
+        "$type": "color",
+        "$value": "{primitive.color.red.500}",
+        "$description": "에러 글자, 아이콘, 입력창 테두리, 삭제 버튼 글자",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "status/error"
+          }
+        }
+      },
+      "error-subtle": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            0.949,
+            0.4706,
+            0.4196
+          ],
+          "alpha": 0.12,
+          "hex": "#F2786B"
+        },
+        "$description": "화면 안에 고정되는 에러 배너 배경 (#F2786B 12%). 토스트는 surface/raised 사용",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "status/error-subtle"
+          }
+        }
+      }
+    },
+    "progress": {
+      "track": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            0.9569,
+            0.9333,
+            0.9176
+          ],
+          "alpha": 0.12,
+          "hex": "#F4EEEA"
+        },
+        "$description": "진행 바 빈 트랙 (#F4EEEA 12%)",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "progress/track"
+          }
+        }
+      },
+      "filled": {
+        "$type": "color",
+        "$value": "{primitive.color.gold.500}",
+        "$description": "진행 바 - 기존에 채운 탐험률",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "progress/filled"
+          }
+        }
+      },
+      "gained": {
+        "$type": "color",
+        "$value": "{primitive.color.gold.100}",
+        "$description": "진행 바 - 이번 러닝으로 새로 늘어난 탐험률 (effect/glow-gold와 함께)",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "progress/gained"
+          }
+        }
+      }
+    }
+  },
+  "font": {
+    "family": {
+      "pretendard": {
+        "$type": "fontFamily",
+        "$value": [
+          "Pretendard",
+          "sans-serif"
+        ],
+        "$description": "한글, UI 글자. Regular, SemiBold 두 굵기만 사용"
+      },
+      "geist": {
+        "$type": "fontFamily",
+        "$value": [
+          "Geist",
+          "sans-serif"
+        ],
+        "$description": "강조 숫자 전용. ExtraLight, Light 두 굵기만 사용"
+      }
+    },
+    "weight": {
+      "extralight": {
+        "$type": "fontWeight",
+        "$value": 200
+      },
+      "light": {
+        "$type": "fontWeight",
+        "$value": 300
+      },
+      "regular": {
+        "$type": "fontWeight",
+        "$value": 400
+      },
+      "semibold": {
+        "$type": "fontWeight",
+        "$value": 600
+      }
+    }
+  },
+  "typography": {
+    "$description": "숫자와 단위는 같은 단계끼리 짝(display 48+28, l 32+20, m 24+14, s 14+11), 단위 색은 semantic.text.secondary. 라벨 줄 안의 숫자는 body(Pretendard). 최소 글자 11. lineHeight는 배수, 원래 px는 $extensions",
+    "num": {
+      "display": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.geist}",
+          "fontWeight": "{font.weight.extralight}",
+          "fontSize": {
+            "value": 48,
+            "unit": "px"
+          },
+          "lineHeight": 1.0,
+          "letterSpacing": {
+            "value": -0.96,
+            "unit": "px"
+          }
+        },
+        "$description": "Display number - 홈 요약 카드 동네 탐험률 37%. unit/display와 짝",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "num/display",
+            "lineHeightPx": 48,
+            "letterSpacingPercent": -2
+          }
+        }
+      },
+      "l": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.geist}",
+          "fontWeight": "{font.weight.light}",
+          "fontSize": {
+            "value": 32,
+            "unit": "px"
+          },
+          "lineHeight": 1.0,
+          "letterSpacing": {
+            "value": -0.64,
+            "unit": "px"
+          }
+        },
+        "$description": "Large number - 지도 화면 상단 탐험률, 지도 위 내 동네 라벨, 결과 +1.3km. unit/l과 짝",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "num/l",
+            "lineHeightPx": 32,
+            "letterSpacingPercent": -2
+          }
+        }
+      },
+      "m": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.geist}",
+          "fontWeight": "{font.weight.light}",
+          "fontSize": {
+            "value": 24,
+            "unit": "px"
+          },
+          "lineHeight": 1.0,
+          "letterSpacing": {
+            "value": -0.24,
+            "unit": "px"
+          }
+        },
+        "$description": "Stats - 결과 화면 거리, 시간, 페이스. unit/m과 짝",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "num/m",
+            "lineHeightPx": 24,
+            "letterSpacingPercent": -1
+          }
+        }
+      },
+      "s": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.geist}",
+          "fontWeight": "{font.weight.light}",
+          "fontSize": {
+            "value": 14,
+            "unit": "px"
+          },
+          "lineHeight": 1.1429,
+          "letterSpacing": {
+            "value": 0.0,
+            "unit": "px"
+          }
+        },
+        "$description": "Small number - 지도 위 다른 동 % 라벨. unit/s와 짝",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "num/s",
+            "lineHeightPx": 16,
+            "letterSpacingPercent": 0
+          }
+        }
+      }
+    },
+    "unit": {
+      "display": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.geist}",
+          "fontWeight": "{font.weight.light}",
+          "fontSize": {
+            "value": 28,
+            "unit": "px"
+          },
+          "lineHeight": 1.0,
+          "letterSpacing": {
+            "value": 0.0,
+            "unit": "px"
+          }
+        },
+        "$description": "Unit for num/display - %. 색은 text/secondary",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "unit/display",
+            "lineHeightPx": 28,
+            "letterSpacingPercent": 0
+          }
+        }
+      },
+      "l": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.geist}",
+          "fontWeight": "{font.weight.light}",
+          "fontSize": {
+            "value": 20,
+            "unit": "px"
+          },
+          "lineHeight": 1.0,
+          "letterSpacing": {
+            "value": 0.0,
+            "unit": "px"
+          }
+        },
+        "$description": "Unit for num/l - %, km. 색은 text/secondary",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "unit/l",
+            "lineHeightPx": 20,
+            "letterSpacingPercent": 0
+          }
+        }
+      },
+      "m": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.geist}",
+          "fontWeight": "{font.weight.light}",
+          "fontSize": {
+            "value": 14,
+            "unit": "px"
+          },
+          "lineHeight": 1.1429,
+          "letterSpacing": {
+            "value": 0.0,
+            "unit": "px"
+          }
+        },
+        "$description": "Unit for num/m - km, %, /km. 색은 text/secondary",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "unit/m",
+            "lineHeightPx": 16,
+            "letterSpacingPercent": 0
+          }
+        }
+      },
+      "s": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.geist}",
+          "fontWeight": "{font.weight.light}",
+          "fontSize": {
+            "value": 11,
+            "unit": "px"
+          },
+          "lineHeight": 1.0909,
+          "letterSpacing": {
+            "value": 0.0,
+            "unit": "px"
+          }
+        },
+        "$description": "Unit for num/s - % (최소 11). 색은 text/secondary",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "unit/s",
+            "lineHeightPx": 12,
+            "letterSpacingPercent": 0
+          }
+        }
+      }
+    },
+    "heading": {
+      "1": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.pretendard}",
+          "fontWeight": "{font.weight.regular}",
+          "fontSize": {
+            "value": 28,
+            "unit": "px"
+          },
+          "lineHeight": 1.2857,
+          "letterSpacing": {
+            "value": -0.28,
+            "unit": "px"
+          }
+        },
+        "$description": "큰 제목 Regular (현재 화면에서 미사용)",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "heading/1",
+            "lineHeightPx": 36,
+            "letterSpacingPercent": -1
+          }
+        }
+      },
+      "1-semibold": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.pretendard}",
+          "fontWeight": "{font.weight.semibold}",
+          "fontSize": {
+            "value": 28,
+            "unit": "px"
+          },
+          "lineHeight": 1.2857,
+          "letterSpacing": {
+            "value": -0.28,
+            "unit": "px"
+          }
+        },
+        "$description": "화면 대표 제목 - 홈 헤드라인, 러닝 완료!",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "heading/1-semibold",
+            "lineHeightPx": 36,
+            "letterSpacingPercent": -1
+          }
+        }
+      },
+      "2": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.pretendard}",
+          "fontWeight": "{font.weight.semibold}",
+          "fontSize": {
+            "value": 24,
+            "unit": "px"
+          },
+          "lineHeight": 1.3333,
+          "letterSpacing": {
+            "value": -0.24,
+            "unit": "px"
+          }
+        },
+        "$description": "Screen title",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "heading/2",
+            "lineHeightPx": 32,
+            "letterSpacingPercent": -1
+          }
+        }
+      },
+      "3": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.pretendard}",
+          "fontWeight": "{font.weight.semibold}",
+          "fontSize": {
+            "value": 18,
+            "unit": "px"
+          },
+          "lineHeight": 1.3333,
+          "letterSpacing": {
+            "value": 0.0,
+            "unit": "px"
+          }
+        },
+        "$description": "Section title - 성수동",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "heading/3",
+            "lineHeightPx": 24,
+            "letterSpacingPercent": 0
+          }
+        }
+      }
+    },
+    "body": {
+      "l-regular": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.pretendard}",
+          "fontWeight": "{font.weight.regular}",
+          "fontSize": {
+            "value": 16,
+            "unit": "px"
+          },
+          "lineHeight": 1.5,
+          "letterSpacing": {
+            "value": 0.0,
+            "unit": "px"
+          }
+        },
+        "$extensions": {
+          "com.runveal": {
+            "figma": "body/l-regular",
+            "lineHeightPx": 24,
+            "letterSpacingPercent": 0
+          }
+        }
+      },
+      "l-semibold": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.pretendard}",
+          "fontWeight": "{font.weight.semibold}",
+          "fontSize": {
+            "value": 16,
+            "unit": "px"
+          },
+          "lineHeight": 1.5,
+          "letterSpacing": {
+            "value": 0.0,
+            "unit": "px"
+          }
+        },
+        "$extensions": {
+          "com.runveal": {
+            "figma": "body/l-semibold",
+            "lineHeightPx": 24,
+            "letterSpacingPercent": 0
+          }
+        }
+      },
+      "m-regular": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.pretendard}",
+          "fontWeight": "{font.weight.regular}",
+          "fontSize": {
+            "value": 14,
+            "unit": "px"
+          },
+          "lineHeight": 1.4286,
+          "letterSpacing": {
+            "value": 0.0,
+            "unit": "px"
+          }
+        },
+        "$extensions": {
+          "com.runveal": {
+            "figma": "body/m-regular",
+            "lineHeightPx": 20,
+            "letterSpacingPercent": 0
+          }
+        }
+      },
+      "m-semibold": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.pretendard}",
+          "fontWeight": "{font.weight.semibold}",
+          "fontSize": {
+            "value": 14,
+            "unit": "px"
+          },
+          "lineHeight": 1.4286,
+          "letterSpacing": {
+            "value": 0.0,
+            "unit": "px"
+          }
+        },
+        "$extensions": {
+          "com.runveal": {
+            "figma": "body/m-semibold",
+            "lineHeightPx": 20,
+            "letterSpacingPercent": 0
+          }
+        }
+      }
+    },
+    "label": {
+      "button": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.pretendard}",
+          "fontWeight": "{font.weight.semibold}",
+          "fontSize": {
+            "value": 15,
+            "unit": "px"
+          },
+          "lineHeight": 1.3333,
+          "letterSpacing": {
+            "value": 0.0,
+            "unit": "px"
+          }
+        },
+        "$description": "Buttons",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "label/button",
+            "lineHeightPx": 20,
+            "letterSpacingPercent": 0
+          }
+        }
+      }
+    },
+    "caption": {
+      "m-regular": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.pretendard}",
+          "fontWeight": "{font.weight.regular}",
+          "fontSize": {
+            "value": 12,
+            "unit": "px"
+          },
+          "lineHeight": 1.3333,
+          "letterSpacing": {
+            "value": 0.0,
+            "unit": "px"
+          }
+        },
+        "$description": "Control labels, legend",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "caption/m-regular",
+            "lineHeightPx": 16,
+            "letterSpacingPercent": 0
+          }
+        }
+      },
+      "s-regular": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.pretendard}",
+          "fontWeight": "{font.weight.regular}",
+          "fontSize": {
+            "value": 11,
+            "unit": "px"
+          },
+          "lineHeight": 1.4545,
+          "letterSpacing": {
+            "value": 0.0,
+            "unit": "px"
+          }
+        },
+        "$description": "Map dong names, tab labels (min size)",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "caption/s-regular",
+            "lineHeightPx": 16,
+            "letterSpacingPercent": 0
+          }
+        }
+      },
+      "s-semibold": {
+        "$type": "typography",
+        "$value": {
+          "fontFamily": "{font.family.pretendard}",
+          "fontWeight": "{font.weight.semibold}",
+          "fontSize": {
+            "value": 11,
+            "unit": "px"
+          },
+          "lineHeight": 1.4545,
+          "letterSpacing": {
+            "value": 0.0,
+            "unit": "px"
+          }
+        },
+        "$description": "Active tab label",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "caption/s-semibold",
+            "lineHeightPx": 16,
+            "letterSpacingPercent": 0
+          }
+        }
+      }
+    }
+  },
+  "effect": {
+    "$description": "Figma 효과 스타일. blur는 Figma 값 그대로라 기기에서 눈으로 한 번 맞춰야 할 수 있음",
+    "glow-gold": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0.949,
+              0.878,
+              0.588
+            ],
+            "alpha": 0.7,
+            "hex": "#F2E096"
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 0,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 8,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
+          }
+        }
+      ],
+      "$description": "숫자, 진행 바, 선택 상태, 지도 위 강조선. accent/glow @70%, blur 8",
+      "$extensions": {
+        "com.runveal": {
+          "figma": "effect/glow-gold"
+        }
+      }
+    },
+    "glow-gold-strong": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0.949,
+              0.878,
+              0.588
+            ],
+            "alpha": 0.8,
+            "hex": "#F2E096"
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 0,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 16,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
+          }
+        },
+        {
+          "color": {
+            "colorSpace": "srgb",
+            "components": [
+              0.949,
+              0.878,
+              0.588
+            ],
+            "alpha": 1,
+            "hex": "#F2E096"
+          },
+          "offsetX": {
+            "value": 0,
+            "unit": "px"
+          },
+          "offsetY": {
+            "value": 0,
+            "unit": "px"
+          },
+          "blur": {
+            "value": 4,
+            "unit": "px"
+          },
+          "spread": {
+            "value": 0,
+            "unit": "px"
+          }
+        }
+      ],
+      "$description": "새로 탐험한 길, 활성 마커, 결과 공유 이미지. 지도 SDK가 블러를 못 쓰면 지도 위에서는 두 겹 선(road-new + road-new-halo)으로 대체",
+      "$extensions": {
+        "com.runveal": {
+          "figma": "effect/glow-gold-strong"
+        }
+      }
+    },
+    "glass": {
+      "blur": {
+        "$type": "dimension",
+        "$value": {
+          "value": 13,
+          "unit": "px"
+        },
+        "$description": "뒤 배경 블러. 배경 semantic.surface.default + 테두리 semantic.border.default 1px. Android 12(API 31) 이상만"
+      },
+      "fallback-surface": {
+        "$type": "color",
+        "$value": {
+          "colorSpace": "srgb",
+          "components": [
+            0.1529,
+            0.149,
+            0.149
+          ],
+          "alpha": 0.85,
+          "hex": "#272626"
+        },
+        "$description": "Android 12 미만 - 블러 대신 neutral/800 85% + 테두리 semantic.border.subtle 1px"
+      },
+      "$description": "계속 떠 있는 요소(GNB, 지도 버튼, 토글, 홈 패널, 다이얼로그). 토스트, 바텀시트는 불투명(surface.raised)"
+    },
+    "dong": {
+      "$description": "동 면 빛, 키 = 탐험률 단계. 0단계는 효과 없음. 안쪽 빛(inset)은 동 면을 앱이 직접 그릴 때만 가능",
+      "1": {
+        "$type": "shadow",
+        "$value": [
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.9843,
+                0.9373,
+                0.7373
+              ],
+              "alpha": 0.3,
+              "hex": "#FBEFBC"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 10,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            }
+          },
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.9843,
+                0.9373,
+                0.7373
+              ],
+              "alpha": 1,
+              "hex": "#FBEFBC"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 3,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            },
+            "inset": true
+          },
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.949,
+                0.8784,
+                0.5882
+              ],
+              "alpha": 0.03,
+              "hex": "#F2E096"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 20,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            },
+            "inset": true
+          }
+        ],
+        "$description": "동 면 빛 1단계 (1~4%). 안쪽 빛은 앱이 직접 그리는 경우에만",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "effect/dong-1",
+            "blendModes": [
+              "NORMAL",
+              "NORMAL",
+              "LINEAR_DODGE"
+            ]
+          }
+        }
+      },
+      "2": {
+        "$type": "shadow",
+        "$value": [
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.9843,
+                0.9373,
+                0.7373
+              ],
+              "alpha": 0.6,
+              "hex": "#FBEFBC"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 10,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            }
+          },
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.9843,
+                0.9373,
+                0.7373
+              ],
+              "alpha": 1,
+              "hex": "#FBEFBC"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 7,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            },
+            "inset": true
+          },
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.949,
+                0.8784,
+                0.5882
+              ],
+              "alpha": 0.07,
+              "hex": "#F2E096"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 20,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            },
+            "inset": true
+          }
+        ],
+        "$description": "동 면 빛 2단계 (5~9%). 안쪽 빛은 앱이 직접 그리는 경우에만",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "effect/dong-2",
+            "blendModes": [
+              "NORMAL",
+              "NORMAL",
+              "LINEAR_DODGE"
+            ]
+          }
+        }
+      },
+      "3": {
+        "$type": "shadow",
+        "$value": [
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.9843,
+                0.9373,
+                0.7373
+              ],
+              "alpha": 0.75,
+              "hex": "#FBEFBC"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 10,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            }
+          },
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.9843,
+                0.9373,
+                0.7373
+              ],
+              "alpha": 1,
+              "hex": "#FBEFBC"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 12,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            },
+            "inset": true
+          },
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.949,
+                0.8784,
+                0.5882
+              ],
+              "alpha": 0.12,
+              "hex": "#F2E096"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 30,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            },
+            "inset": true
+          }
+        ],
+        "$description": "동 면 빛 3단계 (10~19%). 안쪽 빛은 앱이 직접 그리는 경우에만",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "effect/dong-3",
+            "blendModes": [
+              "NORMAL",
+              "NORMAL",
+              "LINEAR_DODGE"
+            ]
+          }
+        }
+      },
+      "4": {
+        "$type": "shadow",
+        "$value": [
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.9843,
+                0.9373,
+                0.7373
+              ],
+              "alpha": 0.9,
+              "hex": "#FBEFBC"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 10,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            }
+          },
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.9843,
+                0.9373,
+                0.7373
+              ],
+              "alpha": 1,
+              "hex": "#FBEFBC"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 24,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            },
+            "inset": true
+          },
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.949,
+                0.8784,
+                0.5882
+              ],
+              "alpha": 0.25,
+              "hex": "#F2E096"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 30,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            },
+            "inset": true
+          }
+        ],
+        "$description": "동 면 빛 4단계 (20~39%). 안쪽 빛은 앱이 직접 그리는 경우에만",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "effect/dong-4",
+            "blendModes": [
+              "NORMAL",
+              "NORMAL",
+              "LINEAR_DODGE"
+            ]
+          }
+        }
+      },
+      "5": {
+        "$type": "shadow",
+        "$value": [
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.9843,
+                0.9373,
+                0.7373
+              ],
+              "alpha": 1,
+              "hex": "#FBEFBC"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 12,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            }
+          },
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.9843,
+                0.9373,
+                0.7373
+              ],
+              "alpha": 1,
+              "hex": "#FBEFBC"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 40,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            },
+            "inset": true
+          },
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.949,
+                0.8784,
+                0.5882
+              ],
+              "alpha": 0.45,
+              "hex": "#F2E096"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 40,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            },
+            "inset": true
+          }
+        ],
+        "$description": "동 면 빛 5단계 (40~69%). 안쪽 빛은 앱이 직접 그리는 경우에만",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "effect/dong-5",
+            "blendModes": [
+              "NORMAL",
+              "NORMAL",
+              "LINEAR_DODGE"
+            ]
+          }
+        }
+      },
+      "6": {
+        "$type": "shadow",
+        "$value": [
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.9843,
+                0.9373,
+                0.7373
+              ],
+              "alpha": 1,
+              "hex": "#FBEFBC"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 16,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            }
+          },
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.9843,
+                0.9373,
+                0.7373
+              ],
+              "alpha": 1,
+              "hex": "#FBEFBC"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 50,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            },
+            "inset": true
+          },
+          {
+            "color": {
+              "colorSpace": "srgb",
+              "components": [
+                0.949,
+                0.8784,
+                0.5882
+              ],
+              "alpha": 0.7,
+              "hex": "#F2E096"
+            },
+            "offsetX": {
+              "value": 0,
+              "unit": "px"
+            },
+            "offsetY": {
+              "value": 0,
+              "unit": "px"
+            },
+            "blur": {
+              "value": 50,
+              "unit": "px"
+            },
+            "spread": {
+              "value": 0,
+              "unit": "px"
+            },
+            "inset": true
+          }
+        ],
+        "$description": "동 면 빛 6단계 (70~100%). 안쪽 빛은 앱이 직접 그리는 경우에만",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "effect/dong-6",
+            "blendModes": [
+              "NORMAL",
+              "NORMAL",
+              "LINEAR_DODGE"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "layout": {
+    "$description": "Foundations_Layout 규칙. 기준 360x800, 대응 너비 320~480(별도 디자인 없이 오토레이아웃), 세로 고정. 하단 고정 요소는 내비게이션 바(WindowInsets) 위 기준",
+    "screen": {
+      "base-width": {
+        "$type": "dimension",
+        "$value": {
+          "value": 360,
+          "unit": "px"
+        },
+        "$description": "기준 너비"
+      },
+      "base-height": {
+        "$type": "dimension",
+        "$value": {
+          "value": 800,
+          "unit": "px"
+        },
+        "$description": "기준 높이"
+      },
+      "min-width": {
+        "$type": "dimension",
+        "$value": {
+          "value": 320,
+          "unit": "px"
+        },
+        "$description": "최소 대응 너비"
+      },
+      "max-content-width": {
+        "$type": "dimension",
+        "$value": {
+          "value": 480,
+          "unit": "px"
+        },
+        "$description": "최대 콘텐츠 너비, 넘으면 가운데 정렬"
+      },
+      "status-bar": {
+        "$type": "dimension",
+        "$value": {
+          "value": 52,
+          "unit": "px"
+        },
+        "$description": "상태 바(펀치홀 기기 기준) - 실제는 인셋"
+      },
+      "navigation-bar": {
+        "$type": "dimension",
+        "$value": {
+          "value": 24,
+          "unit": "px"
+        },
+        "$description": "제스처 내비게이션 바 - 실제는 인셋"
+      }
+    },
+    "margin": {
+      "screen": {
+        "$type": "dimension",
+        "$value": {
+          "value": 16,
+          "unit": "px"
+        },
+        "$description": "화면 좌우 여백 - 카드, 버튼, 토글, GNB, 카드 밖 글자 모두"
+      },
+      "card-padding": {
+        "$type": "dimension",
+        "$value": {
+          "value": 20,
+          "unit": "px"
+        },
+        "$description": "카드 안쪽 여백"
+      },
+      "home-panel": {
+        "$type": "dimension",
+        "$value": {
+          "value": 10,
+          "unit": "px"
+        },
+        "$description": "예외 - 홈 하단 패널(GNB 위치 고정, 패널이 바깥 6만큼 감쌈)"
+      },
+      "result-summary": {
+        "$type": "dimension",
+        "$value": {
+          "value": 40,
+          "unit": "px"
+        },
+        "$description": "예외 - 러닝 결과 요약 수치 영역"
+      },
+      "map-controls": {
+        "$type": "dimension",
+        "$value": {
+          "value": 28,
+          "unit": "px"
+        },
+        "$description": "예외 - 지도 하단 버튼 줄"
+      }
+    },
+    "size": {
+      "touch-target-min": {
+        "$type": "dimension",
+        "$value": {
+          "value": 48,
+          "unit": "px"
+        },
+        "$description": "최소 터치 영역"
+      },
+      "button-height": {
+        "$type": "dimension",
+        "$value": {
+          "value": 52,
+          "unit": "px"
+        },
+        "$description": "버튼 높이"
+      },
+      "icon-button-l": {
+        "$type": "dimension",
+        "$value": {
+          "value": 52,
+          "unit": "px"
+        },
+        "$description": "지도 위 버튼"
+      },
+      "icon-button-m": {
+        "$type": "dimension",
+        "$value": {
+          "value": 44,
+          "unit": "px"
+        },
+        "$description": "작은 지도 버튼(터치 영역 48)"
+      },
+      "run-start": {
+        "$type": "dimension",
+        "$value": {
+          "value": 92,
+          "unit": "px"
+        },
+        "$description": "러닝 시작 버튼 지름"
+      },
+      "top-app-bar": {
+        "$type": "dimension",
+        "$value": {
+          "value": 56,
+          "unit": "px"
+        },
+        "$description": "상단 앱바 높이"
+      },
+      "tab-bar": {
+        "$type": "dimension",
+        "$value": {
+          "value": 56,
+          "unit": "px"
+        },
+        "$description": "플로팅 GNB 높이"
+      },
+      "segmented-toggle": {
+        "$type": "dimension",
+        "$value": {
+          "value": 48,
+          "unit": "px"
+        },
+        "$description": "보기 전환 토글 높이"
+      },
+      "text-field": {
+        "$type": "dimension",
+        "$value": {
+          "value": 52,
+          "unit": "px"
+        },
+        "$description": "입력칸 높이"
+      },
+      "dialog-width": {
+        "$type": "dimension",
+        "$value": {
+          "value": 296,
+          "unit": "px"
+        },
+        "$description": "다이얼로그 너비"
+      },
+      "icon": {
+        "$type": "dimension",
+        "$value": {
+          "value": 24,
+          "unit": "px"
+        },
+        "$description": "아이콘"
+      },
+      "progress-bar": {
+        "$type": "dimension",
+        "$value": {
+          "value": 6,
+          "unit": "px"
+        },
+        "$description": "진행 바 높이"
+      }
+    },
+    "map-dong-level": {
+      "$description": "동 탐험률 단계 범위와 테두리 두께. 밝기는 탐험률만 뜻함. 내 동네는 단계 스타일 그대로, 테두리만 2",
+      "stroke-width": {
+        "0": {
+          "$type": "dimension",
+          "$value": {
+            "value": 1,
+            "unit": "px"
+          },
+          "$description": "0단계 (0%) 테두리 두께"
+        },
+        "1": {
+          "$type": "dimension",
+          "$value": {
+            "value": 1,
+            "unit": "px"
+          },
+          "$description": "1단계 (1~4%) 테두리 두께"
+        },
+        "2": {
+          "$type": "dimension",
+          "$value": {
+            "value": 1,
+            "unit": "px"
+          },
+          "$description": "2단계 (5~9%) 테두리 두께"
+        },
+        "3": {
+          "$type": "dimension",
+          "$value": {
+            "value": 1.2,
+            "unit": "px"
+          },
+          "$description": "3단계 (10~19%) 테두리 두께"
+        },
+        "4": {
+          "$type": "dimension",
+          "$value": {
+            "value": 1.6,
+            "unit": "px"
+          },
+          "$description": "4단계 (20~39%) 테두리 두께"
+        },
+        "5": {
+          "$type": "dimension",
+          "$value": {
+            "value": 2,
+            "unit": "px"
+          },
+          "$description": "5단계 (40~69%) 테두리 두께"
+        },
+        "6": {
+          "$type": "dimension",
+          "$value": {
+            "value": 2,
+            "unit": "px"
+          },
+          "$description": "6단계 (70~100%) 테두리 두께"
+        }
+      },
+      "mine-stroke-width": {
+        "$type": "dimension",
+        "$value": {
+          "value": 2,
+          "unit": "px"
+        },
+        "$description": "내 동네 테두리 두께"
+      }
+    }
+  },
+  "$extensions": {
+    "com.runveal": {
+      "numberFormat": {
+        "distance": "km, 소수 둘째 자리 (5.21)",
+        "duration": "1시간 미만 mm:ss, 이상 h:mm:ss (31:40, 1:05:12)",
+        "pace": "1km당 분'초\" (6'05\")",
+        "rate": "정수 % (37)",
+        "gained": "+ 표시, 거리 소수 첫째 자리, 탐험률 정수 (+1.3km, +2%)",
+        "total-distance": "km, 소수 첫째 자리 (35.1)"
+      }
+    }
+  }
+}
