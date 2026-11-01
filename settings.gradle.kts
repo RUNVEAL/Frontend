@@ -33,5 +33,6 @@ dependencyResolutionManagement {
     }
 }
 
-include(":androidApp")
+include(":androidApp:app")
+include(":androidApp:feature:main")
 include(":sharedLogic")
