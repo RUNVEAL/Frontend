@@ -24,6 +24,12 @@ dependencyResolutionManagement {
             }
         }
         mavenCentral()
+        // Kakao SDK for Android - Maven Central에 없음
+        maven("https://devrepo.kakao.com/nexus/content/groups/public/") {
+            mavenContent {
+                includeGroup("com.kakao.sdk")
+            }
+        }
     }
 }
 
