@@ -3,7 +3,6 @@ package com.swyp.runveal.designsystem
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import com.swyp.runveal.feature.main.R
 
 /** Pretendard - 한글, UI 글자. Regular / SemiBold만 사용 */
 val pretendardFontFamily: FontFamily = FontFamily(

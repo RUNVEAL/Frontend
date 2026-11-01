@@ -5,22 +5,17 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
-// design/runveal-tokens.json → Kotlin 디자인 토큰 자동 생성
-apply(from = rootProject.file("gradle/runveal-tokens.gradle.kts"))
-
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_11
     }
 }
 
-tasks.named("preBuild") {
-    dependsOn("generateRunvealTokens")
-}
-
 dependencies {
+    implementation(project(":androidApp:core:designsystem"))
     implementation(project(":sharedLogic"))
 
+    implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.viewmodelCompose)
     implementation(libs.androidx.lifecycle.runtimeCompose)
 
@@ -33,8 +28,6 @@ dependencies {
 }
 
 android {
-    sourceSets["main"].kotlin.srcDir(layout.buildDirectory.dir("generated/runvealTokens/commonMain/kotlin").get())
-
     namespace = "com.swyp.runveal.feature.main"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 

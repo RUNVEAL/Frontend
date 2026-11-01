@@ -2,7 +2,6 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.androidApplication)
-    alias(libs.plugins.composeCompiler)
 }
 
 kotlin {
@@ -13,13 +12,7 @@ kotlin {
 
 dependencies {
     implementation(project(":androidApp:feature:main"))
-    implementation(project(":sharedLogic"))
-
-    implementation(libs.androidx.activity.compose)
-
-    implementation(libs.compose.runtime)
-    implementation(libs.compose.uiToolingPreview)
-    debugImplementation(libs.compose.uiTooling)
+    implementation(project(":androidApp:core:permission"))
 }
 
 android {
@@ -50,8 +43,5 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-    buildFeatures {
-        compose = true
     }
 }

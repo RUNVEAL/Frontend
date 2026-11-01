@@ -34,5 +34,7 @@ dependencyResolutionManagement {
 }
 
 include(":androidApp:app")
+include(":androidApp:core:designsystem")
+include(":androidApp:core:permission")
 include(":androidApp:feature:main")
 include(":sharedLogic")
