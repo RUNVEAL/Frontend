@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="run_start_button_default_label">러닝 시작</string>
+    <string name="dong_mine_tag">내 동네</string>
+    <string name="percent_unit">%</string>
+    <string name="legend_new">새로 탐험한 길</string>
+    <string name="legend_today">오늘 달린 길</string>
+    <string name="legend_explored">내가 달린 길</string>
+</resources>
