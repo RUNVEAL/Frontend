@@ -1,4 +1,4 @@
-package com.swyp.runveal.designsystem
+package com.swyp.runveal.designsystem.theme
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
@@ -7,6 +7,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.swyp.runveal.designsystem.RunvealColors
+import com.swyp.runveal.designsystem.RunvealEffects
+import com.swyp.runveal.designsystem.RunvealLayout
+import com.swyp.runveal.designsystem.RunvealMapStroke
+import com.swyp.runveal.designsystem.RunvealPalette
+import com.swyp.runveal.designsystem.RunvealRadius
+import com.swyp.runveal.designsystem.RunvealSpacing
+import com.swyp.runveal.designsystem.RunvealTypography
+import com.swyp.runveal.designsystem.map.RunvealDong
 
 /** Runveal은 다크 모드 하나라 색은 하나의 인스턴스를 공유한다. */
 internal val DefaultRunvealColors = RunvealColors()

@@ -1,8 +1,13 @@
-package com.swyp.runveal.designsystem
+package com.swyp.runveal.designsystem.map
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
+import com.swyp.runveal.designsystem.RunvealColors
+import com.swyp.runveal.designsystem.RunvealEffects
+import com.swyp.runveal.designsystem.RunvealLayout
+import com.swyp.runveal.designsystem.theme.DefaultRunvealColors
+import com.swyp.runveal.designsystem.theme.RunvealShadow
 
 /** 동 하나를 그릴 때 필요한 스타일 묶음. */
 @Immutable

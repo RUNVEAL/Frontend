@@ -194,6 +194,7 @@ class RunvealTokenGenerator(private val root: Map<String, Any?>, private val pkg
         |import androidx.compose.ui.unit.Dp
         |import androidx.compose.ui.unit.dp
         |import androidx.compose.ui.unit.sp
+        |import com.swyp.runveal.designsystem.theme.RunvealShadow
     """.trimMargin()
 
     private fun fileStart() = "$header@file:Suppress(\"unused\", \"RedundantVisibilityModifier\")\n\npackage $pkg\n\n$imports\n\n"

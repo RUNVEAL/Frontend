@@ -1,0 +1,710 @@
+{
+  "$description": "Runveal 1차 컴포넌트 스펙. 값은 runveal-tokens.json 토큰 참조({semantic.*}, {typography.*}, {primitive.*}, {layout.*}, {effect.*}) 또는 dp 숫자. 다크 모드 하나",
+  "$source": "Figma [RUNVEAL] Design System 페이지 > 1차 Components",
+  "conventions": {
+    "units": "숫자는 dp",
+    "pressed": "누르면 위에 overlay 색을 덮음(색 자체를 바꾸지 않음)",
+    "disabled": "컴포넌트 전체 opacity 0.4",
+    "glass": "surface.default + border.default 1 + 뒤 배경 블러(effect.glass.blur). Android 12 미만은 블러 없이 fallback",
+    "touchTarget": "보이는 크기가 48보다 작아도 터치 영역은 48 이상",
+    "excluded": "OS 컴포넌트(Status Bar, Navigation Bar)는 시스템이 그리므로 제외, 그래픽(Home Glow, Result Glow)은 이미지 에셋으로 전달"
+  },
+  "icons": {
+    "home": {
+      "figma": "167:314",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}"
+    },
+    "course": {
+      "figma": "167:319",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}"
+    },
+    "record": {
+      "figma": "167:322",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}"
+    },
+    "my": {
+      "figma": "167:326",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}"
+    },
+    "locate": {
+      "figma": "167:331",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}",
+      "note": "지도 위 현재 위치로 이동 버튼"
+    },
+    "close": {
+      "figma": "167:334",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}"
+    },
+    "back": {
+      "figma": "169:321",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}"
+    },
+    "chevron": {
+      "figma": "167:337",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}"
+    },
+    "pin": {
+      "figma": "167:341",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}"
+    },
+    "play": {
+      "figma": "167:344",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}",
+      "note": "채움 아이콘(선 없음)"
+    },
+    "alert": {
+      "figma": "177:514",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}"
+    },
+    "check": {
+      "figma": "2021:301",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}"
+    },
+    "filter": {
+      "figma": "2021:309",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}"
+    },
+    "my-location": {
+      "figma": "2025:301",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}",
+      "note": "출발지·도착지에서 '현위치' 선택"
+    }
+  },
+  "components": {
+    "Button": {
+      "figma": "168:327",
+      "description": "버튼. Gold=러닝 이후 주요 행동, Secondary=일반 버튼, Danger=삭제처럼 되돌릴 수 없는 행동. 너비는 내용에 맞춤 또는 꽉 채움",
+      "props": {
+        "label": "string",
+        "style": [
+          "gold",
+          "secondary",
+          "danger"
+        ],
+        "state": [
+          "default",
+          "pressed",
+          "disabled"
+        ],
+        "fillWidth": "boolean"
+      },
+      "layout": {
+        "height": "{layout.size.button-height}",
+        "paddingHorizontal": "{primitive.space.24}",
+        "gap": "{primitive.space.8}",
+        "radius": "{primitive.radius.full}",
+        "align": "center"
+      },
+      "typography": {
+        "label": "{typography.label.button}"
+      },
+      "styles": {
+        "gold": {
+          "background": "{semantic.accent.default}",
+          "label": "{semantic.text.on-accent}"
+        },
+        "secondary": {
+          "background": "{semantic.surface.default}",
+          "border": {
+            "color": "{semantic.border.default}",
+            "width": 1
+          },
+          "backdropBlur": "{effect.glass.blur}",
+          "fallbackBackground": "{effect.glass.fallback-surface}",
+          "fallbackBorder": "{semantic.border.subtle}",
+          "label": "{semantic.text.primary}"
+        },
+        "danger": {
+          "background": "{semantic.surface.default}",
+          "border": {
+            "color": "{semantic.border.default}",
+            "width": 1
+          },
+          "backdropBlur": "{effect.glass.blur}",
+          "fallbackBackground": "{effect.glass.fallback-surface}",
+          "fallbackBorder": "{semantic.border.subtle}",
+          "label": "{semantic.status.error}"
+        }
+      },
+      "states": {
+        "pressed": {
+          "gold": {
+            "overlay": "{semantic.state.pressed-on-accent}"
+          },
+          "secondary": {
+            "overlay": "{semantic.state.pressed-on-surface}"
+          },
+          "danger": {
+            "overlay": "{semantic.state.pressed-on-surface}"
+          }
+        },
+        "disabled": {
+          "opacity": 0.4
+        }
+      }
+    },
+    "IconButton": {
+      "figma": "168:354",
+      "description": "지도 위 원형 버튼. L=코스 만들기, 내 위치 / M=헤더 옆 작은 버튼(터치 영역 48 확보)",
+      "props": {
+        "icon": "icon",
+        "size": [
+          "l",
+          "m"
+        ],
+        "state": [
+          "default",
+          "pressed"
+        ],
+        "contentDescription": "string"
+      },
+      "layout": {
+        "size": {
+          "l": "{layout.size.icon-button-l}",
+          "m": "{layout.size.icon-button-m}"
+        },
+        "touchTargetMin": "{layout.size.touch-target-min}",
+        "radius": "{primitive.radius.full}",
+        "iconSize": "{layout.size.icon}"
+      },
+      "styles": {
+        "default": {
+          "background": "{semantic.surface.default}",
+          "border": {
+            "color": "{semantic.border.default}",
+            "width": 1
+          },
+          "backdropBlur": "{effect.glass.blur}",
+          "fallbackBackground": "{effect.glass.fallback-surface}",
+          "fallbackBorder": "{semantic.border.subtle}",
+          "icon": "{semantic.icon.primary}"
+        }
+      },
+      "states": {
+        "pressed": {
+          "overlay": "{semantic.state.pressed-on-surface}"
+        }
+      }
+    },
+    "MapAction": {
+      "figma": "168:355",
+      "description": "IconButton L + 아래 라벨. 지도 하단 코스 만들기, 내 위치",
+      "props": {
+        "icon": "icon",
+        "label": "string"
+      },
+      "layout": {
+        "direction": "vertical",
+        "gap": "{primitive.space.8}",
+        "align": "center"
+      },
+      "parts": {
+        "button": "IconButton(size=l)",
+        "label": {
+          "typography": "{typography.caption.m-regular}",
+          "color": "{semantic.text.secondary}"
+        }
+      }
+    },
+    "RunStartButton": {
+      "figma": "168:372",
+      "description": "러닝 시작 원형 버튼",
+      "props": {
+        "label": "string(기본 '러닝 시작')",
+        "state": [
+          "default",
+          "pressed"
+        ]
+      },
+      "layout": {
+        "size": "{layout.size.run-start}",
+        "radius": "{primitive.radius.full}",
+        "direction": "vertical",
+        "gap": "{primitive.space.4}",
+        "align": "center"
+      },
+      "styles": {
+        "default": {
+          "background": "{semantic.accent.default}",
+          "icon": "play / {semantic.icon.on-accent}",
+          "label": {
+            "typography": "{typography.label.button}",
+            "color": "{semantic.text.on-accent}"
+          }
+        }
+      },
+      "states": {
+        "pressed": {
+          "overlay": "{semantic.state.pressed-on-accent}"
+        }
+      }
+    },
+    "TopAppBar": {
+      "figma": "169:337",
+      "description": "상단 앱바. 배경 투명(화면 위에 얹음). Close=흐름 종료(러닝 결과), Back=하위 화면",
+      "props": {
+        "leading": [
+          "close",
+          "back"
+        ],
+        "title": "string?(없으면 숨김)"
+      },
+      "layout": {
+        "height": "{layout.size.top-app-bar}",
+        "paddingStart": "{primitive.space.4}",
+        "paddingEnd": "{primitive.space.16}",
+        "gap": "{primitive.space.4}",
+        "leadingTouchTarget": "{layout.size.touch-target-min}"
+      },
+      "parts": {
+        "leadingIcon": {
+          "close": "icon/close",
+          "back": "icon/back",
+          "color": "{semantic.icon.primary}"
+        },
+        "title": {
+          "typography": "{typography.heading.3}",
+          "color": "{semantic.text.primary}"
+        }
+      }
+    },
+    "TabItem": {
+      "figma": "169:350",
+      "description": "GNB 탭 하나",
+      "props": {
+        "icon": "icon",
+        "label": "string",
+        "state": [
+          "active",
+          "inactive"
+        ]
+      },
+      "layout": {
+        "height": 48,
+        "width": "fill(4등분)",
+        "radius": "{primitive.radius.full}",
+        "direction": "vertical",
+        "gap": "{primitive.space.2}",
+        "align": "center"
+      },
+      "styles": {
+        "active": {
+          "background": "{semantic.accent.default}",
+          "icon": "{semantic.icon.on-accent}",
+          "label": {
+            "typography": "{typography.caption.s-semibold}",
+            "color": "{semantic.text.on-accent}"
+          }
+        },
+        "inactive": {
+          "background": "transparent",
+          "icon": "{semantic.icon.tertiary}",
+          "label": {
+            "typography": "{typography.caption.s-regular}",
+            "color": "{semantic.text.tertiary}"
+          }
+        }
+      }
+    },
+    "TabBar": {
+      "figma": "171:455",
+      "description": "플로팅 GNB. Floating=단독(글래스), Embedded=Home Bottom Panel 안(글래스 효과는 바깥 패널이 담당)",
+      "props": {
+        "items": "TabItem x4 (홈, 내 코스, 기록, MY)",
+        "selectedIndex": "number",
+        "container": [
+          "floating",
+          "embedded"
+        ]
+      },
+      "layout": {
+        "height": "{layout.size.tab-bar}",
+        "width": "화면 너비 - 좌우 {layout.margin.screen}",
+        "padding": "{primitive.space.4}",
+        "gap": "{primitive.space.4}",
+        "radius": "{primitive.radius.full}",
+        "position": "하단, 내비게이션 바 WindowInsets 위"
+      },
+      "styles": {
+        "floating": {
+          "background": "{semantic.surface.default}",
+          "border": {
+            "color": "{semantic.border.default}",
+            "width": 1
+          },
+          "backdropBlur": "{effect.glass.blur}",
+          "fallbackBackground": "{effect.glass.fallback-surface}",
+          "fallbackBorder": "{semantic.border.subtle}"
+        },
+        "embedded": {
+          "background": "{semantic.surface.default}",
+          "border": {
+            "color": "{semantic.border.default}",
+            "width": 1
+          },
+          "backdropBlur": null
+        }
+      }
+    },
+    "SegmentedToggle": {
+      "figma": "169:384",
+      "description": "지도 보기 전환 토글(탐험한 길 / 안 가본 길)",
+      "props": {
+        "options": "string[]",
+        "selectedIndex": "number"
+      },
+      "layout": {
+        "height": "{layout.size.segmented-toggle}",
+        "padding": "{primitive.space.4}",
+        "gap": "{primitive.space.4}",
+        "radius": "{primitive.radius.full}"
+      },
+      "styles": {
+        "container": {
+          "background": "{semantic.surface.default}",
+          "border": {
+            "color": "{semantic.border.default}",
+            "width": 1
+          },
+          "backdropBlur": "{effect.glass.blur}",
+          "fallbackBackground": "{effect.glass.fallback-surface}",
+          "fallbackBorder": "{semantic.border.subtle}"
+        }
+      },
+      "parts": {
+        "segment": {
+          "height": 40,
+          "paddingHorizontal": "{primitive.space.16}",
+          "radius": "{primitive.radius.full}",
+          "selected": {
+            "background": "{semantic.accent.default}",
+            "label": {
+              "typography": "{typography.body.m-semibold}",
+              "color": "{semantic.text.on-accent}"
+            }
+          },
+          "unselected": {
+            "background": "transparent",
+            "label": {
+              "typography": "{typography.body.m-regular}",
+              "color": "{semantic.text.tertiary}"
+            }
+          }
+        }
+      }
+    },
+    "SummaryCard": {
+      "figma": "171:439",
+      "description": "홈 요약 카드(Home Bottom Panel 안에서만 사용, 배경 없음). 카드 전체 터치 시 동 상세",
+      "props": {
+        "dongName": "string",
+        "ratePercent": "number",
+        "isMine": "boolean(내 동네 태그)",
+        "thumbnail": "slot(84)"
+      },
+      "layout": {
+        "paddingVertical": "{primitive.space.12}",
+        "paddingHorizontal": "{layout.margin.card-padding}",
+        "gap": "{primitive.space.8}",
+        "radius": "{primitive.radius.24}",
+        "align": "center"
+      },
+      "parts": {
+        "dongName": {
+          "typography": "{typography.body.m-semibold}",
+          "color": "{semantic.text.primary}"
+        },
+        "mineTag": {
+          "text": "내 동네",
+          "typography": "{typography.caption.s-regular}",
+          "color": "{semantic.text.tertiary}",
+          "gapFromName": "{primitive.space.4}"
+        },
+        "rate": {
+          "number": {
+            "typography": "{typography.num.display}",
+            "color": "{semantic.text.primary}"
+          },
+          "unit": {
+            "text": "%",
+            "typography": "{typography.unit.display}",
+            "color": "{semantic.text.secondary}"
+          },
+          "gap": "{primitive.space.2}",
+          "align": "baseline"
+        },
+        "thumbnail": "DongThumbnail",
+        "trailingIcon": "icon/chevron"
+      }
+    },
+    "DongThumbnail": {
+      "figma": "170:341",
+      "description": "동 썸네일. 내부 지도는 동마다 앱이 직접 그림",
+      "layout": {
+        "size": 84,
+        "radius": "{primitive.radius.8}"
+      },
+      "styles": {
+        "background": "{semantic.bg.map}",
+        "border": {
+          "color": "{semantic.border.default}",
+          "width": 1
+        }
+      },
+      "parts": {
+        "boundary": {
+          "stroke": "{semantic.map.boundary}"
+        },
+        "unexploredRoad": {
+          "stroke": "{semantic.map.road-unexplored}"
+        },
+        "exploredRoad": {
+          "stroke": "{semantic.map.road-explored}",
+          "effect": "{effect.glow-gold}"
+        }
+      }
+    },
+    "HomeBottomPanel": {
+      "figma": "171:460",
+      "description": "홈 하단 패널. GNB 위치는 다른 탭과 같게 고정, 패널이 바깥에서 감쌈(너비 = GNB + 좌우 6)",
+      "props": {
+        "summary": "SummaryCard",
+        "tabBar": "TabBar(container=embedded)"
+      },
+      "layout": {
+        "paddingTop": 12,
+        "paddingHorizontal": 6,
+        "paddingBottom": 6,
+        "gap": "{primitive.space.4}",
+        "radius": "{primitive.radius.32}",
+        "direction": "vertical"
+      },
+      "styles": {
+        "container": {
+          "background": "{semantic.surface.default}",
+          "border": {
+            "color": "{semantic.border.default}",
+            "width": 1
+          },
+          "backdropBlur": "{effect.glass.blur}",
+          "fallbackBackground": "{effect.glass.fallback-surface}",
+          "fallbackBorder": "{semantic.border.subtle}"
+        }
+      }
+    },
+    "DongLabel": {
+      "figma": "170:401",
+      "description": "지도 동 라벨. 동 면 중앙에 배치. 터치는 라벨이 아닌 동 면(path) 전체",
+      "props": {
+        "name": "string",
+        "ratePercent": "number",
+        "type": [
+          "mine",
+          "other"
+        ]
+      },
+      "layout": {
+        "direction": "vertical",
+        "align": "center"
+      },
+      "styles": {
+        "mine": {
+          "gap": "{primitive.space.2}",
+          "name": {
+            "typography": "{typography.body.m-semibold}",
+            "color": "{semantic.text.primary}"
+          },
+          "number": {
+            "typography": "{typography.num.l}",
+            "color": "{semantic.text.primary}"
+          },
+          "unit": {
+            "typography": "{typography.unit.l}",
+            "color": "{semantic.text.secondary}"
+          },
+          "tag": {
+            "text": "내 동네",
+            "typography": "{typography.caption.s-regular}",
+            "color": "{semantic.text.tertiary}"
+          }
+        },
+        "other": {
+          "gap": 0,
+          "name": {
+            "typography": "{typography.caption.s-regular}",
+            "color": "{semantic.text.secondary}"
+          },
+          "number": {
+            "typography": "{typography.num.s}",
+            "color": "{semantic.text.primary}"
+          },
+          "unit": {
+            "typography": "{typography.unit.s}",
+            "color": "{semantic.text.secondary}"
+          }
+        }
+      }
+    },
+    "LocationMarker": {
+      "figma": "170:407",
+      "description": "현재 위치 점. 지도 마커 이미지로 사용",
+      "layout": {
+        "size": 16,
+        "radius": "{primitive.radius.full}"
+      },
+      "styles": {
+        "fill": "{semantic.map.location}",
+        "border": {
+          "color": "{semantic.icon.primary}",
+          "width": 2
+        }
+      }
+    },
+    "Legend": {
+      "figma": "170:418 / item 170:417",
+      "description": "지도 범례. 배경 없이 지도 위에 바로 올림(지도 왼쪽 아래, 가장자리에서 12)",
+      "props": {
+        "items": [
+          "new",
+          "today",
+          "explored"
+        ]
+      },
+      "layout": {
+        "gap": "{primitive.space.12}",
+        "item": {
+          "gap": 6,
+          "swatch": {
+            "width": 14,
+            "height": 3,
+            "radius": "{primitive.radius.full}"
+          }
+        }
+      },
+      "parts": {
+        "label": {
+          "typography": "{typography.caption.m-regular}",
+          "color": "{semantic.text.secondary}"
+        }
+      },
+      "items": {
+        "new": {
+          "label": "새로 탐험한 길",
+          "swatch": "{semantic.map.road-new}",
+          "effect": "{effect.glow-gold}"
+        },
+        "today": {
+          "label": "오늘 달린 길",
+          "swatch": "{semantic.map.road-today}"
+        },
+        "explored": {
+          "label": "내가 달린 길",
+          "swatch": "{semantic.map.road-explored}"
+        }
+      }
+    },
+    "Stat": {
+      "figma": "170:379",
+      "description": "러닝 결과 수치. 시간처럼 단위가 없는 값은 unit 생략. Highlight=결과 카드의 새로 탐험한 길 한 줄",
+      "props": {
+        "label": "string",
+        "value": "string",
+        "unit": "string?",
+        "type": [
+          "default",
+          "highlight"
+        ]
+      },
+      "styles": {
+        "default": {
+          "direction": "vertical",
+          "gap": "{primitive.space.4}",
+          "label": {
+            "typography": "{typography.body.m-regular}",
+            "color": "{semantic.text.secondary}"
+          },
+          "number": {
+            "typography": "{typography.num.m}",
+            "color": "{semantic.text.primary}"
+          },
+          "unit": {
+            "typography": "{typography.unit.m}",
+            "color": "{semantic.text.secondary}"
+          }
+        },
+        "highlight": {
+          "direction": "horizontal",
+          "justify": "space-between",
+          "align": "center",
+          "label": {
+            "typography": "{typography.body.l-semibold}",
+            "color": "{semantic.text.accent}"
+          },
+          "number": {
+            "typography": "{typography.num.l}",
+            "color": "{semantic.text.accent}"
+          },
+          "unit": {
+            "typography": "{typography.unit.l}",
+            "color": "{semantic.text.accent}"
+          }
+        }
+      },
+      "parts": {
+        "valueGap": "{primitive.space.2}",
+        "valueAlign": "baseline"
+      }
+    },
+    "ProgressBar": {
+      "figma": "170:384",
+      "description": "탐험률 진행 바. filled=기존 탐험률, gained=이번 러닝으로 늘어난 만큼",
+      "props": {
+        "filledPercent": "number",
+        "gainedPercent": "number(0이면 숨김)"
+      },
+      "layout": {
+        "height": "{layout.size.progress-bar}",
+        "radius": "{primitive.radius.full}",
+        "gainedOverlap": 4,
+        "gainedMinVisibleWidth": 8
+      },
+      "styles": {
+        "track": "{semantic.progress.track}",
+        "filled": "{semantic.progress.filled}",
+        "gained": {
+          "color": "{semantic.progress.gained}",
+          "effect": "{effect.glow-gold}"
+        }
+      },
+      "note": "gained는 filled 끝에서 4 겹쳐 시작하고, 보이는 길이는 최소 8(2%처럼 작아도 보이게)"
+    }
+  }
+}

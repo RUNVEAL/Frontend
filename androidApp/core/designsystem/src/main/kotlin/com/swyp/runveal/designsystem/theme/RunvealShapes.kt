@@ -1,7 +1,8 @@
-package com.swyp.runveal.designsystem
+package com.swyp.runveal.designsystem.theme
 
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.swyp.runveal.designsystem.RunvealRadius
 
 /** RunvealRadius(자동 생성)를 Compose Shape로. `radius/full`은 [full] = CircleShape. */
 object RunvealShapes {

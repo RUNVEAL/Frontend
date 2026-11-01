@@ -1,4 +1,4 @@
-package com.swyp.runveal.designsystem
+package com.swyp.runveal.designsystem.theme
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
+import com.swyp.runveal.designsystem.RunvealEffects
 
 /**
  * Figma 효과 한 겹. RunvealEffects(자동 생성)의 shadow 토큰이 이 타입의 리스트다.
