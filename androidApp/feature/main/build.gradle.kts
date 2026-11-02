@@ -11,22 +11,6 @@ kotlin {
     }
 }
 
-dependencies {
-    implementation(project(":androidApp:core:designsystem"))
-    implementation(project(":sharedLogic"))
-
-    implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.lifecycle.viewmodelCompose)
-    implementation(libs.androidx.lifecycle.runtimeCompose)
-
-    implementation(libs.compose.runtime)
-    implementation(libs.compose.foundation)
-    implementation(libs.compose.material3)
-    implementation(libs.compose.ui)
-    implementation(libs.compose.uiToolingPreview)
-    debugImplementation(libs.compose.uiTooling)
-}
-
 android {
     namespace = "com.swyp.runveal.feature.main"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -41,4 +25,25 @@ android {
     buildFeatures {
         compose = true
     }
+}
+
+dependencies {
+    implementation(project(":androidApp:core:designsystem"))
+    implementation(project(":androidApp:core:navigation"))
+    implementation(project(":androidApp:feature:home"))
+    implementation(project(":sharedLogic"))
+
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.lifecycle.viewmodelCompose)
+    implementation(libs.androidx.lifecycle.runtimeCompose)
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.serialization.core)
+
+    implementation(libs.compose.runtime)
+    implementation(libs.compose.foundation)
+    implementation(libs.compose.material3)
+    implementation(libs.compose.ui)
+    implementation(libs.compose.uiToolingPreview)
+    debugImplementation(libs.compose.uiTooling)
 }
