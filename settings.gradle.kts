@@ -1,6 +1,8 @@
 rootProject.name = "Runveal"
 
 pluginManagement {
+    includeBuild("build-logic")
+
     repositories {
         google {
             mavenContent {
