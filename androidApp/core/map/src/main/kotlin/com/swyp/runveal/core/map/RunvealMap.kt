@@ -1,0 +1,19 @@
+package com.swyp.runveal.core.map
+
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import com.swyp.runveal.core.map.internal.maplibre.MapLibreMapView
+
+/** feature가 아는 것은 이것뿐 — MapLibre SDK 타입은 전부 internal에 숨긴다. */
+@Composable
+fun RunvealMap(
+    modifier: Modifier = Modifier,
+    state: MapState = rememberMapState(),
+    visitedRoadGeoJson: String? = null,
+) {
+    MapLibreMapView(
+        modifier = modifier,
+        state = state,
+        visitedRoadGeoJson = visitedRoadGeoJson,
+    )
+}

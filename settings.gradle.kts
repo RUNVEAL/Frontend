@@ -37,6 +37,7 @@ dependencyResolutionManagement {
 
 include(":androidApp:app")
 include(":androidApp:core:designsystem")
+include(":androidApp:core:map")
 include(":androidApp:core:navigation")
 include(":androidApp:core:permission")
 include(":androidApp:feature:home")
