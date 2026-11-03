@@ -8,6 +8,7 @@ android {
 
 dependencies {
     implementation(project(":androidApp:core:navigation"))
+    implementation(project(":androidApp:core:designsystem"))
 
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.core)

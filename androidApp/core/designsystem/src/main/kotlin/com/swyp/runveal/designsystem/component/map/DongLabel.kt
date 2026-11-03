@@ -18,8 +18,8 @@ enum class RunvealDongLabelType { Mine, Other }
 @Composable
 fun RunvealDongLabel(
     name: String,
-    ratePercent: Int,
     modifier: Modifier = Modifier,
+    ratePercent: Int? = null,
     type: RunvealDongLabelType = RunvealDongLabelType.Other,
 ) {
     val colors = RunvealTheme.colors
@@ -37,19 +37,21 @@ fun RunvealDongLabel(
                     color = colors.text.tertiary,
                 )
             }
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    "$ratePercent",
-                    style = RunvealTheme.typography.numL,
-                    color = colors.text.primary,
-                    modifier = Modifier.alignByBaseline(),
-                )
-                Text(
-                    stringResource(R.string.percent_unit),
-                    style = RunvealTheme.typography.unitL,
-                    color = colors.text.secondary,
-                    modifier = Modifier.alignByBaseline(),
-                )
+            if (ratePercent != null) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        "$ratePercent",
+                        style = RunvealTheme.typography.numL,
+                        color = colors.text.primary,
+                        modifier = Modifier.alignByBaseline(),
+                    )
+                    Text(
+                        stringResource(R.string.percent_unit),
+                        style = RunvealTheme.typography.unitL,
+                        color = colors.text.secondary,
+                        modifier = Modifier.alignByBaseline(),
+                    )
+                }
             }
         }
 
@@ -58,19 +60,21 @@ fun RunvealDongLabel(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(name, style = RunvealTheme.typography.captionSRegular, color = colors.text.secondary)
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    "$ratePercent",
-                    style = RunvealTheme.typography.numS,
-                    color = colors.text.primary,
-                    modifier = Modifier.alignByBaseline(),
-                )
-                Text(
-                    stringResource(R.string.percent_unit),
-                    style = RunvealTheme.typography.unitS,
-                    color = colors.text.secondary,
-                    modifier = Modifier.alignByBaseline(),
-                )
+            if (ratePercent != null) {
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        "$ratePercent",
+                        style = RunvealTheme.typography.numS,
+                        color = colors.text.primary,
+                        modifier = Modifier.alignByBaseline(),
+                    )
+                    Text(
+                        stringResource(R.string.percent_unit),
+                        style = RunvealTheme.typography.unitS,
+                        color = colors.text.secondary,
+                        modifier = Modifier.alignByBaseline(),
+                    )
+                }
             }
         }
     }
@@ -80,6 +84,9 @@ fun RunvealDongLabel(
 @Composable
 private fun RunvealDongLabelPreview() {
     RunvealTheme {
-        RunvealDongLabel(name = "성수동", ratePercent = 37, type = RunvealDongLabelType.Mine)
+        Column {
+            RunvealDongLabel(name = "성수동", ratePercent = 37, type = RunvealDongLabelType.Mine)
+            RunvealDongLabel(name = "역삼동", type = RunvealDongLabelType.Other)
+        }
     }
 }

@@ -1,5 +1,5 @@
 {
-  "$description": "Runveal Design System - Figma Design System 페이지(Foundations) 기준. W3C Design Tokens Format Module 2025.10 형식. 다크 모드 하나만 있음",
+  "$description": "Runveal Design System 2차 - Figma Design System 페이지(Foundations) 기준. W3C Design Tokens Format Module 2025.10 형식. 다크 모드 하나만 있음. 1차 대비 변경은 CHANGELOG.md",
   "primitive": {
     "color": {
       "gold": {
@@ -593,6 +593,28 @@
             "figma": "surface/raised"
           }
         }
+      },
+      "inverse": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.50}",
+        "$description": "선택된 칩 배경, 어두운 화면에서 밝게 뒤집힌 면",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "surface/inverse",
+            "since": "2차"
+          }
+        }
+      },
+      "tag": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.700}",
+        "$description": "코스 태그(공원, 하천길, 순환, 편도) 배경",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "surface/tag",
+            "since": "2차"
+          }
+        }
       }
     },
     "border": {
@@ -622,6 +644,17 @@
         "$extensions": {
           "com.runveal": {
             "figma": "border/subtle"
+          }
+        }
+      },
+      "strong": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.600}",
+        "$description": "배경 없이 테두리로만 구분하는 요소, 선택 전 칩",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "border/strong",
+            "since": "2차"
           }
         }
       }
@@ -674,6 +707,17 @@
         "$extensions": {
           "com.runveal": {
             "figma": "text/on-accent"
+          }
+        }
+      },
+      "on-inverse": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.900}",
+        "$description": "밝은 면(surface/inverse) 위 글자",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "text/on-inverse",
+            "since": "2차"
           }
         }
       }
@@ -1035,6 +1079,17 @@
         "$extensions": {
           "com.runveal": {
             "figma": "map/road-unexplored-focus"
+          }
+        }
+      },
+      "route-alt": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral.600}",
+        "$description": "추천 경로에서 선택되지 않은 다른 코스의 경로선",
+        "$extensions": {
+          "com.runveal": {
+            "figma": "map/route-alt",
+            "since": "2차"
           }
         }
       },
@@ -2713,6 +2768,32 @@
         },
         "$description": "버튼 높이"
       },
+      "button-height-m": {
+        "$type": "dimension",
+        "$value": {
+          "value": 44,
+          "unit": "px"
+        },
+        "$description": "Button Size=M(화면 안 인라인 버튼) 높이. Gold, Secondary만",
+        "$extensions": {
+          "com.runveal": {
+            "since": "2차"
+          }
+        }
+      },
+      "button-min-width-m": {
+        "$type": "dimension",
+        "$value": {
+          "value": 200,
+          "unit": "px"
+        },
+        "$description": "Button Size=M 최소 너비",
+        "$extensions": {
+          "com.runveal": {
+            "since": "2차"
+          }
+        }
+      },
       "icon-button-l": {
         "$type": "dimension",
         "$value": {
@@ -2760,6 +2841,19 @@
           "unit": "px"
         },
         "$description": "보기 전환 토글 높이"
+      },
+      "chip-height": {
+        "$type": "dimension",
+        "$value": {
+          "value": 32,
+          "unit": "px"
+        },
+        "$description": "Chip(Option, Dropdown, Condition) 높이. 터치 영역은 48",
+        "$extensions": {
+          "com.runveal": {
+            "since": "2차"
+          }
+        }
       },
       "text-field": {
         "$type": "dimension",
