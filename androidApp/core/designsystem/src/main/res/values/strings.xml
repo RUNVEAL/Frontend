@@ -6,4 +6,14 @@
     <string name="legend_new">새로 탐험한 길</string>
     <string name="legend_today">오늘 달린 길</string>
     <string name="legend_explored">내가 달린 길</string>
+    <string name="home_location_permission_message">위치 권한을 허용하면\n내 주변 탐험 지도를 볼 수 있어요</string>
+    <string name="home_location_permission_load_history">러닝 기록 불러오기</string>
+    <string name="home_location_permission_allow">허용하기</string>
+    <string name="map_marker_start_label">출발</string>
+    <string name="map_marker_end_label">도착</string>
+    <string name="course_list_item_not_run">아직 안 달림</string>
+    <string name="course_card_stat_distance">거리</string>
+    <string name="course_card_stat_time">예상 시간</string>
+    <string name="course_card_stat_elevation">고도</string>
+    <string name="course_card_stat_new_road">새 길</string>
 </resources>

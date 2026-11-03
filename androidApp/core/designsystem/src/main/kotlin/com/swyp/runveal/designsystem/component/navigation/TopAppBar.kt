@@ -3,6 +3,8 @@ package com.swyp.runveal.designsystem.component.navigation
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -13,48 +15,103 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import com.swyp.runveal.designsystem.RunvealIcons
+import com.swyp.runveal.designsystem.component.button.RunvealButton
+import com.swyp.runveal.designsystem.component.button.RunvealButtonStyle
+import com.swyp.runveal.designsystem.component.button.RunvealIconButton
+import com.swyp.runveal.designsystem.component.button.RunvealIconButtonSize
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 
-/** Close=흐름 종료(러닝 결과), Back=하위 화면. */
-enum class RunvealTopAppBarLeading { Close, Back }
+/** Close=흐름 종료(러닝 결과), Back=하위 화면, None=왼쪽 아이콘 없음(탭 첫 화면). */
+enum class RunvealTopAppBarLeading { Close, Back, None }
 
-/** 상단 앱바. 배경 투명(화면 위에 얹음) — 배경 없는 순수 아이콘, 터치 영역만 48 확보. */
+/** Default=일반 화면, Map=지도 위 화면용(왼쪽 버튼이 글래스 원형 Icon Button M). */
+enum class RunvealTopAppBarStyle { Default, Map }
+
+/** 상단 앱바. 배경 투명(화면 위에 얹음). 오른쪽 Text 버튼(건너뛰기 등)은 [actionLabel]이 있을 때만 보인다. */
 @Composable
 fun RunvealTopAppBar(
     leading: RunvealTopAppBarLeading,
     onLeadingClick: () -> Unit,
     modifier: Modifier = Modifier,
+    style: RunvealTopAppBarStyle = RunvealTopAppBarStyle.Default,
     leadingContentDescription: String? = null,
     title: String? = null,
+    actionLabel: String? = null,
+    onActionClick: () -> Unit = {},
 ) {
     val colors = RunvealTheme.colors
     val leadingIcon = when (leading) {
         RunvealTopAppBarLeading.Close -> RunvealIcons.Close
         RunvealTopAppBarLeading.Back -> RunvealIcons.Back
+        RunvealTopAppBarLeading.None -> null
     }
+    val paddingStart: Dp
+    val paddingEnd: Dp
+    val gap: Dp
+    when {
+        style == RunvealTopAppBarStyle.Map -> {
+            paddingStart = RunvealTheme.spacing.space16
+            paddingEnd = RunvealTheme.spacing.space16
+            gap = RunvealTheme.spacing.space12
+        }
+        leading == RunvealTopAppBarLeading.None -> {
+            paddingStart = RunvealTheme.spacing.space16
+            paddingEnd = RunvealTheme.spacing.space4
+            gap = RunvealTheme.spacing.space4
+        }
+        else -> {
+            paddingStart = RunvealTheme.spacing.space4
+            paddingEnd = RunvealTheme.spacing.space16
+            gap = RunvealTheme.spacing.space4
+        }
+    }
+
     Row(
         modifier = modifier
+            .fillMaxWidth()
             .height(RunvealTheme.layout.sizeTopAppBar)
-            .padding(start = RunvealTheme.spacing.space4, end = RunvealTheme.spacing.space16),
+            .padding(start = paddingStart, end = paddingEnd),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size(RunvealTheme.layout.sizeTouchTargetMin)
-                .clickable(onClick = onLeadingClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = leadingIcon,
-                contentDescription = leadingContentDescription,
-                tint = colors.icon.primary,
-                modifier = Modifier.size(RunvealTheme.layout.sizeIcon),
-            )
+        if (leadingIcon != null) {
+            if (style == RunvealTopAppBarStyle.Map) {
+                RunvealIconButton(
+                    icon = leadingIcon,
+                    contentDescription = leadingContentDescription,
+                    onClick = onLeadingClick,
+                    size = RunvealIconButtonSize.M,
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(RunvealTheme.layout.sizeTouchTargetMin)
+                        .clickable(onClick = onLeadingClick),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = leadingIcon,
+                        contentDescription = leadingContentDescription,
+                        tint = colors.icon.primary,
+                        modifier = Modifier.size(RunvealTheme.layout.sizeIcon),
+                    )
+                }
+            }
+            Spacer(Modifier.width(gap))
         }
         if (title != null) {
-            Box(Modifier.width(RunvealTheme.spacing.space4))
-            Text(title, style = RunvealTheme.typography.heading3, color = colors.text.primary)
+            Text(
+                title,
+                style = RunvealTheme.typography.heading3,
+                color = colors.text.primary,
+                modifier = if (actionLabel != null) Modifier.weight(1f) else Modifier,
+            )
+        } else if (actionLabel != null) {
+            Spacer(Modifier.weight(1f))
+        }
+        if (actionLabel != null) {
+            RunvealButton(label = actionLabel, onClick = onActionClick, style = RunvealButtonStyle.Text)
         }
     }
 }
@@ -64,5 +121,19 @@ fun RunvealTopAppBar(
 private fun RunvealTopAppBarPreview() {
     RunvealTheme {
         RunvealTopAppBar(leading = RunvealTopAppBarLeading.Close, onLeadingClick = {}, title = "러닝 완료!")
+    }
+}
+
+@Preview
+@Composable
+private fun RunvealTopAppBarMapPreview() {
+    RunvealTheme {
+        RunvealTopAppBar(
+            leading = RunvealTopAppBarLeading.Back,
+            onLeadingClick = {},
+            style = RunvealTopAppBarStyle.Map,
+            actionLabel = "건너뛰기",
+            onActionClick = {},
+        )
     }
 }

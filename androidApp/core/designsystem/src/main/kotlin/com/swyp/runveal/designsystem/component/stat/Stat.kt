@@ -11,26 +11,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 
-/** 러닝 결과 수치. 시간처럼 단위가 없는 값은 [unit]을 생략. Highlight=결과 카드의 강조 한 줄. */
-enum class RunvealStatType { Default, Highlight }
+/**
+ * 러닝 결과·코스 수치. Large=결과 화면, Small=코스 카드 안 작은 수치, Highlight=결과 카드의
+ * 새로 탐험한 길 한 줄. 시간처럼 단위가 없는 값은 [unit]을 생략, 라벨이 없으면 [label]을 생략.
+ */
+enum class RunvealStatType { Large, Small, Highlight }
 
 @Composable
 fun RunvealStat(
-    label: String,
     value: String,
     modifier: Modifier = Modifier,
+    label: String? = null,
     unit: String? = null,
-    type: RunvealStatType = RunvealStatType.Default,
+    type: RunvealStatType = RunvealStatType.Large,
 ) {
     val colors = RunvealTheme.colors
     when (type) {
-        RunvealStatType.Default -> Column(
+        RunvealStatType.Large -> Column(
             modifier = modifier,
             verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
         ) {
-            Text(label, style = RunvealTheme.typography.bodyMRegular, color = colors.text.secondary)
+            if (label != null) {
+                Text(label, style = RunvealTheme.typography.bodyMRegular, color = colors.text.secondary)
+            }
             StatValue(
                 value = value,
                 unit = unit,
@@ -38,6 +45,25 @@ fun RunvealStat(
                 unitStyle = RunvealTheme.typography.unitM,
                 numberColor = colors.text.primary,
                 unitColor = colors.text.secondary,
+                gap = RunvealTheme.spacing.space2,
+            )
+        }
+
+        RunvealStatType.Small -> Column(
+            modifier = modifier,
+            verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space2),
+        ) {
+            if (label != null) {
+                Text(label, style = RunvealTheme.typography.captionSRegular, color = colors.text.secondary)
+            }
+            StatValue(
+                value = value,
+                unit = unit,
+                numberStyle = RunvealTheme.typography.numS,
+                unitStyle = RunvealTheme.typography.unitS,
+                numberColor = colors.text.primary,
+                unitColor = colors.text.secondary,
+                gap = 0.dp,
             )
         }
 
@@ -46,7 +72,9 @@ fun RunvealStat(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(label, style = RunvealTheme.typography.bodyLSemibold, color = colors.text.accent)
+            if (label != null) {
+                Text(label, style = RunvealTheme.typography.bodyLSemibold, color = colors.text.accent)
+            }
             StatValue(
                 value = value,
                 unit = unit,
@@ -54,6 +82,7 @@ fun RunvealStat(
                 unitStyle = RunvealTheme.typography.unitL,
                 numberColor = colors.text.accent,
                 unitColor = colors.text.accent,
+                gap = RunvealTheme.spacing.space2,
             )
         }
     }
@@ -67,9 +96,10 @@ private fun StatValue(
     unitStyle: TextStyle,
     numberColor: Color,
     unitColor: Color,
+    gap: Dp,
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space2),
+        horizontalArrangement = Arrangement.spacedBy(gap),
         verticalAlignment = Alignment.Bottom,
     ) {
         Text(value, style = numberStyle, color = numberColor, modifier = Modifier.alignByBaseline())
@@ -85,6 +115,7 @@ private fun RunvealStatPreview() {
     RunvealTheme {
         Column {
             RunvealStat(label = "거리", value = "5.21", unit = "km")
+            RunvealStat(value = "5.21", unit = "km", type = RunvealStatType.Small)
             RunvealStat(label = "새로 탐험한 길", value = "+1.3", unit = "km", type = RunvealStatType.Highlight)
         }
     }
