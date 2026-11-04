@@ -1,4 +1,4 @@
-package com.swyp.runveal.home
+package com.swyp.runveal.tabcourse
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -10,7 +10,7 @@ import androidx.compose.ui.Modifier
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 
 @Composable
-internal fun CourseScreen(modifier: Modifier = Modifier) {
+fun CourseScreen(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()

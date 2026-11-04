@@ -1,4 +1,4 @@
-package com.swyp.runveal.home
+package com.swyp.runveal.tabmypage
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -10,13 +10,13 @@ import androidx.compose.ui.Modifier
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 
 @Composable
-internal fun RecordScreen(modifier: Modifier = Modifier) {
+fun MyScreen(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(RunvealTheme.colors.bg.canvas),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text = "기록", color = RunvealTheme.colors.text.primary)
+        Text(text = "MY", color = RunvealTheme.colors.text.primary)
     }
 }
