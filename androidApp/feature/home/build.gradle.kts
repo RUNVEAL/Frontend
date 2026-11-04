@@ -7,7 +7,9 @@ android {
 }
 
 dependencies {
+    implementation(project(":androidApp:core:map"))
     implementation(project(":androidApp:core:navigation"))
+    implementation(project(":androidApp:core:permission"))
 
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.core)

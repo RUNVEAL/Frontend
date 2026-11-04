@@ -5,6 +5,8 @@ plugins {
 dependencies {
     implementation(project(":androidApp:feature:main"))
     implementation(project(":androidApp:core:permission"))
+
+    implementation(libs.maplibre.android.sdk)
 }
 
 android {
