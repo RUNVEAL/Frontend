@@ -19,3 +19,4 @@ captures
 node_modules/
 iosApp/iosApp/DesignSystem/Generated/
 **/docs/
+CLAUDE.md
