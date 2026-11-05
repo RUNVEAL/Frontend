@@ -10,10 +10,12 @@ fun RunvealMap(
     modifier: Modifier = Modifier,
     state: MapState = rememberMapState(),
     visitedRoadGeoJson: String? = null,
+    onZoomChanged: (Double) -> Unit = {},
 ) {
     MapLibreMapView(
         modifier = modifier,
         state = state,
         visitedRoadGeoJson = visitedRoadGeoJson,
+        onZoomChanged = onZoomChanged,
     )
 }

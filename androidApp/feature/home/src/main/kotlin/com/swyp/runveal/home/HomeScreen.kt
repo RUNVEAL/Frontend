@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -53,6 +56,8 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
         else -> 0
     }
 
+    var isZoomedIn by remember { mutableStateOf(false) }
+
     val onSelectTab: (Int) -> Unit = { index ->
         val route: RunVealRoute.HomeTab = when (index) {
             0 -> RunVealRoute.HomeTab.Home
@@ -68,7 +73,10 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        HomeMapScreen(modifier = Modifier.fillMaxSize())
+        HomeMapScreen(
+            modifier = Modifier.fillMaxSize(),
+            onZoomedInChanged = { isZoomedIn = it },
+        )
 
         NavHost(
             navController = tabNavigator.navController,
@@ -81,7 +89,7 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
             myGraph(tabNavigator)
         }
 
-        if (selectedIndex == 0) {
+        if (selectedIndex == 0 && !isZoomedIn) {
             RunvealHomeBottomPanel(
                 summary = {
                     // TODO: 위치 권한 처리, 러닝 기록 연동 추가 예정
