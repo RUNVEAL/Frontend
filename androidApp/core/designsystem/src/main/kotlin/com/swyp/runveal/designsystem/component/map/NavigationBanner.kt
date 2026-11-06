@@ -20,9 +20,8 @@ import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.designsystem.theme.runvealGlass
 
 /**
- * 러닝 중 길 안내 배너. [icon]은 좌회전 / 우회전 / 일시정지 중 하나를 문구와 함께 바꿔 전달한다
- * (design/icons에 turn-left/turn-right/pause SVG가 아직 없어 RunvealIcons로 고정하지 않았다 —
- * 추가되면 RunvealIcons.TurnLeft 등을 그대로 넘기면 된다). 보조 정보가 없으면 [description]을 생략한다.
+ * 러닝 중 길 안내 배너. [icon]은 RunvealIcons.TurnLeft / TurnRight / Pause 중 하나를 문구와 함께
+ * 바꿔 전달한다. 보조 정보가 없으면 [description]을 생략한다.
  */
 @Composable
 fun RunvealNavigationBanner(
@@ -57,6 +56,6 @@ fun RunvealNavigationBanner(
 @Composable
 private fun RunvealNavigationBannerPreview() {
     RunvealTheme {
-        RunvealNavigationBanner(icon = RunvealIcons.Close, instruction = "좌회전", description = "50m 앞")
+        RunvealNavigationBanner(icon = RunvealIcons.TurnLeft, instruction = "좌회전", description = "50m 앞")
     }
 }

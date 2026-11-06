@@ -1,7 +1,7 @@
 {
-  "$description": "Runveal 컴포넌트 스펙 2차. 값은 runveal-tokens.json 토큰 참조({semantic.*}, {typography.*}, {primitive.*}, {layout.*}, {effect.*}) 또는 dp 숫자. 다크 모드 하나. 1차 대비 바뀐 곳은 since/renamed/replaces 필드와 CHANGELOG.md",
-  "$source": "Figma [RUNVEAL] UI Design_261102 > Design System 페이지 > Components 섹션",
-  "version": "2차 (2026-11-03)",
+  "$description": "Runveal 컴포넌트 스펙 3차. 값은 runveal-tokens.json 토큰 참조({semantic.*}, {typography.*}, {primitive.*}, {layout.*}, {effect.*}) 또는 dp 숫자. 다크 모드 하나. 이전 차수 대비 바뀐 곳은 since/renamed/replaces 필드와 CHANGELOG.md",
+  "$source": "Figma [RUNVEAL] UI Design_261106 > Design System 페이지 > Components 섹션 (411:8106)",
+  "version": "3차 (2026-11-06)",
   "conventions": {
     "units": "숫자는 dp",
     "pressed": "누르면 위에 overlay 색을 덮음(색 자체를 바꾸지 않음)",
@@ -188,6 +188,30 @@
       "size": 24,
       "note": "구글 로그인 버튼 로고. 여러 색이라 tint 없이 이미지 에셋으로. Google 로그인 브랜드 가이드 원본 사용 권장",
       "since": "2차"
+    },
+    "edit": {
+      "figma": "483:14461",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}",
+      "note": "이름 수정. 더보기 메뉴",
+      "since": "3차"
+    },
+    "download": {
+      "figma": "483:14464",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}",
+      "note": "GPX 내보내기(다운로드). 더보기 메뉴",
+      "since": "3차"
+    },
+    "delete": {
+      "figma": "483:14468",
+      "size": 24,
+      "stroke": 1.5,
+      "color": "{semantic.icon.primary}",
+      "note": "삭제. 더보기 메뉴 Danger 줄에서는 status/error",
+      "since": "3차"
     }
   },
   "components": {
@@ -396,6 +420,42 @@
           "overlay": "{semantic.state.pressed-on-accent}"
         }
       }
+    },
+    "RunPauseButton": {
+      "figmaName": "Map/Run Pause",
+      "figma": "483:25966",
+      "description": "러닝 중 일시정지 원형 버튼. Run Start보다 작음(80)",
+      "props": {
+        "label": "string(기본 '일시정지')",
+        "state": [
+          "default",
+          "pressed"
+        ]
+      },
+      "layout": {
+        "size": 80,
+        "radius": "{primitive.radius.full}",
+        "direction": "vertical",
+        "gap": "{primitive.space.4}",
+        "align": "center"
+      },
+      "styles": {
+        "default": {
+          "background": "{semantic.accent.default}",
+          "icon": "pause 24, 선 2.5(icon/pause보다 굵음) / {semantic.icon.on-accent}",
+          "label": {
+            "typography": "{typography.body.m-semibold}",
+            "color": "{semantic.text.on-accent}"
+          }
+        }
+      },
+      "states": {
+        "pressed": {
+          "overlay": "{semantic.state.pressed-on-accent}"
+        }
+      },
+      "note": "Run Start 라벨은 label/button(15)인데 Run Pause는 body/m-semibold(14). Figma 그대로 옮김",
+      "since": "3차"
     },
     "TopAppBar": {
       "figmaName": "Navigation/Top App Bar",
@@ -815,18 +875,33 @@
     "Stat": {
       "figmaName": "List/Stat",
       "figma": "170:379",
-      "description": "러닝 결과·코스 수치. Large=결과 화면, Small=코스 카드 안 작은 수치, Highlight=결과 카드의 새로 탐험한 길 한 줄. 단위가 없는 값은 unit 생략, 라벨이 없으면 label 생략",
+      "description": "러닝 결과·코스 수치. Display=기록 상세 맨 위 큰 거리(5.21km), Large=결과 화면, Small=코스 카드 안 작은 수치, Highlight=결과 카드의 새로 탐험한 길 한 줄. 단위가 없는 값은 unit 생략, 라벨이 없으면 label 생략",
       "props": {
         "label": "string?",
         "value": "string",
         "unit": "string?",
         "type": [
+          "display",
           "large",
           "small",
           "highlight"
         ]
       },
       "styles": {
+        "display": {
+          "direction": "horizontal",
+          "gap": "{primitive.space.4}",
+          "align": "baseline",
+          "label": "없음(무시)",
+          "number": {
+            "typography": "{typography.num.display}",
+            "color": "{semantic.text.primary}"
+          },
+          "unit": {
+            "typography": "{typography.unit.display}",
+            "color": "{semantic.text.secondary}"
+          }
+        },
         "large": {
           "direction": "vertical",
           "gap": "{primitive.space.4}",
@@ -887,7 +962,8 @@
       },
       "since": {
         "type.small": "2차",
-        "label optional": "2차"
+        "label optional": "2차",
+        "type.display": "3차"
       }
     },
     "ProgressBar": {
@@ -1162,7 +1238,14 @@
           ]
         }
       },
-      "since": "2차"
+      "since": "2차",
+      "figmaVariantNames": {
+        "primary+text": "Type=Primary + Text",
+        "secondary+primary": "Type=Secondary + Primary"
+      },
+      "renamed": {
+        "figma": "3차: Type=Primary+Text → Primary + Text, Secondary+Primary → Secondary + Primary (띄어쓰기만, 코드 영향 없음)"
+      }
     },
     "TextInput": {
       "figmaName": "Input/Text Input",
@@ -1342,7 +1425,14 @@
         },
         "icon": "{semantic.icon.primary}"
       },
-      "since": "2차"
+      "since": "2차",
+      "figmaVariantNames": {
+        "on-card": "Usage=On Card",
+        "on-map": "Usage=On Map"
+      },
+      "renamed": {
+        "figma": "3차: usage=on card/on map → Usage=On Card/On Map (대소문자만, 코드 영향 없음)"
+      }
     },
     "ChipCondition": {
       "figmaName": "Input/Chip/Condition",
@@ -1879,6 +1969,125 @@
       },
       "since": "2차"
     },
+    "RecordListItem": {
+      "figmaName": "List/List Item/Record",
+      "figma": "730:28158",
+      "description": "기록 화면의 기록 목록 한 줄. 왼쪽 타임라인 + 날짜 + 기록 카드. 새 길이 없으면 newRoad 생략(Figma Show New Road 끄기)",
+      "props": {
+        "date": "string(11월 4일 수요일)",
+        "title": "string(코스 이름 또는 기록 이름)",
+        "distance": "string(5.21km)",
+        "time": "string(31:40)",
+        "pace": "string(6′05″)",
+        "newRoad": "string?(새 길 +1.30km)",
+        "thumbnail": "slot"
+      },
+      "layout": {
+        "direction": "horizontal",
+        "gap": "{primitive.space.8}",
+        "listSpacing": "Figma는 아이템 높이 154에 간격 -12로 겹쳐 둠. 코드에서는 아이템 아래 여백 12 + 간격 0으로 같은 결과(타임라인 선은 다음 아이템 점 밑까지 이어짐)"
+      },
+      "parts": {
+        "timeline": {
+          "width": 8,
+          "dot": {
+            "size": 8,
+            "top": 4,
+            "fill": "{semantic.accent.default}",
+            "border": {
+              "color": "{semantic.progress.filled}",
+              "width": 2
+            },
+            "note": "Figma는 primitive gold/100, gold/500에 연결돼 있어서 같은 값의 semantic으로 옮김"
+          },
+          "line": {
+            "x": 4,
+            "top": 6,
+            "length": 148,
+            "width": 1,
+            "opacity": 0.5,
+            "gradient": {
+              "type": "linear",
+              "direction": "위→아래",
+              "stops": [
+                {
+                  "position": 0,
+                  "color": "#FBEFBC",
+                  "alpha": 1
+                },
+                {
+                  "position": 0.59,
+                  "color": "#DFD4A7",
+                  "alpha": 0.73
+                },
+                {
+                  "position": 1,
+                  "color": "#958E70",
+                  "alpha": 0
+                }
+              ]
+            }
+          }
+        },
+        "entry": {
+          "direction": "vertical",
+          "gap": "{primitive.space.8}",
+          "date": {
+            "typography": "{typography.caption.m-regular}",
+            "color": "{semantic.text.tertiary}"
+          },
+          "card": {
+            "height": 106,
+            "padding": "{primitive.space.12}",
+            "gap": "{primitive.space.12}",
+            "align": "center",
+            "radius": "{primitive.radius.16}",
+            "background": "{semantic.surface.default}",
+            "border": {
+              "color": "{semantic.border.default}",
+              "width": 1
+            },
+            "blur": "없음(글래스 아님)",
+            "pressed": {
+              "overlay": "{semantic.state.pressed-on-surface}"
+            },
+            "thumbnail": {
+              "size": 80,
+              "radius": "{primitive.radius.8}",
+              "background": "{semantic.bg.map}",
+              "border": {
+                "color": "{semantic.border.subtle}",
+                "width": 1
+              },
+              "content": "배경 지도 60% + map/dim + 오늘 달린 길(road-today 1.5) + 새로 탐험한 길(road-new 1.5 + glow). CourseThumbnail과 같은 방식, 크기만 80"
+            },
+            "info": {
+              "direction": "vertical",
+              "gap": "{primitive.space.4}",
+              "title": {
+                "typography": "{typography.body.l-semibold}",
+                "color": "{semantic.text.primary}"
+              },
+              "meta": {
+                "gap": "{primitive.space.8}",
+                "items": [
+                  "distance",
+                  "time",
+                  "pace"
+                ],
+                "typography": "{typography.body.m-regular}",
+                "color": "{semantic.text.secondary}"
+              },
+              "newRoad": {
+                "typography": "{typography.body.m-regular}",
+                "color": "{semantic.text.accent}"
+              }
+            }
+          }
+        }
+      },
+      "since": "3차"
+    },
     "EmptyState": {
       "figmaName": "List/Empty State",
       "figma": "406:7451",
@@ -1905,9 +2114,12 @@
           "color": "{semantic.text.secondary}"
         },
         "action": "Button(gold, size=m)",
-        "graphic": "Graphic/Empty 이미지"
+        "graphic": "80×80 이미지 에셋. 빈 상태 Graphic/Empty, 오류 Graphic/Error. 3차부터 그래픽 자체에 배경 타일이 들어 있어서 뒤에 깔던 surface/default 원형 배경(모서리 16)은 없음"
       },
-      "since": "2차"
+      "since": "2차",
+      "changed": {
+        "3차": "그래픽 교체(Graphic/Empty 새 일러스트, Graphic/Error 추가). 그래픽 뒤 배경 제거"
+      }
     },
     "BottomSheet": {
       "figmaName": "Overlay/Bottom Sheet",
@@ -2127,6 +2339,79 @@
       },
       "since": "2차"
     },
+    "Menu": {
+      "figmaName": "Overlay/Menu",
+      "figma": "483:14418",
+      "description": "더보기(⋯) 버튼을 눌렀을 때 뜨는 메뉴. 잠깐 뜨는 요소라 글래스 없이 불투명. 바깥을 누르면 닫힘. 삭제는 맨 아래 Danger",
+      "props": {
+        "items": "MenuItem[]",
+        "expanded": "boolean",
+        "onDismiss": "() -> Unit"
+      },
+      "layout": {
+        "width": 184,
+        "padding": "{primitive.space.8}",
+        "radius": "{primitive.radius.16}",
+        "gap": 0,
+        "position": "더보기 버튼 바로 아래, 오른쪽 끝을 버튼 오른쪽 끝에 맞춤. 버튼과 메뉴 사이 4"
+      },
+      "styles": {
+        "background": "{semantic.surface.raised}",
+        "border": {
+          "color": "{semantic.border.default}",
+          "width": 1
+        },
+        "shadow": "없음"
+      },
+      "since": "3차"
+    },
+    "MenuItem": {
+      "figmaName": "Overlay/Menu/Item",
+      "figma": "483:14422",
+      "description": "메뉴 한 줄. 아이콘 20 + 16 + 라벨",
+      "props": {
+        "label": "string",
+        "icon": "icon(edit, download, delete 등)",
+        "type": [
+          "default",
+          "danger"
+        ],
+        "state": [
+          "default",
+          "pressed"
+        ]
+      },
+      "layout": {
+        "height": 48,
+        "paddingHorizontal": "{primitive.space.8}",
+        "gap": "{primitive.space.16}",
+        "icon": 20,
+        "align": "center"
+      },
+      "styles": {
+        "default": {
+          "label": {
+            "typography": "{typography.body.m-regular}",
+            "color": "{semantic.text.primary}"
+          },
+          "icon": "{semantic.icon.primary}"
+        },
+        "danger": {
+          "label": {
+            "typography": "{typography.body.m-regular}",
+            "color": "{semantic.status.error}"
+          },
+          "icon": "{semantic.status.error}"
+        }
+      },
+      "states": {
+        "pressed": {
+          "background": "{semantic.state.pressed-on-surface}",
+          "radius": "{primitive.radius.8}"
+        }
+      },
+      "since": "3차"
+    },
     "NavigationBanner": {
       "figmaName": "Map/Navigation Banner",
       "figma": "297:5668",
@@ -2181,7 +2466,16 @@
       "Graphic/Onboarding/3": "415:18110",
       "Graphic/Logo": "415:17996",
       "Graphic/Empty": "415:21381",
-      "Graphic/My Course": "415:31603"
+      "Graphic/My Course": "415:31603",
+      "Graphic/Error": "711:26630",
+      "Graphic/Loading": "711:26225",
+      "Graphic/Record": "730:29552"
+    },
+    "notes": {
+      "Graphic/Empty": "3차 교체: 지도 타일 + 빛나는 시작점 일러스트(80×80, 투명 배경, 배경 타일 포함)",
+      "Graphic/Error": "3차 추가: 금색 테두리 경고 삼각형 + 느낌표 일러스트(80×80). 네트워크 오류, 공통 오류 빈 상태",
+      "Graphic/Loading": "3차 추가: 로딩 자리(100×100). 이미지가 아니라 Lottie runveal_loading_import_records.json(기록 불러오는 중)을 넣는 자리. 공통 로딩은 runveal_loading_common.json(80×80)",
+      "Graphic/Record": "3차 추가: 기록 화면 요약 아래 금빛 호(360×50, 선 4 방사형 그라데이션). 화면 너비에 맞춰 가운데 정렬, 좌우가 화면 밖으로 넘침"
     }
   }
 }
