@@ -94,7 +94,9 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                 modifier = Modifier.fillMaxSize(),
             ) {
                 navigation<RunVealRoute.HomeTab.Home>(startDestination = RunVealRoute.HomeTab.HomeMap) {
-                    homeMapOverlay()
+                    homeMapOverlay(
+                        onCreateCourseClick = { tabNavigator.navigate(RunVealRoute.HomeTab.CourseRecommend) },
+                    )
                     courseRecommendOverlay(onBack = tabNavigator::popBackStack)
                 }
                 courseGraph(tabNavigator)
