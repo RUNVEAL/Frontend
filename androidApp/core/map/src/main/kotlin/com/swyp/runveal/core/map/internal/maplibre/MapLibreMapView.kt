@@ -6,7 +6,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
@@ -28,12 +27,9 @@ import org.maplibre.android.maps.Style
 internal fun MapLibreMapView(
     modifier: Modifier,
     state: MapState,
-    visitedRoadGeoJson: String?,
-    onZoomChanged: (Double) -> Unit,
 ) {
     val mapView = rememberMapViewWithLifecycle()
     var style by remember { mutableStateOf<Style?>(null) }
-    val currentOnZoomChanged by rememberUpdatedState(onZoomChanged)
     val colors = RunvealTheme.colors
     val mapColors = remember(colors) {
         MapColors(
@@ -49,8 +45,7 @@ internal fun MapLibreMapView(
         view.getMapAsync { map ->
             if (style == null) {
                 setUpInitialCamera(map, state)
-                map.addOnCameraIdleListener { currentOnZoomChanged(map.cameraPosition.zoom) }
-                currentOnZoomChanged(state.initialZoom)
+                map.addOnCameraIdleListener { state.currentZoom = map.cameraPosition.zoom }
                 map.setStyle(MapConfig.STYLE_URL) { loadedStyle ->
                     style = loadedStyle
                     CurrentLocationLayer.activate(view.context, map, loadedStyle, mapColors.currentLocation)
@@ -59,6 +54,7 @@ internal fun MapLibreMapView(
         }
     }
 
+    val visitedRoadGeoJson = state.layers[MapConfig.SOURCE_VISITED_ROAD]
     LaunchedEffect(style, visitedRoadGeoJson, mapColors) {
         style?.let { VisitedRoadLayer.apply(it, visitedRoadGeoJson, mapColors) }
     }

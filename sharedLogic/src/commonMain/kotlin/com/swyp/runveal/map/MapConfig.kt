@@ -9,6 +9,8 @@ object MapConfig {
 
     val SEOUL_CITY_HALL: LatLon = LatLon(lat = 37.5665, lon = 126.9780)
     const val INITIAL_ZOOM: Double = 14.0
+    /** A3-4(줌 인) 전환 기준. 전환 히스테리시스(16.0 / 15.7)는 추후 정교화. */
+    const val ZOOM_IN_THRESHOLD: Double = 16.0
 
     val KOREA_BOUNDS_NORTH_WEST: LatLon = LatLon(lat = 38.7, lon = 124.5)
     val KOREA_BOUNDS_SOUTH_EAST: LatLon = LatLon(lat = 33.0, lon = 131.0)

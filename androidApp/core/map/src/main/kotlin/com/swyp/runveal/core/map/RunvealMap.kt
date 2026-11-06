@@ -4,18 +4,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.swyp.runveal.core.map.internal.maplibre.MapLibreMapView
 
-/** feature가 아는 것은 이것뿐 — MapLibre SDK 타입은 전부 internal에 숨긴다. */
+/**
+ * feature가 아는 것은 이것뿐 — MapLibre SDK 타입은 전부 internal에 숨긴다. Map Shell에서 단 하나만 그리고,
+ * 하위 화면은 [LocalMapState]로 상태를 읽거나 [MapLayers]로 레이어를 선언한다.
+ */
 @Composable
 fun RunvealMap(
     modifier: Modifier = Modifier,
     state: MapState = rememberMapState(),
-    visitedRoadGeoJson: String? = null,
-    onZoomChanged: (Double) -> Unit = {},
 ) {
     MapLibreMapView(
         modifier = modifier,
         state = state,
-        visitedRoadGeoJson = visitedRoadGeoJson,
-        onZoomChanged = onZoomChanged,
     )
 }
