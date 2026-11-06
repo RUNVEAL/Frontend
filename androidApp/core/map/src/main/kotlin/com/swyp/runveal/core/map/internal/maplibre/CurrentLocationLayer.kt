@@ -1,6 +1,7 @@
 package com.swyp.runveal.core.map.internal.maplibre
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
@@ -18,6 +19,8 @@ import org.maplibre.android.maps.Style
  * 있도록 추적 모드를 끈다(계속 따라다니지 않음).
  */
 internal object CurrentLocationLayer {
+    /** 바로 위에서 수동으로 권한을 확인하고 없으면 return하는데, lint가 이 가드를 추론하지 못해 억제한다. */
+    @SuppressLint("MissingPermission")
     fun activate(context: Context, map: MapLibreMap, style: Style, tintColor: Int) {
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED
