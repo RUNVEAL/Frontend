@@ -45,6 +45,7 @@ fun MakeCoursePanel(
     onRecommendClick: () -> Unit,
     modifier: Modifier = Modifier,
     endLocationIsDefault: Boolean = true,
+    selectedFilterCount: Int = 0,
 ) {
     val colors = RunvealTheme.colors
     val shape = RunvealTheme.shapes.radius32
@@ -91,9 +92,10 @@ fun MakeCoursePanel(
                 label = "안 가본 길 우선",
             )
             RunvealChipCondition(
-                checked = false,
+                checked = selectedFilterCount > 0,
                 onCheckedChange = { onFilterClick() },
                 icon = RunvealChipConditionIcon.Filter,
+                label = if (selectedFilterCount > 0) selectedFilterCount.toString() else null,
             )
         }
 

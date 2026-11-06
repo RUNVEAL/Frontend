@@ -13,17 +13,23 @@ import com.swyp.runveal.designsystem.component.button.RunvealButtonGroup
 import com.swyp.runveal.designsystem.component.button.RunvealButtonGroupSingle
 import com.swyp.runveal.designsystem.component.input.RunvealChipOption
 import com.swyp.runveal.designsystem.component.input.RunvealToggleSwitch
+import com.swyp.runveal.designsystem.component.input.RunvealWheelPicker
 import com.swyp.runveal.designsystem.component.overlay.RunvealBottomSheet
 import com.swyp.runveal.designsystem.component.overlay.RunvealBottomSheetHeader
 import com.swyp.runveal.designsystem.component.overlay.RunvealBottomSheetHeaderType
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 
-/** 코스 조건 설정 바텀시트 — 거리, 안 가본 길 우선, 러닝 필터. */
+/** 코스 조건 설정 바텀시트 — 거리(프리셋 + 직접입력 휠), 안 가본 길 우선, 러닝 필터. */
 @Composable
 fun FilterBottomSheet(
     distanceOptions: List<String>,
     selectedDistance: String,
     onDistanceSelect: (String) -> Unit,
+    isCustomDistanceSelected: Boolean,
+    customDistanceValues: List<String>,
+    customDistanceIndex: Int,
+    onCustomDistanceChipClick: () -> Unit,
+    onCustomDistanceIndexChange: (Int) -> Unit,
     avoidVisitedPreferred: Boolean,
     onAvoidVisitedPreferredChange: (Boolean) -> Unit,
     filterOptions: List<String>,
@@ -58,12 +64,35 @@ fun FilterBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space24),
             ) {
-                FilterSection(title = "원하는 거리") {
-                    distanceOptions.forEach { option ->
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
+                ) {
+                    Text("원하는 거리", style = RunvealTheme.typography.bodyLSemibold, color = colors.text.primary)
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
+                        verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
+                    ) {
+                        distanceOptions.forEach { option ->
+                            RunvealChipOption(
+                                label = option,
+                                selected = !isCustomDistanceSelected && option == selectedDistance,
+                                onClick = { onDistanceSelect(option) },
+                            )
+                        }
                         RunvealChipOption(
-                            label = option,
-                            selected = option == selectedDistance,
-                            onClick = { onDistanceSelect(option) },
+                            label = if (isCustomDistanceSelected) "${customDistanceValues[customDistanceIndex]}km" else "직접입력",
+                            selected = isCustomDistanceSelected,
+                            onClick = onCustomDistanceChipClick,
+                        )
+                    }
+                    if (isCustomDistanceSelected) {
+                        RunvealWheelPicker(
+                            values = customDistanceValues,
+                            selectedIndex = customDistanceIndex,
+                            onSelectedIndexChange = onCustomDistanceIndexChange,
+                            unit = "km",
                         )
                     }
                 }
