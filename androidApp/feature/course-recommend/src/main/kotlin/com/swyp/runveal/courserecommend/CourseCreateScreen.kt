@@ -11,6 +11,9 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -18,16 +21,24 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarStyle
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 
+private val DistanceOptions = listOf("3km", "5km", "7km", "10km", "직접입력")
+private val FilterOptions = listOf("신호/횡단보도 적은 길", "완만한 길", "공원 지나가기", "하천길 따라가기")
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CourseCreateScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     BackHandler(onBack = onBack)
     var avoidVisitedPreferred by remember { mutableStateOf(true) }
+    var selectedDistance by remember { mutableStateOf("5km") }
+    var selectedFilters by remember { mutableStateOf(emptySet<String>()) }
+    var showFilterSheet by remember { mutableStateOf(false) }
 
     // 지도(Map Shell)는 그대로 보이고 이 위에 앱바/패널만 얹는다 — 배경을 깔지 않는다.
     Box(modifier = modifier.fillMaxSize()) {
@@ -42,17 +53,17 @@ fun CourseCreateScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                 .windowInsetsPadding(WindowInsets.statusBars),
         )
 
-        // TODO: 지도, 출발/도착 선택, 거리 조정, 경로 추천 연동 추가 예정
+        // TODO: 지도, 출발/도착 선택, 실제 경로 추천 연동 추가 예정
         MakeCoursePanel(
             startLocation = "현위치",
             endLocation = "출발지로 돌아오기",
-            distanceLabel = "5km",
+            distanceLabel = selectedDistance,
             avoidVisitedPreferred = avoidVisitedPreferred,
             onStartLocationClick = {},
             onEndLocationClick = {},
-            onDistanceClick = {},
+            onDistanceClick = { showFilterSheet = true },
             onAvoidVisitedPreferredChange = { avoidVisitedPreferred = it },
-            onFilterClick = {},
+            onFilterClick = { showFilterSheet = true },
             onRecommendClick = {},
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -62,6 +73,35 @@ fun CourseCreateScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
                     vertical = RunvealTheme.spacing.space8,
                 ),
         )
+    }
+
+    if (showFilterSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showFilterSheet = false },
+            sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+            containerColor = Color.Transparent,
+            dragHandle = null,
+        ) {
+            FilterBottomSheet(
+                distanceOptions = DistanceOptions,
+                selectedDistance = selectedDistance,
+                onDistanceSelect = { selectedDistance = it },
+                avoidVisitedPreferred = avoidVisitedPreferred,
+                onAvoidVisitedPreferredChange = { avoidVisitedPreferred = it },
+                filterOptions = FilterOptions,
+                selectedFilters = selectedFilters,
+                onFilterToggle = { option ->
+                    selectedFilters = if (option in selectedFilters) selectedFilters - option else selectedFilters + option
+                },
+                onBack = { showFilterSheet = false },
+                onReset = {
+                    selectedDistance = "5km"
+                    avoidVisitedPreferred = true
+                    selectedFilters = emptySet()
+                },
+                onApply = { showFilterSheet = false },
+            )
+        }
     }
 }
 
