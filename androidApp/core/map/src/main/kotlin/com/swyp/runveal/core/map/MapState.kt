@@ -2,12 +2,14 @@ package com.swyp.runveal.core.map
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.unit.dp
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.map.MapConfig
 
@@ -42,3 +44,9 @@ fun rememberMapState(
 val LocalMapState = staticCompositionLocalOf<MapState> {
     error("MapState가 제공되지 않았다. Map Shell 안에서만 사용할 수 있다.")
 }
+
+/**
+ * Map Shell이 지도 위에 떠 있는 하단 패널(탭바 등)에 얹은 높이 — 줌인 오버레이의 하단 액션 줄처럼
+ * NavHost 안 화면이 그 패널과 겹치지 않게 띄워야 할 때 쓴다. Map Shell 밖에서는 항상 0.dp.
+ */
+val LocalMapOverlayBottomInset = compositionLocalOf { 0.dp }

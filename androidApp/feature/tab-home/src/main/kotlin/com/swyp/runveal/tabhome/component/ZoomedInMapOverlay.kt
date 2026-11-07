@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.swyp.runveal.core.map.LocalMapOverlayBottomInset
 import com.swyp.runveal.designsystem.RunvealIcons
 import com.swyp.runveal.designsystem.component.button.RunvealIconButton
 import com.swyp.runveal.designsystem.component.button.RunvealRunStartButton
@@ -91,8 +92,9 @@ private fun MapActionRow(
             .padding(
                 start = RunvealTheme.layout.marginMapControls,
                 end = RunvealTheme.layout.marginMapControls,
-                // 플로팅 탭바(sizeTabBar + 상하 space8) 위로 띄운다.
-                bottom = RunvealTheme.layout.sizeTabBar + RunvealTheme.spacing.space32,
+                // 플로팅 탭바(sizeTabBar + 상하 space8) 위로 띄운다. 위치 권한/서비스 배너가 탭바 위에
+                // 얹혀 더 높아진 경우는 Map Shell이 LocalMapOverlayBottomInset으로 그 차이를 알려준다.
+                bottom = RunvealTheme.layout.sizeTabBar + RunvealTheme.spacing.space32 + LocalMapOverlayBottomInset.current,
             ),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom,

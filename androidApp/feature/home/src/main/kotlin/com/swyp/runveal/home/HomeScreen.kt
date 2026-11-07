@@ -20,6 +20,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
+import com.swyp.runveal.core.map.LocalMapOverlayBottomInset
 import com.swyp.runveal.core.map.LocalMapState
 import com.swyp.runveal.core.map.MapState
 import com.swyp.runveal.core.map.RunvealMap
@@ -48,6 +49,13 @@ import com.swyp.runveal.tabrecord.navigation.recordGraph
 private val HOME_BOTTOM_PANEL_INNER_INSET = 6.dp
 
 /**
+ * 줌인 오버레이의 하단 액션 줄이 위치 안내 배너 때문에 더 높아진 패널과 안 겹치게 추가로 띄워야 하는
+ * 높이. 배너(40dp) + 패널 안쪽 top padding(12dp) + 배너·탭바 사이 gap(4dp) - 패널이 대신하는
+ * 탭바 단독 바깥 padding(16dp) = 56dp. 매칭되는 토큰이 없어 직접 계산해 하드코딩했다.
+ */
+private val LOCATION_BANNER_EXTRA_INSET = 56.dp
+
+/**
  * 홈 탭 화면 — Map Shell. 지도(`RunvealMap`)는 여기서 하나만 그리고, 탭 화면과 지도 위 흐름(홈 지도,
  * 코스 추천)은 전부 이 아래 단일 NavHost로 조립한다. 탭바 노출 규칙도 여기 한 곳에만 둔다.
  */
@@ -56,6 +64,7 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
     val tabNavigator = rememberRunVealNavigator()
     val mapState = rememberMapState()
     val locationPermissionState = rememberLocationPermissionState()
+    val isLocationBannerNeeded = !locationPermissionState.isGranted || !locationPermissionState.isLocationServicesEnabled
     val currentDestination by tabNavigator.navController.currentBackStackEntryAsState()
     val tabItems = listOf(
         RunvealTabItemSpec(RunvealIcons.Home, "홈"),
@@ -90,7 +99,10 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    CompositionLocalProvider(LocalMapState provides mapState) {
+    CompositionLocalProvider(
+        LocalMapState provides mapState,
+        LocalMapOverlayBottomInset provides if (isLocationBannerNeeded) LOCATION_BANNER_EXTRA_INSET else 0.dp,
+    ) {
         Box(modifier = modifier.fillMaxSize()) {
             HomeMapLayer(mapState = mapState, locationPermissionState = locationPermissionState, modifier = Modifier.fillMaxSize())
 
@@ -111,69 +123,92 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
             }
 
             if (showTabBar) {
-                if (selectedIndex == 0 && !isZoomedIn) {
-                    RunvealHomeBottomPanel(
-                        banner = when {
-                            !locationPermissionState.isGranted -> {
-                                {
-                                    RunvealLocationOffBanner(
-                                        message = stringResource(R.string.home_location_permission_off_banner_message),
-                                        actionLabel = stringResource(R.string.home_location_permission_off_banner_action),
-                                        onActionClick = locationPermissionState::request,
-                                    )
-                                }
-                            }
-                            !locationPermissionState.isLocationServicesEnabled -> {
-                                {
-                                    RunvealLocationOffBanner(
-                                        message = stringResource(R.string.home_location_services_off_banner_message),
-                                        actionLabel = stringResource(R.string.home_location_services_off_banner_action),
-                                        onActionClick = locationPermissionState::requestEnableLocationServices,
-                                    )
-                                }
-                            }
-                            else -> null
-                        },
-                        summary = {
-                            // TODO: 러닝 기록 연동 추가 예정
-                            RunvealSummaryCard(
-                                dongName = "내 동네",
-                                ratePercent = 0,
-                                onClick = {},
-                                isMine = true
+                val locationOffBanner: (@Composable () -> Unit)? = when {
+                    !locationPermissionState.isGranted -> {
+                        {
+                            RunvealLocationOffBanner(
+                                message = stringResource(R.string.home_location_permission_off_banner_message),
+                                actionLabel = stringResource(R.string.home_location_permission_off_banner_action),
+                                onActionClick = locationPermissionState::request,
                             )
-                        },
-                        tabBar = {
-                            RunvealTabBar(
-                                items = tabItems,
-                                selectedIndex = selectedIndex,
-                                onSelect = onSelectTab,
-                                container = RunvealTabBarContainer.Embedded,
+                        }
+                    }
+                    !locationPermissionState.isLocationServicesEnabled -> {
+                        {
+                            RunvealLocationOffBanner(
+                                message = stringResource(R.string.home_location_services_off_banner_message),
+                                actionLabel = stringResource(R.string.home_location_services_off_banner_action),
+                                onActionClick = locationPermissionState::requestEnableLocationServices,
                             )
-                        },
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
-                            .padding(
-                                start = RunvealTheme.layout.marginScreen,
-                                end = RunvealTheme.layout.marginScreen,
-                                top = RunvealTheme.spacing.space8,
-                                bottom = RunvealTheme.spacing.space8 - HOME_BOTTOM_PANEL_INNER_INSET,
-                            ),
+                        }
+                    }
+                    else -> null
+                }
+                val panelModifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+                    .padding(
+                        start = RunvealTheme.layout.marginScreen,
+                        end = RunvealTheme.layout.marginScreen,
+                        top = RunvealTheme.spacing.space8,
+                        bottom = RunvealTheme.spacing.space8 - HOME_BOTTOM_PANEL_INNER_INSET,
                     )
-                } else {
-                    RunvealTabBar(
-                        items = tabItems,
-                        selectedIndex = selectedIndex,
-                        onSelect = onSelectTab,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
-                            .padding(
-                                horizontal = RunvealTheme.layout.marginScreen + HOME_BOTTOM_PANEL_INNER_INSET,
-                                vertical = RunvealTheme.spacing.space8,
-                            ),
-                    )
+
+                when {
+                    // 홈 탭 · 줌아웃: 패널 전체(배너? + 요약 카드 + 탭바).
+                    selectedIndex == 0 && !isZoomedIn -> {
+                        RunvealHomeBottomPanel(
+                            banner = locationOffBanner,
+                            summary = {
+                                // TODO: 러닝 기록 연동 추가 예정
+                                RunvealSummaryCard(
+                                    dongName = "내 동네",
+                                    ratePercent = 0,
+                                    onClick = {},
+                                    isMine = true
+                                )
+                            },
+                            tabBar = {
+                                RunvealTabBar(
+                                    items = tabItems,
+                                    selectedIndex = selectedIndex,
+                                    onSelect = onSelectTab,
+                                    container = RunvealTabBarContainer.Embedded,
+                                )
+                            },
+                            modifier = panelModifier,
+                        )
+                    }
+                    // 홈 탭 · 줌인 + 위치 꺼짐: 요약 카드는 생략하고 배너만 탭바 위에 얹는다.
+                    selectedIndex == 0 && isZoomedIn && locationOffBanner != null -> {
+                        RunvealHomeBottomPanel(
+                            banner = locationOffBanner,
+                            tabBar = {
+                                RunvealTabBar(
+                                    items = tabItems,
+                                    selectedIndex = selectedIndex,
+                                    onSelect = onSelectTab,
+                                    container = RunvealTabBarContainer.Embedded,
+                                )
+                            },
+                            modifier = panelModifier,
+                        )
+                    }
+                    // 그 외(줌인 + 위치 정상, 다른 탭): 탭바만 홀로 띄운다.
+                    else -> {
+                        RunvealTabBar(
+                            items = tabItems,
+                            selectedIndex = selectedIndex,
+                            onSelect = onSelectTab,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+                                .padding(
+                                    horizontal = RunvealTheme.layout.marginScreen + HOME_BOTTOM_PANEL_INNER_INSET,
+                                    vertical = RunvealTheme.spacing.space8,
+                                ),
+                        )
+                    }
                 }
             }
         }

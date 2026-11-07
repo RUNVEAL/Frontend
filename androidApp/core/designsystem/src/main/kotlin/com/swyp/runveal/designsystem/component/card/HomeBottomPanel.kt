@@ -31,15 +31,16 @@ import com.swyp.runveal.designsystem.theme.runvealGlass
  * 홈 하단 패널. GNB 위치는 다른 탭과 같게 고정, 패널이 바깥에서 감싼다(너비 = GNB + 좌우 6).
  * 보통 [summary]엔 [RunvealSummaryCard], [tabBar]엔
  * `RunvealTabBar(container = RunvealTabBarContainer.Embedded)`를 넣는다.
- * 위치 권한이 꺼져 있으면 [banner]에 [RunvealLocationOffBanner]를 넣는다 —
- * [summary]를 대체하지 않고 그 위에 구분선과 함께 얹힌다.
+ * 위치 권한/서비스가 꺼져 있으면 [banner]에 [RunvealLocationOffBanner]를 넣는다 —
+ * [summary]를 대체하지 않고 그 위에 구분선과 함께 얹힌다. 지도를 줌인했을 때처럼 [summary]를
+ * 보여줄 자리가 없을 땐 null로 생략할 수 있다(이때도 [banner]는 [tabBar] 위에 그대로 얹힌다).
  */
 @Composable
 fun RunvealHomeBottomPanel(
-    summary: @Composable () -> Unit,
     tabBar: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     banner: (@Composable () -> Unit)? = null,
+    summary: (@Composable () -> Unit)? = null,
 ) {
     val shape = RunvealTheme.shapes.radius32
     Column(
@@ -52,15 +53,18 @@ fun RunvealHomeBottomPanel(
     ) {
         if (banner != null) {
             banner()
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = RunvealTheme.spacing.space20)
-                    .height(1.dp)
-                    .background(RunvealTheme.colors.border.default),
-            )
+            // summary가 없으면(줌인 상태) 배너가 탭바 바로 위에 구분선 없이 얹힌다.
+            if (summary != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = RunvealTheme.spacing.space20)
+                        .height(1.dp)
+                        .background(RunvealTheme.colors.border.default),
+                )
+            }
         }
-        summary()
+        if (summary != null) summary()
         tabBar()
     }
 }
@@ -163,6 +167,36 @@ private fun RunvealHomeBottomPanelLocationOffPreview() {
                     ratePercent = 0,
                     onClick = {},
                     isMine = true,
+                )
+            },
+            tabBar = {
+                RunvealTabBar(
+                    items = listOf(
+                        RunvealTabItemSpec(RunvealIcons.Home, "홈"),
+                        RunvealTabItemSpec(RunvealIcons.Course, "내 코스"),
+                        RunvealTabItemSpec(RunvealIcons.Record, "기록"),
+                        RunvealTabItemSpec(RunvealIcons.My, "MY"),
+                    ),
+                    selectedIndex = 0,
+                    onSelect = {},
+                    container = RunvealTabBarContainer.Embedded,
+                )
+            },
+        )
+    }
+}
+
+/** 지도를 줌인해 요약 카드 자리가 없을 때 — 배너가 탭바 위에 바로 얹힌다. */
+@Preview
+@Composable
+private fun RunvealHomeBottomPanelLocationOffZoomedInPreview() {
+    RunvealTheme {
+        RunvealHomeBottomPanel(
+            banner = {
+                RunvealLocationOffBanner(
+                    message = "위치 서비스가 꺼져 있어요",
+                    actionLabel = "위치 켜기",
+                    onActionClick = {},
                 )
             },
             tabBar = {
