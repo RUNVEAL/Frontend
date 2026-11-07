@@ -8,6 +8,6 @@ import com.swyp.runveal.tabcourse.CourseScreen
 
 fun NavGraphBuilder.courseGraph(navigator: RunVealNavigator) {
     composable<RunVealRoute.HomeTab.Course> {
-        CourseScreen()
+        CourseScreen(onCreateCourseClick = { navigator.navigate(RunVealRoute.HomeTab.CourseRecommend) })
     }
 }
