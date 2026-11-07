@@ -41,7 +41,7 @@ fun HomeMapOverlay(locationName: String, modifier: Modifier = Modifier) {
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .fillMaxWidth()
-                .height(180.dp)
+                .height(200.dp)
                 .background(RunvealTheme.colors.bg.canvas),
         )
 
