@@ -1,4 +1,4 @@
-package com.swyp.runveal.courserecommend
+package com.swyp.runveal.courserecommend.component
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column

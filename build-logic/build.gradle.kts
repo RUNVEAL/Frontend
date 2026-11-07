@@ -19,6 +19,10 @@ gradlePlugin {
             id = "runveal.android.library.compose"
             implementationClass = "runveal.buildlogic.AndroidLibraryComposeConventionPlugin"
         }
+        register("androidFeature") {
+            id = "runveal.android.feature"
+            implementationClass = "runveal.buildlogic.AndroidFeatureConventionPlugin"
+        }
         register("androidApplication") {
             id = "runveal.android.application"
             implementationClass = "runveal.buildlogic.AndroidApplicationConventionPlugin"
