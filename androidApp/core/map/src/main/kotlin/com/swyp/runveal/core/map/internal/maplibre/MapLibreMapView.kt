@@ -14,7 +14,10 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.swyp.runveal.core.map.DongOverlayGeoJson
 import com.swyp.runveal.core.map.MapState
+import com.swyp.runveal.core.map.SidoOverlayGeoJson
+import com.swyp.runveal.core.map.SigunguOverlayGeoJson
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.map.MapConfig
 import org.maplibre.android.camera.CameraPosition
@@ -27,6 +30,9 @@ import org.maplibre.android.maps.Style
 internal fun MapLibreMapView(
     modifier: Modifier,
     state: MapState,
+    dongOverlay: DongOverlayGeoJson?,
+    sigunguOverlay: SigunguOverlayGeoJson?,
+    sidoOverlay: SidoOverlayGeoJson?,
 ) {
     val mapView = rememberMapViewWithLifecycle()
     var style by remember { mutableStateOf<Style?>(null) }
@@ -38,6 +44,8 @@ internal fun MapLibreMapView(
             currentLocation = colors.map.location.toArgb(),
             dongLabelPrimary = colors.text.primary.toArgb(),
             dongLabelSecondary = colors.text.secondary.toArgb(),
+            sigunguBorder = colors.map.boundary.toArgb(),
+            sigunguLabel = colors.text.secondary.toArgb(),
         )
     }
 
@@ -49,6 +57,7 @@ internal fun MapLibreMapView(
                 map.setStyle(MapConfig.STYLE_URL) { loadedStyle ->
                     style = loadedStyle
                     CurrentLocationLayer.activate(view.context, map, loadedStyle, mapColors.currentLocation)
+                    BaseStyleLabels.hideFromDongZoom(loadedStyle)
                 }
             }
         }
@@ -57,6 +66,15 @@ internal fun MapLibreMapView(
     val visitedRoadGeoJson = state.layers[MapConfig.SOURCE_VISITED_ROAD]
     LaunchedEffect(style, visitedRoadGeoJson, mapColors) {
         style?.let { VisitedRoadLayer.apply(it, visitedRoadGeoJson, mapColors) }
+    }
+    LaunchedEffect(style, dongOverlay, mapColors) {
+        style?.let { DongOverlayLayer.apply(it, dongOverlay, mapColors) }
+    }
+    LaunchedEffect(style, sigunguOverlay, mapColors) {
+        style?.let { SigunguOverlayLayer.apply(it, sigunguOverlay, mapColors) }
+    }
+    LaunchedEffect(style, sidoOverlay, mapColors) {
+        style?.let { SidoOverlayLayer.apply(it, sidoOverlay, mapColors) }
     }
 }
 

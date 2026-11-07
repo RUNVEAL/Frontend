@@ -12,9 +12,15 @@ import com.swyp.runveal.core.map.internal.maplibre.MapLibreMapView
 fun RunvealMap(
     modifier: Modifier = Modifier,
     state: MapState = rememberMapState(),
+    dongOverlay: DongOverlayGeoJson? = null,
+    sigunguOverlay: SigunguOverlayGeoJson? = null,
+    sidoOverlay: SidoOverlayGeoJson? = null,
 ) {
     MapLibreMapView(
         modifier = modifier,
         state = state,
+        dongOverlay = dongOverlay,
+        sigunguOverlay = sigunguOverlay,
+        sidoOverlay = sidoOverlay,
     )
 }

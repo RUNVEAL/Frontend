@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -20,6 +22,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
+import com.swyp.runveal.core.map.DongAssetRepository
 import com.swyp.runveal.core.map.LocalMapOverlayBottomInset
 import com.swyp.runveal.core.map.LocalMapState
 import com.swyp.runveal.core.map.MapState
@@ -219,6 +222,19 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
 @Composable
 private fun HomeMapLayer(mapState: MapState, locationPermissionState: LocationPermissionState, modifier: Modifier = Modifier) {
     RequireLocationPermission(modifier = modifier, state = locationPermissionState) {
-        RunvealMap(modifier = Modifier.fillMaxSize(), state = mapState)
+        val context = LocalContext.current
+        // 테스트용: 실제 GPS 기록(core:tracking)이 아직 없어서 빈 edges로 동/시군구/시도 경계만 확인한다.
+        val repository = remember { DongAssetRepository(context) }
+        val dongOverlay = remember { repository.buildOverlay(edges = emptyList()) }
+        val sigunguOverlay = remember { repository.buildSigunguOverlay() }
+        val sidoOverlay = remember { repository.buildSidoOverlay() }
+
+        RunvealMap(
+            modifier = Modifier.fillMaxSize(),
+            state = mapState,
+            dongOverlay = dongOverlay,
+            sigunguOverlay = sigunguOverlay,
+            sidoOverlay = sidoOverlay,
+        )
     }
 }
