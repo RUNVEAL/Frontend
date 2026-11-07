@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -45,15 +46,32 @@ fun RunvealBottomSheetHeader(
             horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (showBack) {
-                Box(
-                    modifier = Modifier.size(RunvealTheme.layout.sizeTouchTargetMin).clickable(onClick = onBackClick),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(imageVector = RunvealIcons.Back, contentDescription = null, tint = colors.icon.primary, modifier = Modifier.size(RunvealTheme.layout.sizeIcon))
+            // 바깥 패딩(marginScreen)은 콘텐츠와 공통이라, 뒤로가기 터치 영역의 여유(48-24, 좌우 12씩)만큼
+            // 뒤로 아이콘+제목을 통째로 왼쪽으로 당겨서 아이콘이 다른 화면 뒤로가기 버튼과 같은
+            // 16dp 지점에 오게 한다. 오른쪽 action 글자는 그대로 둔다.
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .then(
+                        if (showBack) {
+                            Modifier.offset(x = -(RunvealTheme.layout.sizeTouchTargetMin - RunvealTheme.layout.sizeIcon) / 2)
+                        } else {
+                            Modifier
+                        },
+                    ),
+                horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (showBack) {
+                    Box(
+                        modifier = Modifier.size(RunvealTheme.layout.sizeTouchTargetMin).clickable(onClick = onBackClick),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(imageVector = RunvealIcons.Back, contentDescription = null, tint = colors.icon.primary, modifier = Modifier.size(RunvealTheme.layout.sizeIcon))
+                    }
                 }
+                Text(title, style = RunvealTheme.typography.heading3, color = colors.text.primary, modifier = Modifier.weight(1f))
             }
-            Text(title, style = RunvealTheme.typography.heading3, color = colors.text.primary, modifier = Modifier.weight(1f))
             if (actionLabel != null) {
                 Text(
                     actionLabel,
