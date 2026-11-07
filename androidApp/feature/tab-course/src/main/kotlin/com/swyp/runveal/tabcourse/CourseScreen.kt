@@ -5,13 +5,17 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,8 +30,33 @@ import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLarge
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.tabcourse.R
 import com.swyp.runveal.tabcourse.component.CourseEmptyState
+import com.swyp.runveal.tabcourse.component.CourseRecommendationCard
+import com.swyp.runveal.tabcourse.component.SavedCourseListItem
+import com.swyp.runveal.tabcourse.component.SavedCourseSectionHeader
 
-// TODO: 저장한 코스가 있으면 목록을, 없으면 이 빈 상태를 보여주도록 분기 추가 예정 (코스 저장 기능 연동 전)
+// TODO: 코스 저장 기능 연동 전까지 쓰는 임시 플래그/데이터 — 실제로는 저장한 코스 목록으로 갈린다.
+private const val HAS_SAVED_COURSES = true
+
+private data class SampleSavedCourse(
+    val title: String,
+    val distanceLabel: String,
+    val durationLabel: String,
+    val tag: String,
+    val runCountLabel: String,
+    val lastRunLabel: String,
+)
+
+private val SampleSavedCourses = listOf(
+    SampleSavedCourse(
+        title = "서울숲 근처 러닝",
+        distanceLabel = "7.3km",
+        durationLabel = "45분",
+        tag = "순환",
+        runCountLabel = "2회 달림",
+        lastRunLabel = "최근 10.31",
+    ),
+)
+
 @Composable
 fun CourseScreen(onCreateCourseClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = RunvealTheme.colors
@@ -44,22 +73,78 @@ fun CourseScreen(onCreateCourseClick: () -> Unit, modifier: Modifier = Modifier)
                 .aspectRatio(1920f / 544f),
         )
 
-        RunvealTopAppBarLarge(
-            title = "내 코스",
-            savedCourse = "저장한 코스 0개",
-            action = {
-                CourseTopBarActionButton(onClick = onCreateCourseClick)
-            },
+        Column(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.statusBars),
-        )
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            RunvealTopAppBarLarge(
+                title = "내 코스",
+                savedCourse = if (HAS_SAVED_COURSES) "저장한 코스 1개" else "저장한 코스 0개",
+                action = {
+                    CourseTopBarActionButton(onClick = onCreateCourseClick)
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
 
-        CourseEmptyState(
-            onCreateClick = onCreateCourseClick,
-            modifier = Modifier.align(Alignment.Center),
-        )
+            if (HAS_SAVED_COURSES) {
+                CourseRecommendationCard(
+                    badgeLabel = "다음에 달려볼 코스",
+                    title = "코스 A",
+                    distanceLabel = "7.3km",
+                    durationLabel = "45분",
+                    tag = "순환",
+                    newRoadLabel = "새 길 1.3km",
+                    notRunLabel = "아직 안달림",
+                    onMoreClick = {},
+                    onStartClick = {},
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = RunvealTheme.layout.marginScreen),
+                )
+
+                SavedCourseSectionHeader(
+                    title = "저장한 코스",
+                    sortLabel = "최근 저장순",
+                    onSortClick = {},
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            start = RunvealTheme.layout.marginScreen,
+                            end = RunvealTheme.layout.marginScreen,
+                            top = RunvealTheme.spacing.space24,
+                        ),
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = RunvealTheme.layout.marginScreen),
+                ) {
+                    SampleSavedCourses.forEach { course ->
+                        SavedCourseListItem(
+                            title = course.title,
+                            distanceLabel = course.distanceLabel,
+                            durationLabel = course.durationLabel,
+                            tag = course.tag,
+                            runCountLabel = course.runCountLabel,
+                            lastRunLabel = course.lastRunLabel,
+                            onMoreClick = {},
+                            onStartClick = {},
+                        )
+                    }
+                }
+            }
+        }
+
+        if (!HAS_SAVED_COURSES) {
+            CourseEmptyState(
+                onCreateClick = onCreateCourseClick,
+                modifier = Modifier.align(Alignment.Center),
+            )
+        }
     }
 }
 
