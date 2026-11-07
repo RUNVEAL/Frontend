@@ -82,7 +82,7 @@ fun CourseScreen(onCreateCourseClick: () -> Unit, modifier: Modifier = Modifier)
         ) {
             RunvealTopAppBarLarge(
                 title = "내 코스",
-                savedCourse = if (HAS_SAVED_COURSES) "저장한 코스 1개" else "저장한 코스 0개",
+                metaLabel = if (HAS_SAVED_COURSES) "저장한 코스 1개" else "저장한 코스 0개",
                 action = {
                     CourseTopBarActionButton(onClick = onCreateCourseClick)
                 },
