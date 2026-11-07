@@ -3,6 +3,10 @@ package com.swyp.runveal.courserecommend.contract
 import com.swyp.runveal.ui.mvi.UiIntent
 
 sealed interface CourseCreateIntent : UiIntent {
+    data object StartLocationClicked : CourseCreateIntent
+    data object EndLocationClicked : CourseCreateIntent
+    data object CancelLocationSelection : CourseCreateIntent
+    data object ConfirmLocationSelection : CourseCreateIntent
     data object OpenFilterSheet : CourseCreateIntent
     data object CloseFilterSheet : CourseCreateIntent
     data class SelectPresetDistance(val distance: String) : CourseCreateIntent

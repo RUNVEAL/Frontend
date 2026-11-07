@@ -4,6 +4,7 @@ import com.swyp.runveal.courserecommend.contract.CourseCreateIntent
 import com.swyp.runveal.courserecommend.contract.CourseCreateState
 import com.swyp.runveal.courserecommend.contract.DefaultCustomDistanceIndex
 import com.swyp.runveal.courserecommend.contract.DefaultDistance
+import com.swyp.runveal.courserecommend.contract.LocationSelectionTarget
 import com.swyp.runveal.ui.mvi.MviViewModel
 
 /** 효과가 필요 없는 화면이라 Effect 타입 인자는 [Nothing]. */
@@ -12,6 +13,30 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
 ) {
     override suspend fun handleIntent(intent: CourseCreateIntent) {
         when (intent) {
+            CourseCreateIntent.StartLocationClicked ->
+                setState { copy(locationSelectionTarget = LocationSelectionTarget.Start) }
+
+            CourseCreateIntent.EndLocationClicked ->
+                setState { copy(locationSelectionTarget = LocationSelectionTarget.End) }
+
+            CourseCreateIntent.CancelLocationSelection ->
+                setState { copy(locationSelectionTarget = LocationSelectionTarget.None) }
+
+            CourseCreateIntent.ConfirmLocationSelection -> setState {
+                when (locationSelectionTarget) {
+                    LocationSelectionTarget.Start -> copy(
+                        startLocation = selectedPlaceName,
+                        locationSelectionTarget = LocationSelectionTarget.None,
+                    )
+                    LocationSelectionTarget.End -> copy(
+                        endLocation = selectedPlaceName,
+                        endLocationIsDefault = false,
+                        locationSelectionTarget = LocationSelectionTarget.None,
+                    )
+                    LocationSelectionTarget.None -> this
+                }
+            }
+
             CourseCreateIntent.OpenFilterSheet -> setState { copy(showFilterSheet = true) }
             CourseCreateIntent.CloseFilterSheet -> setState { copy(showFilterSheet = false) }
 
