@@ -49,8 +49,7 @@ object MapConfig {
 
     /**
      * 기본 스타일([STYLE_URL], OpenFreeMap dark)에 내장된 지명(시/군/구/읍/면/동 등) 라벨 레이어 ID.
-     * 동 레이어가 나타나는 시점([SIGUNGU_SWITCH_ZOOM])부터는 우리 동/시군구 라벨과 겹쳐 보이지
-     * 않게 이 레이어들을 숨긴다.
+     * 모든 줌에서 우리 동/시군구/시도 라벨과 겹쳐 보이지 않게 이 레이어들을 항상 숨긴다.
      */
     val BASE_STYLE_PLACE_LABEL_LAYERS: List<String> = listOf(
         "place_other",
@@ -66,5 +65,28 @@ object MapConfig {
     val BASE_STYLE_ROAD_LABEL_LAYERS: List<String> = listOf(
         "highway_name_other",
         "highway_name_motorway",
+    )
+
+    /** 기본 스타일의 vector 소스 ID. [LAYER_BASE_LANDCOVER_GRASS]처럼 새 레이어를 추가할 때 필요하다. */
+    const val SOURCE_BASE_STYLE: String = "openmaptiles"
+
+    const val LAYER_BASE_BUILDING: String = "building"
+    const val LAYER_BASE_LANDUSE_PARK: String = "landuse_park"
+    const val LAYER_BASE_LANDCOVER_WOOD: String = "landcover_wood"
+
+    /** 다크 스타일엔 원래 없는 레이어(liberty 스타일에만 있음) — 러닝 포커스에서 새로 추가해 그린다. */
+    const val LAYER_BASE_LANDCOVER_GRASS: String = "landcover_grass"
+
+    /**
+     * 기본 스타일의 간선/고속도로 레이어 ID. 동/시군구/시도 뷰([ZOOM_IN_THRESHOLD] 미만)에서는 일반
+     * 도로보다 더 흐리게 깔아서, 지금 보여주는 게 길이 아니라 동네 경계라는 걸 분명히 한다.
+     */
+    val BASE_STYLE_MAJOR_ROAD_LAYERS: List<String> = listOf(
+        "highway_major_casing",
+        "highway_major_inner",
+        "highway_major_subtle",
+        "highway_motorway_casing",
+        "highway_motorway_inner",
+        "highway_motorway_subtle",
     )
 }

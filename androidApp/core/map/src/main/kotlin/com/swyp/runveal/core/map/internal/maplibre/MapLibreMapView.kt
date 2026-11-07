@@ -56,8 +56,11 @@ internal fun MapLibreMapView(
                 map.addOnCameraIdleListener { state.currentZoom = map.cameraPosition.zoom }
                 map.setStyle(MapConfig.STYLE_URL) { loadedStyle ->
                     style = loadedStyle
+                    // 베이스 스타일 레이어 스냅샷이 필요해서 다른 레이어를 추가하기 전에 가장 먼저 호출한다.
+                    BaseMapDimmer.applyAtStyleLoad(loadedStyle)
+                    BaseStyleDarkCorrection.applyAtStyleLoad(loadedStyle)
                     CurrentLocationLayer.activate(view.context, map, loadedStyle, mapColors.currentLocation)
-                    BaseStyleLabels.hideFromDongZoom(loadedStyle)
+                    BaseStyleLabels.hide(loadedStyle)
                 }
             }
         }
