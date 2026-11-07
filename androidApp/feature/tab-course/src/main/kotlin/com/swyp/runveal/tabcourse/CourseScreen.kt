@@ -26,10 +26,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.swyp.runveal.designsystem.RunvealIcons
+import com.swyp.runveal.designsystem.component.list.RunvealEmptyState
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLarge
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.tabcourse.R
-import com.swyp.runveal.tabcourse.component.CourseEmptyState
 import com.swyp.runveal.tabcourse.component.CourseRecommendationCard
 import com.swyp.runveal.tabcourse.component.SavedCourseListItem
 import com.swyp.runveal.tabcourse.component.SavedCourseSectionHeader
@@ -140,8 +140,12 @@ fun CourseScreen(onCreateCourseClick: () -> Unit, modifier: Modifier = Modifier)
         }
 
         if (!HAS_SAVED_COURSES) {
-            CourseEmptyState(
-                onCreateClick = onCreateCourseClick,
+            RunvealEmptyState(
+                title = "아직 저장한 코스가 없어요",
+                description = "만든 코스를 저장하면\n여기서 바로 달릴 수 있어요",
+                actionLabel = "코스 만들기",
+                onActionClick = onCreateCourseClick,
+                graphic = { Image(painter = painterResource(R.drawable.empty_course), contentDescription = null) },
                 modifier = Modifier.align(Alignment.Center),
             )
         }

@@ -22,11 +22,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.swyp.runveal.designsystem.component.list.RunvealEmptyState
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLarge
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.tabrecord.R
 import com.swyp.runveal.tabrecord.component.MonthlyRunningSummary
-import com.swyp.runveal.tabrecord.component.RecordEmptyState
 import com.swyp.runveal.tabrecord.component.RecordListItem
 
 // TODO: 월 선택 동작, 실제 러닝 기록 데이터 연동 전까지 쓰는 임시 플래그/샘플 데이터
@@ -105,8 +105,12 @@ fun RecordScreen(modifier: Modifier = Modifier) {
                 }
             } else {
                 // 60dp에 맞는 spacing 토큰이 없어 그대로 하드코딩.
-                RecordEmptyState(
-                    onStartRunClick = {},
+                RunvealEmptyState(
+                    title = "아직 달린 기록이 없어요",
+                    description = "코스를 만들고 첫 길을 밝혀보세요",
+                    actionLabel = "러닝 시작하기",
+                    onActionClick = {},
+                    graphic = { Image(painter = painterResource(R.drawable.empty_course), contentDescription = null) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(
