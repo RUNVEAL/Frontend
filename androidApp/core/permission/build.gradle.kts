@@ -7,6 +7,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":androidApp:core:designsystem"))
+
     implementation(libs.androidx.activity.compose)
     implementation(libs.compose.material3)
 }

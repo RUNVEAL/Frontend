@@ -17,4 +17,15 @@
     <string name="course_card_stat_time">예상 시간</string>
     <string name="course_card_stat_elevation">고도</string>
     <string name="course_card_stat_new_road">새 길</string>
+    <string name="location_permission_sheet_title">위치 권한이 필요해요!</string>
+    <string name="location_permission_sheet_description">내 주변 탐험 지도를 보여주고, 달린 경로를 기록하려면 \n위치 정보가 필요해요.</string>
+    <string name="location_permission_benefit_explore_rate">현재 위치 기준 동네 탐험률 표시</string>
+    <string name="location_permission_benefit_realtime_route">러닝 중 실시간 경로 기록·안내</string>
+    <string name="location_permission_benefit_background_record">\'항상 허용\' 시 화면 꺼짐 중에도 기록</string>
+    <string name="location_permission_sheet_allow">위치 권한 허용하기</string>
+    <string name="location_permission_sheet_later">나중에 할게요</string>
+    <string name="location_permission_settings_sheet_title">위치 권한이 필요해요!</string>
+    <string name="location_permission_settings_sheet_description">현재 위치를 확인하려면 \n기기 설정에서 위치 권한을 켜 주세요.</string>
+    <string name="location_permission_settings_sheet_primary">설정으로 이동</string>
+    <string name="location_permission_settings_sheet_secondary">닫기</string>
 </resources>

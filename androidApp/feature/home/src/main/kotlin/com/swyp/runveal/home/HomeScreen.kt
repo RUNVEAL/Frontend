@@ -153,7 +153,7 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
     }
 }
 
-/** Map Shell이 그리는 지도 자체. 위치 권한 요청도 여기서 끝낸다(승인 전엔 지도 대신 안내 UI). */
+/** Map Shell이 그리는 지도 자체. 위치 권한 요청도 여기서 끝낸다(지도는 항상 표시, 미승인 시 안내 바텀시트를 위에 띄움). */
 @Composable
 private fun HomeMapLayer(mapState: MapState, modifier: Modifier = Modifier) {
     RequireLocationPermission(modifier = modifier) {

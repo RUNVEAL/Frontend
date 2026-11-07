@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -91,7 +92,9 @@ fun RunvealBottomSheetHeader(
 
         RunvealBottomSheetHeaderType.Hero -> Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12)) {
             if (heroIcon != null) {
-                Icon(imageVector = heroIcon, contentDescription = null, tint = colors.icon.primary, modifier = Modifier.size(32.dp))
+                // tint를 주면 벡터의 모든 path 색이 하나로 덮어써져서, location-off 같은 두 색(전경+배경색 knockout)
+                // 아이콘의 의도된 모양이 깨진다. 아이콘은 이미 다크 테마 팔레트로 고정 제작돼 있어 tint가 필요 없다.
+                Icon(imageVector = heroIcon, contentDescription = null, tint = Color.Unspecified, modifier = Modifier.size(32.dp))
             }
             Column(verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8)) {
                 if (eyebrow != null) {
