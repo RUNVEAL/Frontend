@@ -1,9 +1,5 @@
 package com.swyp.runveal.permission
 
-import android.content.Context
-import android.content.Intent
-import android.net.Uri
-import android.provider.Settings
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,10 +27,10 @@ import com.swyp.runveal.designsystem.component.overlay.RunvealLocationPermission
 @Composable
 fun RequireLocationPermission(
     modifier: Modifier = Modifier,
+    state: LocationPermissionState = rememberLocationPermissionState(),
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
-    val state = rememberLocationPermissionState()
     var dismissed by remember { mutableStateOf(false) }
 
     Box(modifier = modifier) {
@@ -64,8 +60,4 @@ fun RequireLocationPermission(
             }
         }
     }
-}
-
-private fun Context.openAppSettings() {
-    startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", packageName, null)))
 }

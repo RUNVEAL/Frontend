@@ -13,6 +13,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -26,6 +27,7 @@ import com.swyp.runveal.core.map.rememberMapState
 import com.swyp.runveal.courserecommend.navigation.courseRecommendOverlay
 import com.swyp.runveal.designsystem.RunvealIcons
 import com.swyp.runveal.designsystem.component.card.RunvealHomeBottomPanel
+import com.swyp.runveal.designsystem.component.card.RunvealLocationOffBanner
 import com.swyp.runveal.designsystem.component.card.RunvealSummaryCard
 import com.swyp.runveal.designsystem.component.navigation.RunvealTabBar
 import com.swyp.runveal.designsystem.component.navigation.RunvealTabBarContainer
@@ -34,7 +36,10 @@ import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.map.MapConfig
 import com.swyp.runveal.navigation.RunVealRoute
 import com.swyp.runveal.navigation.rememberRunVealNavigator
+import com.swyp.runveal.feature.home.R
+import com.swyp.runveal.permission.LocationPermissionState
 import com.swyp.runveal.permission.RequireLocationPermission
+import com.swyp.runveal.permission.rememberLocationPermissionState
 import com.swyp.runveal.tabcourse.navigation.courseGraph
 import com.swyp.runveal.tabhome.navigation.homeMapOverlay
 import com.swyp.runveal.tabmypage.navigation.myGraph
@@ -50,6 +55,7 @@ private val HOME_BOTTOM_PANEL_INNER_INSET = 6.dp
 internal fun HomeScreen(modifier: Modifier = Modifier) {
     val tabNavigator = rememberRunVealNavigator()
     val mapState = rememberMapState()
+    val locationPermissionState = rememberLocationPermissionState()
     val currentDestination by tabNavigator.navController.currentBackStackEntryAsState()
     val tabItems = listOf(
         RunvealTabItemSpec(RunvealIcons.Home, "홈"),
@@ -86,7 +92,7 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
 
     CompositionLocalProvider(LocalMapState provides mapState) {
         Box(modifier = modifier.fillMaxSize()) {
-            HomeMapLayer(mapState = mapState, modifier = Modifier.fillMaxSize())
+            HomeMapLayer(mapState = mapState, locationPermissionState = locationPermissionState, modifier = Modifier.fillMaxSize())
 
             NavHost(
                 navController = tabNavigator.navController,
@@ -107,8 +113,29 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
             if (showTabBar) {
                 if (selectedIndex == 0 && !isZoomedIn) {
                     RunvealHomeBottomPanel(
+                        banner = when {
+                            !locationPermissionState.isGranted -> {
+                                {
+                                    RunvealLocationOffBanner(
+                                        message = stringResource(R.string.home_location_permission_off_banner_message),
+                                        actionLabel = stringResource(R.string.home_location_permission_off_banner_action),
+                                        onActionClick = locationPermissionState::request,
+                                    )
+                                }
+                            }
+                            !locationPermissionState.isLocationServicesEnabled -> {
+                                {
+                                    RunvealLocationOffBanner(
+                                        message = stringResource(R.string.home_location_services_off_banner_message),
+                                        actionLabel = stringResource(R.string.home_location_services_off_banner_action),
+                                        onActionClick = locationPermissionState::requestEnableLocationServices,
+                                    )
+                                }
+                            }
+                            else -> null
+                        },
                         summary = {
-                            // TODO: 위치 권한 처리, 러닝 기록 연동 추가 예정
+                            // TODO: 러닝 기록 연동 추가 예정
                             RunvealSummaryCard(
                                 dongName = "내 동네",
                                 ratePercent = 0,
@@ -155,8 +182,8 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
 
 /** Map Shell이 그리는 지도 자체. 위치 권한 요청도 여기서 끝낸다(지도는 항상 표시, 미승인 시 안내 바텀시트를 위에 띄움). */
 @Composable
-private fun HomeMapLayer(mapState: MapState, modifier: Modifier = Modifier) {
-    RequireLocationPermission(modifier = modifier) {
+private fun HomeMapLayer(mapState: MapState, locationPermissionState: LocationPermissionState, modifier: Modifier = Modifier) {
+    RequireLocationPermission(modifier = modifier, state = locationPermissionState) {
         RunvealMap(modifier = Modifier.fillMaxSize(), state = mapState)
     }
 }
