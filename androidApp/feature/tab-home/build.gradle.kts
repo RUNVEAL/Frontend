@@ -2,7 +2,16 @@ plugins {
     id("runveal.android.library.compose")
 }
 
+// design/images/* → Android drawable-xxxhdpi 리소스로 복사
+apply(from = rootProject.file("gradle/runveal-images.gradle.kts"))
+
+tasks.named("preBuild") {
+    dependsOn("generateRunvealImages")
+}
+
 android {
+    sourceSets["main"].res.srcDir(layout.buildDirectory.dir("generated/runvealImages/res").get())
+
     namespace = "com.swyp.runveal.feature.tabhome"
 }
 
