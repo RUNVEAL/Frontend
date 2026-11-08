@@ -15,6 +15,16 @@ plugins {
     // kotlinx-serialization-json 런타임은 이미 commonMain.dependencies에 있으니 컴파일러 플러그인만
     // 바로 적용한다 — @Serializable 데이터 클래스(RegionHierarchyParser)를 쓰려면 이게 필요하다.
     id("org.jetbrains.kotlin.plugin.serialization")
+    id("app.cash.sqldelight")
+}
+
+// docs/local-db/local-db-schema-design.md §2 패키지 배치.
+sqldelight {
+    databases {
+        create("RunvealDatabase") {
+            packageName.set("com.swyp.runveal.db")
+        }
+    }
 }
 
 // local.properties(KAKAO_NATIVE_APP_KEY 등)를 읽어 androidMain에 AuthConfig.kt 생성.
@@ -82,6 +92,10 @@ kotlin {
             implementation(libs.androidx.credentials.playServicesAuth)
             implementation(libs.googleid)
             implementation(libs.androidx.security.crypto)
+            implementation(libs.sqldelight.android.driver)
+        }
+        iosMain.dependencies {
+            implementation(libs.sqldelight.native.driver)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

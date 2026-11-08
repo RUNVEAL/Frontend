@@ -1,0 +1,40 @@
+-- 완주율 캐시(docs/local-db/local-db-schema-design.md §3.3), track_edge에서 언제든 재생성 가능.
+
+-- wayId별로 "처음 집계된 edge"를 고정 (INSERT OR IGNORE = first wins)
+CREATE TABLE visited_way (
+    way_id          INTEGER PRIMARY KEY NOT NULL,
+    first_track_id  TEXT NOT NULL,
+    first_seq       INTEGER NOT NULL
+);
+
+-- 집계 대상 edge(= visited_way에 채택된 edge + way_id가 NULL인 edge)를 동별로 쪼갠 길이
+CREATE TABLE edge_dong_length (
+    track_id       TEXT NOT NULL,
+    seq            INTEGER NOT NULL,
+    adm_cd2        TEXT NOT NULL,
+    length_meters  REAL NOT NULL,
+    PRIMARY KEY (track_id, seq, adm_cd2),
+    FOREIGN KEY (track_id, seq) REFERENCES track_edge(track_id, seq) ON DELETE CASCADE
+);
+
+CREATE INDEX edge_dong_length_adm_idx ON edge_dong_length(adm_cd2);
+
+insertVisitedWayIfAbsent:
+INSERT OR IGNORE INTO visited_way (way_id, first_track_id, first_seq) VALUES (?, ?, ?);
+
+-- insertVisitedWayIfAbsent 바로 다음, 같은 트랜잭션/커넥션 안에서 호출해야 그 호출이 insert한
+-- row 수를 읽는다 — 커넥션이 다르거나 사이에 다른 쓰기가 끼면 엉뚱한 값을 읽는다.
+changes:
+SELECT changes();
+
+insertEdgeDongLength:
+INSERT INTO edge_dong_length (track_id, seq, adm_cd2, length_meters) VALUES (?, ?, ?, ?);
+
+walkedLengthByDong:
+SELECT adm_cd2, SUM(length_meters) AS walked_meters FROM edge_dong_length GROUP BY adm_cd2;
+
+clearEdgeDongLength:
+DELETE FROM edge_dong_length;
+
+clearVisitedWay:
+DELETE FROM visited_way;

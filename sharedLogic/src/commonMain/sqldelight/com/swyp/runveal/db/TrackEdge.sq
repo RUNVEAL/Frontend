@@ -1,0 +1,28 @@
+-- 매칭 결과(docs/local-db/local-db-schema-design.md §3.2). `matched.geojson`의 features[] 한 개 = row 한 개.
+CREATE TABLE track_edge (
+    track_id      TEXT NOT NULL,
+    seq           INTEGER NOT NULL,      -- 트랙 안에서의 순서 (features 배열 인덱스)
+    way_id        INTEGER,               -- OSM way id. NULL이면 중복 제거 대상 아님
+    coordinates   TEXT NOT NULL,         -- GeoJSON 순서 그대로 "[[lon,lat],[lon,lat],…]"
+    length_meters REAL NOT NULL,         -- 저장 시 GeoMath로 미리 계산
+    PRIMARY KEY (track_id, seq),
+    FOREIGN KEY (track_id) REFERENCES track(id) ON DELETE CASCADE
+);
+
+CREATE INDEX track_edge_way_id_idx ON track_edge(way_id);
+
+selectEdgesByTrack:
+SELECT * FROM track_edge WHERE track_id = ? ORDER BY seq;
+
+-- 가본 길 렌더링: 트랙별로 seq 순서대로 읽어 코드에서 한 줄로 합친다
+-- (glow 레이어가 wayId 경계마다 round cap이 겹치는 문제 — DongAssetRepository.mergeIntoSingleLine 참고)
+selectAllEdgesForRendering:
+SELECT e.track_id, e.seq, e.coordinates
+FROM track_edge e JOIN track t ON t.id = e.track_id
+ORDER BY t.started_at_epoch_ms, e.track_id, e.seq;
+
+insertEdge:
+INSERT INTO track_edge (track_id, seq, way_id, coordinates, length_meters) VALUES (?, ?, ?, ?, ?);
+
+deleteEdgesByTrack:
+DELETE FROM track_edge WHERE track_id = ?;

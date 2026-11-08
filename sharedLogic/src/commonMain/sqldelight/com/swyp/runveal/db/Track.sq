@@ -1,0 +1,49 @@
+CREATE TABLE track (
+    id                     TEXT PRIMARY KEY NOT NULL,  -- UUID (yyyyMMdd_HHmmss는 같은 초 충돌 가능)
+    started_at_epoch_ms    INTEGER NOT NULL,
+    finished_at_epoch_ms   INTEGER NOT NULL,           -- track row는 녹화가 끝난 뒤에만 insert된다(아래 참고)
+    distance_meters        REAL NOT NULL DEFAULT 0,
+    point_count_filtered   INTEGER NOT NULL DEFAULT 0,
+    point_count_raw        INTEGER NOT NULL DEFAULT 0,
+
+    match_state            TEXT NOT NULL DEFAULT 'NOT_MATCHED', -- NOT_MATCHED | MATCHING | MATCHED | FAILED
+    confidence_score       REAL,
+    unmatched_point_count  INTEGER,
+
+    place_name             TEXT,
+    place_lookup_attempted INTEGER NOT NULL DEFAULT 0, -- boolean. "조회했는데 없음" vs "미조회" 구분
+
+    gpx_filtered_path      TEXT NOT NULL,              -- FileStore 루트 기준 상대경로
+    gpx_raw_path           TEXT NOT NULL,
+    -- matched_geometry_path 없음: 매칭 결과는 track_edge 테이블에 있다
+
+    created_at_epoch_ms    INTEGER NOT NULL,
+    updated_at_epoch_ms    INTEGER NOT NULL
+);
+
+CREATE INDEX track_started_at_idx ON track(started_at_epoch_ms DESC);
+
+selectAllOrderByStartedDesc:
+SELECT * FROM track ORDER BY started_at_epoch_ms DESC;
+
+selectById:
+SELECT * FROM track WHERE id = ?;
+
+insertTrack:
+INSERT INTO track (
+    id, started_at_epoch_ms, finished_at_epoch_ms, distance_meters,
+    point_count_filtered, point_count_raw, match_state, confidence_score,
+    unmatched_point_count, place_name, place_lookup_attempted,
+    gpx_filtered_path, gpx_raw_path, created_at_epoch_ms, updated_at_epoch_ms
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+updateMatchState:
+UPDATE track
+SET match_state = ?, confidence_score = ?, unmatched_point_count = ?, updated_at_epoch_ms = ?
+WHERE id = ?;
+
+updatePlaceName:
+UPDATE track SET place_name = ?, place_lookup_attempted = 1, updated_at_epoch_ms = ? WHERE id = ?;
+
+deleteTrack:
+DELETE FROM track WHERE id = ?;
