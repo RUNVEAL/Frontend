@@ -1,5 +1,6 @@
 package com.swyp.runveal.core.map.internal.maplibre
 
+import com.swyp.runveal.designsystem.map.RunvealDong
 import com.swyp.runveal.dong.DongBoundary
 import com.swyp.runveal.dong.DongPolygonPart
 import com.swyp.runveal.dong.Polylabel
@@ -14,36 +15,43 @@ import org.maplibre.geojson.Polygon
 
 /**
  * 테두리/라벨만 있는 개요용 경계 GeoJSON(line+label)을 만든다. [DongGeoJsonBuilder]와 같은 방식
- * (ring 추출, Polylabel로 라벨 위치 계산)이지만 완주율 단계(level)/퍼센트 개념이 없어 fill은
- * 만들지 않는다. 시군구·시도 둘 다 이 빌더를 그대로 쓴다 — 입력(boundaries, 원본 GeoJSON)만 다르고
- * 만드는 모양이 완전히 같다.
+ * (ring 추출, Polylabel로 라벨 위치 계산)이지만 fill은 안 만든다 — 면 색은 동 레벨에서도 빛 이미지가
+ * 전담하므로 시군구·시도도 똑같이 면 없이 테두리만 [percents]로 단계별 색을 낸다(`docs/map/refactoring/
+ * REGION_HIERARCHY.md` 이후 집계된 값). 시군구·시도 둘 다 이 빌더를 그대로 쓴다 — 입력(boundaries,
+ * 원본 GeoJSON, percents)만 다르고 만드는 모양이 완전히 같다.
  */
 internal object SigunguGeoJsonBuilder {
 
     data class Result(val lineGeoJson: String, val labelGeoJson: String)
 
-    fun build(boundaries: List<DongBoundary>, rawBoundaryGeoJson: String): Result {
+    fun build(boundaries: List<DongBoundary>, rawBoundaryGeoJson: String, percents: Map<String, Int>): Result {
         val raw = FeatureCollection.fromJson(rawBoundaryGeoJson)
         val partsByAdmCd2 = polygonPartsByAdmCd2(raw)
         val nameByAdmCd2 = boundaries.associate { it.admCd2 to it.name }
 
         return Result(
-            lineGeoJson = buildLineGeoJson(partsByAdmCd2),
+            lineGeoJson = buildLineGeoJson(partsByAdmCd2, percents),
             labelGeoJson = buildLabelGeoJson(partsByAdmCd2, nameByAdmCd2),
         )
     }
 
-    private fun buildLineGeoJson(partsByAdmCd2: Map<String, List<DongPolygonPart>>): String {
+    /** 동 레이어([DongGeoJsonBuilder.buildLineGeoJson])와 같은 이유로 level 오름차순 정렬 — 경계를
+     * 공유하는 두 시군구/시도 중 레벨 높은 쪽 선이 항상 위에 그려지게 한다. */
+    private fun buildLineGeoJson(partsByAdmCd2: Map<String, List<DongPolygonPart>>, percents: Map<String, Int>): String {
         val features = mutableListOf<Feature>()
-        partsByAdmCd2.forEach { (admCd2, parts) ->
-            parts.forEach { part ->
-                (listOf(part.exterior) + part.holes).forEach { ring ->
-                    val line = Feature.fromGeometry(LineString.fromLngLats(ring.map { Point.fromLngLat(it.lon, it.lat) }))
-                    line.addStringProperty("adm_cd2", admCd2)
-                    features += line
+        partsByAdmCd2.entries
+            .sortedBy { (admCd2, _) -> RunvealDong.levelOf(percents[admCd2] ?: 0) }
+            .forEach { (admCd2, parts) ->
+                val level = RunvealDong.levelOf(percents[admCd2] ?: 0)
+                parts.forEach { part ->
+                    (listOf(part.exterior) + part.holes).forEach { ring ->
+                        val line = Feature.fromGeometry(LineString.fromLngLats(ring.map { Point.fromLngLat(it.lon, it.lat) }))
+                        line.addStringProperty("adm_cd2", admCd2)
+                        line.addNumberProperty("level", level)
+                        features += line
+                    }
                 }
             }
-        }
         return FeatureCollection.fromFeatures(features).toJson()
     }
 

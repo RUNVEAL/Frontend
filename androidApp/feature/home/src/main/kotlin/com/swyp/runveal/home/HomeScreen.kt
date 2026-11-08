@@ -227,8 +227,8 @@ private fun HomeMapLayer(mapState: MapState, locationPermissionState: LocationPe
         val repository = remember { DongAssetRepository(context) }
         val dongOverlay = remember { repository.buildOverlay(edges = emptyList()) }
         val dongGlowPolygonParts = remember { repository.loadPolygonParts() }
-        val sigunguOverlay = remember { repository.buildSigunguOverlay() }
-        val sidoOverlay = remember { repository.buildSidoOverlay() }
+        val sigunguOverlay = remember { repository.buildSigunguOverlay(edges = emptyList()) }
+        val sidoOverlay = remember { repository.buildSidoOverlay(edges = emptyList()) }
 
         RunvealMap(
             modifier = Modifier.fillMaxSize(),

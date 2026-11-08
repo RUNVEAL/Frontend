@@ -1,6 +1,8 @@
 package com.swyp.runveal.core.map.internal.maplibre
 
+import androidx.compose.ui.graphics.toArgb
 import com.swyp.runveal.core.map.SigunguOverlayGeoJson
+import com.swyp.runveal.designsystem.map.RunvealDong
 import com.swyp.runveal.map.MapConfig
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
@@ -15,7 +17,9 @@ import org.maplibre.geojson.FeatureCollection
  * 시군구 테두리/라벨 — [MapConfig.SIDO_SWITCH_ZOOM]~[MapConfig.SIGUNGU_SWITCH_ZOOM] 사이에서만
  * 보인다. 그보다 확대하면 [DongOverlayLayer]의 동 레이어로, 그보다 축소하면 [SidoOverlayLayer]의
  * 시도 레이어로 자동 전환된다. 전부 MapLibre 레이어 자체의 min/maxZoom으로 전환하므로 앱 쪽에
- * 줌 리스너가 따로 없다. 완주율 개념이 없어 fill은 안 만든다(경계선 + 이름만).
+ * 줌 리스너가 따로 없다. fill은 안 만든다(동 레벨과 같은 이유로 면은 빛 이미지가 전담). 테두리 색은
+ * [RunvealDong] 단계별 색 토큰을 그대로 재사용한다 — 시군구 전용 색 토큰은 따로 없고, 소속 동들의
+ * 완주율을 집계한 값([com.swyp.runveal.core.map.DongAssetRepository])이라 같은 단계 체계를 쓴다.
  */
 internal object SigunguOverlayLayer {
     private const val LINE_WIDTH_DP = 1.5f
@@ -44,7 +48,7 @@ internal object SigunguOverlayLayer {
             val layer = LineLayer(MapConfig.LAYER_SIGUNGU_LINE, MapConfig.SOURCE_SIGUNGU_LINE).withProperties(
                 PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
                 PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
-                PropertyFactory.lineColor(colors.sigunguBorder),
+                PropertyFactory.lineColor(levelColorStep { level -> RunvealDong.style(level).stroke.toArgb() }),
                 PropertyFactory.lineWidth(LINE_WIDTH_DP),
             )
             layer.minZoom = MapConfig.SIDO_SWITCH_ZOOM.toFloat()

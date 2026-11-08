@@ -55,7 +55,6 @@ internal fun MapLibreMapView(
             currentLocation = colors.map.location.toArgb(),
             dongLabelPrimary = colors.text.primary.toArgb(),
             dongLabelSecondary = colors.text.secondary.toArgb(),
-            sigunguBorder = colors.map.boundary.toArgb(),
             sigunguLabel = colors.text.secondary.toArgb(),
         )
     }

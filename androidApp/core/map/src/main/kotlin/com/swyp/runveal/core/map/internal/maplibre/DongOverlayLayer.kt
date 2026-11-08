@@ -63,7 +63,7 @@ internal object DongOverlayLayer {
             val layer = LineLayer(MapConfig.LAYER_DONG_LINE, MapConfig.SOURCE_DONG_LINE).withProperties(
                 PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
                 PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
-                PropertyFactory.lineColor(levelStep { level -> RunvealDong.style(level).stroke.toArgb() }),
+                PropertyFactory.lineColor(levelColorStep { level -> RunvealDong.style(level).stroke.toArgb() }),
                 PropertyFactory.lineWidth(LINE_WIDTH_DP),
             )
             layer.minZoom = MapConfig.SIGUNGU_SWITCH_ZOOM.toFloat()
@@ -82,12 +82,6 @@ internal object DongOverlayLayer {
             layer.maxZoom = MapConfig.ZOOM_IN_THRESHOLD.toFloat()
             style.addLayer(layer)
         }
-    }
-
-    /** `level`(0~6) 숫자 속성에 대한 step 보간 — 레벨은 순서가 있는 값이라 step이 타입 민감한 match보다 안전하다. */
-    private fun levelStep(colorForLevel: (Int) -> Int): Expression {
-        val stops = (1..RunvealDong.MAX_LEVEL).map { level -> Expression.stop(level, Expression.color(colorForLevel(level))) }
-        return Expression.step(Expression.get("level"), Expression.color(colorForLevel(0)), *stops.toTypedArray())
     }
 
     private fun labelTextField(colors: MapColors): Expression = Expression.format(

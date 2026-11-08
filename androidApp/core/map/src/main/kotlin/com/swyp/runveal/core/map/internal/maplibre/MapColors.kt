@@ -11,6 +11,5 @@ internal data class MapColors(
     val currentLocation: Int,
     val dongLabelPrimary: Int,
     val dongLabelSecondary: Int,
-    val sigunguBorder: Int,
     val sigunguLabel: Int,
 )
