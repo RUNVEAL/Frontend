@@ -16,12 +16,17 @@ import kotlin.math.roundToInt
  * `docs/DONG_GLOW_ON_DEVICE.md` Step 2 — `tools/dong-glow/gen_dong_glow.py`가 만든
  * `tools/dong-glow/golden/`과 `sharedLogic`의 Kotlin 구현 결과를 비교한다. `tools/dong-glow/`는
  * 건드리지 않고 읽기만 한다.
+ *
+ * `docs/map/refactoring/HJD_MIGRATION.md` Step 1 — 동 도형은 `assets/dong/korea_dong.geojson`(행정동
+ * 전환으로 계속 바뀌는 실제 경계 데이터)이 아니라 `golden_geometry.geojson`(골든 PNG를 만들 때 쓴 옛
+ * 병합본에서 그대로 잘라낸 스냅샷, 안 바뀜)에서 읽는다 — 그래야 경계 데이터를 교체해도 이 테스트가
+ * 알고리즘 자체의 정확도만 독립적으로 계속 검증한다.
  */
 class DongGlowGoldenTest {
 
     private val repoRoot: File = findRepoRoot(File(".").absoluteFile)
     private val boundaryGeoJson: String by lazy {
-        File(repoRoot, "androidApp/core/map/src/main/assets/dong/korea_dong.geojson").readText()
+        File(repoRoot, "tools/dong-glow/golden/golden_geometry.geojson").readText()
     }
     private val goldenDir = File(repoRoot, "tools/dong-glow/golden")
     private val golden: GoldenRoot by lazy {
@@ -41,7 +46,7 @@ class DongGlowGoldenTest {
         val failures = mutableListOf<String>()
 
         for (admCd2 in admCd2List) {
-            val parts = partsByAdmCd2[admCd2] ?: error("$admCd2 폴리곤을 korea_dong.geojson에서 못 찾음")
+            val parts = partsByAdmCd2[admCd2] ?: error("$admCd2 폴리곤을 golden_geometry.geojson에서 못 찾음")
             val goldenDong = golden.dongs[admCd2] ?: error("$admCd2 가 golden.json에 없음")
             report.append("## ${goldenDong.name} ($admCd2)\n")
 

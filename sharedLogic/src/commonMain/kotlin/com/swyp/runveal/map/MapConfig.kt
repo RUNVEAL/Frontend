@@ -8,7 +8,7 @@ object MapConfig {
     const val STYLE_URL: String = "https://tiles.openfreemap.org/styles/dark"
 
     val SEOUL_CITY_HALL: LatLon = LatLon(lat = 37.5665, lon = 126.9780)
-    const val INITIAL_ZOOM: Double = 14.0
+    const val INITIAL_ZOOM: Double = 13.0
     /**
      * A3-4(줌 인) 전환 기준. 전환 히스테리시스는 추후 정교화.
      * 동 레이어가 사라지는 기준(홈 탭이 "줌인" 러닝 포커스 UI로 바뀌는 시점)도 이 값을 그대로 쓴다.
@@ -41,7 +41,7 @@ object MapConfig {
     const val LAYER_SIDO_LINE: String = "sido-line"
     const val LAYER_SIDO_LABEL: String = "sido-label"
 
-    /** 이 줌보다 확대하면 동(법정동/행정동) 레이어로, 축소하면 시군구 레이어로 바뀐다. 기기 실측으로 정함. */
+    /** 이 줌보다 확대하면 동(행정동) 레이어로, 축소하면 시군구 레이어로 바뀐다. 기기 실측으로 정함. */
     const val SIGUNGU_SWITCH_ZOOM: Double = 9.6
 
     /** 이 줌보다 확대하면 시군구 레이어로, 축소하면 시도(광역시·도) 레이어로 바뀐다. */

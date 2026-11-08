@@ -16,6 +16,18 @@ private const val DONG_LENGTHS_ASSET_PATH = "dong/asan_dong_lengths.json"
 private const val SIGUNGU_BOUNDARY_ASSET_PATH = "dong/korea_sigungu.geojson"
 private const val SIDO_BOUNDARY_ASSET_PATH = "dong/korea_sido.geojson"
 
+/** 테스트용: 완주율 서버 연동 전까지 동 빛 이미지를 눈으로 확인하기 위한 아산시 온양1~6동 샘플(행정동
+ * 코드, `docs/map/refactoring/HJD_MIGRATION.md` Step 3). 연동되면 지워질 값이라 adm_cd2만 두고
+ * 동 이름은 주석으로 남긴다. */
+private val TEST_ASAN_DONG_PERCENTS = mapOf(
+    "4420057000" to 3, // 온양1동 - level 1
+    "4420058000" to 8, // 온양2동 - level 2
+    "4420059000" to 15, // 온양3동 - level 3
+    "4420060000" to 30, // 온양4동 - level 4
+    "4420061000" to 55, // 온양5동 - level 5
+    "4420062000" to 85, // 온양6동 - level 6
+)
+
 /**
  * 전국 동/시군구 경계 에셋을 읽어 [DongOverlayGeoJson]/[SigunguOverlayGeoJson]을 만든다.
  * [DONG_LENGTHS_ASSET_PATH]는 아산시 전용 샘플이라 이 경계 파일과 더 이상 맞지 않는다 — 완주율(%)
@@ -50,7 +62,7 @@ class DongAssetRepository(private val context: Context) {
         val walkedLengths = DongCoverageCalculator.walkedLengthByDong(boundaries, edges)
         val percents = totalLengths.mapValues { (admCd2, total) ->
             if (total <= 0.0) 0 else (((walkedLengths[admCd2] ?: 0.0) / total) * 100).toInt().coerceIn(0, 100)
-        }
+        } + TEST_ASAN_DONG_PERCENTS
         val result = DongGeoJsonBuilder.build(boundaries, readAsset(DONG_BOUNDARY_ASSET_PATH), percents)
         return DongOverlayGeoJson(
             fillGeoJson = result.fillGeoJson,
