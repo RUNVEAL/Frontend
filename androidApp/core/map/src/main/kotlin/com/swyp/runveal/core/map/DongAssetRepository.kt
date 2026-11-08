@@ -3,11 +3,13 @@ package com.swyp.runveal.core.map
 import android.content.Context
 import com.swyp.runveal.core.map.internal.maplibre.DongGeoJsonBuilder
 import com.swyp.runveal.core.map.internal.maplibre.SigunguGeoJsonBuilder
+import com.swyp.runveal.core.map.internal.maplibre.VisitedRoadGeoJsonBuilder
 import com.swyp.runveal.dong.DongBoundary
 import com.swyp.runveal.dong.DongBoundaryParser
 import com.swyp.runveal.dong.DongCoverageCalculator
 import com.swyp.runveal.dong.DongPolygonPart
 import com.swyp.runveal.dong.MatchedEdge
+import com.swyp.runveal.dong.MatchedEdgeParser
 import com.swyp.runveal.dong.region.RegionHierarchy
 import com.swyp.runveal.dong.region.RegionHierarchyParser
 import java.io.FileNotFoundException
@@ -18,6 +20,9 @@ private const val DONG_LENGTHS_ASSET_PATH = "dong/asan_dong_lengths.json"
 private const val SIGUNGU_BOUNDARY_ASSET_PATH = "dong/korea_sigungu.geojson"
 private const val SIDO_BOUNDARY_ASSET_PATH = "dong/korea_sido.geojson"
 private const val REGION_HIERARCHY_ASSET_PATH = "dong/korea_region_hierarchy.json"
+/** 실제로 기록된 트랙(`docs/map/local-db-schema-design.md` §8)의 `<trackId>.matched.geojson`을
+ * 모아 둔 디렉터리 — 개인 위치 기록이라 `.gitignore`로 제외했다(`sample-data/tracks/`와 같은 원본). */
+private const val VISITED_SAMPLE_TRACKS_ASSET_DIR = "tracks"
 
 /**
  * 전국 동/시군구/시도 경계 에셋을 읽어 [DongOverlayGeoJson]/[SigunguOverlayGeoJson]/[SidoOverlayGeoJson]을
@@ -65,6 +70,22 @@ class DongAssetRepository(private val context: Context) {
             if (total <= 0.0) 0 else (((walkedLengths[admCd2] ?: 0.0) / total) * 100).toInt().coerceIn(0, 100)
         }
     }
+
+    /** [VISITED_SAMPLE_TRACKS_ASSET_DIR]에 있는 실제 기록 트랙을 전부 읽어 합친다 — 도로매칭(Valhalla)
+     * 서버 연동 전까지 가본 길 렌더링을 시연하는 용도. 디렉터리 자체가 없으면(에셋을 안 넣은 빌드) 빈
+     * 목록을 돌려준다. 트랙(파일) 하나는 [mergeIntoSingleLine]으로 합쳐 한 Feature로 그린다 — wayId
+     * 경계마다 따로 그리면 glow 레이어(반투명 + blur)가 선 끝 round cap끼리 겹쳐서 꺾이는 지점마다
+     * 빛이 번져 보인다. */
+    fun loadSampleVisitedEdges(): List<MatchedEdge> {
+        val fileNames = context.assets.list(VISITED_SAMPLE_TRACKS_ASSET_DIR) ?: return emptyList()
+        return fileNames.map { name -> mergeIntoSingleLine(MatchedEdgeParser.parse(readAsset("$VISITED_SAMPLE_TRACKS_ASSET_DIR/$name"))) }
+    }
+
+    private fun mergeIntoSingleLine(edges: List<MatchedEdge>): MatchedEdge =
+        MatchedEdge(wayId = null, coordinates = edges.flatMap { it.coordinates })
+
+    /** 가본 길([VisitedRoadLayer]) GeoJSON — 동/시군구/시도 경계 에셋과 무관하게 [edges]만으로 만들어진다. */
+    fun buildVisitedRoadGeoJson(edges: List<MatchedEdge>): String = VisitedRoadGeoJsonBuilder.build(edges)
 
     fun buildOverlay(edges: List<MatchedEdge>): DongOverlayGeoJson {
         val boundaries = loadBoundaries()

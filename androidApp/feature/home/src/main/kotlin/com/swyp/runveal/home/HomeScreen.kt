@@ -25,6 +25,8 @@ import androidx.navigation.compose.navigation
 import com.swyp.runveal.core.map.DongAssetRepository
 import com.swyp.runveal.core.map.LocalMapOverlayBottomInset
 import com.swyp.runveal.core.map.LocalMapState
+import com.swyp.runveal.core.map.MapLayerSpec
+import com.swyp.runveal.core.map.MapLayers
 import com.swyp.runveal.core.map.MapState
 import com.swyp.runveal.core.map.RunvealMap
 import com.swyp.runveal.core.map.rememberMapState
@@ -225,6 +227,10 @@ private fun HomeMapLayer(mapState: MapState, locationPermissionState: LocationPe
         val context = LocalContext.current
         // 테스트용: 실제 GPS 기록(core:tracking)이 아직 없어서 빈 edges로 동/시군구/시도 경계만 확인한다.
         val repository = remember { DongAssetRepository(context) }
+        // 도로매칭(Valhalla) 연동 전까지 가본 길 렌더링을 실제로 기록된 샘플 트랙으로 시연한다.
+        val visitedEdges = remember { repository.loadSampleVisitedEdges() }
+        val visitedRoadGeoJson = remember { repository.buildVisitedRoadGeoJson(visitedEdges) }
+        MapLayers(MapLayerSpec(MapConfig.SOURCE_VISITED_ROAD, visitedRoadGeoJson))
         val dongOverlay = remember { repository.buildOverlay(edges = emptyList()) }
         val dongGlowPolygonParts = remember { repository.loadPolygonParts() }
         val sigunguOverlay = remember { repository.buildSigunguOverlay(edges = emptyList()) }
