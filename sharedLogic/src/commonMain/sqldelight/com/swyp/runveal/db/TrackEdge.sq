@@ -21,6 +21,14 @@ SELECT e.track_id, e.seq, e.coordinates
 FROM track_edge e JOIN track t ON t.id = e.track_id
 ORDER BY t.started_at_epoch_ms, e.track_id, e.seq;
 
+-- 완주율 캐시 재생성(§3.3 "트랙 삭제/재생성"): 전체 edge를 "처음 집계된 순서"(트랙 시작 시각 순)대로
+-- 다시 돌려야 wayId 중복 제거 결과가 매번 같다. selectAllEdgesForRendering과 달리 way_id/length_meters도
+-- 포함한다 — 렌더링은 좌표만 있으면 되지만 재생성은 중복 제거·길이 계산에 둘 다 필요하다.
+selectAllEdgesForCoverageRebuild:
+SELECT e.track_id, e.seq, e.way_id, e.coordinates, e.length_meters
+FROM track_edge e JOIN track t ON t.id = e.track_id
+ORDER BY t.started_at_epoch_ms, e.track_id, e.seq;
+
 insertEdge:
 INSERT INTO track_edge (track_id, seq, way_id, coordinates, length_meters) VALUES (?, ?, ?, ?, ?);
 
