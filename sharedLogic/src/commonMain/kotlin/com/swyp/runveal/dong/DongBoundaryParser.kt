@@ -22,6 +22,41 @@ object DongBoundaryParser {
         return features.mapNotNull { parseFeature(it.jsonObject) }
     }
 
+    /**
+     * [parse]와 달리 구멍(hole)을 보존해서 `adm_cd2` → [DongPolygonPart] 목록으로 돌려준다. 동 빛
+     * 이미지 생성(폴리라벨, 마스크)처럼 구멍이 실제로 필요한 계산에서만 쓴다. 외곽/구멍 ring 방향은
+     * [RingWinding.normalize]로 맞춘다.
+     */
+    fun parsePolygonParts(geoJsonText: String): Map<String, List<DongPolygonPart>> {
+        val root = json.parseToJsonElement(geoJsonText).jsonObject
+        val features = root["features"]?.jsonArray ?: return emptyMap()
+        val result = mutableMapOf<String, MutableList<DongPolygonPart>>()
+        features.forEach { feature ->
+            val properties = feature.jsonObject["properties"]?.jsonObject ?: return@forEach
+            val admCd2 = properties["adm_cd2"]?.jsonPrimitive?.content ?: return@forEach
+            val geometry = feature.jsonObject["geometry"]?.jsonObject ?: return@forEach
+            val parts = parsePolygonParts(geometry)
+            if (parts.isNotEmpty()) result.getOrPut(admCd2) { mutableListOf() }.addAll(parts)
+        }
+        return result
+    }
+
+    private fun parsePolygonParts(geometry: JsonObject): List<DongPolygonPart> {
+        val type = geometry["type"]?.jsonPrimitive?.content ?: return emptyList()
+        val coordinates = geometry["coordinates"]?.jsonArray ?: return emptyList()
+        return when (type) {
+            "Polygon" -> listOf(toPolygonPart(coordinates))
+            "MultiPolygon" -> coordinates.map { polygon -> toPolygonPart(polygon.jsonArray) }
+            else -> emptyList()
+        }
+    }
+
+    /** [polygonCoords]는 ring 배열(첫 번째 = 외곽, 나머지 = 구멍)이다. */
+    private fun toPolygonPart(polygonCoords: JsonArray): DongPolygonPart {
+        val rings = polygonCoords.map { ring -> parseRing(ring.jsonArray) }
+        return RingWinding.normalize(exterior = rings.first(), holes = rings.drop(1))
+    }
+
     private fun parseFeature(feature: JsonObject): DongBoundary? {
         val properties = feature["properties"]?.jsonObject ?: return null
         val admCd2 = properties["adm_cd2"]?.jsonPrimitive?.content ?: return null

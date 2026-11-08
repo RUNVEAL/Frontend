@@ -20,3 +20,5 @@ node_modules/
 iosApp/iosApp/DesignSystem/Generated/
 **/docs/
 CLAUDE.md
+/sample-data/
+/tools/

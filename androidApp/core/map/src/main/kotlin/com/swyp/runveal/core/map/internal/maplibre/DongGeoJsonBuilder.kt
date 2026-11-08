@@ -42,19 +42,27 @@ internal object DongGeoJsonBuilder {
         return FeatureCollection.fromFeatures(features).toJson()
     }
 
+    /**
+     * 동끼리 경계를 공유하면 두 선이 같은 자리에 겹쳐 그려지는데, MapLibre는 피처 배열 순서대로(뒤에
+     * 올수록 위에) 그린다. level 오름차순으로 정렬해서 레벨이 높은 쪽 선이 항상 위에 그려지게 한다 —
+     * 안 그러면 어느 쪽이 덮느냐가 `partsByAdmCd2`의 순회 순서(우연)에 달려서, 예를 들어 방축동처럼
+     * 낮은 레벨 동이 이웃 동 뒤에 그려지면 공유하지 않는 바깥쪽 경계만 보이는 것처럼 보일 수 있다.
+     */
     private fun buildLineGeoJson(partsByAdmCd2: Map<String, List<DongPolygonPart>>, percents: Map<String, Int>): String {
         val features = mutableListOf<Feature>()
-        partsByAdmCd2.forEach { (admCd2, parts) ->
-            val level = RunvealDong.levelOf(percents[admCd2] ?: 0)
-            parts.forEach { part ->
-                (listOf(part.exterior) + part.holes).forEach { ring ->
-                    val line = Feature.fromGeometry(LineString.fromLngLats(ring.map { Point.fromLngLat(it.lon, it.lat) }))
-                    line.addStringProperty("adm_cd2", admCd2)
-                    line.addNumberProperty("level", level)
-                    features += line
+        partsByAdmCd2.entries
+            .sortedBy { (admCd2, _) -> RunvealDong.levelOf(percents[admCd2] ?: 0) }
+            .forEach { (admCd2, parts) ->
+                val level = RunvealDong.levelOf(percents[admCd2] ?: 0)
+                parts.forEach { part ->
+                    (listOf(part.exterior) + part.holes).forEach { ring ->
+                        val line = Feature.fromGeometry(LineString.fromLngLats(ring.map { Point.fromLngLat(it.lon, it.lat) }))
+                        line.addStringProperty("adm_cd2", admCd2)
+                        line.addNumberProperty("level", level)
+                        features += line
+                    }
                 }
             }
-        }
         return FeatureCollection.fromFeatures(features).toJson()
     }
 

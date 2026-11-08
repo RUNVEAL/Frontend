@@ -15,10 +15,12 @@ import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.FeatureCollection
 
 /**
- * 동 채우기/테두리/라벨 — fill/stroke 색은 [RunvealDong.style] 결과(디자인 토큰, 기본 colors로 바로
- * 호출 가능)에서 완주율 단계(0~6)별로 가져온다. 라벨 글자색만 Composable 컨텍스트가 필요해서
- * [MapColors]로 받는다. 탭해서 강조하는 선택 상태 같은 인터랙션은 feature 레이어 몫이라 이번
- * 범위엔 넣지 않는다.
+ * 동 채우기/테두리/라벨. 면은 완주율 단계와 무관하게 [RunvealDong.style] 0단계(투명) 고정이다 — 단계별
+ * 밝기는 [com.swyp.runveal.core.map.internal.maplibre.DongGlowImageLayer]가 올리는 빛 이미지가 전담하므로,
+ * 그 아래 면까지 단계별로 다르면 이미지 로딩 전후로 같은 동이 두 번 다른 색으로 보인다. 테두리는 반대로
+ * [RunvealDong.style]의 단계별 색을 그대로 써서, 빛 이미지가 뜨기 전에도 테두리만으로 완주율 단계를
+ * 바로 알 수 있게 한다. 라벨 글자색만 Composable 컨텍스트가 필요해서 [MapColors]로 받는다. 탭해서
+ * 강조하는 선택 상태 같은 인터랙션은 feature 레이어 몫이라 이번 범위엔 넣지 않는다.
  *
  * [MapConfig.SIGUNGU_SWITCH_ZOOM]~[MapConfig.ZOOM_IN_THRESHOLD] 사이에서만 보인다. 그보다 축소하면
  * [SigunguOverlayLayer]의 시군구 레이어로 전환되고, 그보다 확대해 홈 탭이 "줌인"(러닝 시작 UI)
@@ -48,9 +50,10 @@ internal object DongOverlayLayer {
     }
 
     private fun ensureLayers(style: Style, colors: MapColors) {
+        val baseStyle = RunvealDong.style(0)
         if (style.getLayer(MapConfig.LAYER_DONG_FILL) == null) {
             val layer = FillLayer(MapConfig.LAYER_DONG_FILL, MapConfig.SOURCE_DONG_FILL).withProperties(
-                PropertyFactory.fillColor(levelStep { level -> RunvealDong.style(level).fill.toArgb() }),
+                PropertyFactory.fillColor(baseStyle.fill.toArgb()),
             )
             layer.minZoom = MapConfig.SIGUNGU_SWITCH_ZOOM.toFloat()
             layer.maxZoom = MapConfig.ZOOM_IN_THRESHOLD.toFloat()

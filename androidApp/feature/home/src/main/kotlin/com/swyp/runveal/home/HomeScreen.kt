@@ -226,6 +226,7 @@ private fun HomeMapLayer(mapState: MapState, locationPermissionState: LocationPe
         // 테스트용: 실제 GPS 기록(core:tracking)이 아직 없어서 빈 edges로 동/시군구/시도 경계만 확인한다.
         val repository = remember { DongAssetRepository(context) }
         val dongOverlay = remember { repository.buildOverlay(edges = emptyList()) }
+        val dongGlowPolygonParts = remember { repository.loadPolygonParts() }
         val sigunguOverlay = remember { repository.buildSigunguOverlay() }
         val sidoOverlay = remember { repository.buildSidoOverlay() }
 
@@ -233,6 +234,7 @@ private fun HomeMapLayer(mapState: MapState, locationPermissionState: LocationPe
             modifier = Modifier.fillMaxSize(),
             state = mapState,
             dongOverlay = dongOverlay,
+            dongGlowPolygonParts = dongGlowPolygonParts,
             sigunguOverlay = sigunguOverlay,
             sidoOverlay = sidoOverlay,
         )

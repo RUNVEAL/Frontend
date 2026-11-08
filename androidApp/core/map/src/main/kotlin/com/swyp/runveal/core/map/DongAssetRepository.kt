@@ -6,6 +6,7 @@ import com.swyp.runveal.core.map.internal.maplibre.SigunguGeoJsonBuilder
 import com.swyp.runveal.dong.DongBoundary
 import com.swyp.runveal.dong.DongBoundaryParser
 import com.swyp.runveal.dong.DongCoverageCalculator
+import com.swyp.runveal.dong.DongPolygonPart
 import com.swyp.runveal.dong.MatchedEdge
 import java.io.FileNotFoundException
 import kotlinx.serialization.json.Json
@@ -25,6 +26,10 @@ class DongAssetRepository(private val context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
 
     fun loadBoundaries(): List<DongBoundary> = DongBoundaryParser.parse(readAsset(DONG_BOUNDARY_ASSET_PATH))
+
+    /** 구멍(hole)을 보존한 폴리곤 — 동 빛 이미지 생성([com.swyp.runveal.dong.glow.DongGlowRenderer])에만 쓴다. */
+    fun loadPolygonParts(): Map<String, List<DongPolygonPart>> =
+        DongBoundaryParser.parsePolygonParts(readAsset(DONG_BOUNDARY_ASSET_PATH))
 
     fun loadSigunguBoundaries(): List<DongBoundary> = DongBoundaryParser.parse(readAsset(SIGUNGU_BOUNDARY_ASSET_PATH))
 
