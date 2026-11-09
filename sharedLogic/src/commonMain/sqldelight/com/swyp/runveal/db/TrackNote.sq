@@ -1,0 +1,18 @@
+-- 트랙당 개수가 적어 DB로 완전 이전(docs/local-db/local-db-schema-design.md §3.5).
+CREATE TABLE track_note (
+    id            TEXT PRIMARY KEY NOT NULL,
+    track_id      TEXT NOT NULL,
+    lat           REAL NOT NULL,
+    lon           REAL NOT NULL,
+    text          TEXT NOT NULL,
+    time_epoch_ms INTEGER NOT NULL,
+    FOREIGN KEY (track_id) REFERENCES track(id) ON DELETE CASCADE
+);
+
+CREATE INDEX track_note_track_id_idx ON track_note(track_id);
+
+selectNotesByTrack:
+SELECT * FROM track_note WHERE track_id = ? ORDER BY time_epoch_ms ASC;
+
+insertNote:
+INSERT INTO track_note (id, track_id, lat, lon, text, time_epoch_ms) VALUES (?, ?, ?, ?, ?, ?);

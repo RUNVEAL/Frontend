@@ -78,7 +78,9 @@ class DongAssetRepository(private val context: Context) {
      * 빛이 번져 보인다. */
     fun loadSampleVisitedEdges(): List<MatchedEdge> {
         val fileNames = context.assets.list(VISITED_SAMPLE_TRACKS_ASSET_DIR) ?: return emptyList()
-        return fileNames.map { name -> mergeIntoSingleLine(MatchedEdgeParser.parse(readAsset("$VISITED_SAMPLE_TRACKS_ASSET_DIR/$name"))) }
+        return fileNames
+            .filter { it.endsWith(".matched.geojson") }
+            .map { name -> mergeIntoSingleLine(MatchedEdgeParser.parse(readAsset("$VISITED_SAMPLE_TRACKS_ASSET_DIR/$name"))) }
     }
 
     private fun mergeIntoSingleLine(edges: List<MatchedEdge>): MatchedEdge =

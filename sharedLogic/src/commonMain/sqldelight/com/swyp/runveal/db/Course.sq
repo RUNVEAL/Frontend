@@ -1,0 +1,34 @@
+-- 코스를 독립 엔티티로(docs/local-db/local-db-schema-design.md §3.4). 원본 트랙을 지워도 코스는 남는다.
+CREATE TABLE course (
+    id                  TEXT PRIMARY KEY NOT NULL,  -- UUID
+    source_track_id     TEXT,                       -- NULL = 원본 트랙 삭제됨 / 추천 등 트랙 없이 생성
+    name                TEXT NOT NULL,
+    distance_meters     REAL NOT NULL,
+    coordinates         TEXT NOT NULL,              -- "[[lon,lat],…]" 한 줄로 병합된 경로
+    start_lat           REAL NOT NULL,
+    start_lon           REAL NOT NULL,
+    place_name          TEXT,
+    created_at_epoch_ms INTEGER NOT NULL,
+    FOREIGN KEY (source_track_id) REFERENCES track(id) ON DELETE SET NULL
+);
+
+CREATE INDEX course_created_at_idx ON course(created_at_epoch_ms DESC);
+
+selectAllCourses:
+SELECT id, name, distance_meters, start_lat, start_lon, place_name, created_at_epoch_ms
+FROM course ORDER BY created_at_epoch_ms DESC;   -- 목록에선 coordinates를 안 읽는다
+
+selectCourseById:
+SELECT * FROM course WHERE id = ?;
+
+insertCourse:
+INSERT INTO course (
+    id, source_track_id, name, distance_meters, coordinates,
+    start_lat, start_lon, place_name, created_at_epoch_ms
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+renameCourse:
+UPDATE course SET name = ? WHERE id = ?;
+
+deleteCourse:
+DELETE FROM course WHERE id = ?;
