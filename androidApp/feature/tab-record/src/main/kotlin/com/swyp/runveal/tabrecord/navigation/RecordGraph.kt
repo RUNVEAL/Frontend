@@ -8,6 +8,7 @@ import com.swyp.runveal.navigation.RunVealNavigator
 import com.swyp.runveal.navigation.RunVealRoute
 import com.swyp.runveal.tabrecord.RecordScreen
 import com.swyp.runveal.tabrecord.RecordingScreen
+import com.swyp.runveal.tabrecord.ResultScreen
 
 fun NavGraphBuilder.recordGraph(navigator: RunVealNavigator) {
     composable<RunVealRoute.HomeTab.Record> {
@@ -15,8 +16,14 @@ fun NavGraphBuilder.recordGraph(navigator: RunVealNavigator) {
     }
 }
 
-fun NavGraphBuilder.recordingOverlay(onClose: () -> Unit) {
+fun NavGraphBuilder.recordingOverlay(onFinished: () -> Unit) {
     composable<RunVealRoute.HomeTab.Recording> {
-        RecordingScreen(onClose = onClose, modifier = Modifier.fillMaxSize())
+        RecordingScreen(onClose = onFinished, modifier = Modifier.fillMaxSize())
+    }
+}
+
+fun NavGraphBuilder.resultOverlay(onClose: () -> Unit) {
+    composable<RunVealRoute.HomeTab.Result> {
+        ResultScreen(onClose = onClose, modifier = Modifier.fillMaxSize())
     }
 }

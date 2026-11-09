@@ -54,6 +54,7 @@ import com.swyp.runveal.tabhome.navigation.homeMapOverlay
 import com.swyp.runveal.tabmypage.navigation.myGraph
 import com.swyp.runveal.tabrecord.navigation.recordGraph
 import com.swyp.runveal.tabrecord.navigation.recordingOverlay
+import com.swyp.runveal.tabrecord.navigation.resultOverlay
 
 private val HOME_BOTTOM_PANEL_INNER_INSET = 6.dp
 
@@ -90,9 +91,10 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.My>() == true -> 3
         else -> 0
     }
-    // 지도 위 흐름(코스 추천, 러닝 기록)에 들어가 있을 때만 탭바를 완전히 숨긴다.
+    // 지도 위 흐름(코스 추천, 러닝 기록, 러닝 결과)에 들어가 있을 때만 탭바를 완전히 숨긴다.
     val showTabBar = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() != true &&
-        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() != true
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() != true &&
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Result>() != true
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
 
     val onSelectTab: (Int) -> Unit = { index ->
@@ -127,7 +129,14 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                         onRunStartClick = { tabNavigator.navigate(RunVealRoute.HomeTab.Recording) },
                     )
                     courseRecommendOverlay(onBack = tabNavigator::popBackStack)
-                    recordingOverlay(onClose = tabNavigator::popBackStack)
+                    recordingOverlay(
+                        onFinished = {
+                            tabNavigator.navController.navigate(RunVealRoute.HomeTab.Result) {
+                                popUpTo(RunVealRoute.HomeTab.Recording) { inclusive = true }
+                            }
+                        },
+                    )
+                    resultOverlay(onClose = tabNavigator::popBackStack)
                 }
                 courseGraph(tabNavigator)
                 recordGraph(tabNavigator)

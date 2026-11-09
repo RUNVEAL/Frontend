@@ -12,6 +12,13 @@ import kotlinx.serialization.json.Json
 
 private const val MATCH_STATE_MATCHED = "MATCHED"
 
+/** [TrackLocalStore.recordMatchResult] 결과 요약 — 러닝 결과 화면(§새로 탐험한 길, 동별 완주율 변화)이
+ * 바로 쓸 수 있게 "이번에 처음 걸은 길"만 집계해서 돌려준다. */
+data class MatchRecordSummary(
+    val newRoadMeters: Double,
+    val touchedDongAdmCodes: Set<String>,
+)
+
 /**
  * DB([RunvealDatabase]) + 파일([FileStore])을 조합하는 리포지토리(docs/local-db/local-db-schema-design.md
  * §2, §5). 테이블 하나짜리 단순 CRUD는 호출부가 `database.xxxQueries`를 직접 쓰면 되고, 이 클래스는
@@ -60,7 +67,8 @@ class TrackLocalStore(
         )
     }
 
-    /** 매칭(Valhalla) 완료 시 호출(§3.3 "증분 갱신"). 한 트랜잭션 — 도중에 실패하면 전부 롤백된다. */
+    /** 매칭(Valhalla) 완료 시 호출(§3.3 "증분 갱신"). 한 트랜잭션 — 도중에 실패하면 전부 롤백된다.
+     * 반환값은 "이번 트랙에서 새로 채택된 edge"만 집계한 [MatchRecordSummary] — 러닝 결과 화면용. */
     fun recordMatchResult(
         trackId: String,
         edges: List<MatchedEdge>,
@@ -68,7 +76,9 @@ class TrackLocalStore(
         unmatchedPointCount: Int,
         boundaries: List<DongBoundary>,
         nowEpochMs: Long,
-    ) {
+    ): MatchRecordSummary {
+        var newRoadMeters = 0.0
+        val touchedDongAdmCodes = mutableSetOf<String>()
         database.transaction {
             edges.forEachIndexed { index, edge ->
                 val seq = index.toLong()
@@ -80,8 +90,10 @@ class TrackLocalStore(
                     length_meters = GeoMath.totalDistanceMeters(edge.coordinates),
                 )
                 if (adoptEdge(edge.wayId, trackId, seq)) {
+                    newRoadMeters += GeoMath.totalDistanceMeters(edge.coordinates)
                     splitLengthByDong(boundaries, edge.coordinates).forEach { (admCd2, length) ->
                         database.dongCoverageQueries.insertEdgeDongLength(trackId, seq, admCd2, length)
+                        touchedDongAdmCodes += admCd2
                     }
                 }
             }
@@ -93,6 +105,7 @@ class TrackLocalStore(
                 id = trackId,
             )
         }
+        return MatchRecordSummary(newRoadMeters, touchedDongAdmCodes)
     }
 
     /** `way_id`가 없으면 항상 채택(중복 제거 대상이 아님). 있으면 전역에서 처음 나온 edge만 채택

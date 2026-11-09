@@ -22,10 +22,14 @@ import com.swyp.runveal.data.local.TrackLocalStore
 import com.swyp.runveal.db.RunvealDatabase
 import com.swyp.runveal.dong.DongBoundary
 import com.swyp.runveal.dong.DongBoundaryParser
+import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.recording.RecordingState
 import com.swyp.runveal.recording.TrackPoint
 import com.swyp.runveal.recording.TrackRecorder
+import com.swyp.runveal.result.DongRateChange
+import com.swyp.runveal.result.TrackResult
+import com.swyp.runveal.result.TrackResultHolder
 import com.swyp.runveal.valhalla.ChunkedMatcher
 import com.swyp.runveal.valhalla.defaultRoadMatcher
 import java.util.UUID
@@ -34,8 +38,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 
 private const val DONG_BOUNDARY_ASSET_PATH = "dong/korea_dong.geojson"
+private const val DONG_LENGTHS_ASSET_PATH = "dong/asan_dong_lengths.json"
 private const val MATCH_STATE_FAILED = "FAILED"
 
 /**
@@ -96,6 +102,7 @@ class TrackingService : Service() {
     private fun startTracking() {
         if (TrackRecorder.state.value is RecordingState.Recording) return // 이미 기록 중이면 무시.
 
+        TrackResultHolder.clear() // 이전 결과가 남아 있으면 새 결과 화면이 잠깐 옛 값을 보여준다.
         TrackRecorder.start(id = UUID.randomUUID().toString(), startedAtEpochMs = System.currentTimeMillis())
         startForeground(NOTIFICATION_ID, buildNotification(elapsedText = "00:00", distanceText = "0.0km"))
         requestLocationUpdates()
@@ -137,37 +144,49 @@ class TrackingService : Service() {
      * 그대로 지킨다. 저장 후 §6 최종본 매칭을 이어서 돌린다. */
     private fun saveFinishedTrack(finished: RecordingState.Finished) {
         val store = trackLocalStore ?: return
+        val distanceMeters = GeoMath.totalDistanceMeters(finished.filteredPoints.map { LatLon(lat = it.lat, lon = it.lon) })
         store.saveTrack(
             id = finished.id,
             startedAtEpochMs = finished.startedAtEpochMs,
             finishedAtEpochMs = finished.finishedAtEpochMs,
-            distanceMeters = TrackRecorder.totalDistanceMeters(),
+            distanceMeters = distanceMeters,
             pointCountFiltered = finished.filteredPoints.size,
             pointCountRaw = finished.rawPoints.size,
             filteredGpx = buildGpx(finished.filteredPoints),
             rawGpx = buildGpx(finished.rawPoints),
             nowEpochMs = finished.finishedAtEpochMs,
         )
-        serviceScope.launch { matchAndRecord(finished, store) }
+        serviceScope.launch { matchAndRecord(finished, store, distanceMeters) }
     }
 
     /** §6 "최종본 — 전체 매칭과 저장". 점이 2000개를 넘으면 [ChunkedMatcher]가 알아서 쪼갠다. 실패해도
      * raw/filtered GPX는 이미 저장돼 있으니(§6-3) `match_state = FAILED`로만 남긴다 — 재시도 큐/수동
-     * "다시 매칭" 버튼은 이번 범위 밖. */
-    private suspend fun matchAndRecord(finished: RecordingState.Finished, store: TrackLocalStore) {
+     * "다시 매칭" 버튼은 이번 범위 밖. 성공/실패/점 부족 어느 경우든 결과 화면이 무한 로딩에 빠지지
+     * 않게 [TrackResultHolder]는 항상 publish한다. */
+    private suspend fun matchAndRecord(finished: RecordingState.Finished, store: TrackLocalStore, distanceMeters: Double) {
         val points = finished.filteredPoints.map { LatLon(lat = it.lat, lon = it.lon) }
-        if (points.size < 2) return
+        val elapsedMs = finished.finishedAtEpochMs - finished.startedAtEpochMs
+
+        if (points.size < 2) {
+            publishResult(finished, distanceMeters, elapsedMs, newRoadMeters = 0.0, dongStats = emptyList())
+            return
+        }
 
         try {
             val result = ChunkedMatcher.matchInChunks(defaultRoadMatcher(), points)
-            store.recordMatchResult(
+            val boundaries = loadDongBoundaries()
+            val beforeWalked = store.walkedLengthByDong()
+            val summary = store.recordMatchResult(
                 trackId = finished.id,
                 edges = result.edges,
                 confidenceScore = result.confidenceScore,
                 unmatchedPointCount = result.unmatchedPointCount,
-                boundaries = loadDongBoundaries(),
+                boundaries = boundaries,
                 nowEpochMs = System.currentTimeMillis(),
             )
+            val afterWalked = store.walkedLengthByDong()
+            val dongStats = buildDongStats(summary.touchedDongAdmCodes, beforeWalked, afterWalked, boundaries)
+            publishResult(finished, distanceMeters, elapsedMs, summary.newRoadMeters, dongStats)
         } catch (_: Exception) {
             store.database.trackQueries.updateMatchState(
                 match_state = MATCH_STATE_FAILED,
@@ -176,12 +195,61 @@ class TrackingService : Service() {
                 updated_at_epoch_ms = System.currentTimeMillis(),
                 id = finished.id,
             )
+            publishResult(finished, distanceMeters, elapsedMs, newRoadMeters = 0.0, dongStats = emptyList())
         }
     }
+
+    private fun publishResult(
+        finished: RecordingState.Finished,
+        distanceMeters: Double,
+        elapsedMs: Long,
+        newRoadMeters: Double,
+        dongStats: List<DongRateChange>,
+    ) {
+        TrackResultHolder.publish(
+            TrackResult(
+                trackId = finished.id,
+                startedAtEpochMs = finished.startedAtEpochMs,
+                distanceMeters = distanceMeters,
+                elapsedMs = elapsedMs,
+                newRoadMeters = newRoadMeters,
+                dongStats = dongStats,
+            ),
+        )
+    }
+
+    /** 이번 트랙이 닿은 동만 — 전체 길이가 없거나(에셋에 없는 동) 이름을 못 찾으면 그 동은 뺀다. */
+    private fun buildDongStats(
+        touchedAdmCodes: Set<String>,
+        beforeWalked: Map<String, Double>,
+        afterWalked: Map<String, Double>,
+        boundaries: List<DongBoundary>,
+    ): List<DongRateChange> {
+        if (touchedAdmCodes.isEmpty()) return emptyList()
+        val totalLengths = loadDongTotalLengths()
+        val namesByCode = boundaries.associate { it.admCd2 to it.name }
+        return touchedAdmCodes.mapNotNull { admCd2 ->
+            val total = totalLengths[admCd2]?.takeIf { it > 0.0 } ?: return@mapNotNull null
+            val name = namesByCode[admCd2] ?: return@mapNotNull null
+            DongRateChange(
+                admCd2 = admCd2,
+                name = name,
+                beforePercent = percentOf(beforeWalked[admCd2] ?: 0.0, total),
+                afterPercent = percentOf(afterWalked[admCd2] ?: 0.0, total),
+            )
+        }
+    }
+
+    private fun percentOf(walked: Double, total: Double): Int = ((walked / total) * 100).toInt().coerceIn(0, 100)
 
     private fun loadDongBoundaries(): List<DongBoundary> {
         val geoJson = assets.open(DONG_BOUNDARY_ASSET_PATH).bufferedReader().use { it.readText() }
         return DongBoundaryParser.parse(geoJson)
+    }
+
+    private fun loadDongTotalLengths(): Map<String, Double> {
+        val json = assets.open(DONG_LENGTHS_ASSET_PATH).bufferedReader().use { it.readText() }
+        return Json { ignoreUnknownKeys = true }.decodeFromString(json)
     }
 
     private fun buildGpx(points: List<TrackPoint>): String = buildString {
