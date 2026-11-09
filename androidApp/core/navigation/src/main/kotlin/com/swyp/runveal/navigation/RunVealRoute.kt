@@ -27,6 +27,10 @@ sealed interface RunVealRoute : Route {
         @Serializable
         data object CourseRecommend : HomeTab
 
+        /** 지도를 유지한 채 탭바를 숨기고 올라가는 러닝 기록 시작/종료 흐름. */
+        @Serializable
+        data object Recording : HomeTab
+
         @Serializable
         data object Course : HomeTab
 

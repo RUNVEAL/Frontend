@@ -7,8 +7,12 @@ import androidx.navigation.compose.composable
 import com.swyp.runveal.navigation.RunVealRoute
 import com.swyp.runveal.tabhome.HomeMapOverlayScreen
 
-fun NavGraphBuilder.homeMapOverlay(onCreateCourseClick: () -> Unit = {}) {
+fun NavGraphBuilder.homeMapOverlay(onCreateCourseClick: () -> Unit = {}, onRunStartClick: () -> Unit = {}) {
     composable<RunVealRoute.HomeTab.HomeMap> {
-        HomeMapOverlayScreen(modifier = Modifier.fillMaxSize(), onCreateCourseClick = onCreateCourseClick)
+        HomeMapOverlayScreen(
+            modifier = Modifier.fillMaxSize(),
+            onCreateCourseClick = onCreateCourseClick,
+            onRunStartClick = onRunStartClick,
+        )
     }
 }

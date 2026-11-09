@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import org.maplibre.android.location.LocationComponent
 import org.maplibre.android.location.LocationComponentActivationOptions
 import org.maplibre.android.location.LocationComponentOptions
 import org.maplibre.android.location.OnLocationCameraTransitionListener
@@ -36,6 +37,18 @@ internal object CurrentLocationLayer {
         val locationComponent = map.locationComponent
         locationComponent.activateLocationComponent(activationOptions)
         locationComponent.isLocationComponentEnabled = true
+        trackOnce(locationComponent)
+    }
+
+    /** "내 위치" 버튼 — [activate]로 이미 켜져 있는 컴포넌트를 재사용해 같은 one-shot 추적을 다시 돌린다.
+     * 권한이 없거나 위치 컴포넌트가 아직 활성화되지 않았으면([activate]가 조용히 return한 경우) 아무
+     * 일도 하지 않는다. */
+    fun recenter(map: MapLibreMap) {
+        if (!map.locationComponent.isLocationComponentActivated) return
+        trackOnce(map.locationComponent)
+    }
+
+    private fun trackOnce(locationComponent: LocationComponent) {
         locationComponent.setCameraMode(
             CameraMode.TRACKING,
             object : OnLocationCameraTransitionListener {
