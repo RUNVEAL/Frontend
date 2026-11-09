@@ -4,19 +4,20 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import com.swyp.runveal.designsystem.RunvealColors
-import com.swyp.runveal.designsystem.RunvealEffects
 import com.swyp.runveal.designsystem.RunvealLayout
 import com.swyp.runveal.designsystem.theme.DefaultRunvealColors
-import com.swyp.runveal.designsystem.theme.RunvealShadow
 
-/** 동 하나를 그릴 때 필요한 스타일 묶음. */
+/**
+ * 동 하나를 그릴 때 필요한 스타일 묶음. 빛(글로우)은 더 이상 여기 없다 — 지금은
+ * `core:map`의 동 빛 이미지(`com.swyp.runveal.dong.glow.DongGlowRenderer` +
+ * `RunvealEffects.dong1`~`dong6` 토큰)가 래스터 이미지로 그린다.
+ */
 @Immutable
 data class DongLevelStyle(
     val level: Int,
     val stroke: Color,
     val fill: Color,
     val strokeWidth: Dp,
-    val glow: List<RunvealShadow>,
 )
 
 /**
@@ -59,13 +60,11 @@ object RunvealDong {
                 mapDongLevelStrokeWidth6,
             )
         }
-        val glow = with(RunvealEffects) { listOf(emptyList(), dong1, dong2, dong3, dong4, dong5, dong6) }
         return DongLevelStyle(
             level = l,
             stroke = stroke[l],
             fill = fill[l],
             strokeWidth = if (isMine) RunvealLayout.mapDongLevelMineStrokeWidth else width[l],
-            glow = glow[l],
         )
     }
 }

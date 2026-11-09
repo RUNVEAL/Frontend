@@ -1,5 +1,6 @@
 plugins {
     id("runveal.android.library.compose")
+    id("runveal.kotlin.serialization")
 }
 
 android {
@@ -13,4 +14,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.maplibre.android.sdk)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.coroutines.core)
+
+    testImplementation(libs.junit)
 }

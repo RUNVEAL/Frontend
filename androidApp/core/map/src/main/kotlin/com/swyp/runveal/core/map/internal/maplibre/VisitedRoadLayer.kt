@@ -12,7 +12,8 @@ import org.maplibre.geojson.FeatureCollection
 /**
  * 가본 길 레이어 — 소스 1개 + LineLayer 2개(글로우 + 코어 선). 색은 [MapColors](디자인 토큰에서 미리
  * 변환해 온 값)에서 받고, 블러·두께·줌 보간 값은 토큰에 없는 MapLibre 전용 튜닝이라 여기 상수로
- * 유지한다.
+ * 유지한다. [MapConfig.ZOOM_IN_THRESHOLD](줌인 러닝 포커스 전환 기준)보다 축소하면 숨긴다 — 그보다
+ * 축소된 뷰는 동/시군구/시도 완주율 테두리를 보여주는 용도라 길 하나하나가 겹쳐 지저분해 보인다.
  */
 internal object VisitedRoadLayer {
     private const val GLOW_WIDTH_DP = 16f
@@ -46,16 +47,16 @@ internal object VisitedRoadLayer {
 
     private fun addLineLayerIfMissing(style: Style, layerId: String, colorInt: Int, widthDp: Float, opacity: Float, blurDp: Float) {
         if (style.getLayer(layerId) != null) return
-        style.addLayer(
-            LineLayer(layerId, MapConfig.SOURCE_VISITED_ROAD).withProperties(
-                PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
-                PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
-                PropertyFactory.lineColor(colorInt),
-                PropertyFactory.lineWidth(zoomInterpolated(widthDp)),
-                PropertyFactory.lineOpacity(opacity),
-                PropertyFactory.lineBlur(zoomInterpolated(blurDp)),
-            ),
+        val layer = LineLayer(layerId, MapConfig.SOURCE_VISITED_ROAD).withProperties(
+            PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+            PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+            PropertyFactory.lineColor(colorInt),
+            PropertyFactory.lineWidth(zoomInterpolated(widthDp)),
+            PropertyFactory.lineOpacity(opacity),
+            PropertyFactory.lineBlur(zoomInterpolated(blurDp)),
         )
+        layer.minZoom = MapConfig.ZOOM_IN_THRESHOLD.toFloat()
+        style.addLayer(layer)
     }
 
     private fun zoomInterpolated(baseDp: Float): Expression = Expression.interpolate(

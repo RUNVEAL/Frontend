@@ -10,6 +10,11 @@ fun authConfigValue(key: String): String = localProperties.getProperty(key) ?: S
 plugins {
     id("runveal.kmp.library")
     id("runveal.kmp.ios.framework")
+    // `runveal.kotlin.serialization`은 단일 플랫폼(Android/JVM) 모듈의 flat "implementation" 설정을
+    // 전제로 해서 KMP 모듈(소스셋별 설정, commonMainImplementation 등)인 sharedLogic에는 못 쓴다.
+    // kotlinx-serialization-json 런타임은 이미 commonMain.dependencies에 있으니 컴파일러 플러그인만
+    // 바로 적용한다 — @Serializable 데이터 클래스(RegionHierarchyParser)를 쓰려면 이게 필요하다.
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 // local.properties(KAKAO_NATIVE_APP_KEY 등)를 읽어 androidMain에 AuthConfig.kt 생성.
