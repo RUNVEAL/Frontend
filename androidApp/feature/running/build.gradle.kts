@@ -20,7 +20,9 @@ dependencies {
     implementation(project(":androidApp:core:designsystem"))
     implementation(project(":androidApp:core:map"))
     implementation(project(":androidApp:core:navigation"))
+    implementation(project(":androidApp:core:tracking"))
 
+    implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.compose.material3)
 }

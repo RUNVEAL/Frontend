@@ -1,4 +1,4 @@
-package com.swyp.runveal.tabrecord
+package com.swyp.runveal.running
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -43,11 +43,11 @@ import com.swyp.runveal.designsystem.RunvealIcons
 import com.swyp.runveal.designsystem.component.button.RunvealButtonGroupEqual
 import com.swyp.runveal.designsystem.component.button.RunvealRunPauseButton
 import com.swyp.runveal.designsystem.theme.RunvealTheme
-import com.swyp.runveal.feature.tabrecord.R
-import com.swyp.runveal.tabrecord.contract.RecordingEffect
-import com.swyp.runveal.tabrecord.contract.RecordingIntent
-import com.swyp.runveal.tabrecord.contract.RecordingPhase
-import com.swyp.runveal.tabrecord.contract.RecordingState
+import com.swyp.runveal.feature.running.R
+import com.swyp.runveal.running.contract.RecordingEffect
+import com.swyp.runveal.running.contract.RecordingIntent
+import com.swyp.runveal.running.contract.RecordingPhase
+import com.swyp.runveal.running.contract.RecordingState
 import com.swyp.runveal.tracking.TrackingService
 import com.swyp.runveal.ui.mvi.CollectEffect
 

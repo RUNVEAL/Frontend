@@ -1,12 +1,12 @@
-package com.swyp.runveal.tabrecord
+package com.swyp.runveal.running
 
 import androidx.lifecycle.viewModelScope
 import com.swyp.runveal.recording.RecordingState as TrackRecordingState
 import com.swyp.runveal.recording.TrackRecorder
-import com.swyp.runveal.tabrecord.contract.RecordingEffect
-import com.swyp.runveal.tabrecord.contract.RecordingIntent
-import com.swyp.runveal.tabrecord.contract.RecordingPhase
-import com.swyp.runveal.tabrecord.contract.RecordingState
+import com.swyp.runveal.running.contract.RecordingEffect
+import com.swyp.runveal.running.contract.RecordingIntent
+import com.swyp.runveal.running.contract.RecordingPhase
+import com.swyp.runveal.running.contract.RecordingState
 import com.swyp.runveal.ui.mvi.MviViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
