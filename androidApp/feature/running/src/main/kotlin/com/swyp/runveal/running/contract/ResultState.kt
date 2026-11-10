@@ -1,4 +1,4 @@
-package com.swyp.runveal.tabrecord.contract
+package com.swyp.runveal.running.contract
 
 import com.swyp.runveal.map.snapshot.SnapshotRequest
 import com.swyp.runveal.ui.mvi.UiState

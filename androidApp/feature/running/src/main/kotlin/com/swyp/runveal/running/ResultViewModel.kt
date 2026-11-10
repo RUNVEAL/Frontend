@@ -1,12 +1,12 @@
-package com.swyp.runveal.tabrecord
+package com.swyp.runveal.running
 
 import androidx.lifecycle.viewModelScope
 import com.swyp.runveal.map.snapshot.SnapshotVariant
 import com.swyp.runveal.map.snapshot.toSnapshotRequest
 import com.swyp.runveal.result.TrackResult
 import com.swyp.runveal.result.TrackResultHolder
-import com.swyp.runveal.tabrecord.contract.ResultDongStat
-import com.swyp.runveal.tabrecord.contract.ResultState
+import com.swyp.runveal.running.contract.ResultDongStat
+import com.swyp.runveal.running.contract.ResultState
 import com.swyp.runveal.ui.mvi.MviViewModel
 import java.time.DayOfWeek
 import java.time.Instant
@@ -64,7 +64,7 @@ class ResultViewModel : MviViewModel<Nothing, ResultState, Nothing>(initialState
         return "%02d:%02d".format(totalSeconds / 60, totalSeconds % 60)
     }
 
-    /** "6'05″" 형태 — km당 분'초″. [RecordingViewModel.formatPace]와 같은 공식. */
+    /** "6'05″" 형태 — km당 분'초″. `tab-record`의 `RecordingViewModel.formatPace`와 같은 공식. */
     private fun formatPace(elapsedMs: Long, distanceMeters: Double): String {
         if (distanceMeters <= 0.0) return "0'00″"
         val paceSecondsPerKm = (elapsedMs / 1000.0) / (distanceMeters / 1000.0)

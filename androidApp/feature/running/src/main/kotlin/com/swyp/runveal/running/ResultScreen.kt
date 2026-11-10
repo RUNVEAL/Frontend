@@ -1,4 +1,4 @@
-package com.swyp.runveal.tabrecord
+package com.swyp.runveal.running
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -44,10 +44,10 @@ import com.swyp.runveal.designsystem.component.button.RunvealButtonGroupEqual
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
 import com.swyp.runveal.designsystem.theme.RunvealTheme
-import com.swyp.runveal.feature.tabrecord.R
+import com.swyp.runveal.feature.running.R
 import com.swyp.runveal.map.snapshot.SnapshotRequest
-import com.swyp.runveal.tabrecord.contract.ResultDongStat
-import com.swyp.runveal.tabrecord.contract.ResultState
+import com.swyp.runveal.running.contract.ResultDongStat
+import com.swyp.runveal.running.contract.ResultState
 
 private val MAP_CARD_HEIGHT = 268.dp
 private val RESULT_GLOW_WIDTH = 480.dp
@@ -259,8 +259,9 @@ private fun RouteMapCard(request: SnapshotRequest?, modifier: Modifier = Modifie
     }
 }
 
-/** 범례 한 칸 — 지도 선 색(바텀시트 드래그 핸들과 같은 모양의 작은 선 스와치) + 라벨. [RecordingScreen]의
- * `LegendItem`과 같은 모양 — [haloColor]를 주면 실제 지도에 도로가 칠해질 때와 같은 번짐 효과를 작게 얹는다. */
+/** 범례 한 칸 — 지도 선 색(바텀시트 드래그 핸들과 같은 모양의 작은 선 스와치) + 라벨. `feature:tab-record`의
+ * `RecordingScreen`에 있는 `LegendItem`과 같은 모양 — [haloColor]를 주면 실제 지도에 도로가 칠해질 때와
+ * 같은 번짐 효과를 작게 얹는다. */
 @Composable
 private fun LegendItem(swatchColor: Color, label: String, modifier: Modifier = Modifier, haloColor: Color? = null) {
     Row(

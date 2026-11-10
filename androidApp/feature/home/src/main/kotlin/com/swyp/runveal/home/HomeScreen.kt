@@ -59,12 +59,12 @@ import com.swyp.runveal.permission.rememberLocationPermissionState
 import com.swyp.runveal.recording.RecordingState
 import com.swyp.runveal.recording.TrackRecorder
 import com.swyp.runveal.result.TrackResultHolder
+import com.swyp.runveal.running.navigation.resultOverlay
 import com.swyp.runveal.tabcourse.navigation.courseGraph
 import com.swyp.runveal.tabhome.navigation.homeMapOverlay
 import com.swyp.runveal.tabmypage.navigation.myGraph
 import com.swyp.runveal.tabrecord.navigation.recordGraph
 import com.swyp.runveal.tabrecord.navigation.recordingOverlay
-import com.swyp.runveal.tabrecord.navigation.resultOverlay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext

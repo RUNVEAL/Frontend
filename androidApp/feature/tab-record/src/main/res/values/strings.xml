@@ -9,16 +9,4 @@
     <string name="recording_legend_new_label">새로 탐험한 길</string>
     <string name="recording_locate_content_description">내 위치</string>
     <string name="recording_new_distance_format">+%1$skm</string>
-
-    <string name="result_title">러닝 완료!</string>
-    <string name="result_new_road_value_format">+%1$s</string>
-    <string name="result_dong_rate_label_format">%1$s 탐험률</string>
-    <string name="result_rate_arrow">→</string>
-    <string name="result_rate_percent_format">%1$d%%</string>
-    <string name="result_distance_label">거리</string>
-    <string name="result_elapsed_label">시간</string>
-    <string name="result_detail_button">기록 상세보기</string>
-    <string name="result_save_image_button">이미지 저장하기</string>
-    <string name="result_close_content_description">닫기</string>
-    <string name="result_map_content_description">이번 러닝 경로 지도</string>
 </resources>
