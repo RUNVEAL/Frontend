@@ -17,9 +17,14 @@ data class TracePointDto(val lat: Double, val lon: Double)
 
 @Serializable
 data class TraceFiltersDto(
+    // "edge.begin_shape_index"/"edge.end_shape_index"가 없으면 Valhalla가 그 둘을 응답에서 아예
+    // 빼버려서(action=include라 요청한 attribute만 옴) TraceResponseMapper.sliceEdge가 매번 null을
+    // 돌려받아 edge를 전부 버린다 — 실기기 trace_attributes 호출로 재현·확인한 버그.
     val attributes: List<String> = listOf(
         "edge.way_id",
         "edge.length",
+        "edge.begin_shape_index",
+        "edge.end_shape_index",
         "shape",
         "matched.point",
         "matched.type",
