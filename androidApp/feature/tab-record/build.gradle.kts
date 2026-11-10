@@ -1,5 +1,5 @@
 plugins {
-    id("runveal.android.library.compose")
+    id("runveal.android.feature")
 }
 
 // design/images/* → Android drawable-xxxhdpi 리소스로 복사

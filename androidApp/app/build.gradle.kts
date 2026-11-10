@@ -5,6 +5,7 @@ plugins {
 dependencies {
     implementation(project(":androidApp:feature:main"))
     implementation(project(":androidApp:core:permission"))
+    implementation(project(":androidApp:core:tracking"))
 
     implementation(libs.maplibre.android.sdk)
 }

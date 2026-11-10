@@ -12,6 +12,7 @@ dependencies {
     implementation(project(":androidApp:core:navigation"))
     implementation(project(":androidApp:core:permission"))
     implementation(project(":androidApp:feature:course-recommend"))
+    implementation(project(":androidApp:feature:running"))
     implementation(project(":androidApp:feature:tab-course"))
     implementation(project(":androidApp:feature:tab-home"))
     implementation(project(":androidApp:feature:tab-mypage"))

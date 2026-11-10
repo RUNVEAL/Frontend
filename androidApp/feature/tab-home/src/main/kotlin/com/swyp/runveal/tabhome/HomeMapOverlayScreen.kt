@@ -17,7 +17,11 @@ import com.swyp.runveal.tabhome.component.ZoomedInMapOverlay
  * 여기서는 줌 레벨을 [LocalMapState]에서 읽어 그 위에 얹는 UI만 그린다.
  */
 @Composable
-internal fun HomeMapOverlayScreen(modifier: Modifier = Modifier, onCreateCourseClick: () -> Unit = {}) {
+internal fun HomeMapOverlayScreen(
+    modifier: Modifier = Modifier,
+    onCreateCourseClick: () -> Unit = {},
+    onRunStartClick: () -> Unit = {},
+) {
     val zoom = LocalMapState.current.currentZoom
     val isZoomedIn = zoom >= MapConfig.ZOOM_IN_THRESHOLD
     var selectedToggleIndex by remember { mutableIntStateOf(0) }
@@ -25,7 +29,7 @@ internal fun HomeMapOverlayScreen(modifier: Modifier = Modifier, onCreateCourseC
     if (!isZoomedIn) {
         HomeMapOverlay(locationName = "현재 위치", modifier = modifier.fillMaxSize())
     } else {
-        // TODO: 동 상세 진입, 코스 만들기, 러닝 시작, 내 위치 이동, 실제 탐험률/거리 연동 추가 예정
+        // TODO: 동 상세 진입, 내 위치 이동, 실제 탐험률/거리 연동 추가 예정
         ZoomedInMapOverlay(
             dongName = "성수동",
             ratePercent = 0,
@@ -35,7 +39,7 @@ internal fun HomeMapOverlayScreen(modifier: Modifier = Modifier, onCreateCourseC
             onToggleSelect = { selectedToggleIndex = it },
             onDongClick = {},
             onCreateCourseClick = onCreateCourseClick,
-            onRunStartClick = {},
+            onRunStartClick = onRunStartClick,
             onMyLocationClick = {},
             modifier = modifier.fillMaxSize(),
         )

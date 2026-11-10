@@ -5,6 +5,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -22,6 +23,11 @@ class MapState(
     var currentZoom: Double by mutableDoubleStateOf(initialZoom)
         internal set
 
+    /** 0부터 시작 — [MapLibreMapView]가 이 값이 바뀔 때마다(첫 조립 제외) 현재 위치로 카메라를 다시
+     * 옮긴다. 값 자체는 의미가 없고 변경 이벤트만 쓴다(일종의 one-shot 커맨드). */
+    var recenterRequestId: Int by mutableIntStateOf(0)
+        internal set
+
     private val _layers = mutableStateMapOf<String, String>()
     internal val layers: Map<String, String> get() = _layers
 
@@ -31,6 +37,12 @@ class MapState(
 
     internal fun clearLayer(id: String) {
         _layers.remove(id)
+    }
+
+    /** "내 위치" 버튼 등에서 호출 — 위치 권한/서비스가 꺼져 있으면 [CurrentLocationLayer]가 조용히
+     * 무시한다. */
+    fun recenterToCurrentLocation() {
+        recenterRequestId++
     }
 }
 

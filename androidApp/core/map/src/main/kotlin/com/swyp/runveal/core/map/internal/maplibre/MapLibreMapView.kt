@@ -100,6 +100,12 @@ internal fun MapLibreMapView(
     LaunchedEffect(style, sidoOverlay, mapColors) {
         style?.let { SidoOverlayLayer.apply(it, sidoOverlay, mapColors) }
     }
+    // 0은 초기값(= 아직 요청 안 함) — activate()가 이미 최초 1회 추적을 돈다. 그 이후 값이 바뀔 때만
+    // "내 위치" 버튼 요청으로 보고 다시 추적한다.
+    LaunchedEffect(state.recenterRequestId, liveMap) {
+        if (state.recenterRequestId == 0) return@LaunchedEffect
+        liveMap?.let { CurrentLocationLayer.recenter(it) }
+    }
 }
 
 private fun setUpInitialCamera(map: MapLibreMap, state: MapState) {

@@ -10,13 +10,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -29,8 +33,13 @@ import com.swyp.runveal.core.map.MapLayerSpec
 import com.swyp.runveal.core.map.MapLayers
 import com.swyp.runveal.core.map.MapState
 import com.swyp.runveal.core.map.RunvealMap
+import com.swyp.runveal.core.map.buildVisitedRoadGeoJson
 import com.swyp.runveal.core.map.rememberMapState
 import com.swyp.runveal.courserecommend.navigation.courseRecommendOverlay
+import com.swyp.runveal.data.local.DatabaseDriverFactory
+import com.swyp.runveal.data.local.FileStore
+import com.swyp.runveal.data.local.TrackLocalStore
+import com.swyp.runveal.db.RunvealDatabase
 import com.swyp.runveal.designsystem.RunvealIcons
 import com.swyp.runveal.designsystem.component.card.RunvealHomeBottomPanel
 import com.swyp.runveal.designsystem.component.card.RunvealLocationOffBanner
@@ -43,13 +52,22 @@ import com.swyp.runveal.map.MapConfig
 import com.swyp.runveal.navigation.RunVealRoute
 import com.swyp.runveal.navigation.rememberRunVealNavigator
 import com.swyp.runveal.feature.home.R
+import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.permission.LocationPermissionState
 import com.swyp.runveal.permission.RequireLocationPermission
 import com.swyp.runveal.permission.rememberLocationPermissionState
+import com.swyp.runveal.recording.RecordingState
+import com.swyp.runveal.recording.TrackRecorder
+import com.swyp.runveal.result.TrackResultHolder
+import com.swyp.runveal.running.navigation.recordingOverlay
+import com.swyp.runveal.running.navigation.resultOverlay
 import com.swyp.runveal.tabcourse.navigation.courseGraph
 import com.swyp.runveal.tabhome.navigation.homeMapOverlay
 import com.swyp.runveal.tabmypage.navigation.myGraph
 import com.swyp.runveal.tabrecord.navigation.recordGraph
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 private val HOME_BOTTOM_PANEL_INNER_INSET = 6.dp
 
@@ -86,8 +104,10 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.My>() == true -> 3
         else -> 0
     }
-    // 지도 위 흐름(코스 추천)에 들어가 있을 때만 탭바를 완전히 숨긴다.
-    val showTabBar = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() != true
+    // 지도 위 흐름(코스 추천, 러닝 기록, 러닝 결과)에 들어가 있을 때만 탭바를 완전히 숨긴다.
+    val showTabBar = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() != true &&
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() != true &&
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Result>() != true
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
 
     val onSelectTab: (Int) -> Unit = { index ->
@@ -119,8 +139,17 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                 navigation<RunVealRoute.HomeTab.Home>(startDestination = RunVealRoute.HomeTab.HomeMap) {
                     homeMapOverlay(
                         onCreateCourseClick = { tabNavigator.navigate(RunVealRoute.HomeTab.CourseRecommend) },
+                        onRunStartClick = { tabNavigator.navigate(RunVealRoute.HomeTab.Recording) },
                     )
                     courseRecommendOverlay(onBack = tabNavigator::popBackStack)
+                    recordingOverlay(
+                        onFinished = {
+                            tabNavigator.navController.navigate(RunVealRoute.HomeTab.Result) {
+                                popUpTo(RunVealRoute.HomeTab.Recording) { inclusive = true }
+                            }
+                        },
+                    )
+                    resultOverlay(onClose = tabNavigator::popBackStack)
                 }
                 courseGraph(tabNavigator)
                 recordGraph(tabNavigator)
@@ -225,24 +254,50 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
 private fun HomeMapLayer(mapState: MapState, locationPermissionState: LocationPermissionState, modifier: Modifier = Modifier) {
     RequireLocationPermission(modifier = modifier, state = locationPermissionState) {
         val context = LocalContext.current
-        // 테스트용: 실제 GPS 기록(core:tracking)이 아직 없어서 빈 edges로 동/시군구/시도 경계만 확인한다.
         val repository = remember { DongAssetRepository(context) }
-        // 도로매칭(Valhalla) 연동 전까지 가본 길 렌더링을 실제로 기록된 샘플 트랙으로 시연한다.
-        val visitedEdges = remember { repository.loadSampleVisitedEdges() }
-        val visitedRoadGeoJson = remember { repository.buildVisitedRoadGeoJson(visitedEdges) }
-        MapLayers(MapLayerSpec(MapConfig.SOURCE_VISITED_ROAD, visitedRoadGeoJson))
-        val dongOverlay = remember { repository.buildOverlay(edges = emptyList()) }
-        val dongGlowPolygonParts = remember { repository.loadPolygonParts() }
-        val sigunguOverlay = remember { repository.buildSigunguOverlay(edges = emptyList()) }
-        val sidoOverlay = remember { repository.buildSidoOverlay(edges = emptyList()) }
+        val trackLocalStore = remember { TrackLocalStore(RunvealDatabase(DatabaseDriverFactory().createDriver()), FileStore()) }
+        // TrackResultHolder가 매칭 완료마다 새 값을 publish하므로, 그걸 키로 "가본 길"/동별 완주율을
+        // DB에서 다시 읽어 새 기록이 반영되게 한다.
+        val latestTrackResult by TrackResultHolder.state.collectAsStateWithLifecycle()
 
+        val emptyVisitedRoadGeoJson = remember { repository.buildVisitedRoadGeoJson(emptyList()) }
+        var visitedRoadGeoJson by remember { mutableStateOf(emptyVisitedRoadGeoJson) }
+        LaunchedEffect(latestTrackResult) {
+            withContext(Dispatchers.IO) {
+                visitedRoadGeoJson = repository.buildVisitedRoadGeoJson(trackLocalStore.visitedRoadEdges())
+            }
+        }
+
+        // 기록 중엔 지금까지 쌓인 "가본 길" 대신 지금 달리고 있는 실시간 경로를 보여준다 — TrackRecorder가
+        // 이미 들고 있는 점들로 그린다. TrackRecorder.state는 점이 추가될 때마다 새로 emit되지
+        // 않아서(§3 설계) 1초마다 직접 읽어 다시 그린다 — RecordingViewModel의 경과시간 틱과 같은 패턴.
+        val recordingState by TrackRecorder.state.collectAsStateWithLifecycle()
+        val isRecordingOrPaused = recordingState is RecordingState.Recording || recordingState is RecordingState.Paused
+        var liveTrackGeoJson by remember { mutableStateOf(emptyVisitedRoadGeoJson) }
+        LaunchedEffect(isRecordingOrPaused) {
+            if (!isRecordingOrPaused) return@LaunchedEffect
+            while (true) {
+                val livePoints = TrackRecorder.currentFilteredPoints().map { LatLon(lat = it.lat, lon = it.lon) }
+                liveTrackGeoJson = buildVisitedRoadGeoJson(listOf(livePoints))
+                delay(1000)
+            }
+        }
+        MapLayers(MapLayerSpec(MapConfig.SOURCE_VISITED_ROAD, if (isRecordingOrPaused) liveTrackGeoJson else visitedRoadGeoJson))
+
+        val dongOverlayData = remember { repository.buildOverlay(edges = emptyList()) }
+        val dongGlowPolygonPartsData = remember { repository.loadPolygonParts() }
+        val sigunguOverlayData = remember { repository.buildSigunguOverlay(edges = emptyList()) }
+        val sidoOverlayData = remember { repository.buildSidoOverlay(edges = emptyList()) }
+
+        // 기록 중엔 줌아웃해도 동/시군구/시도 테두리·라벨·빛을 안 보여준다 — 지금 뛰고 있는 길에만
+        // 집중하게 한다.
         RunvealMap(
             modifier = Modifier.fillMaxSize(),
             state = mapState,
-            dongOverlay = dongOverlay,
-            dongGlowPolygonParts = dongGlowPolygonParts,
-            sigunguOverlay = sigunguOverlay,
-            sidoOverlay = sidoOverlay,
+            dongOverlay = if (isRecordingOrPaused) null else dongOverlayData,
+            dongGlowPolygonParts = if (isRecordingOrPaused) emptyMap() else dongGlowPolygonPartsData,
+            sigunguOverlay = if (isRecordingOrPaused) null else sigunguOverlayData,
+            sidoOverlay = if (isRecordingOrPaused) null else sidoOverlayData,
         )
     }
 }

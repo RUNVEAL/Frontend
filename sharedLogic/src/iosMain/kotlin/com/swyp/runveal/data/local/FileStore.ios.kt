@@ -5,6 +5,7 @@ import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSUTF8StringEncoding
+import platform.Foundation.NSString
 import platform.Foundation.NSUserDomainMask
 import platform.Foundation.create
 import platform.Foundation.dataUsingEncoding
@@ -22,7 +23,7 @@ actual class FileStore actual constructor() {
     actual fun write(relativePath: String, content: String) {
         val path = resolve(relativePath)
         ensureParentDirectoryExists(path)
-        val data = content.dataUsingEncoding(NSUTF8StringEncoding)
+        val data = (content as NSString).dataUsingEncoding(NSUTF8StringEncoding)
         fileManager.createFileAtPath(path, data, null)
     }
 
@@ -34,7 +35,7 @@ actual class FileStore actual constructor() {
         val path = resolve(relativePath)
         if (!fileManager.fileExistsAtPath(path)) return null
         val data = fileManager.contentsAtPath(path) ?: return null
-        return platform.Foundation.NSString.create(data, NSUTF8StringEncoding) as String?
+        return NSString.create(data, NSUTF8StringEncoding) as String?
     }
 
     actual fun delete(relativePath: String) {
