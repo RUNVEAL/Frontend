@@ -1,6 +1,8 @@
 package com.swyp.runveal.tabrecord
 
 import androidx.lifecycle.viewModelScope
+import com.swyp.runveal.map.snapshot.SnapshotVariant
+import com.swyp.runveal.map.snapshot.toSnapshotRequest
 import com.swyp.runveal.result.TrackResult
 import com.swyp.runveal.result.TrackResultHolder
 import com.swyp.runveal.tabrecord.contract.ResultDongStat
@@ -32,6 +34,7 @@ class ResultViewModel : MviViewModel<Nothing, ResultState, Nothing>(initialState
             distanceLabel = "%.2f".format(distanceKm),
             elapsedLabel = formatElapsed(result.elapsedMs),
             paceLabel = formatPace(result.elapsedMs, result.distanceMeters),
+            mapSnapshotRequest = result.routePoints.toSnapshotRequest(result.trackId, SnapshotVariant.RESULT_CARD),
         )
     }
 

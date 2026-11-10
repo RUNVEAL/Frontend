@@ -39,11 +39,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.swyp.runveal.core.map.CourseSnapshotImage
 import com.swyp.runveal.designsystem.component.button.RunvealButtonGroupEqual
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.tabrecord.R
+import com.swyp.runveal.map.snapshot.SnapshotRequest
 import com.swyp.runveal.tabrecord.contract.ResultDongStat
 import com.swyp.runveal.tabrecord.contract.ResultState
 
@@ -133,7 +135,7 @@ private fun ResultContent(state: ResultState.Ready, modifier: Modifier = Modifie
             Spacer(modifier = Modifier.height(RunvealTheme.spacing.space32))
 
             // 지도 카드 — 화면 기본 여백(16dp)만 적용, 별도 섹션 마진 없음.
-            RouteMapCard(modifier = Modifier.fillMaxWidth())
+            RouteMapCard(request = state.mapSnapshotRequest, modifier = Modifier.fillMaxWidth())
 
             Spacer(modifier = Modifier.height(RunvealTheme.spacing.space20))
 
@@ -223,21 +225,28 @@ private fun DongRateRow(dongStat: ResultDongStat, modifier: Modifier = Modifier)
     }
 }
 
-/** 경로 지도 카드 — 실제 경로선을 그릴 지도 스냅샷/벡터 에셋은 이번 범위에 없어 범례만 자리를 잡아 둔다. */
+/** 경로 지도 카드 — [request]가 있으면 실제 경로가 그려진 지도 스냅샷([CourseSnapshotImage]), 없으면
+ * (경로 점이 2개 미만인 아주 짧은 기록) 플레이스홀더만 보여준다. */
 @Composable
-private fun RouteMapCard(modifier: Modifier = Modifier) {
+private fun RouteMapCard(request: SnapshotRequest?, modifier: Modifier = Modifier) {
     val colors = RunvealTheme.colors
     val shape = RunvealTheme.shapes.radius16
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(MAP_CARD_HEIGHT)
+            .clip(shape)
             .background(colors.bg.canvas, shape)
-            .border(1.dp, colors.border.subtle, shape)
-            .padding(RunvealTheme.spacing.space16),
+            .border(1.dp, colors.border.subtle, shape),
     ) {
+        CourseSnapshotImage(
+            request = request,
+            contentDescription = stringResource(R.string.result_map_content_description),
+            modifier = Modifier.fillMaxSize(),
+        )
+
         Row(
-            modifier = Modifier.align(Alignment.BottomStart),
+            modifier = Modifier.align(Alignment.BottomStart).padding(RunvealTheme.spacing.space16),
             horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
         ) {
             LegendItem(
@@ -325,6 +334,7 @@ private fun ResultScreenPreview() {
                 distanceLabel = "5.21",
                 elapsedLabel = "31:40",
                 paceLabel = "6'05″",
+                mapSnapshotRequest = null,
             ),
             modifier = Modifier.fillMaxSize(),
         )

@@ -169,7 +169,7 @@ class TrackingService : Service() {
         val elapsedMs = finished.finishedAtEpochMs - finished.startedAtEpochMs
 
         if (points.size < 2) {
-            publishResult(finished, distanceMeters, elapsedMs, newRoadMeters = 0.0, dongStats = emptyList())
+            publishResult(finished, distanceMeters, elapsedMs, newRoadMeters = 0.0, dongStats = emptyList(), routePoints = points)
             return
         }
 
@@ -187,7 +187,7 @@ class TrackingService : Service() {
             )
             val afterWalked = store.walkedLengthByDong()
             val dongStats = buildDongStats(summary.touchedDongAdmCodes, beforeWalked, afterWalked, boundaries)
-            publishResult(finished, distanceMeters, elapsedMs, summary.newRoadMeters, dongStats)
+            publishResult(finished, distanceMeters, elapsedMs, summary.newRoadMeters, dongStats, routePoints = points)
         } catch (_: Exception) {
             store.database.trackQueries.updateMatchState(
                 match_state = MATCH_STATE_FAILED,
@@ -196,7 +196,7 @@ class TrackingService : Service() {
                 updated_at_epoch_ms = System.currentTimeMillis(),
                 id = finished.id,
             )
-            publishResult(finished, distanceMeters, elapsedMs, newRoadMeters = 0.0, dongStats = emptyList())
+            publishResult(finished, distanceMeters, elapsedMs, newRoadMeters = 0.0, dongStats = emptyList(), routePoints = points)
         }
     }
 
@@ -206,6 +206,7 @@ class TrackingService : Service() {
         elapsedMs: Long,
         newRoadMeters: Double,
         dongStats: List<DongRateChange>,
+        routePoints: List<LatLon>,
     ) {
         TrackResultHolder.publish(
             TrackResult(
@@ -215,6 +216,7 @@ class TrackingService : Service() {
                 elapsedMs = elapsedMs,
                 newRoadMeters = newRoadMeters,
                 dongStats = dongStats,
+                routePoints = routePoints,
             ),
         )
     }

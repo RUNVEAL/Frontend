@@ -1,5 +1,6 @@
 package com.swyp.runveal.tabrecord.contract
 
+import com.swyp.runveal.map.snapshot.SnapshotRequest
 import com.swyp.runveal.ui.mvi.UiState
 
 data class ResultDongStat(val name: String, val beforePercent: Int, val afterPercent: Int)
@@ -16,5 +17,7 @@ sealed interface ResultState : UiState {
         val distanceLabel: String,
         val elapsedLabel: String,
         val paceLabel: String,
+        /** 경로 점이 2개 미만(제자리 종료 등)이면 `null` — 지도 카드가 그때는 플레이스홀더만 보여준다. */
+        val mapSnapshotRequest: SnapshotRequest?,
     ) : ResultState
 }
