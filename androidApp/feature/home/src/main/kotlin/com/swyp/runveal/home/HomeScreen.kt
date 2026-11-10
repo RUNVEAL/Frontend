@@ -210,6 +210,7 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                                     container = RunvealTabBarContainer.Embedded,
                                 )
                             },
+                            onMyLocationClick = mapState::recenterToCurrentLocation,
                             modifier = panelModifier,
                         )
                     }

@@ -14,6 +14,7 @@
     <string name="course_card_stat_time">예상 시간</string>
     <string name="course_card_stat_elevation">고도</string>
     <string name="course_card_stat_new_road">새 길</string>
+    <string name="home_bottom_panel_my_location_content_description">내 위치</string>
     <string name="location_permission_sheet_title">위치 권한이 필요해요!</string>
     <string name="location_permission_sheet_description">내 주변 탐험 지도를 보여주고, 달린 경로를 기록하려면 \n위치 정보가 필요해요.</string>
     <string name="location_permission_benefit_explore_rate">현재 위치 기준 동네 탐험률 표시</string>

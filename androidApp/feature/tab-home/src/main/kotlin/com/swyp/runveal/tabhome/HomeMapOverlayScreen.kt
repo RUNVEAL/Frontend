@@ -22,14 +22,14 @@ internal fun HomeMapOverlayScreen(
     onCreateCourseClick: () -> Unit = {},
     onRunStartClick: () -> Unit = {},
 ) {
-    val zoom = LocalMapState.current.currentZoom
-    val isZoomedIn = zoom >= MapConfig.ZOOM_IN_THRESHOLD
+    val mapState = LocalMapState.current
+    val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
     var selectedToggleIndex by remember { mutableIntStateOf(0) }
 
     if (!isZoomedIn) {
         HomeMapOverlay(locationName = "현재 위치", modifier = modifier.fillMaxSize())
     } else {
-        // TODO: 동 상세 진입, 내 위치 이동, 실제 탐험률/거리 연동 추가 예정
+        // TODO: 동 상세 진입, 실제 탐험률/거리 연동 추가 예정
         ZoomedInMapOverlay(
             dongName = "성수동",
             ratePercent = 0,
@@ -40,7 +40,7 @@ internal fun HomeMapOverlayScreen(
             onDongClick = {},
             onCreateCourseClick = onCreateCourseClick,
             onRunStartClick = onRunStartClick,
-            onMyLocationClick = {},
+            onMyLocationClick = mapState::recenterToCurrentLocation,
             modifier = modifier.fillMaxSize(),
         )
     }

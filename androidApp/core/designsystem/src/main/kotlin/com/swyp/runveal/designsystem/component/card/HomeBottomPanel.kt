@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -18,9 +19,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.swyp.runveal.designsystem.R
 import com.swyp.runveal.designsystem.RunvealIcons
+import com.swyp.runveal.designsystem.component.button.RunvealIconButton
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.designsystem.component.navigation.RunvealTabBar
 import com.swyp.runveal.designsystem.component.navigation.RunvealTabBarContainer
@@ -34,6 +38,8 @@ import com.swyp.runveal.designsystem.theme.runvealGlass
  * 위치 권한/서비스가 꺼져 있으면 [banner]에 [RunvealLocationOffBanner]를 넣는다 —
  * [summary]를 대체하지 않고 그 위에 구분선과 함께 얹힌다. 지도를 줌인했을 때처럼 [summary]를
  * 보여줄 자리가 없을 땐 null로 생략할 수 있다(이때도 [banner]는 [tabBar] 위에 그대로 얹힌다).
+ * [onMyLocationClick]을 주면 패널 우측 상단 바로 위에 "내 위치" 아이콘 버튼이 떠 있는 형태로 추가된다
+ * (지도 locate 버튼과 같은 자리를 다시 안 차지하게 패널 바깥, 위로 띄운다).
  */
 @Composable
 fun RunvealHomeBottomPanel(
@@ -41,31 +47,46 @@ fun RunvealHomeBottomPanel(
     modifier: Modifier = Modifier,
     banner: (@Composable () -> Unit)? = null,
     summary: (@Composable () -> Unit)? = null,
+    onMyLocationClick: (() -> Unit)? = null,
 ) {
     val shape = RunvealTheme.shapes.radius32
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .runvealGlass(shape)
-            .padding(PaddingValues(top = RunvealTheme.spacing.space12, start = 6.dp, end = 6.dp, bottom = 6.dp)),
-        verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
-    ) {
-        if (banner != null) {
-            banner()
-            // summary가 없으면(줌인 상태) 배너가 탭바 바로 위에 구분선 없이 얹힌다.
-            if (summary != null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = RunvealTheme.spacing.space20)
-                        .height(1.dp)
-                        .background(RunvealTheme.colors.border.default),
-                )
+    Box(modifier = modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .runvealGlass(shape)
+                .padding(PaddingValues(top = RunvealTheme.spacing.space12, start = 6.dp, end = 6.dp, bottom = 6.dp)),
+            verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
+        ) {
+            if (banner != null) {
+                banner()
+                // summary가 없으면(줌인 상태) 배너가 탭바 바로 위에 구분선 없이 얹힌다.
+                if (summary != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = RunvealTheme.spacing.space20)
+                            .height(1.dp)
+                            .background(RunvealTheme.colors.border.default),
+                    )
+                }
             }
+            if (summary != null) summary()
+            tabBar()
         }
-        if (summary != null) summary()
-        tabBar()
+
+        if (onMyLocationClick != null) {
+            RunvealIconButton(
+                icon = RunvealIcons.Locate,
+                contentDescription = stringResource(R.string.home_bottom_panel_my_location_content_description),
+                onClick = onMyLocationClick,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(y = -(RunvealTheme.layout.sizeIconButtonL + RunvealTheme.spacing.space12))
+                    .padding(end = RunvealTheme.spacing.space4),
+            )
+        }
     }
 }
 
