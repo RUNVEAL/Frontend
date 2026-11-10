@@ -10,8 +10,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -30,8 +33,13 @@ import com.swyp.runveal.core.map.MapLayerSpec
 import com.swyp.runveal.core.map.MapLayers
 import com.swyp.runveal.core.map.MapState
 import com.swyp.runveal.core.map.RunvealMap
+import com.swyp.runveal.core.map.buildVisitedRoadGeoJson
 import com.swyp.runveal.core.map.rememberMapState
 import com.swyp.runveal.courserecommend.navigation.courseRecommendOverlay
+import com.swyp.runveal.data.local.DatabaseDriverFactory
+import com.swyp.runveal.data.local.FileStore
+import com.swyp.runveal.data.local.TrackLocalStore
+import com.swyp.runveal.db.RunvealDatabase
 import com.swyp.runveal.designsystem.RunvealIcons
 import com.swyp.runveal.designsystem.component.card.RunvealHomeBottomPanel
 import com.swyp.runveal.designsystem.component.card.RunvealLocationOffBanner
@@ -44,17 +52,22 @@ import com.swyp.runveal.map.MapConfig
 import com.swyp.runveal.navigation.RunVealRoute
 import com.swyp.runveal.navigation.rememberRunVealNavigator
 import com.swyp.runveal.feature.home.R
+import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.permission.LocationPermissionState
 import com.swyp.runveal.permission.RequireLocationPermission
 import com.swyp.runveal.permission.rememberLocationPermissionState
 import com.swyp.runveal.recording.RecordingState
 import com.swyp.runveal.recording.TrackRecorder
+import com.swyp.runveal.result.TrackResultHolder
 import com.swyp.runveal.tabcourse.navigation.courseGraph
 import com.swyp.runveal.tabhome.navigation.homeMapOverlay
 import com.swyp.runveal.tabmypage.navigation.myGraph
 import com.swyp.runveal.tabrecord.navigation.recordGraph
 import com.swyp.runveal.tabrecord.navigation.recordingOverlay
 import com.swyp.runveal.tabrecord.navigation.resultOverlay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 private val HOME_BOTTOM_PANEL_INNER_INSET = 6.dp
 
@@ -241,17 +254,36 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
 private fun HomeMapLayer(mapState: MapState, locationPermissionState: LocationPermissionState, modifier: Modifier = Modifier) {
     RequireLocationPermission(modifier = modifier, state = locationPermissionState) {
         val context = LocalContext.current
-        // 테스트용: 실제 GPS 기록(core:tracking)이 아직 없어서 빈 edges로 동/시군구/시도 경계만 확인한다.
         val repository = remember { DongAssetRepository(context) }
-        // 도로매칭(Valhalla) 연동 전까지 가본 길 렌더링을 실제로 기록된 샘플 트랙으로 시연한다.
-        val visitedEdges = remember { repository.loadSampleVisitedEdges() }
-        val visitedRoadGeoJson = remember { repository.buildVisitedRoadGeoJson(visitedEdges) }
-        // 기록 중엔 샘플 트랙이 지금 달리는 길과 섞여 보이지 않게 비운다 — 실제 기록 결과는 종료 후
-        // 최종 매칭이 끝나야 track_edge에 반영되므로 녹화 중엔 어차피 보여줄 "진짜" 가본 길이 없다.
+        val trackLocalStore = remember { TrackLocalStore(RunvealDatabase(DatabaseDriverFactory().createDriver()), FileStore()) }
+        // TrackResultHolder가 매칭 완료마다 새 값을 publish하므로, 그걸 키로 "가본 길"/동별 완주율을
+        // DB에서 다시 읽어 새 기록이 반영되게 한다.
+        val latestTrackResult by TrackResultHolder.state.collectAsStateWithLifecycle()
+
+        val emptyVisitedRoadGeoJson = remember { repository.buildVisitedRoadGeoJson(emptyList()) }
+        var visitedRoadGeoJson by remember { mutableStateOf(emptyVisitedRoadGeoJson) }
+        LaunchedEffect(latestTrackResult) {
+            withContext(Dispatchers.IO) {
+                visitedRoadGeoJson = repository.buildVisitedRoadGeoJson(trackLocalStore.visitedRoadEdges())
+            }
+        }
+
+        // 기록 중엔 지금까지 쌓인 "가본 길" 대신 지금 달리고 있는 실시간 경로를 보여준다 — TrackRecorder가
+        // 이미 들고 있는 점들로 그린다. TrackRecorder.state는 점이 추가될 때마다 새로 emit되지
+        // 않아서(§3 설계) 1초마다 직접 읽어 다시 그린다 — RecordingViewModel의 경과시간 틱과 같은 패턴.
         val recordingState by TrackRecorder.state.collectAsStateWithLifecycle()
         val isRecordingOrPaused = recordingState is RecordingState.Recording || recordingState is RecordingState.Paused
-        val emptyVisitedRoadGeoJson = remember { repository.buildVisitedRoadGeoJson(emptyList()) }
-        MapLayers(MapLayerSpec(MapConfig.SOURCE_VISITED_ROAD, if (isRecordingOrPaused) emptyVisitedRoadGeoJson else visitedRoadGeoJson))
+        var liveTrackGeoJson by remember { mutableStateOf(emptyVisitedRoadGeoJson) }
+        LaunchedEffect(isRecordingOrPaused) {
+            if (!isRecordingOrPaused) return@LaunchedEffect
+            while (true) {
+                val livePoints = TrackRecorder.currentFilteredPoints().map { LatLon(lat = it.lat, lon = it.lon) }
+                liveTrackGeoJson = buildVisitedRoadGeoJson(listOf(livePoints))
+                delay(1000)
+            }
+        }
+        MapLayers(MapLayerSpec(MapConfig.SOURCE_VISITED_ROAD, if (isRecordingOrPaused) liveTrackGeoJson else visitedRoadGeoJson))
+
         val dongOverlayData = remember { repository.buildOverlay(edges = emptyList()) }
         val dongGlowPolygonPartsData = remember { repository.loadPolygonParts() }
         val sigunguOverlayData = remember { repository.buildSigunguOverlay(edges = emptyList()) }
