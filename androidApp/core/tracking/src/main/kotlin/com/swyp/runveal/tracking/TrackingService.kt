@@ -41,7 +41,8 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
 private const val DONG_BOUNDARY_ASSET_PATH = "dong/korea_dong.geojson"
-private const val DONG_LENGTHS_ASSET_PATH = "dong/asan_dong_lengths.json"
+// 임시 추정치(tools/gen_dong_lengths.py) — docs/local-db/local-db-schema-design.md §3.3 참고.
+private const val DONG_LENGTHS_ASSET_PATH = "dong/dong_lengths_estimated.json"
 private const val MATCH_STATE_FAILED = "FAILED"
 
 /**
