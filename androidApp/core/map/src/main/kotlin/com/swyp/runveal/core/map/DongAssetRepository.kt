@@ -92,7 +92,15 @@ class DongAssetRepository(private val context: Context) {
     fun buildOverlay(edges: List<MatchedEdge>): DongOverlayGeoJson {
         val boundaries = loadBoundaries()
         val percents = loadDongPercents(edges, boundaries)
-        val result = DongGeoJsonBuilder.build(boundaries, readAsset(DONG_BOUNDARY_ASSET_PATH), percents)
+        return buildOverlayFrom(boundaries, readAsset(DONG_BOUNDARY_ASSET_PATH), percents)
+    }
+
+    /** [buildOverlay]와 같은 렌더링 파이프라인을, 번들 에셋이 아니라 외부에서 받아 온 동 경계 geoJSON과
+     * 완주율로 돌린다 — 서버 지도 파일([ServerMapFileStore], `docs/api/API.md` §3.1.2)로 받은
+     * `index.geojson`을 적용해 볼 때 쓴다. [rawBoundaryGeoJson]의 각 feature는 [boundaries]와 같은
+     * `adm_cd2` 프로퍼티를 가지고 있어야 한다. */
+    fun buildOverlayFrom(boundaries: List<DongBoundary>, rawBoundaryGeoJson: String, percents: Map<String, Int>): DongOverlayGeoJson {
+        val result = DongGeoJsonBuilder.build(boundaries, rawBoundaryGeoJson, percents)
         return DongOverlayGeoJson(
             fillGeoJson = result.fillGeoJson,
             lineGeoJson = result.lineGeoJson,
