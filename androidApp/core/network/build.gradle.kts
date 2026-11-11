@@ -9,6 +9,7 @@ fun networkConfigValue(key: String): String = localProperties.getProperty(key) ?
 
 plugins {
     id("runveal.android.library")
+    id("runveal.kotlin.serialization")
 }
 
 android {
@@ -22,7 +23,7 @@ val networkConfigFileContent = """
     |// 자동 생성 파일 - 직접 수정하지 마세요. 원본: local.properties (androidApp/core/network/build.gradle.kts)
     |package com.swyp.runveal.network
     |
-    |/** local.properties의 network.baseUrl 값. */
+    |/** local.properties의 network.baseUrl 값. 끝에 "/" 없는 형태로 넣는다 — 호출부가 "${'$'}BASE_URL/api/..."처럼 직접 이어 붙인다. */
     |object NetworkConfig {
     |    const val BASE_URL: String = "${networkConfigValue("network.baseUrl")}"
     |}

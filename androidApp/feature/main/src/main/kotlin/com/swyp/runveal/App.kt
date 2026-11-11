@@ -18,7 +18,7 @@ internal fun App(
     RunvealTheme {
         NavHost(
             navController = navigator.navController,
-            startDestination = RunVealRoute.Home.Main,
+            startDestination = RunVealRoute.Main.Splash,
         ) {
             splashGraph(navigator = navigator)
             homeGraph(navigator = navigator)
