@@ -7,6 +7,7 @@ import com.swyp.runveal.courserecommend.contract.CourseCreateState
 import com.swyp.runveal.courserecommend.contract.DefaultCustomDistanceIndex
 import com.swyp.runveal.courserecommend.contract.DefaultDistance
 import com.swyp.runveal.courserecommend.contract.LocationSelectionTarget
+import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.network.meta.MetaApi
 import com.swyp.runveal.network.meta.MetaHolder
 import com.swyp.runveal.network.routes.LatLng
@@ -16,10 +17,10 @@ import com.swyp.runveal.ui.mvi.MviViewModel
 
 private const val TAG = "CourseRecommendDebug"
 
-/** TEMP — 지도 핀으로 실제 출발지를 고르는 기능이 아직 없어서 쓰는 임시 좌표(성수동 인근).
- * [com.swyp.runveal.courserecommend.contract.CourseCreateState]의 `selectedPlaceName` 기본값과
- * 맞춘 자리다 — 지도 연동이 들어오면 지워진다. */
-private val TEMP_START_LOCATION = LatLng(lat = 37.5445, lng = 127.0557)
+/** TEMP — 출발지를 지도에서 아직 한 번도 고르지 않았을 때 쓰는 기본 좌표(성수동 인근). */
+private val TEMP_START_LOCATION = LatLon(lat = 37.5445, lon = 127.0557)
+
+private fun LatLon.toRoutesLatLng(): LatLng = LatLng(lat = lat, lng = lon)
 
 class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState, CourseCreateEffect>(
     initialState = CourseCreateState(),
@@ -35,22 +36,29 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
                 setState { copy(locationSelectionTarget = LocationSelectionTarget.End) }
 
             CourseCreateIntent.CancelLocationSelection ->
-                setState { copy(locationSelectionTarget = LocationSelectionTarget.None) }
+                setState { copy(locationSelectionTarget = LocationSelectionTarget.None, pickedLocation = null) }
 
             CourseCreateIntent.ConfirmLocationSelection -> setState {
                 when (locationSelectionTarget) {
                     LocationSelectionTarget.Start -> copy(
                         startLocation = selectedPlaceName,
+                        startLatLon = pickedLocation ?: startLatLon,
                         locationSelectionTarget = LocationSelectionTarget.None,
+                        pickedLocation = null,
                     )
                     LocationSelectionTarget.End -> copy(
                         endLocation = selectedPlaceName,
                         endLocationIsDefault = false,
+                        endLatLon = pickedLocation ?: endLatLon,
                         locationSelectionTarget = LocationSelectionTarget.None,
+                        pickedLocation = null,
                     )
                     LocationSelectionTarget.None -> this
                 }
             }
+
+            is CourseCreateIntent.MapLocationPicked ->
+                setState { copy(pickedLocation = intent.location) }
 
             CourseCreateIntent.OpenFilterSheet -> setState { copy(showFilterSheet = true) }
             CourseCreateIntent.CloseFilterSheet -> setState { copy(showFilterSheet = false) }
@@ -98,7 +106,9 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
 
     /** `docs/api/API.md` §3.3 — B0 설정값으로 `/api/v1/routes`를 호출하고, 성공·실패 모두
      * [CourseRecommendResultHolder]에 publish한 뒤 결과 화면으로 넘어간다. `selectedFilters`는 화면
-     * 라벨(한글)이라 서버 필터 코드(`PARK`/`RIVERSIDE`/`GENTLE_SLOPE`)와 1:1로 안 맞아서 일단 안 보낸다. */
+     * 라벨(한글)이라 서버 필터 코드(`PARK`/`RIVERSIDE`/`GENTLE_SLOPE`)와 1:1로 안 맞아서 일단 안 보낸다.
+     * `end`는 지도에서 도착지를 직접 고른 경우에만 보낸다 — 안 고르면(기본값 "출발지로 돌아오기")
+     * `endLatLon`이 null이라 자동으로 순환(LOOP) 코스가 된다(§3.3.1). */
     private suspend fun recommendRoutes() {
         try {
             val mapVersion = MetaHolder.state.value?.mapVersions?.current
@@ -107,7 +117,8 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
             val response = routesApi.fetchRoutes(
                 RoutesRequest(
                     mapVersion = mapVersion,
-                    start = TEMP_START_LOCATION,
+                    start = (currentState.startLatLon ?: TEMP_START_LOCATION).toRoutesLatLng(),
+                    end = currentState.endLatLon?.toRoutesLatLng(),
                     distanceM = distanceM,
                     preferUnexplored = currentState.avoidVisitedPreferred,
                 ),

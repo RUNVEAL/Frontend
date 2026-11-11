@@ -69,6 +69,7 @@ fun CourseCreateScreen(
         if (target == LocationSelectionTarget.None) return@LaunchedEffect
         val type = if (target == LocationSelectionTarget.Start) RunvealMapMarkerType.Start else RunvealMapMarkerType.End
         mapState.pin = MapPin(click, type)
+        viewModel.onIntent(CourseCreateIntent.MapLocationPicked(click))
     }
     LaunchedEffect(state.locationSelectionTarget) {
         if (state.locationSelectionTarget == LocationSelectionTarget.None) mapState.pin = null
