@@ -16,6 +16,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +27,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.swyp.runveal.core.map.LocalMapState
+import com.swyp.runveal.core.map.MapPin
+import com.swyp.runveal.core.map.rememberMapState
 import com.swyp.runveal.courserecommend.component.FilterBottomSheet
 import com.swyp.runveal.courserecommend.component.LocationConfirmPanel
 import com.swyp.runveal.courserecommend.component.MakeCoursePanel
@@ -31,6 +37,7 @@ import com.swyp.runveal.courserecommend.component.MapHintBanner
 import com.swyp.runveal.courserecommend.contract.CourseCreateEffect
 import com.swyp.runveal.courserecommend.contract.CourseCreateIntent
 import com.swyp.runveal.courserecommend.contract.LocationSelectionTarget
+import com.swyp.runveal.designsystem.component.map.RunvealMapMarkerType
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarStyle
@@ -46,12 +53,28 @@ fun CourseCreateScreen(
     viewModel: CourseCreateViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val mapState = LocalMapState.current
 
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
             CourseCreateEffect.NavigateToResult -> onNavigateToResult()
         }
     }
+
+    // 출발/도착 선택 중 지도를 탭하면 그 위치에 핀을 띄운다. 선택을 취소·확정하거나 화면을 나가면 지운다.
+    LaunchedEffect(mapState.lastMapClick) {
+        val click = mapState.lastMapClick ?: return@LaunchedEffect
+        mapState.lastMapClick = null
+        val target = state.locationSelectionTarget
+        if (target == LocationSelectionTarget.None) return@LaunchedEffect
+        val type = if (target == LocationSelectionTarget.Start) RunvealMapMarkerType.Start else RunvealMapMarkerType.End
+        mapState.pin = MapPin(click, type)
+    }
+    LaunchedEffect(state.locationSelectionTarget) {
+        if (state.locationSelectionTarget == LocationSelectionTarget.None) mapState.pin = null
+    }
+    DisposableEffect(Unit) { onDispose { mapState.pin = null } }
+
     // 출발/도착 선택 모드일 땐 뒤로가기가 화면을 벗어나지 않고 선택만 취소한다.
     val onBackOrCancelSelection = {
         if (state.locationSelectionTarget != LocationSelectionTarget.None) {
@@ -155,6 +178,9 @@ fun CourseCreateScreen(
 @Composable
 private fun CourseCreateScreenPreview() {
     RunvealTheme {
-        CourseCreateScreen(onBack = {}, onNavigateToResult = {})
+        // CourseCreateScreen이 LocalMapState.current로 지도 탭/핀 상태를 읽어 더미 값을 제공한다.
+        CompositionLocalProvider(LocalMapState provides rememberMapState()) {
+            CourseCreateScreen(onBack = {}, onNavigateToResult = {})
+        }
     }
 }

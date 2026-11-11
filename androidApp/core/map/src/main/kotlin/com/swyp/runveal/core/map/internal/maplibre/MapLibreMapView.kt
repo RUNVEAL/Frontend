@@ -1,5 +1,8 @@
 package com.swyp.runveal.core.map.internal.maplibre
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -9,9 +12,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -20,14 +29,18 @@ import com.swyp.runveal.core.map.MapState
 import com.swyp.runveal.core.map.SidoOverlayGeoJson
 import com.swyp.runveal.core.map.SigunguOverlayGeoJson
 import com.swyp.runveal.core.map.internal.glow.DongGlowProvider
+import com.swyp.runveal.designsystem.component.map.RunvealMapMarker
+import com.swyp.runveal.designsystem.component.map.RunvealMapMarkerStyle
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.dong.DongPolygonPart
+import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.map.MapConfig
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import kotlin.math.roundToInt
 
 @Composable
 internal fun MapLibreMapView(
@@ -59,23 +72,65 @@ internal fun MapLibreMapView(
         )
     }
 
-    AndroidView(modifier = modifier, factory = { mapView }) { view ->
-        view.getMapAsync { map ->
-            liveMap = map
-            if (style == null) {
-                setUpInitialCamera(map, state)
-                map.addOnCameraIdleListener {
-                    state.currentZoom = map.cameraPosition.zoom
-                    cameraIdleTick++
+    var pinScreenOffset by remember { mutableStateOf<Offset?>(null) }
+    fun refreshPinScreenOffset() {
+        val map = liveMap
+        val pinLocation = state.pin?.location
+        pinScreenOffset = if (map == null || pinLocation == null) {
+            null
+        } else {
+            map.projection.toScreenLocation(pinLocation.toMapLibreLatLng()).let { Offset(it.x, it.y) }
+        }
+    }
+
+    Box(modifier = modifier) {
+        AndroidView(modifier = Modifier.fillMaxSize(), factory = { mapView }) { view ->
+            view.getMapAsync { map ->
+                liveMap = map
+                if (style == null) {
+                    setUpInitialCamera(map, state)
+                    map.addOnCameraIdleListener {
+                        state.currentZoom = map.cameraPosition.zoom
+                        cameraIdleTick++
+                    }
+                    map.addOnCameraMoveListener { refreshPinScreenOffset() }
+                    map.addOnMapClickListener { latLng ->
+                        state.lastMapClick = LatLon(latLng.latitude, latLng.longitude)
+                        true
+                    }
+                    map.setStyle(MapConfig.STYLE_URL) { loadedStyle ->
+                        style = loadedStyle
+                        // 베이스 스타일 레이어 스냅샷이 필요해서 다른 레이어를 추가하기 전에 가장 먼저 호출한다.
+                        BaseMapDimmer.applyAtStyleLoad(loadedStyle)
+                        BaseStyleDarkCorrection.applyAtStyleLoad(loadedStyle)
+                        CurrentLocationLayer.activate(view.context, map, loadedStyle, mapColors.currentLocation)
+                        BaseStyleLabels.hide(loadedStyle)
+                    }
                 }
-                map.setStyle(MapConfig.STYLE_URL) { loadedStyle ->
-                    style = loadedStyle
-                    // 베이스 스타일 레이어 스냅샷이 필요해서 다른 레이어를 추가하기 전에 가장 먼저 호출한다.
-                    BaseMapDimmer.applyAtStyleLoad(loadedStyle)
-                    BaseStyleDarkCorrection.applyAtStyleLoad(loadedStyle)
-                    CurrentLocationLayer.activate(view.context, map, loadedStyle, mapColors.currentLocation)
-                    BaseStyleLabels.hide(loadedStyle)
-                }
+            }
+        }
+
+        LaunchedEffect(state.pin, liveMap) { refreshPinScreenOffset() }
+
+        val pin = state.pin
+        val screenOffset = pinScreenOffset
+        if (pin != null && screenOffset != null) {
+            val density = LocalDensity.current
+            // Pin 디자인의 앵커(바닥 점의 중심)는 Column 맨 아래 8dp 점의 중앙이라 가로는 절반,
+            // 세로는 (전체 높이 - 점 반지름)만큼 끌어올려야 탭한 좌표와 점이 겹친다.
+            val dotRadiusPx = with(density) { 4.dp.toPx() }
+            var pinSize by remember { mutableStateOf(IntSize.Zero) }
+            Box(
+                modifier = Modifier
+                    .onSizeChanged { pinSize = it }
+                    .offset {
+                        IntOffset(
+                            x = (screenOffset.x - pinSize.width / 2f).roundToInt(),
+                            y = (screenOffset.y - pinSize.height + dotRadiusPx).roundToInt(),
+                        )
+                    },
+            ) {
+                RunvealMapMarker(type = pin.type, style = RunvealMapMarkerStyle.Pin)
             }
         }
     }
