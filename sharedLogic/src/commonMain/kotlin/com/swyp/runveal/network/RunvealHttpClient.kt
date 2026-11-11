@@ -1,7 +1,6 @@
 package com.swyp.runveal.network
 
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.LogLevel
@@ -11,7 +10,8 @@ import kotlinx.serialization.json.Json
 
 /**
  * Runveal 서버([NetworkConfig.BASE_URL]) 호출용 공용 Ktor [HttpClient]. 엔드포인트별 API 클래스는
- * 이 인스턴스를 재사용한다 — `ValhallaClient`처럼 호출부마다 새로 만들지 않는다.
+ * 이 인스턴스를 재사용한다 — `ValhallaClient`처럼 호출부마다 새로 만들지 않는다. 엔진은 명시하지 않고
+ * 플랫폼 기본 엔진([ValhallaClient]와 동일한 방식)을 쓴다 — androidMain은 OkHttp, iosMain은 Darwin.
  */
 object RunvealHttpClient {
     private val json = Json {
@@ -20,7 +20,7 @@ object RunvealHttpClient {
     }
 
     val instance: HttpClient by lazy {
-        HttpClient(OkHttp) {
+        HttpClient {
             install(ContentNegotiation) { json(json) }
             install(Logging) { level = LogLevel.INFO }
             install(HttpTimeout) {

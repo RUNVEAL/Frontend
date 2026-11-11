@@ -9,7 +9,6 @@ android {
 dependencies {
     implementation(project(":androidApp:core:designsystem"))
     implementation(project(":androidApp:core:navigation"))
-    implementation(project(":androidApp:core:network"))
     implementation(project(":androidApp:feature:home"))
     implementation(project(":sharedLogic"))
 

@@ -10,7 +10,6 @@ android {
 dependencies {
     implementation(project(":sharedLogic"))
     implementation(project(":androidApp:core:designsystem"))
-    implementation(project(":androidApp:core:network"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.maplibre.android.sdk)

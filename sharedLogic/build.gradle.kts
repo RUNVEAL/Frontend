@@ -89,6 +89,41 @@ val generateValhallaConfig = tasks.register<GenerateAuthConfigTask>("generateVal
     outputDir.set(layout.buildDirectory.dir("generated/valhallaConfig/commonMain/kotlin"))
 }
 
+// local.properties(network.baseUrl)를 읽어 commonMain에 NetworkConfig.kt 생성 — androidApp/core/network의
+// 같은 파일을 그대로 옮긴 것(androidApp/core/network는 Android 전용이라 iOS에서 API를 못 썼다).
+abstract class GenerateNetworkConfigTask : DefaultTask() {
+    @get:Input
+    abstract val fileContent: Property<String>
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun generate() {
+        val pkgDir = outputDir.get().asFile.resolve("com/swyp/runveal/network")
+        pkgDir.mkdirs()
+        pkgDir.resolve("NetworkConfig.kt").writeText(fileContent.get())
+    }
+}
+
+val networkConfigFileContent = """
+    |// 자동 생성 파일 - 직접 수정하지 마세요. 원본: local.properties (sharedLogic/build.gradle.kts)
+    |package com.swyp.runveal.network
+    |
+    |/** local.properties의 network.baseUrl 값. 끝에 "/" 없는 형태로 넣는다 — 호출부가 "${'$'}BASE_URL/api/..."처럼 직접 이어 붙인다. */
+    |object NetworkConfig {
+    |    const val BASE_URL: String = "${authConfigValue("network.baseUrl")}"
+    |}
+    |
+""".trimMargin()
+
+val generateNetworkConfig = tasks.register<GenerateNetworkConfigTask>("generateNetworkConfig") {
+    group = "runveal"
+    description = "local.properties -> NetworkConfig.kt (commonMain)"
+    fileContent.set(networkConfigFileContent)
+    outputDir.set(layout.buildDirectory.dir("generated/networkConfig/commonMain/kotlin"))
+}
+
 kotlin {
     android {
        namespace = "com.swyp.runveal.sharedLogic"
@@ -103,6 +138,7 @@ kotlin {
     sourceSets {
         commonMain.configure {
             kotlin.srcDir(generateValhallaConfig)
+            kotlin.srcDir(generateNetworkConfig)
         }
         commonMain.dependencies {
             implementation(libs.kotlinx.coroutines.core)
