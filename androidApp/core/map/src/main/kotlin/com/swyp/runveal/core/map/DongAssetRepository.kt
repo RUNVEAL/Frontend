@@ -71,8 +71,8 @@ class DongAssetRepository(private val context: Context) {
         }
     }
 
-    /** [VISITED_SAMPLE_TRACKS_ASSET_DIR]에 있는 실제 기록 트랙을 전부 읽어 합친다 — 도로매칭(Valhalla)
-     * 서버 연동 전까지 가본 길 렌더링을 시연하는 용도. 디렉터리 자체가 없으면(에셋을 안 넣은 빌드) 빈
+    /** [VISITED_SAMPLE_TRACKS_ASSET_DIR]에 있는 실제 기록 트랙을 전부 읽어 합친다 — 가본 길 렌더링을
+     * 시연하는 용도. 디렉터리 자체가 없으면(에셋을 안 넣은 빌드) 빈
      * 목록을 돌려준다. 트랙(파일) 하나는 [mergeIntoSingleLine]으로 합쳐 한 Feature로 그린다 — wayId
      * 경계마다 따로 그리면 glow 레이어(반투명 + blur)가 선 끝 round cap끼리 겹쳐서 꺾이는 지점마다
      * 빛이 번져 보인다. */

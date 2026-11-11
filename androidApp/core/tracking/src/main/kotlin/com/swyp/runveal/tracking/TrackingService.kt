@@ -24,14 +24,16 @@ import com.swyp.runveal.dong.DongBoundary
 import com.swyp.runveal.dong.DongBoundaryParser
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
+import com.swyp.runveal.match.ChunkedMatcher
+import com.swyp.runveal.network.match.MatchPurpose
+import com.swyp.runveal.network.meta.MetaApi
+import com.swyp.runveal.network.meta.MetaHolder
 import com.swyp.runveal.recording.RecordingState
 import com.swyp.runveal.recording.TrackPoint
 import com.swyp.runveal.recording.TrackRecorder
 import com.swyp.runveal.result.DongRateChange
 import com.swyp.runveal.result.TrackResult
 import com.swyp.runveal.result.TrackResultHolder
-import com.swyp.runveal.valhalla.ChunkedMatcher
-import com.swyp.runveal.valhalla.defaultRoadMatcher
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -174,7 +176,14 @@ class TrackingService : Service() {
         }
 
         try {
-            val result = ChunkedMatcher.matchInChunks(defaultRoadMatcher(), points)
+            val mapVersion = resolveMapVersion()
+            val matcher = ServerRoadMatcher(mapVersion = mapVersion, purpose = MatchPurpose.LIVE)
+            val result = ChunkedMatcher.matchInChunks(matcher, points)
+            // TEMP DEBUG — 실서버 /match 교체가 실제로 되는지 확인한다. 확인 끝나면 지운다.
+            android.util.Log.i(
+                "ServerMatchDebug",
+                "매칭 성공 points=${points.size} edges=${result.edges.size} pathPoints=${result.path.size} mapVersion=$mapVersion",
+            )
             val boundaries = loadDongBoundaries()
             val beforeWalked = store.walkedLengthByDong()
             val summary = store.recordMatchResult(
@@ -188,7 +197,9 @@ class TrackingService : Service() {
             val afterWalked = store.walkedLengthByDong()
             val dongStats = buildDongStats(summary.touchedDongAdmCodes, beforeWalked, afterWalked, boundaries)
             publishResult(finished, distanceMeters, elapsedMs, summary.newRoadMeters, dongStats, routePoints = points)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            // TEMP DEBUG — 확인 끝나면 catch (_: Exception)으로 되돌린다.
+            android.util.Log.w("ServerMatchDebug", "매칭 실패 points=${points.size}", e)
             store.database.trackQueries.updateMatchState(
                 match_state = MATCH_STATE_FAILED,
                 confidence_score = null,
@@ -244,6 +255,12 @@ class TrackingService : Service() {
     }
 
     private fun percentOf(walked: Double, total: Double): Int = ((walked / total) * 100).toInt().coerceIn(0, 100)
+
+    /** 앱 실행 시 스플래시가 받아 둔 버전([MetaHolder])이 있으면 그대로 쓰고, 없으면(스플래시 호출
+     * 실패·아직 전) 여기서 한 번 더 받는다 — `/match` 요청엔 `mapVersion`이 꼭 있어야 한다. */
+    private suspend fun resolveMapVersion(): String =
+        MetaHolder.state.value?.mapVersions?.current
+            ?: MetaApi().fetchMeta().also { MetaHolder.publish(it) }.mapVersions.current
 
     private fun loadDongBoundaries(): List<DongBoundary> {
         val geoJson = assets.open(DONG_BOUNDARY_ASSET_PATH).bufferedReader().use { it.readText() }

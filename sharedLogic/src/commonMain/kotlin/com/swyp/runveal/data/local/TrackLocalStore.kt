@@ -67,7 +67,7 @@ class TrackLocalStore(
         )
     }
 
-    /** 매칭(Valhalla) 완료 시 호출(§3.3 "증분 갱신"). 한 트랜잭션 — 도중에 실패하면 전부 롤백된다.
+    /** 매칭 완료 시 호출(§3.3 "증분 갱신"). 한 트랜잭션 — 도중에 실패하면 전부 롤백된다.
      * 반환값은 "이번 트랙에서 새로 채택된 edge"만 집계한 [MatchRecordSummary] — 러닝 결과 화면용. */
     fun recordMatchResult(
         trackId: String,

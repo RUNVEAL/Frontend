@@ -1,4 +1,4 @@
-package com.swyp.runveal.valhalla
+package com.swyp.runveal.match
 
 import com.swyp.runveal.dong.MatchedEdge
 import com.swyp.runveal.map.LatLon
@@ -7,7 +7,7 @@ import kotlin.math.round
 private const val CHUNK_SIZE = 2000
 private const val CHUNK_OVERLAP = 20
 
-/** `feature-valhalla-matching.md` "긴 기록 쪼개기: ChunkedMatcher" — Valhalla 점 개수 제한을 피해
+/** 서버 `/api/v1/match`의 점 개수 제한(`/meta`의 `limits.match.maxPoints`, 2,000)을 피해
  * [CHUNK_SIZE]점 단위로 나누고, 경계에서 매칭이 끊기지 않게 [CHUNK_OVERLAP]점씩 겹쳐 보낸다. */
 object ChunkedMatcher {
     suspend fun matchInChunks(matcher: RoadMatcher, points: List<LatLon>): MatchResult {
