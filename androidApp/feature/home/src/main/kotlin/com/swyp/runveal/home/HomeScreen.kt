@@ -36,6 +36,7 @@ import com.swyp.runveal.core.map.RunvealMap
 import com.swyp.runveal.core.map.buildVisitedRoadGeoJson
 import com.swyp.runveal.core.map.rememberMapState
 import com.swyp.runveal.courserecommend.navigation.courseRecommendOverlay
+import com.swyp.runveal.courserecommend.navigation.courseRecommendResultOverlay
 import com.swyp.runveal.data.local.DatabaseDriverFactory
 import com.swyp.runveal.data.local.FileStore
 import com.swyp.runveal.data.local.TrackLocalStore
@@ -104,8 +105,9 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.My>() == true -> 3
         else -> 0
     }
-    // 지도 위 흐름(코스 추천, 러닝 기록, 러닝 결과)에 들어가 있을 때만 탭바를 완전히 숨긴다.
+    // 지도 위 흐름(코스 추천, 코스 추천 결과, 러닝 기록, 러닝 결과)에 들어가 있을 때만 탭바를 완전히 숨긴다.
     val showTabBar = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() != true &&
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommendResult>() != true &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() != true &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Result>() != true
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
@@ -141,7 +143,11 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                         onCreateCourseClick = { tabNavigator.navigate(RunVealRoute.HomeTab.CourseRecommend) },
                         onRunStartClick = { tabNavigator.navigate(RunVealRoute.HomeTab.Recording) },
                     )
-                    courseRecommendOverlay(onBack = tabNavigator::popBackStack)
+                    courseRecommendOverlay(
+                        onBack = tabNavigator::popBackStack,
+                        onNavigateToResult = { tabNavigator.navigate(RunVealRoute.HomeTab.CourseRecommendResult) },
+                    )
+                    courseRecommendResultOverlay(onClose = tabNavigator::popBackStack)
                     recordingOverlay(
                         onFinished = {
                             tabNavigator.navController.navigate(RunVealRoute.HomeTab.Result) {

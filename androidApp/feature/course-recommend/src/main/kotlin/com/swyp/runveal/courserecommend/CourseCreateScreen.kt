@@ -28,21 +28,30 @@ import com.swyp.runveal.courserecommend.component.FilterBottomSheet
 import com.swyp.runveal.courserecommend.component.LocationConfirmPanel
 import com.swyp.runveal.courserecommend.component.MakeCoursePanel
 import com.swyp.runveal.courserecommend.component.MapHintBanner
+import com.swyp.runveal.courserecommend.contract.CourseCreateEffect
 import com.swyp.runveal.courserecommend.contract.CourseCreateIntent
 import com.swyp.runveal.courserecommend.contract.LocationSelectionTarget
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarStyle
 import com.swyp.runveal.designsystem.theme.RunvealTheme
+import com.swyp.runveal.ui.mvi.CollectEffect
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CourseCreateScreen(
     onBack: () -> Unit,
+    onNavigateToResult: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: CourseCreateViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffect(viewModel.effect) { effect ->
+        when (effect) {
+            CourseCreateEffect.NavigateToResult -> onNavigateToResult()
+        }
+    }
     // 출발/도착 선택 모드일 땐 뒤로가기가 화면을 벗어나지 않고 선택만 취소한다.
     val onBackOrCancelSelection = {
         if (state.locationSelectionTarget != LocationSelectionTarget.None) {
@@ -146,6 +155,6 @@ fun CourseCreateScreen(
 @Composable
 private fun CourseCreateScreenPreview() {
     RunvealTheme {
-        CourseCreateScreen(onBack = {})
+        CourseCreateScreen(onBack = {}, onNavigateToResult = {})
     }
 }

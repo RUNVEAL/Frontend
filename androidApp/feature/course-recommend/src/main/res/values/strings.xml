@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="course_recommend_result_title">추천 코스</string>
+    <string name="course_recommend_result_close_content_description">닫기</string>
+    <string name="course_recommend_result_empty_action">다시 설정하기</string>
+</resources>
