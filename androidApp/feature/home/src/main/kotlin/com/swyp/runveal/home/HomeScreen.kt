@@ -105,9 +105,10 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.My>() == true -> 3
         else -> 0
     }
+    val isCourseRecommendFlow = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() == true ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommendResult>() == true
     // 지도 위 흐름(코스 추천, 코스 추천 결과, 러닝 기록, 러닝 결과)에 들어가 있을 때만 탭바를 완전히 숨긴다.
-    val showTabBar = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() != true &&
-        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommendResult>() != true &&
+    val showTabBar = !isCourseRecommendFlow &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() != true &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Result>() != true
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
@@ -131,7 +132,12 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
         LocalMapOverlayBottomInset provides if (isLocationBannerNeeded) LOCATION_BANNER_EXTRA_INSET else 0.dp,
     ) {
         Box(modifier = modifier.fillMaxSize()) {
-            HomeMapLayer(mapState = mapState, locationPermissionState = locationPermissionState, modifier = Modifier.fillMaxSize())
+            HomeMapLayer(
+                mapState = mapState,
+                locationPermissionState = locationPermissionState,
+                hideRegionOverlays = isCourseRecommendFlow,
+                modifier = Modifier.fillMaxSize(),
+            )
 
             NavHost(
                 navController = tabNavigator.navController,
@@ -256,9 +262,16 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
     }
 }
 
-/** Map Shell이 그리는 지도 자체. 위치 권한 요청도 여기서 끝낸다(지도는 항상 표시, 미승인 시 안내 바텀시트를 위에 띄움). */
+/** Map Shell이 그리는 지도 자체. 위치 권한 요청도 여기서 끝낸다(지도는 항상 표시, 미승인 시 안내 바텀시트를 위에 띄움).
+ * [hideRegionOverlays]는 코스 추천(만들기/결과) 흐름처럼 녹화 중이 아니어도 동/시군구/시도 레이어를
+ * 숨겨야 하는 화면에서 true로 준다. */
 @Composable
-private fun HomeMapLayer(mapState: MapState, locationPermissionState: LocationPermissionState, modifier: Modifier = Modifier) {
+private fun HomeMapLayer(
+    mapState: MapState,
+    locationPermissionState: LocationPermissionState,
+    hideRegionOverlays: Boolean,
+    modifier: Modifier = Modifier,
+) {
     RequireLocationPermission(modifier = modifier, state = locationPermissionState) {
         val context = LocalContext.current
         val repository = remember { DongAssetRepository(context) }
@@ -296,15 +309,16 @@ private fun HomeMapLayer(mapState: MapState, locationPermissionState: LocationPe
         val sigunguOverlayData = remember { repository.buildSigunguOverlay(edges = emptyList()) }
         val sidoOverlayData = remember { repository.buildSidoOverlay(edges = emptyList()) }
 
-        // 기록 중엔 줌아웃해도 동/시군구/시도 테두리·라벨·빛을 안 보여준다 — 지금 뛰고 있는 길에만
-        // 집중하게 한다.
+        // 기록 중이거나 코스 추천(만들기/결과) 중엔 줌아웃해도 동/시군구/시도 테두리·라벨·빛을 안
+        // 보여준다 — 지금 뛰고 있는 길, 또는 지금 고르고 있는 코스에만 집중하게 한다.
+        val hideOverlays = isRecordingOrPaused || hideRegionOverlays
         RunvealMap(
             modifier = Modifier.fillMaxSize(),
             state = mapState,
-            dongOverlay = if (isRecordingOrPaused) null else dongOverlayData,
-            dongGlowPolygonParts = if (isRecordingOrPaused) emptyMap() else dongGlowPolygonPartsData,
-            sigunguOverlay = if (isRecordingOrPaused) null else sigunguOverlayData,
-            sidoOverlay = if (isRecordingOrPaused) null else sidoOverlayData,
+            dongOverlay = if (hideOverlays) null else dongOverlayData,
+            dongGlowPolygonParts = if (hideOverlays) emptyMap() else dongGlowPolygonPartsData,
+            sigunguOverlay = if (hideOverlays) null else sigunguOverlayData,
+            sidoOverlay = if (hideOverlays) null else sidoOverlayData,
         )
     }
 }
