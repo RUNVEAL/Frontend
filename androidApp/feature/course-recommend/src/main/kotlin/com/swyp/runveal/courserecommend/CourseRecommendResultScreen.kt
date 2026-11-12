@@ -1,8 +1,10 @@
 package com.swyp.runveal.courserecommend
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,18 +18,23 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.swyp.runveal.core.map.LocalMapState
@@ -56,6 +63,11 @@ import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarStyle
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.courserecommend.R
 import com.swyp.runveal.map.MapConfig
+import kotlin.math.abs
+import kotlinx.coroutines.launch
+
+/** [RunvealCourseCard]의 고정 너비(240dp)와 맞춰야 캐러셀 가운데 정렬 계산이 들어맞는다. */
+private val COURSE_CARD_WIDTH = 240.dp
 
 /** B1 — `/api/v1/routes` 응답을 지도 위 오버레이로 보여주는 결과 화면. 지도(Map Shell)는 그대로 보이고
  * 이 위에 앱바와 하단 코스 카드 리스트만 얹는다 — 배경을 깔지 않는다.
@@ -130,23 +142,49 @@ fun CourseRecommendResultScreen(
                             .padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space16),
                     )
                 } else {
-                    LazyRow(
+                    BoxWithConstraints(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
                             .fillMaxWidth()
                             .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
-                        contentPadding = PaddingValues(
-                            horizontal = RunvealTheme.layout.marginScreen,
-                            vertical = RunvealTheme.spacing.space16,
-                        ),
-                        horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space16),
                     ) {
-                        items(current.routes, key = { it.routeId }) { route ->
-                            RouteCard(
-                                route = route,
-                                selected = route.routeId == current.selectedRouteId,
-                                onClick = { viewModel.onIntent(CourseRecommendResultIntent.SelectRoute(route.routeId)) },
-                            )
+                        // 화면 가운데에 카드 하나가 오게 좌우 패딩을 "뷰포트 - 카드" 절반씩 준다. 화면이
+                        // 좁아 음수가 나오면 기본 마진으로 떨어진다.
+                        val sidePadding = ((maxWidth - COURSE_CARD_WIDTH) / 2).coerceAtLeast(RunvealTheme.layout.marginScreen)
+                        val listState = rememberLazyListState()
+                        val coroutineScope = rememberCoroutineScope()
+
+                        // 탭이 아니라 "화면 가운데에 와 있는 카드"가 선택 상태를 정한다 — 스크롤이 멈추면
+                        // snapFlingBehavior가 카드 하나를 정확히 가운데로 맞추고, 그 카드의 routeId를
+                        // SelectRoute로 보낸다.
+                        val centeredRouteId by remember(current.routes) {
+                            derivedStateOf {
+                                val layoutInfo = listState.layoutInfo
+                                val viewportCenter = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
+                                layoutInfo.visibleItemsInfo
+                                    .minByOrNull { abs(it.offset + it.size / 2 - viewportCenter) }
+                                    ?.key as? String
+                            }
+                        }
+                        LaunchedEffect(centeredRouteId) {
+                            centeredRouteId?.let { viewModel.onIntent(CourseRecommendResultIntent.SelectRoute(it)) }
+                        }
+
+                        LazyRow(
+                            state = listState,
+                            flingBehavior = rememberSnapFlingBehavior(listState),
+                            modifier = Modifier.fillMaxWidth(),
+                            contentPadding = PaddingValues(horizontal = sidePadding, vertical = RunvealTheme.spacing.space16),
+                            horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space16),
+                        ) {
+                            itemsIndexed(current.routes, key = { _, route -> route.routeId }) { index, route ->
+                                RouteCard(
+                                    route = route,
+                                    selected = route.routeId == current.selectedRouteId,
+                                    // 탭하면 그 카드를 가운데로 스크롤만 한다 — 선택 자체는 위 센터 감지가 맡는다.
+                                    onClick = { coroutineScope.launch { listState.animateScrollToItem(index) } },
+                                )
+                            }
                         }
                     }
                 }
