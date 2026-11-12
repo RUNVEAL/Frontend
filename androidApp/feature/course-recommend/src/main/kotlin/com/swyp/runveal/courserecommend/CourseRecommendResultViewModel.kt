@@ -69,6 +69,7 @@ class CourseRecommendResultViewModel : MviViewModel<CourseRecommendResultIntent,
             newRoadUnit = if (newRoad != null) "km" else "",
             // GeoJSON 좌표 순서라 [lng, lat](§5.2) — LatLon은 반대 순서.
             path = path.map { LatLon(lat = it[1], lon = it[0]) },
+            isLoop = type == "LOOP",
         )
     }
 

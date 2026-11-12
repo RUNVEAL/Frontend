@@ -21,6 +21,8 @@ data class RouteCardUiModel(
     val newRoadUnit: String,
     /** `RouteDto.path`를 지도에 그릴 수 있게 변환한 좌표. 지도에 선을 그리고 카메라를 맞추는 데 쓴다. */
     val path: List<LatLon>,
+    /** `RouteDto.type == "LOOP"` — 출발/도착이 같다. 지도에 도착 마커를 따로 안 띄울 때 쓴다. */
+    val isLoop: Boolean,
 )
 
 sealed interface CourseRecommendResultState : UiState {

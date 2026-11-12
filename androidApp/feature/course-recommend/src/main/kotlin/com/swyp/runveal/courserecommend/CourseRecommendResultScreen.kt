@@ -97,11 +97,12 @@ fun CourseRecommendResultScreen(
         )
     }
     // 선택된 코스의 출발/도착(경로의 첫·끝 좌표)을 Dot 마커로 띄우고, 그 코스가 전부 보이게 카메라를 맞춘다.
+    // 순환(LOOP) 코스는 도착이 곧 출발이라 — 같은 자리에 마커 2개가 겹쳐 보이지 않게 출발만 띄운다.
     LaunchedEffect(readyState?.selectedRouteId, readyState?.routes) {
         val selected = readyState?.routes?.firstOrNull { it.routeId == readyState.selectedRouteId } ?: return@LaunchedEffect
         mapState.dotMarkers = listOfNotNull(
             selected.path.firstOrNull()?.let { MapPin(it, RunvealMapMarkerType.Start) },
-            selected.path.lastOrNull()?.let { MapPin(it, RunvealMapMarkerType.End) },
+            selected.path.lastOrNull()?.takeIf { !selected.isLoop }?.let { MapPin(it, RunvealMapMarkerType.End) },
         )
         mapState.focusOnBounds(selected.path)
     }
