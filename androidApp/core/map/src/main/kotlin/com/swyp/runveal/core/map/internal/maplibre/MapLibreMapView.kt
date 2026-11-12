@@ -179,7 +179,11 @@ internal fun MapLibreMapView(
     }
     val recommendedRouteGeoJson = state.layers[MapConfig.SOURCE_RECOMMENDED_ROUTE]
     LaunchedEffect(style, recommendedRouteGeoJson, mapColors) {
-        style?.let { RecommendedRouteLayer.apply(it, recommendedRouteGeoJson, mapColors) }
+        style?.let { RecommendedRouteLayer.apply(it, MapConfig.SOURCE_RECOMMENDED_ROUTE, recommendedRouteGeoJson, mapColors) }
+    }
+    val courseDetailRouteGeoJson = state.layers[MapConfig.SOURCE_COURSE_DETAIL_ROUTE]
+    LaunchedEffect(style, courseDetailRouteGeoJson, mapColors) {
+        style?.let { RecommendedRouteLayer.apply(it, MapConfig.SOURCE_COURSE_DETAIL_ROUTE, courseDetailRouteGeoJson, mapColors) }
     }
     LaunchedEffect(style, dongOverlay, mapColors) {
         style?.let { DongOverlayLayer.apply(it, dongOverlay, mapColors) }
@@ -211,7 +215,10 @@ internal fun MapLibreMapView(
         val boundsBuilder = LatLngBounds.Builder()
         points.forEach { boundsBuilder.include(it.toMapLibreLatLng()) }
         val paddingPx = with(density) { BOUNDS_FOCUS_PADDING_DP.dp.toPx() }.roundToInt()
-        map.animateCamera(CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), paddingPx))
+        val extraBottomPx = with(density) { state.boundsFocusExtraBottomPadding.toPx() }.roundToInt()
+        map.animateCamera(
+            CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), paddingPx, paddingPx, paddingPx, paddingPx + extraBottomPx),
+        )
     }
 }
 

@@ -75,6 +75,7 @@ private val COURSE_CARD_WIDTH = 240.dp
 @Composable
 fun CourseRecommendResultScreen(
     onClose: () -> Unit,
+    onCourseClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: CourseRecommendResultViewModel = viewModel(),
 ) {
@@ -182,8 +183,15 @@ fun CourseRecommendResultScreen(
                                 RouteCard(
                                     route = route,
                                     selected = route.routeId == current.selectedRouteId,
-                                    // 탭하면 그 카드를 가운데로 스크롤만 한다 — 선택 자체는 위 센터 감지가 맡는다.
-                                    onClick = { coroutineScope.launch { listState.animateScrollToItem(index) } },
+                                    // 이미 가운데(선택된) 카드를 또 탭하면 상세로, 아니면 가운데로 스크롤만 한다
+                                    // — 선택 자체는 위 센터 감지가 맡는다.
+                                    onClick = {
+                                        if (route.routeId == current.selectedRouteId) {
+                                            onCourseClick(route.routeId)
+                                        } else {
+                                            coroutineScope.launch { listState.animateScrollToItem(index) }
+                                        }
+                                    },
                                 )
                             }
                         }

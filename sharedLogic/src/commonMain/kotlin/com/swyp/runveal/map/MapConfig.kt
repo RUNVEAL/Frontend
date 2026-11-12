@@ -24,11 +24,15 @@ object MapConfig {
     const val LAYER_VISITED_ROAD_GLOW_MID: String = "visited-glow-mid"
     const val LAYER_VISITED_ROAD_LINE: String = "visited-line"
 
-    /** 코스 추천 결과 — 선택 안 된 코스/선택된 코스를 `selected` 피처 속성으로 나눠 그린다. */
+    /** 코스 추천 결과 — 선택 안 된 코스/선택된 코스를 `selected` 피처 속성으로 나눠 그린다(레이어 ID는
+     * `RecommendedRouteLayer`가 이 소스 ID에서 그대로 파생시킨다). */
     const val SOURCE_RECOMMENDED_ROUTE: String = "recommended-route"
-    const val LAYER_RECOMMENDED_ROUTE_ALT: String = "recommended-route-alt"
-    const val LAYER_RECOMMENDED_ROUTE_SELECTED_GLOW: String = "recommended-route-selected-glow"
-    const val LAYER_RECOMMENDED_ROUTE_SELECTED: String = "recommended-route-selected"
+
+    /** 코스 상세 화면이 그리는 단일 코스 선 — [SOURCE_RECOMMENDED_ROUTE]와 소스를 공유하면, 결과
+     * 화면(여러 코스) ↔ 상세 화면(코스 하나) 전환 시점에 둘의 Compose 생명주기가 겹치면서 한쪽이
+     * 지우는 게 다른 쪽이 막 그린 걸 지워버리는 경합이 생겨 선이 사라져 보일 수 있다. 소스를
+     * 분리해서 그 경합 자체를 없앤다. */
+    const val SOURCE_COURSE_DETAIL_ROUTE: String = "course-detail-route"
 
     const val SOURCE_DONG_FILL: String = "dong-fill-src"
     const val SOURCE_DONG_LINE: String = "dong-line-src"

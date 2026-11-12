@@ -1,0 +1,42 @@
+package com.swyp.runveal.courserecommend.contract
+
+import com.swyp.runveal.designsystem.component.list.RunvealRouteStepType
+import com.swyp.runveal.map.LatLon
+import com.swyp.runveal.ui.mvi.UiState
+
+/** [RunvealRouteStep][com.swyp.runveal.designsystem.component.list.RunvealRouteStep] 한 줄. */
+data class RouteStepUiModel(
+    val place: String,
+    val note: String?,
+    val distanceLabel: String,
+    val type: RunvealRouteStepType,
+)
+
+/** 고도 그래프 한 점 — 출발부터 누적 거리(m)와 그 지점 고도(m). */
+data class ElevationPointUiModel(val cumulativeDistanceM: Double, val elevationM: Double)
+
+sealed interface CourseDetailState : UiState {
+    data object Loading : CourseDetailState
+
+    /** [CourseDetailIntent.Load]로 받은 routeId를 홀더에서 못 찾았을 때 — 새로고침 등으로 추천
+     * 결과가 이미 사라진 경우. */
+    data object NotFound : CourseDetailState
+
+    data class Ready(
+        /** "코스 A", "코스 B" ... 라벨의 글자 부분. 전체 문구는 화면에서 string resource로 조합한다. */
+        val courseLabel: String,
+        val distanceValue: String,
+        val distanceUnit: String,
+        val timeValue: String,
+        val timeUnit: String,
+        val elevationValue: String,
+        val elevationUnit: String,
+        val newRoadValue: String,
+        val newRoadUnit: String,
+        val elevationProfile: List<ElevationPointUiModel>,
+        val routeSteps: List<RouteStepUiModel>,
+        /** `RouteDto.path`를 지도에 그릴 수 있게 변환한 좌표. */
+        val path: List<LatLon>,
+        val isLoop: Boolean,
+    ) : CourseDetailState
+}

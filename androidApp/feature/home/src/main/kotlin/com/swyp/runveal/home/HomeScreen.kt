@@ -35,6 +35,7 @@ import com.swyp.runveal.core.map.MapState
 import com.swyp.runveal.core.map.RunvealMap
 import com.swyp.runveal.core.map.buildVisitedRoadGeoJson
 import com.swyp.runveal.core.map.rememberMapState
+import com.swyp.runveal.courserecommend.navigation.courseDetailOverlay
 import com.swyp.runveal.courserecommend.navigation.courseRecommendOverlay
 import com.swyp.runveal.courserecommend.navigation.courseRecommendResultOverlay
 import com.swyp.runveal.data.local.DatabaseDriverFactory
@@ -106,8 +107,9 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
         else -> 0
     }
     val isCourseRecommendFlow = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() == true ||
-        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommendResult>() == true
-    // 지도 위 흐름(코스 추천, 코스 추천 결과, 러닝 기록, 러닝 결과)에 들어가 있을 때만 탭바를 완전히 숨긴다.
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommendResult>() == true ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseDetail>() == true
+    // 지도 위 흐름(코스 추천, 코스 추천 결과, 코스 상세, 러닝 기록, 러닝 결과)에 들어가 있을 때만 탭바를 완전히 숨긴다.
     val showTabBar = !isCourseRecommendFlow &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() != true &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Result>() != true
@@ -153,7 +155,11 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                         onBack = tabNavigator::popBackStack,
                         onNavigateToResult = { tabNavigator.navigate(RunVealRoute.HomeTab.CourseRecommendResult) },
                     )
-                    courseRecommendResultOverlay(onClose = tabNavigator::popBackStack)
+                    courseRecommendResultOverlay(
+                        onClose = tabNavigator::popBackStack,
+                        onCourseClick = { routeId -> tabNavigator.navigate(RunVealRoute.HomeTab.CourseDetail(routeId)) },
+                    )
+                    courseDetailOverlay(onBack = tabNavigator::popBackStack)
                     recordingOverlay(
                         onFinished = {
                             tabNavigator.navController.navigate(RunVealRoute.HomeTab.Result) {
