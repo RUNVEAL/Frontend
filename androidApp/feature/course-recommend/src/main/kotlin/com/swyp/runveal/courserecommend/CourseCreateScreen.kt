@@ -90,7 +90,19 @@ fun CourseCreateScreen(
     LaunchedEffect(state.locationSelectionTarget) {
         if (state.locationSelectionTarget == LocationSelectionTarget.None) mapState.pin = null
     }
-    DisposableEffect(Unit) { onDispose { mapState.pin = null } }
+    // 확정된 출발/도착 좌표는 Pin 마커로 계속 띄운다 — 선택 중 임시 핀(pin)과 별개로, 둘 다 안 고르면 안 보인다.
+    LaunchedEffect(state.startLatLon, state.endLatLon) {
+        mapState.pinMarkers = listOfNotNull(
+            state.startLatLon?.let { MapPin(it, RunvealMapMarkerType.Start) },
+            state.endLatLon?.let { MapPin(it, RunvealMapMarkerType.End) },
+        )
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            mapState.pin = null
+            mapState.pinMarkers = emptyList()
+        }
+    }
 
     // 출발/도착 선택 모드일 땐 뒤로가기가 화면을 벗어나지 않고 선택만 취소한다.
     val onBackOrCancelSelection = {

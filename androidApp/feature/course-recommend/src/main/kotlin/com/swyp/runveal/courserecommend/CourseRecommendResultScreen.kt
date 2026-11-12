@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -32,6 +33,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.swyp.runveal.core.map.LocalMapState
 import com.swyp.runveal.core.map.MapLayerSpec
 import com.swyp.runveal.core.map.MapLayers
+import com.swyp.runveal.core.map.MapPin
 import com.swyp.runveal.core.map.RecommendedRoute
 import com.swyp.runveal.core.map.buildRecommendedRouteGeoJson
 import com.swyp.runveal.courserecommend.contract.CourseRecommendResultIntent
@@ -47,6 +49,7 @@ import com.swyp.runveal.designsystem.component.input.RunvealChipDropdown
 import com.swyp.runveal.designsystem.component.input.RunvealChipDropdownUsage
 import com.swyp.runveal.designsystem.component.list.RunvealCourseCard
 import com.swyp.runveal.designsystem.component.list.RunvealCourseCardState
+import com.swyp.runveal.designsystem.component.map.RunvealMapMarkerType
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarStyle
@@ -81,10 +84,16 @@ fun CourseRecommendResultScreen(
             ),
         )
     }
+    // 선택된 코스의 출발/도착(경로의 첫·끝 좌표)을 Dot 마커로 띄우고, 그 코스가 전부 보이게 카메라를 맞춘다.
     LaunchedEffect(readyState?.selectedRouteId, readyState?.routes) {
         val selected = readyState?.routes?.firstOrNull { it.routeId == readyState.selectedRouteId } ?: return@LaunchedEffect
+        mapState.dotMarkers = listOfNotNull(
+            selected.path.firstOrNull()?.let { MapPin(it, RunvealMapMarkerType.Start) },
+            selected.path.lastOrNull()?.let { MapPin(it, RunvealMapMarkerType.End) },
+        )
         mapState.focusOnBounds(selected.path)
     }
+    DisposableEffect(Unit) { onDispose { mapState.dotMarkers = emptyList() } }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(

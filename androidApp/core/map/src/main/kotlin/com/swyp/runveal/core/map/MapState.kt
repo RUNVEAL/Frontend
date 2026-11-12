@@ -16,7 +16,7 @@ import com.swyp.runveal.designsystem.component.map.RunvealMapMarkerType
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.map.MapConfig
 
-/** 지도 위에 떠 있는 핀 마커 하나(출발/도착 선택 등) — 동시에 하나만 표시한다. */
+/** 지도 위에 떠 있는 마커 하나(출발/도착 등 위치 + 종류). */
 data class MapPin(val location: LatLon, val type: RunvealMapMarkerType)
 
 /** 지도의 초기 카메라(중심 좌표 + 줌), 현재 줌, 하위 화면이 선언한 레이어([MapLayers])를 들고 있다. */
@@ -30,6 +30,14 @@ class MapState(
 
     /** 지도 위에 그릴 핀. 하위 화면(예: 출발/도착 선택)이 쓰고 지운다. */
     var pin: MapPin? by mutableStateOf(null)
+
+    /** 지도 위에 늘 떠 있는 점 마커들(추천 코스의 출발·도착 등) — 선택 중 임시 핀([pin])과 별개로,
+     * 설정한 화면이 떠 있는 동안 계속 보인다. */
+    var dotMarkers: List<MapPin> by mutableStateOf(emptyList())
+
+    /** 지도 위에 늘 떠 있는 핀 마커들(코스 만들기에서 확정한 출발·도착 등) — [dotMarkers]와 같은
+     * 용도지만 Pin 스타일로 그린다. [pin](선택 중 임시 핀)과도 별개. */
+    var pinMarkers: List<MapPin> by mutableStateOf(emptyList())
 
     /** 지도를 탭한 마지막 좌표 — [MapLibreMapView]가 탭마다 채우고, 소비한 화면이 바로 null로 되돌려
      * 한 번만 처리되는 이벤트처럼 쓴다. */
