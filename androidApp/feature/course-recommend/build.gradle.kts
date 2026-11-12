@@ -16,4 +16,5 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.compose.material3)
     implementation(libs.play.services.location)
+    implementation(libs.kotlinx.serialization.json)
 }

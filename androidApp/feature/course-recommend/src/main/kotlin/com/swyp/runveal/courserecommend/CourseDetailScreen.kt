@@ -159,9 +159,13 @@ fun CourseDetailScreen(
                                 modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
                             ) {
                                 RunvealButtonGroupSecondaryPrimary(
-                                    // TODO: 코스 저장·러닝 시작 실제 동작 연동 추가 예정.
-                                    secondaryLabel = stringResource(R.string.course_detail_save_action),
-                                    onSecondaryClick = {},
+                                    secondaryLabel = if (current.isSaved) {
+                                        stringResource(R.string.course_detail_saved_label)
+                                    } else {
+                                        stringResource(R.string.course_detail_save_action)
+                                    },
+                                    onSecondaryClick = { viewModel.onIntent(CourseDetailIntent.SaveCourse) },
+                                    // TODO: 러닝 시작 실제 동작 연동 추가 예정.
                                     primaryLabel = stringResource(R.string.course_detail_start_running_action),
                                     onPrimaryClick = {},
                                 )

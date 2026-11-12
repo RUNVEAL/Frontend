@@ -11,5 +11,6 @@
     <string name="course_detail_not_found">코스를 더 이상 찾을 수 없어요</string>
     <string name="course_detail_route_info_title">경로 정보</string>
     <string name="course_detail_save_action">코스 저장</string>
+    <string name="course_detail_saved_label">저장됨</string>
     <string name="course_detail_start_running_action">이 코스로 러닝 시작</string>
 </resources>

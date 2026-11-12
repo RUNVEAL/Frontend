@@ -38,5 +38,7 @@ sealed interface CourseDetailState : UiState {
         /** `RouteDto.path`를 지도에 그릴 수 있게 변환한 좌표. */
         val path: List<LatLon>,
         val isLoop: Boolean,
+        /** [CourseDetailIntent.SaveCourse]로 로컬 `course` 테이블에 저장했는지 — 중복 저장 방지 + 버튼 문구에 쓴다. */
+        val isSaved: Boolean = false,
     ) : CourseDetailState
 }
