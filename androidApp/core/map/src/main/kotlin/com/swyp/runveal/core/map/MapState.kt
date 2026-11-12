@@ -40,6 +40,15 @@ class MapState(
     var recenterRequestId: Int by mutableIntStateOf(0)
         internal set
 
+    /** [focusOnBounds]가 마지막으로 넘긴 좌표 — [MapLibreMapView]가 이 좌표가 전부 보이게 카메라를
+     * 맞춘다. */
+    var boundsFocusPoints: List<LatLon>? by mutableStateOf(null)
+        internal set
+
+    /** 0부터 시작 — [recenterRequestId]와 같은 one-shot 커맨드 패턴. */
+    var boundsFocusRequestId: Int by mutableIntStateOf(0)
+        internal set
+
     private val _layers = mutableStateMapOf<String, String>()
     internal val layers: Map<String, String> get() = _layers
 
@@ -55,6 +64,14 @@ class MapState(
      * 무시한다. */
     fun recenterToCurrentLocation() {
         recenterRequestId++
+    }
+
+    /** [points]가 전부 화면에 보이게 카메라를 옮긴다(추천 코스 전체가 보이게 포커싱 등). 2개 미만이면
+     * 무시한다. */
+    fun focusOnBounds(points: List<LatLon>) {
+        if (points.size < 2) return
+        boundsFocusPoints = points
+        boundsFocusRequestId++
     }
 }
 

@@ -36,11 +36,15 @@ import com.swyp.runveal.dong.DongPolygonPart
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.map.MapConfig
 import org.maplibre.android.camera.CameraPosition
+import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import kotlin.math.roundToInt
+
+/** [LatLngBounds]로 카메라를 맞출 때 코스 선이 화면 가장자리에 딱 붙지 않게 주는 여백. */
+private const val BOUNDS_FOCUS_PADDING_DP = 48f
 
 @Composable
 internal fun MapLibreMapView(
@@ -53,6 +57,7 @@ internal fun MapLibreMapView(
 ) {
     val mapView = rememberMapViewWithLifecycle()
     val context = LocalContext.current
+    val density = LocalDensity.current
     var style by remember { mutableStateOf<Style?>(null) }
     var liveMap by remember { mutableStateOf<MapLibreMap?>(null) }
     // 카메라가 멈출 때마다(OnCameraIdle) 화면에 보이는 동 빛 이미지를 다시 계산하기 위한 트리거.
@@ -69,6 +74,9 @@ internal fun MapLibreMapView(
             dongLabelPrimary = colors.text.primary.toArgb(),
             dongLabelSecondary = colors.text.secondary.toArgb(),
             sigunguLabel = colors.text.secondary.toArgb(),
+            recommendedRouteAlt = colors.map.routeAlt.toArgb(),
+            recommendedRouteSelectedGlow = colors.map.roadNewHalo.toArgb(),
+            recommendedRouteSelected = colors.map.roadNew.toArgb(),
         )
     }
 
@@ -115,7 +123,6 @@ internal fun MapLibreMapView(
         val pin = state.pin
         val screenOffset = pinScreenOffset
         if (pin != null && screenOffset != null) {
-            val density = LocalDensity.current
             // Pin 디자인의 앵커(바닥 점의 중심)는 Column 맨 아래 8dp 점의 중앙이라 가로는 절반,
             // 세로는 (전체 높이 - 점 반지름)만큼 끌어올려야 탭한 좌표와 점이 겹친다.
             val dotRadiusPx = with(density) { 4.dp.toPx() }
@@ -139,6 +146,10 @@ internal fun MapLibreMapView(
     LaunchedEffect(style, visitedRoadGeoJson, mapColors) {
         style?.let { VisitedRoadLayer.apply(it, visitedRoadGeoJson, mapColors) }
     }
+    val recommendedRouteGeoJson = state.layers[MapConfig.SOURCE_RECOMMENDED_ROUTE]
+    LaunchedEffect(style, recommendedRouteGeoJson, mapColors) {
+        style?.let { RecommendedRouteLayer.apply(it, recommendedRouteGeoJson, mapColors) }
+    }
     LaunchedEffect(style, dongOverlay, mapColors) {
         style?.let { DongOverlayLayer.apply(it, dongOverlay, mapColors) }
     }
@@ -160,6 +171,16 @@ internal fun MapLibreMapView(
     LaunchedEffect(state.recenterRequestId, liveMap) {
         if (state.recenterRequestId == 0) return@LaunchedEffect
         liveMap?.let { CurrentLocationLayer.recenter(it) }
+    }
+    // 0은 초기값(= 아직 요청 안 함) — [MapState.focusOnBounds]가 호출될 때만 카메라를 옮긴다.
+    LaunchedEffect(state.boundsFocusRequestId, liveMap) {
+        if (state.boundsFocusRequestId == 0) return@LaunchedEffect
+        val map = liveMap ?: return@LaunchedEffect
+        val points = state.boundsFocusPoints ?: return@LaunchedEffect
+        val boundsBuilder = LatLngBounds.Builder()
+        points.forEach { boundsBuilder.include(it.toMapLibreLatLng()) }
+        val paddingPx = with(density) { BOUNDS_FOCUS_PADDING_DP.dp.toPx() }.roundToInt()
+        map.animateCamera(CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), paddingPx))
     }
 }
 

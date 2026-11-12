@@ -1,6 +1,7 @@
 package com.swyp.runveal.courserecommend.contract
 
 import com.swyp.runveal.courserecommend.CourseRecommendSettings
+import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.ui.mvi.UiState
 
 /** `RouteDto` 하나를 [RunvealCourseCard][com.swyp.runveal.designsystem.component.list.RunvealCourseCard]가
@@ -18,6 +19,8 @@ data class RouteCardUiModel(
     val elevationUnit: String,
     val newRoadValue: String,
     val newRoadUnit: String,
+    /** `RouteDto.path`를 지도에 그릴 수 있게 변환한 좌표. 지도에 선을 그리고 카메라를 맞추는 데 쓴다. */
+    val path: List<LatLon>,
 )
 
 sealed interface CourseRecommendResultState : UiState {

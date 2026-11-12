@@ -24,6 +24,12 @@ object MapConfig {
     const val LAYER_VISITED_ROAD_GLOW_MID: String = "visited-glow-mid"
     const val LAYER_VISITED_ROAD_LINE: String = "visited-line"
 
+    /** 코스 추천 결과 — 선택 안 된 코스/선택된 코스를 `selected` 피처 속성으로 나눠 그린다. */
+    const val SOURCE_RECOMMENDED_ROUTE: String = "recommended-route"
+    const val LAYER_RECOMMENDED_ROUTE_ALT: String = "recommended-route-alt"
+    const val LAYER_RECOMMENDED_ROUTE_SELECTED_GLOW: String = "recommended-route-selected-glow"
+    const val LAYER_RECOMMENDED_ROUTE_SELECTED: String = "recommended-route-selected"
+
     const val SOURCE_DONG_FILL: String = "dong-fill-src"
     const val SOURCE_DONG_LINE: String = "dong-line-src"
     const val SOURCE_DONG_LABEL: String = "dong-label-src"

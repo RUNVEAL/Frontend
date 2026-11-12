@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +29,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.swyp.runveal.core.map.LocalMapState
+import com.swyp.runveal.core.map.MapLayerSpec
+import com.swyp.runveal.core.map.MapLayers
+import com.swyp.runveal.core.map.RecommendedRoute
+import com.swyp.runveal.core.map.buildRecommendedRouteGeoJson
 import com.swyp.runveal.courserecommend.contract.CourseRecommendResultIntent
 import com.swyp.runveal.courserecommend.contract.CourseRecommendResultState
 import com.swyp.runveal.courserecommend.contract.RouteCardUiModel
@@ -46,6 +52,7 @@ import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLeadin
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarStyle
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.courserecommend.R
+import com.swyp.runveal.map.MapConfig
 
 /** B1 — `/api/v1/routes` 응답을 지도 위 오버레이로 보여주는 결과 화면. 지도(Map Shell)는 그대로 보이고
  * 이 위에 앱바와 하단 코스 카드 리스트만 얹는다 — 배경을 깔지 않는다.
@@ -57,6 +64,27 @@ fun CourseRecommendResultScreen(
     viewModel: CourseRecommendResultViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val mapState = LocalMapState.current
+    val readyState = state as? CourseRecommendResultState.Ready
+
+    // 코스가 바뀌거나(새 추천) 카드 선택이 바뀌면 지도에 그릴 선을 다시 만들고, 선택된 코스가 전부
+    // 보이게 카메라를 맞춘다.
+    if (readyState != null) {
+        MapLayers(
+            MapLayerSpec(
+                MapConfig.SOURCE_RECOMMENDED_ROUTE,
+                buildRecommendedRouteGeoJson(
+                    readyState.routes.map { route ->
+                        RecommendedRoute(id = route.routeId, points = route.path, selected = route.routeId == readyState.selectedRouteId)
+                    },
+                ),
+            ),
+        )
+    }
+    LaunchedEffect(readyState?.selectedRouteId, readyState?.routes) {
+        val selected = readyState?.routes?.firstOrNull { it.routeId == readyState.selectedRouteId } ?: return@LaunchedEffect
+        mapState.focusOnBounds(selected.path)
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(
@@ -72,7 +100,6 @@ fun CourseRecommendResultScreen(
                 title = stringResource(R.string.course_recommend_result_title),
                 modifier = Modifier.fillMaxWidth(),
             )
-            val readyState = state as? CourseRecommendResultState.Ready
             if (readyState != null) {
                 SettingsSummaryRow(
                     settings = readyState.settings,

@@ -4,6 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.swyp.runveal.courserecommend.contract.CourseRecommendResultIntent
 import com.swyp.runveal.courserecommend.contract.CourseRecommendResultState
 import com.swyp.runveal.courserecommend.contract.RouteCardUiModel
+import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.network.routes.RouteDto
 import com.swyp.runveal.ui.mvi.MviViewModel
 import kotlinx.coroutines.launch
@@ -66,6 +67,8 @@ class CourseRecommendResultViewModel : MviViewModel<CourseRecommendResultIntent,
             elevationUnit = if (elevation != null) "m" else "",
             newRoadValue = newRoad?.let { "%.1f".format(it / 1000.0) } ?: "",
             newRoadUnit = if (newRoad != null) "km" else "",
+            // GeoJSON 좌표 순서라 [lng, lat](§5.2) — LatLon은 반대 순서.
+            path = path.map { LatLon(lat = it[1], lon = it[0]) },
         )
     }
 
