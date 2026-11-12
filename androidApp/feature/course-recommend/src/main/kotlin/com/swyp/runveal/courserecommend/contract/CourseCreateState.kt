@@ -1,5 +1,6 @@
 package com.swyp.runveal.courserecommend.contract
 
+import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.ui.mvi.UiState
 
 internal val DistanceOptions = listOf("3km", "5km", "7km", "10km")
@@ -21,9 +22,14 @@ data class CourseCreateState(
     val endLocation: String = "출발지로 돌아오기",
     val endLocationIsDefault: Boolean = true,
     val locationSelectionTarget: LocationSelectionTarget = LocationSelectionTarget.None,
-    // TODO: 지도 핀 연동 전까지의 임시 값 — 실제로는 선택 중인 지도 중심 지점의 역지오코딩 결과/거리로 갱신돼야 한다.
-    val selectedPlaceName: String = "성동구 성수 1가 1동",
-    val selectedPlaceDistance: String = "0.1km",
+    /** 지도를 탭해 고른 실제 좌표(확정 전) — [startLatLon]/[endLatLon]은 [ConfirmLocationSelection]에서
+     * 여기서 복사된다. */
+    val pickedLocation: LatLon? = null,
+    val startLatLon: LatLon? = null,
+    val endLatLon: LatLon? = null,
+    // 좌표→실제 주소/동 이름 변환은 서버·앱 모두에 아직 없다(API.md §1 — 제3자 지오코딩 API 자체를 안 씀).
+    // 거리도 같은 이유로 아직 미구현 고정 문구로 둔다.
+    val selectedPlaceDistance: String = "거리 표시 미구현",
     val distanceOptions: List<String> = DistanceOptions,
     val selectedDistance: String = DefaultDistance,
     val isCustomDistanceSelected: Boolean = false,
@@ -36,6 +42,11 @@ data class CourseCreateState(
 ) : UiState {
     val distanceLabel: String
         get() = if (isCustomDistanceSelected) "${customDistanceValues[customDistanceIndex]}km" else selectedDistance
+
+    // TODO: 좌표 기반 주소(또는 동 이름) 변환 추가되면 좌표 대신 그 결과를 보여주기.
+    /** 장소명 대신 탭한 좌표를 그대로 보여준다(§1 — 좌표→주소 변환 자체를 안 씀). */
+    val selectedPlaceName: String
+        get() = pickedLocation?.let { "%.4f, %.4f".format(it.lat, it.lon) } ?: "위치를 선택하세요"
 
     val topBarTitle: String
         get() = when (locationSelectionTarget) {

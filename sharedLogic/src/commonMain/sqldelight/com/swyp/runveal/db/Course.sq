@@ -9,6 +9,17 @@ CREATE TABLE course (
     start_lon           REAL NOT NULL,
     place_name          TEXT,
     created_at_epoch_ms INTEGER NOT NULL,
+    -- 아래부터는 `POST /api/v1/routes` 추천 코스를 그대로 저장했을 때만 채워진다(§3.3 B2 "코스 저장").
+    -- 러닝 기록을 승격한 코스는 추천 응답 자체가 없어서 전부 NULL.
+    route_type          TEXT,                       -- "LOOP" | "ONE_WAY"
+    duration_sec        INTEGER,
+    elevation_gain_m    INTEGER,
+    elevation_profile   TEXT,                       -- "[[누적거리m, 고도m],…]"
+    new_road_m          INTEGER,
+    new_road_ratio      REAL,
+    tags                TEXT,                       -- "[\"PARK\",\"NEW_ROAD\"]"
+    segment_ids         TEXT,                       -- "[1203,8812]"
+    milestones          TEXT,                       -- MilestoneDto 리스트 JSON
     FOREIGN KEY (source_track_id) REFERENCES track(id) ON DELETE SET NULL
 );
 
@@ -24,8 +35,10 @@ SELECT * FROM course WHERE id = ?;
 insertCourse:
 INSERT INTO course (
     id, source_track_id, name, distance_meters, coordinates,
-    start_lat, start_lon, place_name, created_at_epoch_ms
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+    start_lat, start_lon, place_name, created_at_epoch_ms,
+    route_type, duration_sec, elevation_gain_m, elevation_profile,
+    new_road_m, new_road_ratio, tags, segment_ids, milestones
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 renameCourse:
 UPDATE course SET name = ? WHERE id = ?;
