@@ -91,10 +91,17 @@ fun CourseCreateScreen(
         if (state.locationSelectionTarget == LocationSelectionTarget.None) mapState.pin = null
     }
     // 확정된 출발/도착 좌표는 Pin 마커로 계속 띄운다 — 선택 중 임시 핀(pin)과 별개로, 둘 다 안 고르면 안 보인다.
-    LaunchedEffect(state.startLatLon, state.endLatLon) {
+    // 다만 지금 다시 고르고 있는 쪽(임시 핀이 그 타입으로 떠 있는 동안)은 기존 마커를 숨겨서 임시 핀과
+    // 중복으로 안 보이게 한다 — 확정하면(pin이 사라지며) 새 좌표로, 취소하면 원래 좌표로 다시 보인다.
+    LaunchedEffect(state.startLatLon, state.endLatLon, mapState.pin) {
+        val activePinType = mapState.pin?.type
         mapState.pinMarkers = listOfNotNull(
-            state.startLatLon?.let { MapPin(it, RunvealMapMarkerType.Start) },
-            state.endLatLon?.let { MapPin(it, RunvealMapMarkerType.End) },
+            state.startLatLon
+                ?.takeIf { activePinType != RunvealMapMarkerType.Start }
+                ?.let { MapPin(it, RunvealMapMarkerType.Start) },
+            state.endLatLon
+                ?.takeIf { activePinType != RunvealMapMarkerType.End }
+                ?.let { MapPin(it, RunvealMapMarkerType.End) },
         )
     }
     DisposableEffect(Unit) {
