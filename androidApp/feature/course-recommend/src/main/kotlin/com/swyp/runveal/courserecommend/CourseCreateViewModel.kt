@@ -14,11 +14,17 @@ import com.swyp.runveal.network.routes.LatLng
 import com.swyp.runveal.network.routes.RoutesApi
 import com.swyp.runveal.network.routes.RoutesRequest
 import com.swyp.runveal.ui.mvi.MviViewModel
+import kotlinx.coroutines.delay
 
 private const val TAG = "CourseRecommendDebug"
 
 /** TEMP — 출발지를 아직 안 골랐고 현재 위치도 못 받았을 때 쓰는 최후 기본 좌표(성수동 인근). */
 private val TEMP_START_LOCATION = LatLon(lat = 37.5445, lon = 127.0557)
+
+/** TODO: 임시 로딩 — 디자인 적용된 로딩으로 교체되면 이 최소 노출 시간도 다시 검토.
+ * 응답이 이것보다 빨리 와도 로딩 모션이 최소 한 번은 눈에 보이게 그만큼은 붙잡아 둔다 — 안 그러면
+ * 응답이 너무 빨라 Lottie 컴포지션이 로드되기도 전에 화면이 넘어가 버려서 로딩이 거의 안 보인다. */
+private const val MIN_RECOMMEND_LOADING_MS = 900L
 
 private fun LatLon.toRoutesLatLng(): LatLng = LatLng(lat = lat, lng = lon)
 
@@ -114,6 +120,7 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
      * 위치)을 쓰고, 그마저도 못 받았으면(권한 없음·위치 서비스 꺼짐 등) [TEMP_START_LOCATION]으로
      * 떨어진다. */
     private suspend fun recommendRoutes(currentLocation: LatLon?) {
+        val startedAtMs = System.currentTimeMillis()
         val settings = CourseRecommendSettings(
             distanceLabel = currentState.distanceLabel,
             avoidVisitedPreferred = currentState.avoidVisitedPreferred,
@@ -140,6 +147,8 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
                 CourseRecommendResult.Failure(e.message ?: "코스를 추천받지 못했어요", settings),
             )
         }
+        val elapsedMs = System.currentTimeMillis() - startedAtMs
+        if (elapsedMs < MIN_RECOMMEND_LOADING_MS) delay(MIN_RECOMMEND_LOADING_MS - elapsedMs)
         sendEffect(CourseCreateEffect.NavigateToResult)
     }
 

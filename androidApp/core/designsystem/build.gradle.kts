@@ -13,6 +13,7 @@ tasks.named("preBuild") {
 
 dependencies {
     implementation(libs.compose.material3)
+    implementation(libs.lottie.compose)
 }
 
 android {

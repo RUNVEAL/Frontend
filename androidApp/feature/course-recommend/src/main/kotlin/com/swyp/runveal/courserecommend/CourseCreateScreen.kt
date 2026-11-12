@@ -5,6 +5,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -24,7 +26,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,6 +53,7 @@ import com.swyp.runveal.courserecommend.contract.CourseCreateEffect
 import com.swyp.runveal.courserecommend.contract.CourseCreateIntent
 import com.swyp.runveal.courserecommend.contract.LocationSelectionTarget
 import com.swyp.runveal.designsystem.component.map.RunvealMapMarkerType
+import com.swyp.runveal.designsystem.component.overlay.RunvealLoading
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarStyle
@@ -70,6 +76,10 @@ fun CourseCreateScreen(
     val mapState = LocalMapState.current
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+    // TODO: 임시 로딩 상태 — 디자인 적용된 로딩으로 교체되면 다시 검토. 탭한 즉시 로딩을 띄우려고 화면이
+    // 직접 들고 있는다 — ViewModel 쪽은 현재 위치를 먼저 받아와야 해서(fetchCurrentLocationOrNull)
+    // 인텐트가 그만큼 늦게 도착해, ViewModel 상태로만 띄우면 그 사이엔 아무 반응이 없어 보인다.
+    var isRecommending by remember { mutableStateOf(false) }
 
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
@@ -158,12 +168,14 @@ fun CourseCreateScreen(
                 onAvoidVisitedPreferredChange = { viewModel.onIntent(CourseCreateIntent.SetAvoidVisitedPreferred(it)) },
                 onFilterClick = { viewModel.onIntent(CourseCreateIntent.OpenFilterSheet) },
                 onRecommendClick = {
+                    isRecommending = true
                     coroutineScope.launch {
                         viewModel.onIntent(CourseCreateIntent.RecommendClicked(fetchCurrentLocationOrNull(context)))
                     }
                 },
                 selectedFilterCount = state.selectedFilters.size,
                 endLocationIsDefault = state.endLocationIsDefault,
+                recommendEnabled = !isRecommending,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
@@ -182,6 +194,20 @@ fun CourseCreateScreen(
                 onConfirmClick = { viewModel.onIntent(CourseCreateIntent.ConfirmLocationSelection) },
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
+        }
+
+        // TODO: 디자이너가 준 로딩 모션(RunvealLoading)은 적용했지만, 배경 딤·배치는 임시라 전체
+        // 로딩 화면 스펙이 나오면 교체 예정.
+        if (isRecommending) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable(enabled = true, onClick = {}), // 응답 오기 전까지 뒤쪽 탭을 막는다.
+                contentAlignment = Alignment.Center,
+            ) {
+                RunvealLoading()
+            }
         }
     }
 
