@@ -3,4 +3,9 @@
     <string name="course_recommend_result_title">추천 코스</string>
     <string name="course_recommend_result_close_content_description">닫기</string>
     <string name="course_recommend_result_empty_action">다시 설정하기</string>
+    <string name="course_recommend_result_course_name">코스 %1$s</string>
+    <string name="course_recommend_tag_park">공원</string>
+    <string name="course_recommend_tag_riverside">하천길</string>
+    <string name="course_recommend_tag_gentle_slope">완만한 길</string>
+    <string name="course_recommend_tag_flat">평탄한 길</string>
 </resources>

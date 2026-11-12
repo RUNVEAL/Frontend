@@ -29,6 +29,8 @@ fun RunvealStat(
     label: String? = null,
     unit: String? = null,
     type: RunvealStatType = RunvealStatType.Large,
+    /** true면 Small/Large에서도 숫자+단위를 text/accent로 강조한다(코스 카드의 새 길 수치 등). */
+    accent: Boolean = false,
 ) {
     val colors = RunvealTheme.colors
     when (type) {
@@ -55,8 +57,8 @@ fun RunvealStat(
                 unit = unit,
                 numberStyle = RunvealTheme.typography.numM,
                 unitStyle = RunvealTheme.typography.unitM,
-                numberColor = colors.text.primary,
-                unitColor = colors.text.secondary,
+                numberColor = if (accent) colors.text.accent else colors.text.primary,
+                unitColor = if (accent) colors.text.accent else colors.text.secondary,
                 gap = RunvealTheme.spacing.space2,
             )
         }
@@ -73,8 +75,8 @@ fun RunvealStat(
                 unit = unit,
                 numberStyle = RunvealTheme.typography.numS,
                 unitStyle = RunvealTheme.typography.unitS,
-                numberColor = colors.text.primary,
-                unitColor = colors.text.secondary,
+                numberColor = if (accent) colors.text.accent else colors.text.primary,
+                unitColor = if (accent) colors.text.accent else colors.text.secondary,
                 gap = 0.dp,
             )
         }
