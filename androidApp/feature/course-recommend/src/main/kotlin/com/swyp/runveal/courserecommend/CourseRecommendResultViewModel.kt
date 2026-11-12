@@ -40,11 +40,13 @@ class CourseRecommendResultViewModel : MviViewModel<CourseRecommendResultIntent,
                         null
                     },
                     selectedRouteId = routes.firstOrNull()?.routeId,
+                    settings = result.settings,
                 )
             }
             is CourseRecommendResult.Failure -> CourseRecommendResultState.Ready(
                 routes = emptyList(),
                 emptyMessage = result.message,
+                settings = result.settings,
             )
         }
 

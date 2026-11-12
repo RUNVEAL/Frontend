@@ -1,5 +1,6 @@
 package com.swyp.runveal.courserecommend.contract
 
+import com.swyp.runveal.courserecommend.CourseRecommendSettings
 import com.swyp.runveal.ui.mvi.UiState
 
 /** `RouteDto` 하나를 [RunvealCourseCard][com.swyp.runveal.designsystem.component.list.RunvealCourseCard]가
@@ -28,5 +29,7 @@ sealed interface CourseRecommendResultState : UiState {
         val emptyMessage: String?,
         /** 지도 위 코스 리스트에서 선택된 카드. 코스가 있으면 첫 코스가 기본 선택. */
         val selectedRouteId: String? = null,
+        /** 이 결과를 만든 B0 설정값 — 앱바 아래 칩으로 그대로 보여준다. */
+        val settings: CourseRecommendSettings,
     ) : CourseRecommendResultState
 }

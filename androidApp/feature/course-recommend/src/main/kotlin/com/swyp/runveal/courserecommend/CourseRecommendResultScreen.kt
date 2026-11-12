@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,6 +34,11 @@ import com.swyp.runveal.courserecommend.contract.RouteCardUiModel
 import com.swyp.runveal.designsystem.component.button.RunvealButton
 import com.swyp.runveal.designsystem.component.button.RunvealButtonSize
 import com.swyp.runveal.designsystem.component.button.RunvealButtonStyle
+import com.swyp.runveal.designsystem.component.input.RunvealChipCondition
+import com.swyp.runveal.designsystem.component.input.RunvealChipConditionIcon
+import com.swyp.runveal.designsystem.component.input.RunvealChipConditionUsage
+import com.swyp.runveal.designsystem.component.input.RunvealChipDropdown
+import com.swyp.runveal.designsystem.component.input.RunvealChipDropdownUsage
 import com.swyp.runveal.designsystem.component.list.RunvealCourseCard
 import com.swyp.runveal.designsystem.component.list.RunvealCourseCardState
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBar
@@ -53,17 +59,27 @@ fun CourseRecommendResultScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     Box(modifier = modifier.fillMaxSize()) {
-        RunvealTopAppBar(
-            leading = RunvealTopAppBarLeading.Close,
-            onLeadingClick = onClose,
-            style = RunvealTopAppBarStyle.Map,
-            leadingContentDescription = stringResource(R.string.course_recommend_result_close_content_description),
-            title = stringResource(R.string.course_recommend_result_title),
+        Column(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.statusBars),
-        )
+        ) {
+            RunvealTopAppBar(
+                leading = RunvealTopAppBarLeading.Back,
+                onLeadingClick = onClose,
+                style = RunvealTopAppBarStyle.Map,
+                title = stringResource(R.string.course_recommend_result_title),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            val readyState = state as? CourseRecommendResultState.Ready
+            if (readyState != null) {
+                SettingsSummaryRow(
+                    settings = readyState.settings,
+                    modifier = Modifier.padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space12),
+                )
+            }
+        }
 
         when (val current = state) {
             is CourseRecommendResultState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
@@ -99,6 +115,36 @@ fun CourseRecommendResultScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+/** B0에서 고른 거리·안 가본 길 우선·필터 수를 그대로 보여주는 요약 칩 — 코스 만들기 바텀 패널과 같은
+ * 칩이지만 지도 위에 바로 떠서 글래스(OnMap) 스타일을 쓴다. 조회용이라 탭해도 아무 동작이 없다. */
+@Composable
+private fun SettingsSummaryRow(settings: CourseRecommendSettings, modifier: Modifier = Modifier) {
+    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8)) {
+        RunvealChipDropdown(
+            label = settings.distanceLabel,
+            onClick = {},
+            usage = RunvealChipDropdownUsage.OnMap,
+        )
+        if (settings.avoidVisitedPreferred) {
+            RunvealChipCondition(
+                checked = true,
+                onCheckedChange = {},
+                label = stringResource(R.string.course_recommend_result_avoid_visited_label),
+                usage = RunvealChipConditionUsage.OnMap,
+            )
+        }
+        if (settings.selectedFilterCount > 0) {
+            RunvealChipCondition(
+                checked = true,
+                onCheckedChange = {},
+                icon = RunvealChipConditionIcon.Filter,
+                label = settings.selectedFilterCount.toString(),
+                usage = RunvealChipConditionUsage.OnMap,
+            )
         }
     }
 }

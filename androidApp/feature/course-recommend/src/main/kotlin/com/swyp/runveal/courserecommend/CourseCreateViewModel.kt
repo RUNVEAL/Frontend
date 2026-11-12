@@ -110,6 +110,11 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
      * `end`는 지도에서 도착지를 직접 고른 경우에만 보낸다 — 안 고르면(기본값 "출발지로 돌아오기")
      * `endLatLon`이 null이라 자동으로 순환(LOOP) 코스가 된다(§3.3.1). */
     private suspend fun recommendRoutes() {
+        val settings = CourseRecommendSettings(
+            distanceLabel = currentState.distanceLabel,
+            avoidVisitedPreferred = currentState.avoidVisitedPreferred,
+            selectedFilterCount = currentState.selectedFilters.size,
+        )
         try {
             val mapVersion = MetaHolder.state.value?.mapVersions?.current
                 ?: MetaApi().fetchMeta().also { MetaHolder.publish(it) }.mapVersions.current
@@ -124,11 +129,11 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
                 ),
             )
             Log.i(TAG, "추천 성공 routes=${response.routes.size} warnings=${response.warnings}")
-            CourseRecommendResultHolder.publish(CourseRecommendResult.Success(response))
+            CourseRecommendResultHolder.publish(CourseRecommendResult.Success(response, settings))
         } catch (e: Exception) {
             Log.w(TAG, "추천 실패", e)
             CourseRecommendResultHolder.publish(
-                CourseRecommendResult.Failure(e.message ?: "코스를 추천받지 못했어요"),
+                CourseRecommendResult.Failure(e.message ?: "코스를 추천받지 못했어요", settings),
             )
         }
         sendEffect(CourseCreateEffect.NavigateToResult)
