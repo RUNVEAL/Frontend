@@ -159,7 +159,10 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                         onClose = tabNavigator::popBackStack,
                         onCourseClick = { routeId -> tabNavigator.navigate(RunVealRoute.HomeTab.CourseDetail(routeId)) },
                     )
-                    courseDetailOverlay(onBack = tabNavigator::popBackStack)
+                    courseDetailOverlay(
+                        onBack = tabNavigator::popBackStack,
+                        onStartRunning = { tabNavigator.navigate(RunVealRoute.HomeTab.Recording) },
+                    )
                     recordingOverlay(
                         onFinished = {
                             tabNavigator.navController.navigate(RunVealRoute.HomeTab.Result) {

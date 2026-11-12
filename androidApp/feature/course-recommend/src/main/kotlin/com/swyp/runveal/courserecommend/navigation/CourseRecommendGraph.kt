@@ -22,9 +22,14 @@ fun NavGraphBuilder.courseRecommendResultOverlay(onClose: () -> Unit, onCourseCl
     }
 }
 
-fun NavGraphBuilder.courseDetailOverlay(onBack: () -> Unit) {
+fun NavGraphBuilder.courseDetailOverlay(onBack: () -> Unit, onStartRunning: () -> Unit) {
     composable<RunVealRoute.HomeTab.CourseDetail> { backStackEntry ->
         val route = backStackEntry.toRoute<RunVealRoute.HomeTab.CourseDetail>()
-        CourseDetailScreen(routeId = route.routeId, onBack = onBack, modifier = Modifier.fillMaxSize())
+        CourseDetailScreen(
+            routeId = route.routeId,
+            onBack = onBack,
+            onStartRunning = onStartRunning,
+            modifier = Modifier.fillMaxSize(),
+        )
     }
 }

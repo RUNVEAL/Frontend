@@ -59,6 +59,7 @@ import com.swyp.runveal.designsystem.R as DesignSystemR
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.courserecommend.R
 import com.swyp.runveal.map.MapConfig
+import com.swyp.runveal.result.SelectedCourseHolder
 
 /** B2 — 추천 코스 결과에서 카드를 눌러 들어가는 코스 상세. 지도(Map Shell)는 그대로 보이고 이 위에
  * 뒤로가기와 바텀시트만 얹는다 — 배경을 깔지 않는다. [routeId]로 [CourseRecommendResultHolder]에서
@@ -67,6 +68,7 @@ import com.swyp.runveal.map.MapConfig
 fun CourseDetailScreen(
     routeId: String,
     onBack: () -> Unit,
+    onStartRunning: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: CourseDetailViewModel = viewModel(),
 ) {
@@ -165,9 +167,12 @@ fun CourseDetailScreen(
                                         stringResource(R.string.course_detail_save_action)
                                     },
                                     onSecondaryClick = { viewModel.onIntent(CourseDetailIntent.SaveCourse) },
-                                    // TODO: 러닝 시작 실제 동작 연동 추가 예정.
                                     primaryLabel = stringResource(R.string.course_detail_start_running_action),
-                                    onPrimaryClick = {},
+                                    // 코스 경로를 기록 화면에 넘기기만 한다 — 가이드/오버레이 적용은 보류.
+                                    onPrimaryClick = {
+                                        SelectedCourseHolder.publish(current.path)
+                                        onStartRunning()
+                                    },
                                 )
                             }
                         },
