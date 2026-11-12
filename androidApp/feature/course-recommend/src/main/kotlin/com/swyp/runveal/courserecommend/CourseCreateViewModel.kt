@@ -17,7 +17,7 @@ import com.swyp.runveal.ui.mvi.MviViewModel
 
 private const val TAG = "CourseRecommendDebug"
 
-/** TEMP — 출발지를 지도에서 아직 한 번도 고르지 않았을 때 쓰는 기본 좌표(성수동 인근). */
+/** TEMP — 출발지를 아직 안 골랐고 현재 위치도 못 받았을 때 쓰는 최후 기본 좌표(성수동 인근). */
 private val TEMP_START_LOCATION = LatLon(lat = 37.5445, lon = 127.0557)
 
 private fun LatLon.toRoutesLatLng(): LatLng = LatLng(lat = lat, lng = lon)
@@ -100,7 +100,7 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
 
             CourseCreateIntent.ApplyFilterSheet -> setState { copy(showFilterSheet = false) }
 
-            CourseCreateIntent.RecommendClicked -> recommendRoutes()
+            is CourseCreateIntent.RecommendClicked -> recommendRoutes(intent.currentLocation)
         }
     }
 
@@ -108,8 +108,12 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
      * [CourseRecommendResultHolder]에 publish한 뒤 결과 화면으로 넘어간다. `selectedFilters`는 화면
      * 라벨(한글)이라 서버 필터 코드(`PARK`/`RIVERSIDE`/`GENTLE_SLOPE`)와 1:1로 안 맞아서 일단 안 보낸다.
      * `end`는 지도에서 도착지를 직접 고른 경우에만 보낸다 — 안 고르면(기본값 "출발지로 돌아오기")
-     * `endLatLon`이 null이라 자동으로 순환(LOOP) 코스가 된다(§3.3.1). */
-    private suspend fun recommendRoutes() {
+     * `endLatLon`이 null이라 자동으로 순환(LOOP) 코스가 된다(§3.3.1).
+     *
+     * 출발지를 한 번도 안 골랐으면([startLatLon] null) [currentLocation](화면이 미리 받아 둔 현재
+     * 위치)을 쓰고, 그마저도 못 받았으면(권한 없음·위치 서비스 꺼짐 등) [TEMP_START_LOCATION]으로
+     * 떨어진다. */
+    private suspend fun recommendRoutes(currentLocation: LatLon?) {
         val settings = CourseRecommendSettings(
             distanceLabel = currentState.distanceLabel,
             avoidVisitedPreferred = currentState.avoidVisitedPreferred,
@@ -122,7 +126,7 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
             val response = routesApi.fetchRoutes(
                 RoutesRequest(
                     mapVersion = mapVersion,
-                    start = (currentState.startLatLon ?: TEMP_START_LOCATION).toRoutesLatLng(),
+                    start = (currentState.startLatLon ?: currentLocation ?: TEMP_START_LOCATION).toRoutesLatLng(),
                     end = currentState.endLatLon?.toRoutesLatLng(),
                     distanceM = distanceM,
                     preferUnexplored = currentState.avoidVisitedPreferred,

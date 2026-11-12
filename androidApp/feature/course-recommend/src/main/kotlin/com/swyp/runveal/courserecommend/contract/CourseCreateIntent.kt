@@ -19,5 +19,7 @@ sealed interface CourseCreateIntent : UiIntent {
     data class ToggleFilter(val filter: String) : CourseCreateIntent
     data object ResetFilterSheet : CourseCreateIntent
     data object ApplyFilterSheet : CourseCreateIntent
-    data object RecommendClicked : CourseCreateIntent
+    /** 출발지를 한 번도 안 골랐을 때 쓸 현재 위치 — 화면이 미리 받아서 같이 넘긴다(권한/위치 서비스는
+     * ViewModel이 몰라도 되게). 못 받았으면 null. */
+    data class RecommendClicked(val currentLocation: LatLon?) : CourseCreateIntent
 }

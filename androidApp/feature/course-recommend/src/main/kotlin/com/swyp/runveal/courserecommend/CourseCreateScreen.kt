@@ -1,5 +1,9 @@
 package com.swyp.runveal.courserecommend
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,13 +24,19 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.swyp.runveal.core.map.LocalMapState
 import com.swyp.runveal.core.map.MapPin
 import com.swyp.runveal.core.map.rememberMapState
@@ -42,7 +52,11 @@ import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarStyle
 import com.swyp.runveal.designsystem.theme.RunvealTheme
+import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.ui.mvi.CollectEffect
+import kotlin.coroutines.resume
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -54,6 +68,8 @@ fun CourseCreateScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val mapState = LocalMapState.current
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
@@ -122,7 +138,11 @@ fun CourseCreateScreen(
                 onDistanceClick = { viewModel.onIntent(CourseCreateIntent.OpenFilterSheet) },
                 onAvoidVisitedPreferredChange = { viewModel.onIntent(CourseCreateIntent.SetAvoidVisitedPreferred(it)) },
                 onFilterClick = { viewModel.onIntent(CourseCreateIntent.OpenFilterSheet) },
-                onRecommendClick = { viewModel.onIntent(CourseCreateIntent.RecommendClicked) },
+                onRecommendClick = {
+                    coroutineScope.launch {
+                        viewModel.onIntent(CourseCreateIntent.RecommendClicked(fetchCurrentLocationOrNull(context)))
+                    }
+                },
                 selectedFilterCount = state.selectedFilters.size,
                 endLocationIsDefault = state.endLocationIsDefault,
                 modifier = Modifier
@@ -172,6 +192,24 @@ fun CourseCreateScreen(
                 onApply = { viewModel.onIntent(CourseCreateIntent.ApplyFilterSheet) },
             )
         }
+    }
+}
+
+/** 출발지를 한 번도 안 골랐을 때 쓸 현재 위치 — [CurrentLocationLayer][com.swyp.runveal.core.map.internal.maplibre.CurrentLocationLayer]
+ * 처럼 권한을 먼저 확인하고 없으면 조용히 null을 돌려준다(위치 서비스가 꺼져 있어도 못 받으면 null). */
+@SuppressLint("MissingPermission")
+private suspend fun fetchCurrentLocationOrNull(context: Context): LatLon? {
+    val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    if (!granted) return null
+
+    val client = LocationServices.getFusedLocationProviderClient(context)
+    val cancellationTokenSource = CancellationTokenSource()
+    return suspendCancellableCoroutine { continuation ->
+        continuation.invokeOnCancellation { cancellationTokenSource.cancel() }
+        client.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, cancellationTokenSource.token)
+            .addOnSuccessListener { location -> continuation.resume(location?.let { LatLon(lat = it.latitude, lon = it.longitude) }) }
+            .addOnFailureListener { continuation.resume(null) }
     }
 }
 
