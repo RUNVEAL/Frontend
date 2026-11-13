@@ -28,6 +28,11 @@ object SegmentCoverageMatcher {
         return (coveredCount.toDouble() / samples.size) >= segmentCoverage
     }
 
+    /** [point]가 [paths] 중 어느 하나의 선분과 [matchDistanceM] 이내인지 — 실시간 분류([LiveRoadClassifier])
+     * 등 "이 점이 이 도로 조각 근처냐"만 따로 필요할 때 쓴다. */
+    fun isNearAnyPath(point: LatLon, paths: List<List<LatLon>>, matchDistanceM: Double): Boolean =
+        paths.any { path -> isNearPath(point, path, matchDistanceM) }
+
     private fun sampleLine(line: List<LatLon>): List<LatLon> {
         if (line.size < 2) return line
         val samples = mutableListOf<LatLon>()
@@ -43,9 +48,6 @@ object SegmentCoverageMatcher {
         samples += line.last()
         return samples
     }
-
-    private fun isNearAnyPath(point: LatLon, paths: List<List<LatLon>>, matchDistanceM: Double): Boolean =
-        paths.any { path -> isNearPath(point, path, matchDistanceM) }
 
     private fun isNearPath(point: LatLon, path: List<LatLon>, matchDistanceM: Double): Boolean {
         if (path.size < 2) return path.any { GeoMath.distanceMeters(point, it) <= matchDistanceM }

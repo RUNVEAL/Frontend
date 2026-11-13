@@ -46,6 +46,8 @@ class RoadSegmentIndexImporter(
                         ?.takeIf { it.isNotEmpty() }
                         ?: boundariesByAdmCd2.values.toList()
                     RoadSegmentParser.parse(file.readText()).forEach { segment ->
+                        val allPoints = segment.lines.flatten()
+                        if (allPoints.isEmpty()) return@forEach
                         val midpoint = segment.lines.firstOrNull()?.midpointOrNull() ?: return@forEach
                         val admCd2 = DongCoverageCalculator.findDong(candidateBoundaries, midpoint) ?: return@forEach
                         database.roadSegmentIndexQueries.insertSegment(
@@ -53,6 +55,10 @@ class RoadSegmentIndexImporter(
                             admCd2,
                             segment.lengthM.toDouble(),
                             RoadSegmentParser.encodeLines(segment.lines),
+                            allPoints.minOf { it.lat },
+                            allPoints.maxOf { it.lat },
+                            allPoints.minOf { it.lon },
+                            allPoints.maxOf { it.lon },
                         )
                     }
                 }

@@ -5,13 +5,26 @@ CREATE TABLE road_segment (
     segment_id  INTEGER PRIMARY KEY NOT NULL,
     adm_cd2     TEXT NOT NULL,
     length_m    REAL NOT NULL,
-    coordinates TEXT NOT NULL  -- "[[lon,lat],…]" — MultiLineString 조각이면 이어붙인 하나로 단순화
+    coordinates TEXT NOT NULL,  -- RoadSegmentParser.encodeLines — MultiLineString 조각 구조 그대로 유지
+    -- 바운딩 박스(러닝 중 "이 점 근처 구간" 조회용, LiveRoadClassifier) — 인덱스로 전국 스캔을 피한다.
+    min_lat     REAL NOT NULL,
+    max_lat     REAL NOT NULL,
+    min_lon     REAL NOT NULL,
+    max_lon     REAL NOT NULL
 );
 
 CREATE INDEX road_segment_adm_cd2_idx ON road_segment(adm_cd2);
+CREATE INDEX road_segment_bounds_idx ON road_segment(min_lat, max_lat, min_lon, max_lon);
 
 selectById:
 SELECT * FROM road_segment WHERE segment_id = ?;
+
+-- 주어진 좌표 범위와 바운딩 박스가 겹치는 구간만 — 점 하나를 넣을 땐 그 점 ± matchDistanceM로
+-- 네 값을 계산해서 넘긴다. 실제 거리 판정(matchDistanceM 이내인지)은 호출부가
+-- SegmentCoverageMatcher로 다시 한다 — 바운딩 박스는 후보를 줄이는 용도일 뿐 정확하지 않다.
+selectNear:
+SELECT * FROM road_segment
+WHERE min_lat <= :maxLat AND max_lat >= :minLat AND min_lon <= :maxLon AND max_lon >= :minLon;
 
 countAll:
 SELECT COUNT(*) FROM road_segment;
@@ -24,4 +37,5 @@ totalLengthByDong:
 SELECT adm_cd2, SUM(length_m) AS total_meters FROM road_segment GROUP BY adm_cd2;
 
 insertSegment:
-INSERT OR IGNORE INTO road_segment (segment_id, adm_cd2, length_m, coordinates) VALUES (?, ?, ?, ?);
+INSERT OR IGNORE INTO road_segment (segment_id, adm_cd2, length_m, coordinates, min_lat, max_lat, min_lon, max_lon)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);

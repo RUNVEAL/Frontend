@@ -27,6 +27,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import com.swyp.runveal.core.map.DongAssetRepository
+import com.swyp.runveal.core.map.LiveRoadClassifier
 import com.swyp.runveal.core.map.LocalMapOverlayBottomInset
 import com.swyp.runveal.core.map.LocalMapState
 import com.swyp.runveal.core.map.MapLayerSpec
@@ -304,24 +305,36 @@ private fun HomeMapLayer(
             }
         }
 
-        // 기록 중엔 지금까지 쌓인 "가본 길" 대신 지금 달리고 있는 실시간 경로를 보여준다. TrackingService가
-        // 10초마다 publish하는 도로 매칭 선([LiveMatchHolder])이 있으면 그걸 쓰고, 아직 없으면(러닝
-        // 시작 직후 등) TrackRecorder가 들고 있는 원본 GPS 점으로 대신 그린다. TrackRecorder.state는
-        // 점이 추가될 때마다 새로 emit되지 않아서(§3 설계) 1초마다 직접 읽어 다시 그린다 —
-        // RecordingViewModel의 경과시간 틱과 같은 패턴.
+        // 기록 중엔 지금까지 쌓인 "가본 길" 대신 지금 달리고 있는 실시간 경로를 보여준다 — 이미 가본
+        // 구간(흰색)과 처음 가보는 구간(금색)을 [LiveRoadClassifier]로 나눠서 각각 따로 그린다
+        // (전부 로컬 판정, docs/api/API.md §3.5). TrackingService가 10초마다 publish하는 도로 매칭
+        // 선([LiveMatchHolder])이 있으면 그걸 쓰고, 아직 없으면(러닝 시작 직후 등) TrackRecorder가
+        // 들고 있는 원본 GPS 점으로 대신 분류한다. TrackRecorder.state는 점이 추가될 때마다 새로
+        // emit되지 않아서(§3 설계) 1초마다 직접 읽어 다시 그린다 — RecordingViewModel의 경과시간
+        // 틱과 같은 패턴.
         val recordingState by TrackRecorder.state.collectAsStateWithLifecycle()
         val isRecordingOrPaused = recordingState is RecordingState.Recording || recordingState is RecordingState.Paused
-        var liveTrackGeoJson by remember { mutableStateOf(emptyVisitedRoadGeoJson) }
+        val liveRoadClassifier = remember { LiveRoadClassifier(trackLocalStore.database) }
+        var liveRunOldGeoJson by remember { mutableStateOf(emptyVisitedRoadGeoJson) }
+        var liveRunNewGeoJson by remember { mutableStateOf(emptyVisitedRoadGeoJson) }
         LaunchedEffect(isRecordingOrPaused) {
             if (!isRecordingOrPaused) return@LaunchedEffect
             while (true) {
-                val matchedPath = LiveMatchHolder.state.value
-                val livePoints = matchedPath ?: TrackRecorder.currentFilteredPoints().map { LatLon(lat = it.lat, lon = it.lon) }
-                liveTrackGeoJson = buildVisitedRoadGeoJson(listOf(livePoints))
+                withContext(Dispatchers.IO) {
+                    val matchedPath = LiveMatchHolder.state.value
+                    val livePoints = matchedPath ?: TrackRecorder.currentFilteredPoints().map { LatLon(lat = it.lat, lon = it.lon) }
+                    val classified = liveRoadClassifier.classify(livePoints)
+                    liveRunOldGeoJson = buildVisitedRoadGeoJson(classified.oldRuns)
+                    liveRunNewGeoJson = buildVisitedRoadGeoJson(classified.newRuns)
+                }
                 delay(1000)
             }
         }
-        MapLayers(MapLayerSpec(MapConfig.SOURCE_VISITED_ROAD, if (isRecordingOrPaused) liveTrackGeoJson else visitedRoadGeoJson))
+        MapLayers(
+            MapLayerSpec(MapConfig.SOURCE_VISITED_ROAD, if (isRecordingOrPaused) emptyVisitedRoadGeoJson else visitedRoadGeoJson),
+            MapLayerSpec(MapConfig.SOURCE_LIVE_RUN_OLD, if (isRecordingOrPaused) liveRunOldGeoJson else emptyVisitedRoadGeoJson),
+            MapLayerSpec(MapConfig.SOURCE_LIVE_RUN_NEW, if (isRecordingOrPaused) liveRunNewGeoJson else emptyVisitedRoadGeoJson),
+        )
 
         val dongOverlayData = remember { repository.buildOverlay(edges = emptyList()) }
         val dongGlowPolygonPartsData = remember { repository.loadPolygonParts() }

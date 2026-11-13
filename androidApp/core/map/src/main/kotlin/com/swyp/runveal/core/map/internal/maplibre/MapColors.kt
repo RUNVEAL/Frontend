@@ -16,4 +16,9 @@ internal data class MapColors(
     val recommendedRouteSelectedGlow: Int,
     val recommendedRouteSelected: Int,
     val courseGuide: Int,
+    /** 러닝 중 실시간 선 — 이미 가본 구간(흰색, glow 없음). */
+    val liveRunOld: Int,
+    /** 러닝 중 실시간 선 — 처음 가보는 구간(금색 코어 + glow). */
+    val liveRunNew: Int,
+    val liveRunNewGlow: Int,
 )

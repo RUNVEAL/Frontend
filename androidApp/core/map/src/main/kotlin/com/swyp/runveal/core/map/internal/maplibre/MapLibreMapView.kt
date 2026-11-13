@@ -80,6 +80,9 @@ internal fun MapLibreMapView(
             recommendedRouteSelectedGlow = colors.map.roadNewHalo.toArgb(),
             recommendedRouteSelected = colors.map.roadNew.toArgb(),
             courseGuide = colors.text.primary.toArgb(),
+            liveRunOld = colors.map.roadToday.toArgb(),
+            liveRunNew = colors.map.roadNew.toArgb(),
+            liveRunNewGlow = colors.map.roadNewHalo.toArgb(),
         )
     }
 
@@ -176,7 +179,19 @@ internal fun MapLibreMapView(
 
     val visitedRoadGeoJson = state.layers[MapConfig.SOURCE_VISITED_ROAD]
     LaunchedEffect(style, visitedRoadGeoJson, mapColors) {
-        style?.let { VisitedRoadLayer.apply(it, visitedRoadGeoJson, mapColors) }
+        style?.let {
+            VisitedRoadLayer.apply(it, MapConfig.SOURCE_VISITED_ROAD, visitedRoadGeoJson, mapColors.visitedRoadCore, mapColors.visitedRoadGlow)
+        }
+    }
+    val liveRunOldGeoJson = state.layers[MapConfig.SOURCE_LIVE_RUN_OLD]
+    LaunchedEffect(style, liveRunOldGeoJson, mapColors) {
+        style?.let { VisitedRoadLayer.apply(it, MapConfig.SOURCE_LIVE_RUN_OLD, liveRunOldGeoJson, mapColors.liveRunOld) }
+    }
+    val liveRunNewGeoJson = state.layers[MapConfig.SOURCE_LIVE_RUN_NEW]
+    LaunchedEffect(style, liveRunNewGeoJson, mapColors) {
+        style?.let {
+            VisitedRoadLayer.apply(it, MapConfig.SOURCE_LIVE_RUN_NEW, liveRunNewGeoJson, mapColors.liveRunNew, mapColors.liveRunNewGlow)
+        }
     }
     val recommendedRouteGeoJson = state.layers[MapConfig.SOURCE_RECOMMENDED_ROUTE]
     LaunchedEffect(style, recommendedRouteGeoJson, mapColors) {

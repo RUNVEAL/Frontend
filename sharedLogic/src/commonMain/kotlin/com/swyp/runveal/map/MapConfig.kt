@@ -24,6 +24,14 @@ object MapConfig {
     const val LAYER_VISITED_ROAD_GLOW_MID: String = "visited-glow-mid"
     const val LAYER_VISITED_ROAD_LINE: String = "visited-line"
 
+    /** 러닝 중 실시간 선 — 지금까지 달린 경로 중 이미 가본 구간(흰색, glow 없음). [VisitedRoadLayer]를
+     * [SOURCE_VISITED_ROAD]와 다른 소스로 한 번 더 적용한다. */
+    const val SOURCE_LIVE_RUN_OLD: String = "live-run-old"
+
+    /** 러닝 중 실시간 선 — 지금까지 달린 경로 중 처음 가보는 구간(금색 + glow, 홈 지도 "새로 탐험한
+     * 길"과 같은 톤). */
+    const val SOURCE_LIVE_RUN_NEW: String = "live-run-new"
+
     /** 코스 추천 결과 — 선택 안 된 코스/선택된 코스를 `selected` 피처 속성으로 나눠 그린다(레이어 ID는
      * `RecommendedRouteLayer`가 이 소스 ID에서 그대로 파생시킨다). */
     const val SOURCE_RECOMMENDED_ROUTE: String = "recommended-route"
