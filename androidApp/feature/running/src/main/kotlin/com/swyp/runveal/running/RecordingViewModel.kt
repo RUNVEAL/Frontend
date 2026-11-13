@@ -3,6 +3,7 @@ package com.swyp.runveal.running
 import androidx.lifecycle.viewModelScope
 import com.swyp.runveal.recording.RecordingState as TrackRecordingState
 import com.swyp.runveal.recording.TrackRecorder
+import com.swyp.runveal.result.SelectedCourseHolder
 import com.swyp.runveal.running.contract.RecordingEffect
 import com.swyp.runveal.running.contract.RecordingIntent
 import com.swyp.runveal.running.contract.RecordingPhase
@@ -14,7 +15,7 @@ import kotlinx.coroutines.launch
 private const val TICKER_INTERVAL_MS = 1000L
 
 class RecordingViewModel : MviViewModel<RecordingIntent, RecordingState, RecordingEffect>(
-    initialState = RecordingState(),
+    initialState = RecordingState(selectedCoursePath = SelectedCourseHolder.consume()),
 ) {
     init {
         viewModelScope.launch {
@@ -23,7 +24,9 @@ class RecordingViewModel : MviViewModel<RecordingIntent, RecordingState, Recordi
                     when (recording) {
                         is TrackRecordingState.Recording -> copy(phase = RecordingPhase.RECORDING)
                         is TrackRecordingState.Paused -> copy(phase = RecordingPhase.PAUSED)
-                        else -> RecordingState()
+                        // 코스 데이터(selectedCoursePath)는 그대로 들고 있는다 — 전체 리셋을 쓰면
+                        // 위에서 미리 읽어 둔 값이 지워진다.
+                        else -> RecordingState(selectedCoursePath = selectedCoursePath)
                     }
                 }
             }

@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,10 +34,14 @@ enum class RunvealCourseCardState { Default, Selected }
 fun RunvealCourseCard(
     name: String,
     tags: List<String>,
-    distance: String,
-    time: String,
-    elevation: String,
-    newRoad: String,
+    distanceValue: String,
+    distanceUnit: String,
+    timeValue: String,
+    timeUnit: String,
+    elevationValue: String,
+    elevationUnit: String,
+    newRoadValue: String,
+    newRoadUnit: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     state: RunvealCourseCardState = RunvealCourseCardState.Default,
@@ -55,20 +61,52 @@ fun RunvealCourseCard(
             .padding(top = 16.dp, end = 12.dp, bottom = 20.dp, start = 20.dp),
         verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8), verticalAlignment = Alignment.CenterVertically) {
-            Text(name, style = RunvealTheme.typography.heading3, color = nameColor, modifier = Modifier.weight(1f))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(name, style = RunvealTheme.typography.heading3, color = nameColor)
+            if (tags.isNotEmpty()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4), verticalAlignment = Alignment.Bottom) {
+                    tags.take(2).forEach { RunvealTag(label = it) }
+                }
+            }
+            Spacer(modifier = Modifier.weight(1f))
             Icon(imageVector = RunvealIcons.Chevron, contentDescription = null, tint = colors.icon.tertiary, modifier = Modifier.size(16.dp))
         }
-        if (tags.isNotEmpty()) {
-            Row(horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4)) {
-                tags.take(2).forEach { RunvealTag(label = it) }
-            }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12)) {
-            RunvealStat(label = stringResource(R.string.course_card_stat_distance), value = distance, type = RunvealStatType.Small)
-            RunvealStat(label = stringResource(R.string.course_card_stat_time), value = time, type = RunvealStatType.Small)
-            RunvealStat(label = stringResource(R.string.course_card_stat_elevation), value = elevation, type = RunvealStatType.Small)
-            RunvealStat(label = stringResource(R.string.course_card_stat_new_road), value = newRoad, type = RunvealStatType.Small)
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12)) {
+            // 수치가 없는 항목(고도, 새 길)도 공란으로 둘 뿐 칸을 차지하는 건 동일 — weight로 폭을 맞춰야 카드마다
+            // 칸 위치가 어긋나지 않는다.
+            RunvealStat(
+                label = stringResource(R.string.course_card_stat_distance),
+                value = distanceValue,
+                unit = distanceUnit,
+                type = RunvealStatType.Small,
+                modifier = Modifier.weight(1f),
+            )
+            RunvealStat(
+                label = stringResource(R.string.course_card_stat_time),
+                value = timeValue,
+                unit = timeUnit,
+                type = RunvealStatType.Small,
+                modifier = Modifier.weight(1f),
+            )
+            RunvealStat(
+                label = stringResource(R.string.course_card_stat_elevation),
+                value = elevationValue,
+                unit = elevationUnit,
+                type = RunvealStatType.Small,
+                modifier = Modifier.weight(1f),
+            )
+            RunvealStat(
+                label = stringResource(R.string.course_card_stat_new_road),
+                value = newRoadValue,
+                unit = newRoadUnit,
+                type = RunvealStatType.Small,
+                accent = true,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }
@@ -80,10 +118,14 @@ private fun RunvealCourseCardPreview() {
         RunvealCourseCard(
             name = "성수동 한 바퀴",
             tags = listOf("공원", "순환"),
-            distance = "5.21km",
-            time = "32분",
-            elevation = "12m",
-            newRoad = "1.3km",
+            distanceValue = "5.2",
+            distanceUnit = "km",
+            timeValue = "32",
+            timeUnit = "분",
+            elevationValue = "+45",
+            elevationUnit = "m",
+            newRoadValue = "1.3",
+            newRoadUnit = "km",
             onClick = {},
             state = RunvealCourseCardState.Selected,
         )

@@ -46,6 +46,7 @@ fun MakeCoursePanel(
     modifier: Modifier = Modifier,
     endLocationIsDefault: Boolean = true,
     selectedFilterCount: Int = 0,
+    recommendEnabled: Boolean = true,
 ) {
     val colors = RunvealTheme.colors
     val shape = RunvealTheme.shapes.radius32
@@ -105,6 +106,7 @@ fun MakeCoursePanel(
             style = RunvealButtonStyle.Gold,
             size = RunvealButtonSize.L,
             fillWidth = true,
+            enabled = recommendEnabled,
         )
     }
 }

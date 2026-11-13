@@ -45,18 +45,16 @@ fun RunvealRouteStep(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             RouteStepDot(type)
-            Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(place, style = RunvealTheme.typography.bodyMRegular, color = colors.text.secondary)
+            Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                // place + note는 한 Row에 나란히 — note는 줄 아래가 아니라 place 옆에 온다.
+                Row(horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4), verticalAlignment = Alignment.Top) {
+                    Text(place, style = RunvealTheme.typography.bodyMRegular, color = colors.text.secondary)
+                    if (note != null) {
+                        Text(note, style = RunvealTheme.typography.bodyMRegular, color = colors.text.tertiary)
+                    }
+                }
                 Text(distance, style = RunvealTheme.typography.bodyMRegular, color = colors.text.secondary)
             }
-        }
-        if (note != null) {
-            Text(
-                note,
-                style = RunvealTheme.typography.bodyMRegular,
-                color = colors.text.tertiary,
-                modifier = Modifier.padding(start = RouteStepDotSize + RunvealTheme.spacing.space8, top = RunvealTheme.spacing.space4),
-            )
         }
         if (showConnector) {
             Box(

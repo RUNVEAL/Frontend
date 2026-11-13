@@ -7,12 +7,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.swyp.runveal.designsystem.component.map.RunvealMapMarkerType
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.map.MapConfig
+
+/** 지도 위에 떠 있는 마커 하나(출발/도착 등 위치 + 종류). */
+data class MapPin(val location: LatLon, val type: RunvealMapMarkerType)
 
 /** 지도의 초기 카메라(중심 좌표 + 줌), 현재 줌, 하위 화면이 선언한 레이어([MapLayers])를 들고 있다. */
 @Stable
@@ -23,9 +29,38 @@ class MapState(
     var currentZoom: Double by mutableDoubleStateOf(initialZoom)
         internal set
 
+    /** 지도 위에 그릴 핀. 하위 화면(예: 출발/도착 선택)이 쓰고 지운다. */
+    var pin: MapPin? by mutableStateOf(null)
+
+    /** 지도 위에 늘 떠 있는 점 마커들(추천 코스의 출발·도착 등) — 선택 중 임시 핀([pin])과 별개로,
+     * 설정한 화면이 떠 있는 동안 계속 보인다. */
+    var dotMarkers: List<MapPin> by mutableStateOf(emptyList())
+
+    /** 지도 위에 늘 떠 있는 핀 마커들(코스 만들기에서 확정한 출발·도착 등) — [dotMarkers]와 같은
+     * 용도지만 Pin 스타일로 그린다. [pin](선택 중 임시 핀)과도 별개. */
+    var pinMarkers: List<MapPin> by mutableStateOf(emptyList())
+
+    /** 지도를 탭한 마지막 좌표 — [MapLibreMapView]가 탭마다 채우고, 소비한 화면이 바로 null로 되돌려
+     * 한 번만 처리되는 이벤트처럼 쓴다. */
+    var lastMapClick: LatLon? by mutableStateOf(null)
+
     /** 0부터 시작 — [MapLibreMapView]가 이 값이 바뀔 때마다(첫 조립 제외) 현재 위치로 카메라를 다시
      * 옮긴다. 값 자체는 의미가 없고 변경 이벤트만 쓴다(일종의 one-shot 커맨드). */
     var recenterRequestId: Int by mutableIntStateOf(0)
+        internal set
+
+    /** [focusOnBounds]가 마지막으로 넘긴 좌표 — [MapLibreMapView]가 이 좌표가 전부 보이게 카메라를
+     * 맞춘다. */
+    var boundsFocusPoints: List<LatLon>? by mutableStateOf(null)
+        internal set
+
+    /** [focusOnBounds]의 [extraBottomPadding] — 하단을 덮는 바텀시트 등 때문에 화면 아래쪽은 안 보일 때,
+     * 그 높이만큼 아래 여백을 더 줘서 "보이는 영역(위쪽)"에 좌표가 맞춰지게 한다. */
+    var boundsFocusExtraBottomPadding: Dp by mutableStateOf(0.dp)
+        internal set
+
+    /** 0부터 시작 — [recenterRequestId]와 같은 one-shot 커맨드 패턴. */
+    var boundsFocusRequestId: Int by mutableIntStateOf(0)
         internal set
 
     private val _layers = mutableStateMapOf<String, String>()
@@ -43,6 +78,16 @@ class MapState(
      * 무시한다. */
     fun recenterToCurrentLocation() {
         recenterRequestId++
+    }
+
+    /** [points]가 전부 화면에 보이게 카메라를 옮긴다(추천 코스 전체가 보이게 포커싱 등). 2개 미만이면
+     * 무시한다. [extraBottomPadding]을 주면 그만큼 아래 여백을 더 둬서, 화면 하단을 덮는 바텀시트
+     * 같은 오버레이가 있어도 코스가 그 위쪽(보이는 영역)에 맞춰지게 한다. */
+    fun focusOnBounds(points: List<LatLon>, extraBottomPadding: Dp = 0.dp) {
+        if (points.size < 2) return
+        boundsFocusPoints = points
+        boundsFocusExtraBottomPadding = extraBottomPadding
+        boundsFocusRequestId++
     }
 }
 

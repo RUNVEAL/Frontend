@@ -27,6 +27,15 @@ sealed interface RunVealRoute : Route {
         @Serializable
         data object CourseRecommend : HomeTab
 
+        /** 코스 추천 결과 화면 — `POST /api/v1/routes` 응답(0~3개)을 보여준다. */
+        @Serializable
+        data object CourseRecommendResult : HomeTab
+
+        /** 코스 추천 결과에서 카드를 눌러 들어가는 코스 상세 — [routeId]로 어느 코스인지 들고 있는다
+         * ([CourseRecommendResultHolder]가 이미 들고 있는 응답에서 다시 찾아 쓴다). */
+        @Serializable
+        data class CourseDetail(val routeId: String) : HomeTab
+
         /** 지도를 유지한 채 탭바를 숨기고 올라가는 러닝 기록 시작/종료 흐름. */
         @Serializable
         data object Recording : HomeTab

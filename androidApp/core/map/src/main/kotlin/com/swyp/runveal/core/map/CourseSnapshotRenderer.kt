@@ -1,5 +1,7 @@
 package com.swyp.runveal.core.map
 
+import android.content.Context
+import com.swyp.runveal.core.map.internal.snapshot.CourseSnapshotRendererImpl
 import com.swyp.runveal.map.snapshot.SnapshotRequest
 import java.io.File
 
@@ -21,3 +23,14 @@ interface CourseSnapshotRenderer {
     /** 기록이나 코스가 삭제됐을 때 호출 — [ownerId]의 모든 variant/크기 캐시를 지운다. */
     fun delete(ownerId: String)
 }
+
+/** Compose 컨텍스트가 없는 곳(ViewModel 등)에서 [CourseSnapshotRenderer]를 만드는 공개 진입점 —
+ * [CourseSnapshotImage]처럼 화면에 보일 때 그리는 대신, "코스 저장" 같은 시점에 미리 캐시를 만들어
+ * 두고 싶을 때 쓴다. 색은 [CourseSnapshotImage]와 같은 이유로 `RunvealTheme.colors`에서 미리 뽑아 온
+ * ARGB `Int`를 받는다. */
+fun CourseSnapshotRenderer(
+    context: Context,
+    routeColor: Int,
+    endpointColor: Int,
+    endpointStrokeColor: Int,
+): CourseSnapshotRenderer = CourseSnapshotRendererImpl(context, routeColor, endpointColor, endpointStrokeColor)
