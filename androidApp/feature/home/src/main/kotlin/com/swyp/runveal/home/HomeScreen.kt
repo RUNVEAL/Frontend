@@ -162,7 +162,13 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                     )
                     courseDetailOverlay(
                         onBack = tabNavigator::popBackStack,
-                        onStartRunning = { tabNavigator.navigate(RunVealRoute.HomeTab.Recording) },
+                        // 코스 추천 흐름(CourseRecommend~CourseDetail) 스택을 전부 지우고 들어간다 —
+                        // 안 지우면 러닝 종료 후 뒤로가기/닫기로 홈이 아니라 코스 추천 화면으로 돌아간다.
+                        onStartRunning = {
+                            tabNavigator.navController.navigate(RunVealRoute.HomeTab.Recording) {
+                                popUpTo(RunVealRoute.HomeTab.HomeMap) { inclusive = false }
+                            }
+                        },
                     )
                     recordingOverlay(
                         onFinished = {
