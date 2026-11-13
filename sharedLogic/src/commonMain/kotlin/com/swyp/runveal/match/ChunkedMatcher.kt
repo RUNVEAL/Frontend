@@ -1,8 +1,6 @@
 package com.swyp.runveal.match
 
-import com.swyp.runveal.dong.MatchedEdge
 import com.swyp.runveal.map.LatLon
-import kotlin.math.round
 
 private const val CHUNK_SIZE = 2000
 private const val CHUNK_OVERLAP = 20
@@ -16,9 +14,7 @@ object ChunkedMatcher {
         val results = buildChunks(points).map { chunk -> matcher.match(chunk) }
         return MatchResult(
             path = results.flatMap { it.path },
-            edges = dedupEdges(results.flatMap { it.edges }),
-            unmatchedPoints = results.flatMap { it.unmatchedPoints },
-            confidenceScore = results.map { it.confidenceScore }.average(),
+            segmentIds = results.flatMap { it.segmentIds }.distinct(),
         )
     }
 
@@ -32,23 +28,5 @@ object ChunkedMatcher {
             start = end - CHUNK_OVERLAP
         }
         return chunks
-    }
-
-    /** 겹친 구간에서 같은 edge가 두 조각에 걸쳐 나오는 것을 `wayId` + 양 끝 좌표(소수 5자리)로 걸러낸다. */
-    private fun dedupEdges(edges: List<MatchedEdge>): List<MatchedEdge> {
-        val seen = mutableSetOf<String>()
-        return edges.filter { edge -> seen.add(edgeKey(edge)) }
-    }
-
-    private fun edgeKey(edge: MatchedEdge): String {
-        val first = edge.coordinates.firstOrNull()?.round5()
-        val last = edge.coordinates.lastOrNull()?.round5()
-        return "${edge.wayId}:$first:$last"
-    }
-
-    private fun LatLon.round5(): String {
-        val roundedLat = round(lat * 1e5) / 1e5
-        val roundedLon = round(lon * 1e5) / 1e5
-        return "$roundedLat,$roundedLon"
     }
 }

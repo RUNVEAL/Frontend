@@ -15,6 +15,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.swyp.runveal.core.map.RoadSegmentIndexImporter
 import com.swyp.runveal.core.tracking.R
 import com.swyp.runveal.data.local.DatabaseDriverFactory
 import com.swyp.runveal.data.local.FileStore
@@ -43,11 +44,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 
 private const val DONG_BOUNDARY_ASSET_PATH = "dong/korea_dong.geojson"
-// 임시 추정치(tools/gen_dong_lengths.py) — docs/local-db/local-db-schema-design.md §3.3 참고.
-private const val DONG_LENGTHS_ASSET_PATH = "dong/dong_lengths_estimated.json"
 private const val MATCH_STATE_FAILED = "FAILED"
 
 /** 러닝 중 도로 매칭 재요청 간격 — `/meta`의 분당 30회 제한(§5.6)에 여유 있게 걸리고, §3.6.1의
@@ -224,16 +222,17 @@ class TrackingService : Service() {
             // TEMP DEBUG — 실서버 /match 교체가 실제로 되는지 확인한다. 확인 끝나면 지운다.
             android.util.Log.i(
                 "ServerMatchDebug",
-                "매칭 성공 points=${points.size} edges=${result.edges.size} pathPoints=${result.path.size} mapVersion=$mapVersion",
+                "매칭 성공 points=${points.size} segmentIds=${result.segmentIds.size} pathPoints=${result.path.size} mapVersion=$mapVersion",
             )
+            // road_segment 인덱스가 아직 없으면(최초 1회) 여기서 들여온다 — 없으면 segmentId를 길이/동으로
+            // 못 바꿔서 이번 결과가 전부 집계에서 빠진다.
+            RoadSegmentIndexImporter(this, store.database).importIfNeeded()
             val boundaries = loadDongBoundaries()
             val beforeWalked = store.walkedLengthByDong()
             val summary = store.recordMatchResult(
                 trackId = finished.id,
-                edges = result.edges,
-                confidenceScore = result.confidenceScore,
-                unmatchedPointCount = result.unmatchedPointCount,
-                boundaries = boundaries,
+                matchedPath = result.path,
+                segmentIds = result.segmentIds,
                 nowEpochMs = System.currentTimeMillis(),
             )
             val afterWalked = store.walkedLengthByDong()
@@ -274,7 +273,8 @@ class TrackingService : Service() {
         )
     }
 
-    /** 이번 트랙이 닿은 동만 — 전체 길이가 없거나(에셋에 없는 동) 이름을 못 찾으면 그 동은 뺀다. */
+    /** 이번 트랙이 닿은 동만 — 전체 길이가 없거나(road_segment 인덱스에 없는 동) 이름을 못 찾으면 그
+     * 동은 뺀다. */
     private fun buildDongStats(
         touchedAdmCodes: Set<String>,
         beforeWalked: Map<String, Double>,
@@ -282,7 +282,7 @@ class TrackingService : Service() {
         boundaries: List<DongBoundary>,
     ): List<DongRateChange> {
         if (touchedAdmCodes.isEmpty()) return emptyList()
-        val totalLengths = loadDongTotalLengths()
+        val totalLengths = trackLocalStore?.totalLengthByDong() ?: emptyMap()
         val namesByCode = boundaries.associate { it.admCd2 to it.name }
         return touchedAdmCodes.mapNotNull { admCd2 ->
             val total = totalLengths[admCd2]?.takeIf { it > 0.0 } ?: return@mapNotNull null
@@ -307,11 +307,6 @@ class TrackingService : Service() {
     private fun loadDongBoundaries(): List<DongBoundary> {
         val geoJson = assets.open(DONG_BOUNDARY_ASSET_PATH).bufferedReader().use { it.readText() }
         return DongBoundaryParser.parse(geoJson)
-    }
-
-    private fun loadDongTotalLengths(): Map<String, Double> {
-        val json = assets.open(DONG_LENGTHS_ASSET_PATH).bufferedReader().use { it.readText() }
-        return Json { ignoreUnknownKeys = true }.decodeFromString(json)
     }
 
     private fun buildGpx(points: List<TrackPoint>): String = buildString {

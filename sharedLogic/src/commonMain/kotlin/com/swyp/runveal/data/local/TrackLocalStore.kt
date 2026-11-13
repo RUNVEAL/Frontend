@@ -1,8 +1,6 @@
 package com.swyp.runveal.data.local
 
 import com.swyp.runveal.db.RunvealDatabase
-import com.swyp.runveal.dong.DongBoundary
-import com.swyp.runveal.dong.DongCoverageCalculator
 import com.swyp.runveal.dong.MatchedEdge
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
@@ -13,7 +11,7 @@ import kotlinx.serialization.json.Json
 private const val MATCH_STATE_MATCHED = "MATCHED"
 
 /** [TrackLocalStore.recordMatchResult] 결과 요약 — 러닝 결과 화면(§새로 탐험한 길, 동별 완주율 변화)이
- * 바로 쓸 수 있게 "이번에 처음 걸은 길"만 집계해서 돌려준다. */
+ * 바로 쓸 수 있게 "이번에 처음 걸은 구간"만 집계해서 돌려준다. */
 data class MatchRecordSummary(
     val newRoadMeters: Double,
     val touchedDongAdmCodes: Set<String>,
@@ -22,8 +20,12 @@ data class MatchRecordSummary(
 /**
  * DB([RunvealDatabase]) + 파일([FileStore])을 조합하는 리포지토리(docs/local-db/local-db-schema-design.md
  * §2, §5). 테이블 하나짜리 단순 CRUD는 호출부가 `database.xxxQueries`를 직접 쓰면 되고, 이 클래스는
- * DB와 파일을 같이 건드려야 하는 작업([saveTrack], [deleteTrack])과 §3.3의 완주율 집계 알고리즘만
- * 책임진다.
+ * DB와 파일을 같이 건드려야 하는 작업([saveTrack], [deleteTrack])과 완주율 집계만 책임진다.
+ *
+ * "가본 길" 인정 여부는 서버 매칭이 돌려주는 `segmentId`(`docs/api/API.md` §3.6.2) 기준이다 — 구간
+ * 길이·행정동은 미리 로컬에 캐시해 둔 `road_segment` 인덱스([com.swyp.runveal.core.map.RoadSegmentIndexImporter])
+ * 에서 찾는다. `run_segment`(트랙별 구간, 진실의 원천) → `explored_segment`(구간별 누적, 캐시) 두
+ * 단계로 나눠서, 트랙을 지워도 [regenerateCoverage]로 캐시를 다시 만들 수 있다.
  */
 class TrackLocalStore(
     val database: RunvealDatabase,
@@ -67,40 +69,39 @@ class TrackLocalStore(
         )
     }
 
-    /** 매칭 완료 시 호출(§3.3 "증분 갱신"). 한 트랜잭션 — 도중에 실패하면 전부 롤백된다.
-     * 반환값은 "이번 트랙에서 새로 채택된 edge"만 집계한 [MatchRecordSummary] — 러닝 결과 화면용. */
+    /** 매칭 완료 시 호출. 매칭된 경로는 `track_edge`에 그대로 저장(가본 길 렌더링용)하고, [segmentIds]
+     * 중 [road_segment] 인덱스에 있는 것만 `run_segment`/`explored_segment`에 적립한다(인덱스에
+     * 없으면 — 아직 import 전이거나 알 수 없는 구간이면 — 조용히 건너뛴다). 반환값은 "이번에 전역에서
+     * 처음 채택된" 구간만 집계한 [MatchRecordSummary] — 러닝 결과 화면용. 한 트랜잭션이라 도중에
+     * 실패하면 전부 롤백된다. */
     fun recordMatchResult(
         trackId: String,
-        edges: List<MatchedEdge>,
-        confidenceScore: Double,
-        unmatchedPointCount: Int,
-        boundaries: List<DongBoundary>,
+        matchedPath: List<LatLon>,
+        segmentIds: List<Long>,
         nowEpochMs: Long,
     ): MatchRecordSummary {
         var newRoadMeters = 0.0
         val touchedDongAdmCodes = mutableSetOf<String>()
         database.transaction {
-            edges.forEachIndexed { index, edge ->
-                val seq = index.toLong()
+            if (matchedPath.size >= 2) {
                 database.trackEdgeQueries.insertEdge(
                     track_id = trackId,
-                    seq = seq,
-                    way_id = edge.wayId,
-                    coordinates = encodeCoordinates(edge.coordinates),
-                    length_meters = GeoMath.totalDistanceMeters(edge.coordinates),
+                    seq = 0,
+                    coordinates = encodeCoordinates(matchedPath),
+                    length_meters = GeoMath.totalDistanceMeters(matchedPath),
                 )
-                if (adoptEdge(edge.wayId, trackId, seq)) {
-                    newRoadMeters += GeoMath.totalDistanceMeters(edge.coordinates)
-                    splitLengthByDong(boundaries, edge.coordinates).forEach { (admCd2, length) ->
-                        database.dongCoverageQueries.insertEdgeDongLength(trackId, seq, admCd2, length)
-                        touchedDongAdmCodes += admCd2
-                    }
+            }
+            segmentIds.distinct().forEach { segmentId ->
+                database.runSegmentQueries.insertRunSegment(trackId, segmentId)
+                adoptSegment(segmentId) { info ->
+                    newRoadMeters += info.length_m
+                    touchedDongAdmCodes += info.adm_cd2
                 }
             }
             database.trackQueries.updateMatchState(
                 match_state = MATCH_STATE_MATCHED,
-                confidence_score = confidenceScore,
-                unmatched_point_count = unmatchedPointCount.toLong(),
+                confidence_score = 1.0,
+                unmatched_point_count = 0,
                 updated_at_epoch_ms = nowEpochMs,
                 id = trackId,
             )
@@ -108,64 +109,56 @@ class TrackLocalStore(
         return MatchRecordSummary(newRoadMeters, touchedDongAdmCodes)
     }
 
-    /** `way_id`가 없으면 항상 채택(중복 제거 대상이 아님). 있으면 전역에서 처음 나온 edge만 채택
-     * (`INSERT OR IGNORE` + `changes()`로 실제 insert됐는지 확인 — 같은 트랜잭션 안에서 바로 이어
-     * 호출해야 한다). */
-    private fun adoptEdge(wayId: Long?, trackId: String, seq: Long): Boolean {
-        if (wayId == null) return true
-        database.dongCoverageQueries.insertVisitedWayIfAbsent(wayId, trackId, seq)
-        return database.dongCoverageQueries.changes().executeAsOne() > 0
+    /** [segmentId]가 [road_segment] 인덱스에 있고, 전역에서 처음 채택되는 경우에만 [onAdopted]를
+     * 부른다(`INSERT OR IGNORE` + `changes()`로 실제 insert됐는지 확인 — 같은 트랜잭션 안에서 바로
+     * 이어 호출해야 한다). 인덱스에 없는 구간(아직 import 전)은 그냥 무시한다. */
+    private inline fun adoptSegment(segmentId: Long, onAdopted: (RoadSegmentInfo) -> Unit): Boolean {
+        val info = database.roadSegmentIndexQueries.selectById(segmentId).executeAsOneOrNull() ?: return false
+        database.exploredSegmentQueries.insertSegmentIfAbsent(info.segment_id, info.adm_cd2, info.length_m)
+        val adopted = database.exploredSegmentQueries.changes().executeAsOne() > 0
+        if (adopted) onAdopted(RoadSegmentInfo(info.adm_cd2, info.length_m))
+        return adopted
     }
 
-    private fun splitLengthByDong(boundaries: List<DongBoundary>, coordinates: List<LatLon>): Map<String, Double> {
-        val lengths = mutableMapOf<String, Double>()
-        for (i in 0 until coordinates.size - 1) {
-            val a = coordinates[i]
-            val b = coordinates[i + 1]
-            val midpoint = LatLon(lat = (a.lat + b.lat) / 2, lon = (a.lon + b.lon) / 2)
-            val admCd2 = DongCoverageCalculator.findDong(boundaries, midpoint) ?: continue
-            lengths[admCd2] = (lengths[admCd2] ?: 0.0) + GeoMath.distanceMeters(a, b)
-        }
-        return lengths
-    }
+    private data class RoadSegmentInfo(val adm_cd2: String, val length_m: Double)
 
-    /** 동별 완주 길이(분자) — [DongCoverageCalculator]를 매번 다시 돌리지 않고 캐시 테이블에서 바로
-     * 읽는다. */
+    /** 동별 완주 길이(분자) — `explored_segment`를 바로 집계한다. */
     fun walkedLengthByDong(): Map<String, Double> =
-        database.dongCoverageQueries.walkedLengthByDong().executeAsList()
+        database.exploredSegmentQueries.walkedLengthByDong().executeAsList()
             .associate { it.adm_cd2 to (it.walked_meters ?: 0.0) }
 
+    /** 동별 전체 도로 길이(분모) — `road_segment` 인덱스를 바로 집계한다(`RoadSegmentIndexImporter`가
+     * 아직 안 들여왔으면 비어 있다). */
+    fun totalLengthByDong(): Map<String, Double> =
+        database.roadSegmentIndexQueries.totalLengthByDong().executeAsList()
+            .associate { it.adm_cd2 to (it.total_meters ?: 0.0) }
+
     /** 가본 길 렌더링(§3.2): 트랙별로 seq 순서대로 합쳐 트랙당 Feature 1개가 되게 한다 — 안 그러면
-     * glow 레이어가 wayId 경계마다 round cap이 겹쳐서 꺾이는 지점에 빛이 번진다. */
+     * glow 레이어가 조각 경계마다 round cap이 겹쳐서 꺾이는 지점에 빛이 번진다. */
     fun visitedRoadEdges(): List<MatchedEdge> =
         database.trackEdgeQueries.selectAllEdgesForRendering().executeAsList()
             .groupBy { it.track_id }
             .values
-            .map { rows -> MatchedEdge(wayId = null, coordinates = rows.flatMap { decodeCoordinates(it.coordinates) }) }
+            .map { rows -> MatchedEdge(coordinates = rows.flatMap { decodeCoordinates(it.coordinates) }) }
 
-    /** 트랙 삭제(§5): DB row 삭제(→ edge/note CASCADE, course는 SET NULL) → 완주율 전체 재생성 →
-     * GPX 파일 삭제. 중간에 실패해도 고아 GPX만 남고 기능엔 영향 없다. */
-    fun deleteTrack(id: String, boundaries: List<DongBoundary>) {
+    /** 트랙 삭제(§5): DB row 삭제(→ edge/note/run_segment CASCADE) → 완주율 캐시 재생성 → GPX 파일
+     * 삭제. 중간에 실패해도 고아 GPX만 남고 기능엔 영향 없다. */
+    fun deleteTrack(id: String) {
         val track = database.trackQueries.selectById(id).executeAsOneOrNull() ?: return
         database.trackQueries.deleteTrack(id)
-        regenerateCoverage(boundaries)
+        regenerateCoverage()
         fileStore.delete(track.gpx_filtered_path)
         fileStore.delete(track.gpx_raw_path)
     }
 
-    /** §3.3 "트랙 삭제/재생성": wayId "처음 집계" 결과가 트랙 시작 시각 순서에 의존하기 때문에, 캐시를
-     * 전부 지우고 남은 edge를 시작 시각 순으로 다시 돌리는 것 말고는 안전하게 갱신할 방법이 없다. 동
-     * 경계 데이터(`korea_dong.geojson`)가 바뀔 때도 같은 함수를 쓴다. */
-    fun regenerateCoverage(boundaries: List<DongBoundary>) {
+    /** `explored_segment` 캐시를 비우고 `run_segment`(남은 트랙 전체)를 다시 돌려 채운다 — segment_id가
+     * PK라 순서와 무관하게 결과가 같다(멱등). */
+    fun regenerateCoverage() {
         database.transaction {
-            database.dongCoverageQueries.clearEdgeDongLength()
-            database.dongCoverageQueries.clearVisitedWay()
-            database.trackEdgeQueries.selectAllEdgesForCoverageRebuild().executeAsList().forEach { row ->
-                if (adoptEdge(row.way_id, row.track_id, row.seq)) {
-                    splitLengthByDong(boundaries, decodeCoordinates(row.coordinates)).forEach { (admCd2, length) ->
-                        database.dongCoverageQueries.insertEdgeDongLength(row.track_id, row.seq, admCd2, length)
-                    }
-                }
+            database.exploredSegmentQueries.clearExploredSegments()
+            database.runSegmentQueries.selectAllForRebuild().executeAsList().forEach { row ->
+                val info = database.roadSegmentIndexQueries.selectById(row.segment_id).executeAsOneOrNull() ?: return@forEach
+                database.exploredSegmentQueries.insertSegmentIfAbsent(info.segment_id, info.adm_cd2, info.length_m)
             }
         }
     }

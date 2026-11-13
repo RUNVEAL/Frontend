@@ -37,10 +37,10 @@ class DongCoverageCalculatorTest {
     }
 
     @Test
-    fun sumsEdgeLengthIntoDongContainingSegmentMidpoint() {
-        val edge = MatchedEdge(wayId = 1L, coordinates = listOf(LatLon(36.05, 127.0), LatLon(36.05, 127.01)))
+    fun sumsSegmentLengthIntoDongContainingMidpoint() {
+        val coordinates = listOf(LatLon(36.05, 127.0), LatLon(36.05, 127.01))
 
-        val totals = DongCoverageCalculator.walkedLengthByDong(boundaries, listOf(edge))
+        val totals = DongCoverageCalculator.lengthByDong(boundaries, coordinates)
 
         assertEquals(1, totals.size)
         assertTrue(totals.getValue("A") > 0.0)
@@ -48,30 +48,10 @@ class DongCoverageCalculatorTest {
 
     @Test
     fun dropsSegmentsWhoseMidpointFallsOutsideEveryDong() {
-        val edge = MatchedEdge(wayId = 1L, coordinates = listOf(LatLon(0.0, 0.0), LatLon(0.0, 0.01)))
+        val coordinates = listOf(LatLon(0.0, 0.0), LatLon(0.0, 0.01))
 
-        val totals = DongCoverageCalculator.walkedLengthByDong(boundaries, listOf(edge))
+        val totals = DongCoverageCalculator.lengthByDong(boundaries, coordinates)
 
         assertTrue(totals.isEmpty())
-    }
-
-    @Test
-    fun countsEdgeWithSameWayIdOnlyOnceAcrossTracks() {
-        val edge = MatchedEdge(wayId = 42L, coordinates = listOf(LatLon(36.05, 127.0), LatLon(36.05, 127.01)))
-
-        val totals = DongCoverageCalculator.walkedLengthByDong(boundaries, listOf(edge, edge.copy()))
-
-        val single = DongCoverageCalculator.walkedLengthByDong(boundaries, listOf(edge))
-        assertEquals(single.getValue("A"), totals.getValue("A"), 0.001)
-    }
-
-    @Test
-    fun edgesWithoutWayIdAreNeverDedupedAgainstEachOther() {
-        val edge = MatchedEdge(wayId = null, coordinates = listOf(LatLon(36.05, 127.0), LatLon(36.05, 127.01)))
-
-        val totals = DongCoverageCalculator.walkedLengthByDong(boundaries, listOf(edge, edge.copy()))
-
-        val single = DongCoverageCalculator.walkedLengthByDong(boundaries, listOf(edge))
-        assertEquals(single.getValue("A") * 2, totals.getValue("A"), 0.001)
     }
 }

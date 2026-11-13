@@ -2,15 +2,10 @@ package com.swyp.runveal.dong
 
 import com.swyp.runveal.map.LatLon
 
-/**
- * 도로매칭 결과로 얻는 edge(도로 구간) 하나 — [DongCoverageCalculator]가 요구하는 최소 모양만 담는다.
- * 실서버 `/api/v1/match`(`com.swyp.runveal.match.RoadMatcher`)는 이어붙은 경로 하나만 주므로
- * `wayId = null`인 edge 하나로 받는다 — 그 외엔 번들 샘플 트랙(`<trackId>.matched.geojson`)을
- * [MatchedEdgeParser]로 읽어 만든 edge도 같은 모양으로 쓸 수 있다.
- *
- * @property wayId OSM way id. 같은 길을 여러 트랙에서 반복 매칭했을 때 중복 집계를 막는 키로 쓴다.
- */
+/** 지도에 그릴 용도의 경로 조각 하나(좌표 목록) — 번들 샘플 트랙([MatchedEdgeParser]), 서버 매칭 결과
+ * 경로, 저장된 트랙 렌더링(`TrackLocalStore.visitedRoadEdges`)이 전부 이 최소 모양을 공유한다.
+ * "가본 길"로 인정됐는지·어느 구간인지는 이제 서버 `segmentId`([com.swyp.runveal.dong.RoadSegment])
+ * 기준으로 따로 관리한다 — 이 타입 자체엔 식별자가 없다. */
 data class MatchedEdge(
-    val wayId: Long?,
     val coordinates: List<LatLon>,
 )

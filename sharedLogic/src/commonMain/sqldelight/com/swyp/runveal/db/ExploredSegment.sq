@@ -1,0 +1,27 @@
+-- "가본 구간" 캐시(docs/api/API.md §4 explored_segments) — segmentId당 한 번만, 어느 동에 몇 m인지
+-- 같이 들고 있어서 완주율(%) 집계를 바로 할 수 있다. `run_segment`(진실의 원천)에서 언제든 다시
+-- 만들 수 있는 캐시라, 트랙 삭제 시엔 지우고 다시 돌린다(TrackLocalStore.regenerateCoverage).
+CREATE TABLE explored_segment (
+    segment_id INTEGER PRIMARY KEY NOT NULL,
+    adm_cd2    TEXT NOT NULL,
+    length_m   REAL NOT NULL
+);
+
+CREATE INDEX explored_segment_adm_cd2_idx ON explored_segment(adm_cd2);
+
+selectAllSegmentIds:
+SELECT segment_id FROM explored_segment;
+
+walkedLengthByDong:
+SELECT adm_cd2, SUM(length_m) AS walked_meters FROM explored_segment GROUP BY adm_cd2;
+
+-- insertSegmentIfAbsent 바로 다음, 같은 트랜잭션/커넥션 안에서 호출해야 그 호출이 insert한
+-- row 수를 읽는다 — 커넥션이 다르거나 사이에 다른 쓰기가 끼면 엉뚱한 값을 읽는다.
+changes:
+SELECT changes();
+
+insertSegmentIfAbsent:
+INSERT OR IGNORE INTO explored_segment (segment_id, adm_cd2, length_m) VALUES (?, ?, ?);
+
+clearExploredSegments:
+DELETE FROM explored_segment;
