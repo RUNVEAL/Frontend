@@ -1,6 +1,7 @@
 package com.swyp.runveal.running
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,11 +28,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -38,18 +45,29 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.swyp.runveal.core.map.LocalMapState
+import com.swyp.runveal.core.map.MapLayerSpec
+import com.swyp.runveal.core.map.MapLayers
+import com.swyp.runveal.core.map.RecommendedRoute
+import com.swyp.runveal.core.map.buildRecommendedRouteGeoJson
 import com.swyp.runveal.core.map.rememberMapState
 import com.swyp.runveal.designsystem.RunvealIcons
 import com.swyp.runveal.designsystem.component.button.RunvealButtonGroupEqual
 import com.swyp.runveal.designsystem.component.button.RunvealRunPauseButton
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.running.R
+import com.swyp.runveal.map.GeoMath
+import com.swyp.runveal.map.LatLon
+import com.swyp.runveal.map.MapConfig
+import com.swyp.runveal.recording.TrackRecorder
 import com.swyp.runveal.running.contract.RecordingEffect
 import com.swyp.runveal.running.contract.RecordingIntent
 import com.swyp.runveal.running.contract.RecordingPhase
 import com.swyp.runveal.running.contract.RecordingState
 import com.swyp.runveal.tracking.TrackingService
 import com.swyp.runveal.ui.mvi.CollectEffect
+import kotlinx.coroutines.delay
+
+private const val COURSE_GUIDE_TICKER_INTERVAL_MS = 1000L
 
 /** [RunvealRunPauseButton]의 실제 크기(80dp, 토큰 없이 하드코딩됨)와 맞춘다. */
 private val RECORDING_ACTION_HEIGHT = 80.dp
@@ -72,8 +90,9 @@ private val LEGEND_SWATCH_LABEL_GAP = 6.dp
  * "기록 시작/종료" 오버레이 — Map Shell(`feature:home`) 위에 얹힌다. `recording-lifecycle.md` §3/§5.
  * 지도 위 꼬리·확정 구간 렌더링(§4)은 실시간 매칭 레이어(이번 범위 밖)가 붙기 전까지는 비워 둔다.
  *
- * 이 화면에 들어오는 유일한 경로가 홈 지도의 "러닝 시작" 버튼이라, 진입 자체를 "시작" 의도로 본다 —
- * 별도의 "시작" 버튼을 다시 보여주지 않고 [LaunchedEffect]로 바로 기록을 시작한다.
+ * 이 화면에 들어오는 경로는 홈 지도의 "러닝 시작" 버튼, 또는 코스 상세의 "이 코스로 러닝 시작"
+ * 버튼 — 어느 쪽이든 진입 자체를 "시작" 의도로 본다. 별도의 "시작" 버튼을 다시 보여주지 않고
+ * [LaunchedEffect]로 바로 기록을 시작한다.
  */
 @Composable
 fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewModel: RecordingViewModel = viewModel()) {
@@ -95,6 +114,29 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
 
     // 뒤로가기로 화면을 못 벗어나게 한다 — 종료는 반드시 "종료하기" 버튼으로.
     BackHandler(enabled = true) {}
+
+    // "이 코스로 러닝 시작"으로 들어왔으면(selectedCoursePath) 그 코스를 흰 점선 안내선으로 그린다 —
+    // 이미 지나온 구간은 매초 지금 위치 기준으로 잘라내서 "오늘 달린 길"과 안 겹치게 한다.
+    val selectedCoursePath = state.selectedCoursePath
+    if (selectedCoursePath != null && selectedCoursePath.size >= 2) {
+        val mapState = LocalMapState.current
+        // 러닝이 시작되는 시점에 한 번 코스 전체가 보이게 카메라를 맞춘다 — 이후 위치가 움직여도
+        // 다시 맞추지 않는다(계속 다시 맞추면 러닝 중 카메라가 제멋대로 움직이는 것처럼 보인다).
+        LaunchedEffect(selectedCoursePath) { mapState.focusOnBounds(selectedCoursePath) }
+
+        var courseGuideGeoJson by remember {
+            mutableStateOf(buildRecommendedRouteGeoJson(listOf(RecommendedRoute(id = "selected-course", points = selectedCoursePath, selected = true))))
+        }
+        LaunchedEffect(selectedCoursePath) {
+            while (true) {
+                val currentLocation = TrackRecorder.currentFilteredPoints().lastOrNull()?.let { LatLon(lat = it.lat, lon = it.lon) }
+                val remainingPath = currentLocation?.let { remainingCoursePath(selectedCoursePath, it) } ?: selectedCoursePath
+                courseGuideGeoJson = buildRecommendedRouteGeoJson(listOf(RecommendedRoute(id = "selected-course", points = remainingPath, selected = true)))
+                delay(COURSE_GUIDE_TICKER_INTERVAL_MS)
+            }
+        }
+        MapLayers(MapLayerSpec(MapConfig.SOURCE_RECORDING_COURSE_GUIDE, courseGuideGeoJson))
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         if (state.phase != RecordingPhase.IDLE) {
@@ -134,6 +176,14 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
     }
 }
 
+/** [coursePath]에서 [currentLocation]과 가장 가까운 점부터 끝까지만 남긴다 — 이미 지나온 구간은
+ * 점선 안내선에서 빼서 "오늘 달린 길"과 안 겹쳐 보이게 한다. 가장 가까운 점 기준이라 코스를
+ * 역주행하면 오탐할 수 있지만, 정방향으로 뛴다는 전제의 단순 추정이다. */
+private fun remainingCoursePath(coursePath: List<LatLon>, currentLocation: LatLon): List<LatLon> {
+    val nearestIndex = coursePath.indices.minByOrNull { GeoMath.distanceMeters(coursePath[it], currentLocation) } ?: 0
+    return coursePath.subList(nearestIndex, coursePath.size)
+}
+
 /** 좌상단 "새로 탐험한 길" 배지. 지금은 기존에 가본 길과 구분하지 않고 이번 기록의 누적 거리를 그대로
  * 보여준다 — 실시간으로 "새 길인지" 가리려면 서버 매칭이 필요한데, 러닝 중 매칭(§4.2)은 이번 범위
  * 밖이라 종료 후 최종 매칭(§6)에서만 정확해진다. */
@@ -170,33 +220,41 @@ private fun RecordingOverlay(state: RecordingState, modifier: Modifier = Modifie
         val mapState = LocalMapState.current
         MapLegendRow(
             onLocateClick = { mapState.recenterToCurrentLocation() },
+            showCourseGuide = state.selectedCoursePath != null,
             modifier = Modifier.padding(horizontal = RunvealTheme.layout.marginScreen),
         )
         RecordingPanel(state = state, action = action)
     }
 }
 
-/** 지도 범례(오늘 달린 길/새로 탐험한 길) + 내 위치 버튼. */
+/** 지도 범례 칩([showCourseGuide]면 추천 코스 칩이 그 위에 따로 한 줄 더) + 내 위치 버튼. */
 @Composable
-private fun MapLegendRow(onLocateClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun MapLegendRow(onLocateClick: () -> Unit, showCourseGuide: Boolean, modifier: Modifier = Modifier) {
     val colors = RunvealTheme.colors
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom,
     ) {
-        Row(
-            modifier = Modifier
-                .background(colors.bg.scrim, RunvealTheme.shapes.radius8)
-                .padding(horizontal = RunvealTheme.spacing.space12, vertical = RunvealTheme.spacing.space8),
-            horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
-        ) {
-            LegendItem(swatchColor = colors.map.roadToday, label = stringResource(R.string.recording_legend_today_label))
-            LegendItem(
-                swatchColor = colors.map.roadNew,
-                label = stringResource(R.string.recording_legend_new_label),
-                haloColor = colors.map.roadNewHalo,
-            )
+        Column {
+            if (showCourseGuide) {
+                LegendChip {
+                    // 지도 위 안내선([CourseGuideLayer])과 같은 색(text.primary, 흰색) · 같은 점선.
+                    LegendItem(
+                        swatchColor = colors.text.primary,
+                        label = stringResource(R.string.recording_legend_course_label),
+                        dashed = true,
+                    )
+                }
+            }
+            LegendChip {
+                LegendItem(swatchColor = colors.map.roadToday, label = stringResource(R.string.recording_legend_today_label))
+                LegendItem(
+                    swatchColor = colors.map.roadNew,
+                    label = stringResource(R.string.recording_legend_new_label),
+                    haloColor = colors.map.roadNewHalo,
+                )
+            }
         }
 
         Box(modifier = Modifier.size(LOCATE_BUTTON_TOUCH_SIZE), contentAlignment = Alignment.Center) {
@@ -220,11 +278,32 @@ private fun MapLegendRow(onLocateClick: () -> Unit, modifier: Modifier = Modifie
     }
 }
 
+/** 범례 칩 하나 — 배경(`bg.scrim`)으로 묶인 [LegendItem] 한 줄. "추천 코스"는 단독 칩으로,
+ * "오늘 달린 길"/"새로 탐험한 길"은 같은 칩 안에 묶는다([MapLegendRow]). */
+@Composable
+private fun LegendChip(content: @Composable RowScope.() -> Unit) {
+    Row(
+        modifier = Modifier
+            .background(RunvealTheme.colors.bg.scrim, RunvealTheme.shapes.radius8)
+            .padding(horizontal = RunvealTheme.spacing.space12, vertical = RunvealTheme.spacing.space8),
+        horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
+        content = content,
+    )
+}
+
 /** 범례 한 칸 — 지도 선 색(바텀시트 드래그 핸들과 같은 모양의 작은 선 스와치) + 라벨. [haloColor]를 주면
  * 실제 지도에 도로가 칠해질 때와 같은 번짐 효과를 작게 얹는다([VisitedRoadLayer]의 glow와 같은 색
- * 페어 — `map.roadNew`/`map.roadNewHalo`). `오늘 달린 길`(roadToday)은 번짐 토큰이 없어 그대로 둔다. */
+ * 페어 — `map.roadNew`/`map.roadNewHalo`). `오늘 달린 길`(roadToday)은 번짐 토큰이 없어 그대로 둔다.
+ * [dashed]면 실선 대신 점선 스와치 — 추천 코스 안내선([CourseGuideLayer])처럼 지도에 점선으로 그리는
+ * 레이어의 범례용. */
 @Composable
-private fun LegendItem(swatchColor: Color, label: String, modifier: Modifier = Modifier, haloColor: Color? = null) {
+private fun LegendItem(
+    swatchColor: Color,
+    label: String,
+    modifier: Modifier = Modifier,
+    haloColor: Color? = null,
+    dashed: Boolean = false,
+) {
     Row(
         modifier = modifier,
         // 디자인 값 6dp — spacing 스케일에 4/8만 있고 6은 없어 그대로 하드코딩.
@@ -241,12 +320,25 @@ private fun LegendItem(swatchColor: Color, label: String, modifier: Modifier = M
                         .background(haloColor, RunvealTheme.shapes.full),
                 )
             }
-            Box(
-                modifier = Modifier
-                    .size(width = LEGEND_SWATCH_WIDTH, height = LEGEND_SWATCH_HEIGHT)
-                    .clip(RunvealTheme.shapes.full)
-                    .background(swatchColor, RunvealTheme.shapes.full),
-            )
+            if (dashed) {
+                Canvas(modifier = Modifier.size(width = LEGEND_SWATCH_WIDTH, height = LEGEND_SWATCH_HEIGHT)) {
+                    // [CourseGuideLayer]의 지도 선과 같은 비율(대시:간격 = 1.4:0.5) — 살짝 긴 대시, 촘촘한 간격.
+                    drawLine(
+                        color = swatchColor,
+                        start = Offset(0f, size.height / 2f),
+                        end = Offset(size.width, size.height / 2f),
+                        strokeWidth = size.height,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(size.height * 1.4f, size.height * 0.5f), 0f),
+                    )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(width = LEGEND_SWATCH_WIDTH, height = LEGEND_SWATCH_HEIGHT)
+                        .clip(RunvealTheme.shapes.full)
+                        .background(swatchColor, RunvealTheme.shapes.full),
+                )
+            }
         }
         Text(label, style = RunvealTheme.typography.captionMRegular, color = RunvealTheme.colors.text.secondary)
     }

@@ -34,6 +34,10 @@ object MapConfig {
      * 분리해서 그 경합 자체를 없앤다. */
     const val SOURCE_COURSE_DETAIL_ROUTE: String = "course-detail-route"
 
+    /** 러닝 중 지도에 그리는 "이 코스로 러닝 시작"의 추천 코스 안내선 — 흰색 점선 하나뿐이라
+     * [SOURCE_RECOMMENDED_ROUTE]/[SOURCE_COURSE_DETAIL_ROUTE]와 별도 소스로 둔다. */
+    const val SOURCE_RECORDING_COURSE_GUIDE: String = "recording-course-guide"
+
     const val SOURCE_DONG_FILL: String = "dong-fill-src"
     const val SOURCE_DONG_LINE: String = "dong-line-src"
     const val SOURCE_DONG_LABEL: String = "dong-label-src"

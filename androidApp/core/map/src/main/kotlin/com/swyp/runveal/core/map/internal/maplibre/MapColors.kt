@@ -15,4 +15,5 @@ internal data class MapColors(
     val recommendedRouteAlt: Int,
     val recommendedRouteSelectedGlow: Int,
     val recommendedRouteSelected: Int,
+    val courseGuide: Int,
 )

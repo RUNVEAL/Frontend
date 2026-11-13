@@ -79,6 +79,7 @@ internal fun MapLibreMapView(
             recommendedRouteAlt = colors.map.routeAlt.toArgb(),
             recommendedRouteSelectedGlow = colors.map.roadNewHalo.toArgb(),
             recommendedRouteSelected = colors.map.roadNew.toArgb(),
+            courseGuide = colors.text.primary.toArgb(),
         )
     }
 
@@ -184,6 +185,10 @@ internal fun MapLibreMapView(
     val courseDetailRouteGeoJson = state.layers[MapConfig.SOURCE_COURSE_DETAIL_ROUTE]
     LaunchedEffect(style, courseDetailRouteGeoJson, mapColors) {
         style?.let { RecommendedRouteLayer.apply(it, MapConfig.SOURCE_COURSE_DETAIL_ROUTE, courseDetailRouteGeoJson, mapColors) }
+    }
+    val courseGuideGeoJson = state.layers[MapConfig.SOURCE_RECORDING_COURSE_GUIDE]
+    LaunchedEffect(style, courseGuideGeoJson, mapColors) {
+        style?.let { CourseGuideLayer.apply(it, MapConfig.SOURCE_RECORDING_COURSE_GUIDE, courseGuideGeoJson, mapColors) }
     }
     LaunchedEffect(style, dongOverlay, mapColors) {
         style?.let { DongOverlayLayer.apply(it, dongOverlay, mapColors) }
