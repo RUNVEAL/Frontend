@@ -26,8 +26,8 @@ CREATE TABLE course (
 CREATE INDEX course_created_at_idx ON course(created_at_epoch_ms DESC);
 
 selectAllCourses:
-SELECT id, name, distance_meters, start_lat, start_lon, place_name, created_at_epoch_ms
-FROM course ORDER BY created_at_epoch_ms DESC;   -- 목록에선 coordinates를 안 읽는다
+SELECT id, name, distance_meters, coordinates, route_type, duration_sec, new_road_m, created_at_epoch_ms
+FROM course ORDER BY created_at_epoch_ms DESC;   -- "내 코스" 탭 목록 — 바로 시작/썸네일에 coordinates가 필요해서 같이 읽는다
 
 selectCourseById:
 SELECT * FROM course WHERE id = ?;

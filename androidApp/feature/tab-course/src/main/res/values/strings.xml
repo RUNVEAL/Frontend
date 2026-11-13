@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tab_course_title">내 코스</string>
+    <string name="tab_course_meta_label">저장한 코스 %1$d개</string>
+    <string name="tab_course_recommend_badge">다음에 달려볼 코스</string>
+    <string name="tab_course_section_title">저장한 코스</string>
+    <string name="tab_course_sort_label">최근 저장순</string>
+    <string name="tab_course_empty_title">아직 저장한 코스가 없어요</string>
+    <string name="tab_course_empty_description">만든 코스를 저장하면\n여기서 바로 달릴 수 있어요</string>
+    <string name="tab_course_empty_action">코스 만들기</string>
+</resources>

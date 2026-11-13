@@ -20,8 +20,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.swyp.runveal.core.map.CourseSnapshotImage
 import com.swyp.runveal.designsystem.RunvealIcons
 import com.swyp.runveal.designsystem.theme.RunvealTheme
+import com.swyp.runveal.map.snapshot.SnapshotRequest
 
 /** 저장한 코스 목록의 한 줄 — 썸네일 + 정보 + 더보기 + 바로 시작. */
 @Composable
@@ -35,6 +37,7 @@ fun SavedCourseListItem(
     onMoreClick: () -> Unit,
     onStartClick: () -> Unit,
     modifier: Modifier = Modifier,
+    thumbnailRequest: SnapshotRequest? = null,
 ) {
     val colors = RunvealTheme.colors
     val thumbnailShape = RunvealTheme.shapes.radius8
@@ -46,8 +49,9 @@ fun SavedCourseListItem(
         horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space16),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 지도 썸네일 자리 — 실제 지도 연동 전까지는 빈 플레이스홀더.
-        Box(
+        CourseSnapshotImage(
+            request = thumbnailRequest,
+            contentDescription = null,
             modifier = Modifier
                 .size(72.dp)
                 .clip(thumbnailShape)

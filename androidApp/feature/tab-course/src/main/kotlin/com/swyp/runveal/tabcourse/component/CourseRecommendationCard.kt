@@ -20,11 +20,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.swyp.runveal.core.map.CourseSnapshotImage
 import com.swyp.runveal.designsystem.RunvealIcons
 import com.swyp.runveal.designsystem.component.button.RunvealButton
 import com.swyp.runveal.designsystem.component.button.RunvealButtonSize
 import com.swyp.runveal.designsystem.component.button.RunvealButtonStyle
 import com.swyp.runveal.designsystem.theme.RunvealTheme
+import com.swyp.runveal.map.snapshot.SnapshotRequest
 
 /** 다음에 달려볼 코스 추천 카드 (내 코스 탭, TopAppBar 바로 아래). 저장한 코스가 있을 때 보여준다. */
 @Composable
@@ -39,6 +41,7 @@ fun CourseRecommendationCard(
     onMoreClick: () -> Unit,
     onStartClick: () -> Unit,
     modifier: Modifier = Modifier,
+    thumbnailRequest: SnapshotRequest? = null,
 ) {
     val colors = RunvealTheme.colors
     val cardShape = RunvealTheme.shapes.radius24
@@ -50,13 +53,17 @@ fun CourseRecommendationCard(
             .background(colors.surface.default, cardShape)
             .border(1.dp, colors.border.default, cardShape),
     ) {
-        // 지도 썸네일 자리 — 실제 지도 연동 전까지는 배지 + 마커만 올린 플레이스홀더.
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(160.dp)
                 .background(colors.bg.map),
         ) {
+            CourseSnapshotImage(
+                request = thumbnailRequest,
+                contentDescription = null,
+                modifier = Modifier.fillMaxWidth().height(160.dp),
+            )
             Box(
                 modifier = Modifier
                     .align(Alignment.TopStart)
