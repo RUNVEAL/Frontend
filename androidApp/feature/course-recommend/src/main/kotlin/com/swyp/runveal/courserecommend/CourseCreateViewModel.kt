@@ -7,6 +7,8 @@ import com.swyp.runveal.courserecommend.contract.CourseCreateState
 import com.swyp.runveal.courserecommend.contract.DefaultCustomDistanceIndex
 import com.swyp.runveal.courserecommend.contract.DefaultDistance
 import com.swyp.runveal.courserecommend.contract.LocationSelectionTarget
+import com.swyp.runveal.data.local.DatabaseDriverFactory
+import com.swyp.runveal.db.RunvealDatabase
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.network.meta.MetaApi
 import com.swyp.runveal.network.meta.MetaHolder
@@ -14,7 +16,9 @@ import com.swyp.runveal.network.routes.LatLng
 import com.swyp.runveal.network.routes.RoutesApi
 import com.swyp.runveal.network.routes.RoutesRequest
 import com.swyp.runveal.ui.mvi.MviViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 private const val TAG = "CourseRecommendDebug"
 
@@ -32,6 +36,7 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
     initialState = CourseCreateState(),
 ) {
     private val routesApi = RoutesApi()
+    private val database = RunvealDatabase(DatabaseDriverFactory().createDriver())
 
     override suspend fun handleIntent(intent: CourseCreateIntent) {
         when (intent) {
@@ -127,16 +132,16 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
             selectedFilterCount = currentState.selectedFilters.size,
         )
         try {
-            val mapVersion = MetaHolder.state.value?.mapVersions?.current
-                ?: MetaApi().fetchMeta().also { MetaHolder.publish(it) }.mapVersions.current
+            val meta = MetaHolder.state.value ?: MetaApi().fetchMeta().also { MetaHolder.publish(it) }
             val distanceM = parseDistanceMeters(currentState.distanceLabel)
             val response = routesApi.fetchRoutes(
                 RoutesRequest(
-                    mapVersion = mapVersion,
+                    mapVersion = meta.mapVersions.current,
                     start = (currentState.startLatLon ?: currentLocation ?: TEMP_START_LOCATION).toRoutesLatLng(),
                     end = currentState.endLatLon?.toRoutesLatLng(),
                     distanceM = distanceM,
                     preferUnexplored = currentState.avoidVisitedPreferred,
+                    exploredSegmentIds = loadExploredSegmentIds(meta.limits.routes.maxExploredSegmentIds),
                 ),
             )
             Log.i(TAG, "추천 성공 routes=${response.routes.size} warnings=${response.warnings}")
@@ -150,6 +155,22 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
         val elapsedMs = System.currentTimeMillis() - startedAtMs
         if (elapsedMs < MIN_RECOMMEND_LOADING_MS) delay(MIN_RECOMMEND_LOADING_MS - elapsedMs)
         sendEffect(CourseCreateEffect.NavigateToResult)
+    }
+
+    /**
+     * 지금까지 달려서 "가본 길"이 된 구간 ID — 서버가 코스별 `newRoadM`/`newRoadRatio`(안 가본 길)를
+     * 계산하려면 이걸 같이 보내야 한다(`docs/api/API.md` §3.3.1 — 안 보내면 둘 다 null로 온다).
+     * 가본 게 하나도 없으면 빈 배열을 보낸다 — null과 다르게 "탐험 0개"로 처리된다.
+     *
+     * [maxCount](`/meta`의 `limits.routes.maxExploredSegmentIds`)를 넘기면 413 `TOO_MANY_SEGMENTS`라
+     * 잘라서 보낸다. 어느 걸 남길지 고를 기준이 없어 앞에서부터 자르므로, 잘린 뒤엔 서버의 새 길
+     * 계산도 그만큼 부정확해진다 — [com.swyp.runveal.dong.NewRoadEstimator] 쪽 로컬 계산과 달리
+     * 여기서 걸릴 일은 거의 없지만(1만 구간) 로그는 남긴다.
+     */
+    private suspend fun loadExploredSegmentIds(maxCount: Int): List<Long> = withContext(Dispatchers.IO) {
+        val all = database.exploredSegmentQueries.selectAllSegmentIds().executeAsList()
+        if (all.size > maxCount) Log.w(TAG, "가본 구간 ${all.size}개 > 상한 ${maxCount}개 — 잘라서 보낸다")
+        all.take(maxCount)
     }
 
     /** "5km"/"12.5km" → 5000/12500. 프리셋·커스텀 값 전부 0.5km 단위라 서버의 500m 단위 제약과

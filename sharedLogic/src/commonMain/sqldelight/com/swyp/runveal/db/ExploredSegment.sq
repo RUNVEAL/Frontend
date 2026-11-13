@@ -12,6 +12,12 @@ CREATE INDEX explored_segment_adm_cd2_idx ON explored_segment(adm_cd2);
 selectAllSegmentIds:
 SELECT segment_id FROM explored_segment;
 
+-- 주어진 구간들 중 이미 가본 것의 길이 합 — 추천/저장 코스의 "새 길"(안 가본 길) 계산용
+-- (NewRoadEstimator). 겹치는 구간이 하나도 없으면 SUM이 NULL이라 COALESCE로 0을 돌려준다.
+-- 빈 목록으로 부르면 `IN ()`이 돼서 SQLite 문법 오류가 나니 호출부가 먼저 걸러야 한다.
+exploredLengthForSegments:
+SELECT COALESCE(SUM(length_m), 0.0) AS explored_meters FROM explored_segment WHERE segment_id IN ?;
+
 walkedLengthByDong:
 SELECT adm_cd2, SUM(length_m) AS walked_meters FROM explored_segment GROUP BY adm_cd2;
 
