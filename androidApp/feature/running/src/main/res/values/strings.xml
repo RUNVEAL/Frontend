@@ -8,6 +8,9 @@
     <string name="recording_legend_today_label">오늘 달린 길</string>
     <string name="recording_legend_new_label">새로 탐험한 길</string>
     <string name="recording_legend_course_label">추천 코스</string>
+    <string name="recording_course_remaining_distance_format">남은 거리 %1$skm</string>
+    <string name="recording_course_progress_label">코스 진행</string>
+    <string name="recording_course_progress_unit">%</string>
     <string name="recording_locate_content_description">내 위치</string>
     <string name="recording_new_distance_format">+%1$skm</string>
 

@@ -69,6 +69,10 @@ import kotlinx.coroutines.delay
 
 private const val COURSE_GUIDE_TICKER_INTERVAL_MS = 1000L
 
+/** "이 코스로 러닝 시작"일 때만 패널에 더 보여주는 코스 진행 정보 — [RecordingScreen]이 매초 계산해서
+ * [RecordingPanel]까지 내려준다. */
+private data class CourseProgress(val remainingDistanceLabel: String, val progressPercent: Int)
+
 /** [RunvealRunPauseButton]의 실제 크기(80dp, 토큰 없이 하드코딩됨)와 맞춘다. */
 private val RECORDING_ACTION_HEIGHT = 80.dp
 
@@ -116,14 +120,17 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
     BackHandler(enabled = true) {}
 
     // "이 코스로 러닝 시작"으로 들어왔으면(selectedCoursePath) 그 코스를 흰 점선 안내선으로 그린다 —
-    // 이미 지나온 구간은 매초 지금 위치 기준으로 잘라내서 "오늘 달린 길"과 안 겹치게 한다.
+    // 이미 지나온 구간은 매초 지금 위치 기준으로 잘라내서 "오늘 달린 길"과 안 겹치게 한다. 같은 주기로
+    // 남은 거리·진행률([CourseProgress])도 계산해서 패널에 넘긴다.
     val selectedCoursePath = state.selectedCoursePath
+    var courseProgress by remember { mutableStateOf<CourseProgress?>(null) }
     if (selectedCoursePath != null && selectedCoursePath.size >= 2) {
         val mapState = LocalMapState.current
         // 러닝이 시작되는 시점에 한 번 코스 전체가 보이게 카메라를 맞춘다 — 이후 위치가 움직여도
         // 다시 맞추지 않는다(계속 다시 맞추면 러닝 중 카메라가 제멋대로 움직이는 것처럼 보인다).
         LaunchedEffect(selectedCoursePath) { mapState.focusOnBounds(selectedCoursePath) }
 
+        val totalCourseDistanceMeters = remember(selectedCoursePath) { GeoMath.totalDistanceMeters(selectedCoursePath) }
         var courseGuideGeoJson by remember {
             mutableStateOf(buildRecommendedRouteGeoJson(listOf(RecommendedRoute(id = "selected-course", points = selectedCoursePath, selected = true))))
         }
@@ -132,6 +139,16 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
                 val currentLocation = TrackRecorder.currentFilteredPoints().lastOrNull()?.let { LatLon(lat = it.lat, lon = it.lon) }
                 val remainingPath = currentLocation?.let { remainingCoursePath(selectedCoursePath, it) } ?: selectedCoursePath
                 courseGuideGeoJson = buildRecommendedRouteGeoJson(listOf(RecommendedRoute(id = "selected-course", points = remainingPath, selected = true)))
+                val remainingDistanceMeters = GeoMath.totalDistanceMeters(remainingPath)
+                val progressPercent = if (totalCourseDistanceMeters <= 0.0) {
+                    0
+                } else {
+                    (((totalCourseDistanceMeters - remainingDistanceMeters) / totalCourseDistanceMeters) * 100).toInt().coerceIn(0, 100)
+                }
+                courseProgress = CourseProgress(
+                    remainingDistanceLabel = "%.2f".format(remainingDistanceMeters / 1000.0),
+                    progressPercent = progressPercent,
+                )
                 delay(COURSE_GUIDE_TICKER_INTERVAL_MS)
             }
         }
@@ -153,12 +170,14 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
             RecordingPhase.IDLE -> Unit
             RecordingPhase.RECORDING -> RecordingOverlay(
                 state = state,
+                courseProgress = courseProgress,
                 modifier = Modifier.align(Alignment.BottomCenter),
             ) {
                 RunvealRunPauseButton(onClick = { viewModel.onIntent(RecordingIntent.PauseClicked) })
             }
             RecordingPhase.PAUSED -> RecordingOverlay(
                 state = state,
+                courseProgress = courseProgress,
                 modifier = Modifier.align(Alignment.BottomCenter),
             ) {
                 RunvealButtonGroupEqual(
@@ -212,7 +231,12 @@ private fun NewRoadBadge(distanceLabel: String, modifier: Modifier = Modifier) {
 
 /** 범례+내 위치 줄 + 패널(16dp 간격) — 기록 중/일시정지 공통. */
 @Composable
-private fun RecordingOverlay(state: RecordingState, modifier: Modifier = Modifier, action: @Composable () -> Unit) {
+private fun RecordingOverlay(
+    state: RecordingState,
+    courseProgress: CourseProgress? = null,
+    modifier: Modifier = Modifier,
+    action: @Composable () -> Unit,
+) {
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space16),
@@ -223,7 +247,7 @@ private fun RecordingOverlay(state: RecordingState, modifier: Modifier = Modifie
             showCourseGuide = state.selectedCoursePath != null,
             modifier = Modifier.padding(horizontal = RunvealTheme.layout.marginScreen),
         )
-        RecordingPanel(state = state, action = action)
+        RecordingPanel(state = state, courseProgress = courseProgress, action = action)
     }
 }
 
@@ -344,10 +368,15 @@ private fun LegendItem(
     }
 }
 
-/** 기록 중/일시정지 공통 패널 — 거리, 경과 시간/평균 페이스, 하단 액션([action])만 상태별로 다르다.
- * 바텀시트처럼 화면 하단에 깔리지만 드래그 핸들은 없다. */
+/** 기록 중/일시정지 공통 패널 — 거리, 경과 시간/평균 페이스(+[courseProgress]가 있으면 남은 거리·코스
+ * 진행), 하단 액션([action])만 상태별로 다르다. 바텀시트처럼 화면 하단에 깔리지만 드래그 핸들은 없다. */
 @Composable
-private fun RecordingPanel(state: RecordingState, modifier: Modifier = Modifier, action: @Composable () -> Unit) {
+private fun RecordingPanel(
+    state: RecordingState,
+    courseProgress: CourseProgress?,
+    modifier: Modifier = Modifier,
+    action: @Composable () -> Unit,
+) {
     val colors = RunvealTheme.colors
     val shape = RoundedCornerShape(topStart = RunvealTheme.radius.radius24, topEnd = RunvealTheme.radius.radius24)
 
@@ -364,22 +393,32 @@ private fun RecordingPanel(state: RecordingState, modifier: Modifier = Modifier,
             ),
         verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space20),
     ) {
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
+            verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Text(
-                state.distanceLabel,
-                style = RunvealTheme.typography.numDisplay,
-                color = colors.text.primary,
-                modifier = Modifier.alignByBaseline(),
-            )
-            Text(
-                stringResource(R.string.recording_distance_unit),
-                style = RunvealTheme.typography.unitDisplay,
-                color = colors.text.secondary,
-                modifier = Modifier.alignByBaseline(),
-            )
+            Row(horizontalArrangement = Arrangement.Center) {
+                Text(
+                    state.distanceLabel,
+                    style = RunvealTheme.typography.numDisplay,
+                    color = colors.text.primary,
+                    modifier = Modifier.alignByBaseline(),
+                )
+                Text(
+                    stringResource(R.string.recording_distance_unit),
+                    style = RunvealTheme.typography.unitDisplay,
+                    color = colors.text.secondary,
+                    modifier = Modifier.alignByBaseline(),
+                )
+            }
+            if (courseProgress != null) {
+                Text(
+                    stringResource(R.string.recording_course_remaining_distance_format, courseProgress.remainingDistanceLabel),
+                    style = RunvealTheme.typography.bodyMRegular,
+                    color = colors.text.secondary,
+                )
+            }
         }
 
         Row(
@@ -396,6 +435,14 @@ private fun RecordingPanel(state: RecordingState, modifier: Modifier = Modifier,
                 value = state.paceLabel,
                 modifier = Modifier.weight(1f),
             )
+            if (courseProgress != null) {
+                RecordingStat(
+                    label = stringResource(R.string.recording_course_progress_label),
+                    value = courseProgress.progressPercent.toString(),
+                    unit = stringResource(R.string.recording_course_progress_unit),
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
 
         // 일시정지 원형 버튼(80dp)과 종료하기/재개 버튼 행(52dp) 높이가 달라, 고정 높이로 감싸지 않으면
@@ -409,8 +456,9 @@ private fun RecordingPanel(state: RecordingState, modifier: Modifier = Modifier,
     }
 }
 
+/** [unit]을 주면(코스 진행의 "%") 값·단위를 한 줄로, 안 주면(경과 시간/평균 페이스) 값만. */
 @Composable
-private fun RecordingStat(label: String, value: String, modifier: Modifier = Modifier) {
+private fun RecordingStat(label: String, value: String, modifier: Modifier = Modifier, unit: String? = null) {
     val colors = RunvealTheme.colors
     Column(
         modifier = modifier,
@@ -418,7 +466,27 @@ private fun RecordingStat(label: String, value: String, modifier: Modifier = Mod
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(label, style = RunvealTheme.typography.bodyMRegular, color = colors.text.secondary)
-        Text(value, style = RunvealTheme.typography.numM, color = colors.text.primary)
+        if (unit != null) {
+            Row(
+                // 디자인 값 2dp — spacing 스케일에 없어 그대로 하드코딩.
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    value,
+                    style = RunvealTheme.typography.numM,
+                    color = colors.text.primary,
+                    modifier = Modifier.alignByBaseline(),
+                )
+                Text(
+                    unit,
+                    style = RunvealTheme.typography.unitM,
+                    color = colors.text.secondary,
+                    modifier = Modifier.alignByBaseline(),
+                )
+            }
+        } else {
+            Text(value, style = RunvealTheme.typography.numM, color = colors.text.primary)
+        }
     }
 }
 
