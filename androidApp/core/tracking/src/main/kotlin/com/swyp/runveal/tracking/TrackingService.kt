@@ -15,6 +15,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.swyp.runveal.core.map.RoadSegmentIndexImporter
 import com.swyp.runveal.core.tracking.R
 import com.swyp.runveal.data.local.DatabaseDriverFactory
 import com.swyp.runveal.data.local.FileStore
@@ -24,26 +25,32 @@ import com.swyp.runveal.dong.DongBoundary
 import com.swyp.runveal.dong.DongBoundaryParser
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
+import com.swyp.runveal.match.ChunkedMatcher
+import com.swyp.runveal.network.match.MatchPurpose
+import com.swyp.runveal.network.meta.MetaApi
+import com.swyp.runveal.network.meta.MetaHolder
 import com.swyp.runveal.recording.RecordingState
 import com.swyp.runveal.recording.TrackPoint
 import com.swyp.runveal.recording.TrackRecorder
 import com.swyp.runveal.result.DongRateChange
+import com.swyp.runveal.result.LiveMatchHolder
 import com.swyp.runveal.result.TrackResult
 import com.swyp.runveal.result.TrackResultHolder
-import com.swyp.runveal.valhalla.ChunkedMatcher
-import com.swyp.runveal.valhalla.defaultRoadMatcher
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 
 private const val DONG_BOUNDARY_ASSET_PATH = "dong/korea_dong.geojson"
-// 임시 추정치(tools/gen_dong_lengths.py) — docs/local-db/local-db-schema-design.md §3.3 참고.
-private const val DONG_LENGTHS_ASSET_PATH = "dong/dong_lengths_estimated.json"
 private const val MATCH_STATE_FAILED = "FAILED"
+
+/** 러닝 중 도로 매칭 재요청 간격 — `/meta`의 분당 30회 제한(§5.6)에 여유 있게 걸리고, §3.6.1의
+ * "10초 간격으로 줄인 것" 전처리 단위와도 맞춘다. */
+private val LIVE_MATCH_INTERVAL_MS = TimeUnit.SECONDS.toMillis(10)
 
 /**
  * 위치 수신 Foreground Service — `docs/running/recording-lifecycle.md` §3/§4.1/§5. 화면이 꺼져도
@@ -52,12 +59,17 @@ private const val MATCH_STATE_FAILED = "FAILED"
  *
  * GPS 요청 간격은 **5초**(문서 원안의 1초에서 조정 — 배터리/데이터량 고려). [TrackFilter]의 정확도/
  * 속도/거리 기준은 별개라 바뀌지 않는다.
+ *
+ * 녹화 중엔 [LIVE_MATCH_INTERVAL_MS](10초)마다 그때까지의 점을 통째로 `/match`(LIVE)에 다시 보내
+ * [LiveMatchHolder]를 갈아 끼운다 — 러닝 종료 후 최종 매칭([matchAndRecord])과 같은 호출을 여러 번
+ * 반복하는 것뿐, 별도 "실시간" 전용 엔드포인트는 없다.
  */
 class TrackingService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var fileStore: FileStore? = null
     private var trackLocalStore: TrackLocalStore? = null
+    private var liveMatchJob: Job? = null
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -96,6 +108,7 @@ class TrackingService : Service() {
 
     override fun onDestroy() {
         fusedLocationClient.removeLocationUpdates(locationCallback)
+        liveMatchJob?.cancel()
         super.onDestroy()
     }
 
@@ -104,9 +117,35 @@ class TrackingService : Service() {
         if (TrackRecorder.state.value is RecordingState.Recording) return // 이미 기록 중이면 무시.
 
         TrackResultHolder.clear() // 이전 결과가 남아 있으면 새 결과 화면이 잠깐 옛 값을 보여준다.
+        LiveMatchHolder.clear() // 지난 러닝의 매칭 선이 새 러닝 시작 직후 잠깐 겹쳐 보이지 않게.
         TrackRecorder.start(id = UUID.randomUUID().toString(), startedAtEpochMs = System.currentTimeMillis())
         startForeground(NOTIFICATION_ID, buildNotification(elapsedText = "00:00", distanceText = "0.0km"))
         requestLocationUpdates()
+        startLiveMatchLoop()
+    }
+
+    /** 녹화 중 주기적으로 지금까지의 필터링된 점을 그대로 `/match`(LIVE)에 보내 도로에 맞춘 선을
+     * [LiveMatchHolder]에 publish한다 — §3.6과 같은 호출이지만 러닝이 끝나기 전에 여러 번 부른다.
+     * 일시정지 중엔 새 점이 없어 다시 보낼 이유가 없어 건너뛴다. 실패해도 큐/재시도 없이 다음 주기에
+     * 다시 시도 — 화면은 마지막 성공 결과를 그대로 보여준다. */
+    private fun startLiveMatchLoop() {
+        liveMatchJob?.cancel()
+        liveMatchJob = serviceScope.launch {
+            while (true) {
+                delay(LIVE_MATCH_INTERVAL_MS)
+                if (TrackRecorder.state.value !is RecordingState.Recording) continue
+                val points = TrackRecorder.currentFilteredPoints().map { LatLon(lat = it.lat, lon = it.lon) }
+                if (points.size < 2) continue
+                try {
+                    val mapVersion = resolveMapVersion()
+                    val matcher = ServerRoadMatcher(mapVersion = mapVersion, purpose = MatchPurpose.LIVE)
+                    val result = ChunkedMatcher.matchInChunks(matcher, points)
+                    LiveMatchHolder.publish(result.path)
+                } catch (e: Exception) {
+                    android.util.Log.w("ServerMatchDebug", "실시간 매칭 실패 points=${points.size}", e)
+                }
+            }
+        }
     }
 
     private fun requestLocationUpdates() {
@@ -118,6 +157,9 @@ class TrackingService : Service() {
 
     private fun stopTracking() {
         fusedLocationClient.removeLocationUpdates(locationCallback)
+        liveMatchJob?.cancel()
+        liveMatchJob = null
+        LiveMatchHolder.clear()
         val finished = TrackRecorder.finish(finishedAtEpochMs = System.currentTimeMillis())
         if (finished != null) {
             serviceScope.launch { saveFinishedTrack(finished) }
@@ -174,21 +216,31 @@ class TrackingService : Service() {
         }
 
         try {
-            val result = ChunkedMatcher.matchInChunks(defaultRoadMatcher(), points)
+            val mapVersion = resolveMapVersion()
+            val matcher = ServerRoadMatcher(mapVersion = mapVersion, purpose = MatchPurpose.LIVE)
+            val result = ChunkedMatcher.matchInChunks(matcher, points)
+            // TEMP DEBUG — 실서버 /match 교체가 실제로 되는지 확인한다. 확인 끝나면 지운다.
+            android.util.Log.i(
+                "ServerMatchDebug",
+                "매칭 성공 points=${points.size} segmentIds=${result.segmentIds.size} pathPoints=${result.path.size} mapVersion=$mapVersion",
+            )
+            // road_segment 인덱스가 아직 없으면(최초 1회) 여기서 들여온다 — 없으면 segmentId를 길이/동으로
+            // 못 바꿔서 이번 결과가 전부 집계에서 빠진다.
+            RoadSegmentIndexImporter(this, store.database).importIfNeeded()
             val boundaries = loadDongBoundaries()
             val beforeWalked = store.walkedLengthByDong()
             val summary = store.recordMatchResult(
                 trackId = finished.id,
-                edges = result.edges,
-                confidenceScore = result.confidenceScore,
-                unmatchedPointCount = result.unmatchedPointCount,
-                boundaries = boundaries,
+                matchedPath = result.path,
+                segmentIds = result.segmentIds,
                 nowEpochMs = System.currentTimeMillis(),
             )
             val afterWalked = store.walkedLengthByDong()
             val dongStats = buildDongStats(summary.touchedDongAdmCodes, beforeWalked, afterWalked, boundaries)
             publishResult(finished, distanceMeters, elapsedMs, summary.newRoadMeters, dongStats, routePoints = points)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            // TEMP DEBUG — 확인 끝나면 catch (_: Exception)으로 되돌린다.
+            android.util.Log.w("ServerMatchDebug", "매칭 실패 points=${points.size}", e)
             store.database.trackQueries.updateMatchState(
                 match_state = MATCH_STATE_FAILED,
                 confidence_score = null,
@@ -221,7 +273,8 @@ class TrackingService : Service() {
         )
     }
 
-    /** 이번 트랙이 닿은 동만 — 전체 길이가 없거나(에셋에 없는 동) 이름을 못 찾으면 그 동은 뺀다. */
+    /** 이번 트랙이 닿은 동만 — 전체 길이가 없거나(road_segment 인덱스에 없는 동) 이름을 못 찾으면 그
+     * 동은 뺀다. */
     private fun buildDongStats(
         touchedAdmCodes: Set<String>,
         beforeWalked: Map<String, Double>,
@@ -229,7 +282,7 @@ class TrackingService : Service() {
         boundaries: List<DongBoundary>,
     ): List<DongRateChange> {
         if (touchedAdmCodes.isEmpty()) return emptyList()
-        val totalLengths = loadDongTotalLengths()
+        val totalLengths = trackLocalStore?.totalLengthByDong() ?: emptyMap()
         val namesByCode = boundaries.associate { it.admCd2 to it.name }
         return touchedAdmCodes.mapNotNull { admCd2 ->
             val total = totalLengths[admCd2]?.takeIf { it > 0.0 } ?: return@mapNotNull null
@@ -245,14 +298,15 @@ class TrackingService : Service() {
 
     private fun percentOf(walked: Double, total: Double): Int = ((walked / total) * 100).toInt().coerceIn(0, 100)
 
+    /** 앱 실행 시 스플래시가 받아 둔 버전([MetaHolder])이 있으면 그대로 쓰고, 없으면(스플래시 호출
+     * 실패·아직 전) 여기서 한 번 더 받는다 — `/match` 요청엔 `mapVersion`이 꼭 있어야 한다. */
+    private suspend fun resolveMapVersion(): String =
+        MetaHolder.state.value?.mapVersions?.current
+            ?: MetaApi().fetchMeta().also { MetaHolder.publish(it) }.mapVersions.current
+
     private fun loadDongBoundaries(): List<DongBoundary> {
         val geoJson = assets.open(DONG_BOUNDARY_ASSET_PATH).bufferedReader().use { it.readText() }
         return DongBoundaryParser.parse(geoJson)
-    }
-
-    private fun loadDongTotalLengths(): Map<String, Double> {
-        val json = assets.open(DONG_LENGTHS_ASSET_PATH).bufferedReader().use { it.readText() }
-        return Json { ignoreUnknownKeys = true }.decodeFromString(json)
     }
 
     private fun buildGpx(points: List<TrackPoint>): String = buildString {

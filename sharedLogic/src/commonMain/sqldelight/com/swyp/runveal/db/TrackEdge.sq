@@ -1,36 +1,21 @@
--- 매칭 결과(docs/local-db/local-db-schema-design.md §3.2). `matched.geojson`의 features[] 한 개 = row 한 개.
+-- 매칭된 경로 저장(docs/local-db/local-db-schema-design.md §3.2) — "가본 길" 렌더링 전용. 트랙당
+-- 보통 한 줄(seq=0)이고, "지나간 것으로 인정됐는지"는 이제 이 테이블이 아니라 segmentId 기준
+-- (`run_segment`/`explored_segment`)으로 따로 관리한다.
 CREATE TABLE track_edge (
     track_id      TEXT NOT NULL,
-    seq           INTEGER NOT NULL,      -- 트랙 안에서의 순서 (features 배열 인덱스)
-    way_id        INTEGER,               -- OSM way id. NULL이면 중복 제거 대상 아님
+    seq           INTEGER NOT NULL,      -- 트랙 안에서의 순서
     coordinates   TEXT NOT NULL,         -- GeoJSON 순서 그대로 "[[lon,lat],[lon,lat],…]"
     length_meters REAL NOT NULL,         -- 저장 시 GeoMath로 미리 계산
     PRIMARY KEY (track_id, seq),
     FOREIGN KEY (track_id) REFERENCES track(id) ON DELETE CASCADE
 );
 
-CREATE INDEX track_edge_way_id_idx ON track_edge(way_id);
-
-selectEdgesByTrack:
-SELECT * FROM track_edge WHERE track_id = ? ORDER BY seq;
-
 -- 가본 길 렌더링: 트랙별로 seq 순서대로 읽어 코드에서 한 줄로 합친다
--- (glow 레이어가 wayId 경계마다 round cap이 겹치는 문제 — DongAssetRepository.mergeIntoSingleLine 참고)
+-- (glow 레이어가 조각 경계마다 round cap이 겹치는 문제 — DongAssetRepository.mergeIntoSingleLine 참고)
 selectAllEdgesForRendering:
 SELECT e.track_id, e.seq, e.coordinates
 FROM track_edge e JOIN track t ON t.id = e.track_id
 ORDER BY t.started_at_epoch_ms, e.track_id, e.seq;
 
--- 완주율 캐시 재생성(§3.3 "트랙 삭제/재생성"): 전체 edge를 "처음 집계된 순서"(트랙 시작 시각 순)대로
--- 다시 돌려야 wayId 중복 제거 결과가 매번 같다. selectAllEdgesForRendering과 달리 way_id/length_meters도
--- 포함한다 — 렌더링은 좌표만 있으면 되지만 재생성은 중복 제거·길이 계산에 둘 다 필요하다.
-selectAllEdgesForCoverageRebuild:
-SELECT e.track_id, e.seq, e.way_id, e.coordinates, e.length_meters
-FROM track_edge e JOIN track t ON t.id = e.track_id
-ORDER BY t.started_at_epoch_ms, e.track_id, e.seq;
-
 insertEdge:
-INSERT INTO track_edge (track_id, seq, way_id, coordinates, length_meters) VALUES (?, ?, ?, ?, ?);
-
-deleteEdgesByTrack:
-DELETE FROM track_edge WHERE track_id = ?;
+INSERT INTO track_edge (track_id, seq, coordinates, length_meters) VALUES (?, ?, ?, ?);

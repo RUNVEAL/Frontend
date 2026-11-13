@@ -1,0 +1,19 @@
+-- 트랙별로 실제 "지나간 것으로 인정된" 구간 ID(docs/api/API.md §4 run_segments, "진실의 원천"). 서버
+-- 매칭 응답의 segmentIds를 트랙마다 그대로 적립한다 — `explored_segment`는 이 테이블을 재생해서
+-- 언제든 다시 만들 수 있는 캐시다.
+CREATE TABLE run_segment (
+    track_id   TEXT NOT NULL,
+    segment_id INTEGER NOT NULL,
+    PRIMARY KEY (track_id, segment_id),
+    FOREIGN KEY (track_id) REFERENCES track(id) ON DELETE CASCADE
+);
+
+-- 캐시 재생성(트랙 삭제 후 등): 트랙 시작 시각 순으로 재생한다 — 순서 자체는 explored_segment
+-- 결과에 영향 없지만(segment_id가 PK라 멱등) 디버깅 시 보기 편하게 맞춘다.
+selectAllForRebuild:
+SELECT rs.track_id, rs.segment_id
+FROM run_segment rs JOIN track t ON t.id = rs.track_id
+ORDER BY t.started_at_epoch_ms, rs.segment_id;
+
+insertRunSegment:
+INSERT OR IGNORE INTO run_segment (track_id, segment_id) VALUES (?, ?);

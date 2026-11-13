@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="course_recommend_result_title">추천 코스</string>
+    <string name="course_recommend_result_empty_action">다시 설정하기</string>
+    <string name="course_recommend_result_course_name">코스 %1$s</string>
+    <string name="course_recommend_result_avoid_visited_label">안 가본 길 우선</string>
+    <string name="course_recommend_tag_park">공원</string>
+    <string name="course_recommend_tag_riverside">하천길</string>
+    <string name="course_recommend_tag_gentle_slope">완만한 길</string>
+    <string name="course_recommend_tag_flat">평탄한 길</string>
+    <string name="course_detail_not_found">코스를 더 이상 찾을 수 없어요</string>
+    <string name="course_detail_route_info_title">경로 정보</string>
+    <string name="course_detail_save_action">코스 저장</string>
+    <string name="course_detail_saved_label">저장됨</string>
+    <string name="course_detail_start_running_action">이 코스로 러닝 시작</string>
+</resources>

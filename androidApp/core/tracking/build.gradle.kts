@@ -8,6 +8,7 @@ android {
 
 dependencies {
     implementation(project(":sharedLogic"))
+    implementation(project(":androidApp:core:map"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.play.services.location)

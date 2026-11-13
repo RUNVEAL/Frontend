@@ -24,6 +24,28 @@ object MapConfig {
     const val LAYER_VISITED_ROAD_GLOW_MID: String = "visited-glow-mid"
     const val LAYER_VISITED_ROAD_LINE: String = "visited-line"
 
+    /** 러닝 중 실시간 선 — 지금까지 달린 경로 중 이미 가본 구간(흰색, glow 없음). [VisitedRoadLayer]를
+     * [SOURCE_VISITED_ROAD]와 다른 소스로 한 번 더 적용한다. */
+    const val SOURCE_LIVE_RUN_OLD: String = "live-run-old"
+
+    /** 러닝 중 실시간 선 — 지금까지 달린 경로 중 처음 가보는 구간(금색 + glow, 홈 지도 "새로 탐험한
+     * 길"과 같은 톤). */
+    const val SOURCE_LIVE_RUN_NEW: String = "live-run-new"
+
+    /** 코스 추천 결과 — 선택 안 된 코스/선택된 코스를 `selected` 피처 속성으로 나눠 그린다(레이어 ID는
+     * `RecommendedRouteLayer`가 이 소스 ID에서 그대로 파생시킨다). */
+    const val SOURCE_RECOMMENDED_ROUTE: String = "recommended-route"
+
+    /** 코스 상세 화면이 그리는 단일 코스 선 — [SOURCE_RECOMMENDED_ROUTE]와 소스를 공유하면, 결과
+     * 화면(여러 코스) ↔ 상세 화면(코스 하나) 전환 시점에 둘의 Compose 생명주기가 겹치면서 한쪽이
+     * 지우는 게 다른 쪽이 막 그린 걸 지워버리는 경합이 생겨 선이 사라져 보일 수 있다. 소스를
+     * 분리해서 그 경합 자체를 없앤다. */
+    const val SOURCE_COURSE_DETAIL_ROUTE: String = "course-detail-route"
+
+    /** 러닝 중 지도에 그리는 "이 코스로 러닝 시작"의 추천 코스 안내선 — 흰색 점선 하나뿐이라
+     * [SOURCE_RECOMMENDED_ROUTE]/[SOURCE_COURSE_DETAIL_ROUTE]와 별도 소스로 둔다. */
+    const val SOURCE_RECORDING_COURSE_GUIDE: String = "recording-course-guide"
+
     const val SOURCE_DONG_FILL: String = "dong-fill-src"
     const val SOURCE_DONG_LINE: String = "dong-line-src"
     const val SOURCE_DONG_LABEL: String = "dong-label-src"

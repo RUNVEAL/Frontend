@@ -65,17 +65,17 @@ class DongAssetRepository(private val context: Context) {
      * 집계해서 쓴다 — 시군구/시도 테두리 단계가 소속 동들의 완주율 평균이기 때문. */
     fun loadDongPercents(edges: List<MatchedEdge>, boundaries: List<DongBoundary>): Map<String, Int> {
         val totalLengths = loadTotalLengthsByDong()
-        val walkedLengths = DongCoverageCalculator.walkedLengthByDong(boundaries, edges)
+        val walkedLengths = DongCoverageCalculator.lengthByDong(boundaries, edges.flatMap { it.coordinates })
         return totalLengths.mapValues { (admCd2, total) ->
             if (total <= 0.0) 0 else (((walkedLengths[admCd2] ?: 0.0) / total) * 100).toInt().coerceIn(0, 100)
         }
     }
 
-    /** [VISITED_SAMPLE_TRACKS_ASSET_DIR]에 있는 실제 기록 트랙을 전부 읽어 합친다 — 도로매칭(Valhalla)
-     * 서버 연동 전까지 가본 길 렌더링을 시연하는 용도. 디렉터리 자체가 없으면(에셋을 안 넣은 빌드) 빈
-     * 목록을 돌려준다. 트랙(파일) 하나는 [mergeIntoSingleLine]으로 합쳐 한 Feature로 그린다 — wayId
-     * 경계마다 따로 그리면 glow 레이어(반투명 + blur)가 선 끝 round cap끼리 겹쳐서 꺾이는 지점마다
-     * 빛이 번져 보인다. */
+    /** [VISITED_SAMPLE_TRACKS_ASSET_DIR]에 있는 실제 기록 트랙을 전부 읽어 합친다 — 가본 길 렌더링을
+     * 시연하는 용도. 디렉터리 자체가 없으면(에셋을 안 넣은 빌드) 빈
+     * 목록을 돌려준다. 트랙(파일) 하나는 [mergeIntoSingleLine]으로 합쳐 한 Feature로 그린다 — 조각마다
+     * 따로 그리면 glow 레이어(반투명 + blur)가 선 끝 round cap끼리 겹쳐서 꺾이는 지점마다 빛이 번져
+     * 보인다. */
     fun loadSampleVisitedEdges(): List<MatchedEdge> {
         val fileNames = context.assets.list(VISITED_SAMPLE_TRACKS_ASSET_DIR) ?: return emptyList()
         return fileNames
@@ -84,7 +84,7 @@ class DongAssetRepository(private val context: Context) {
     }
 
     private fun mergeIntoSingleLine(edges: List<MatchedEdge>): MatchedEdge =
-        MatchedEdge(wayId = null, coordinates = edges.flatMap { it.coordinates })
+        MatchedEdge(coordinates = edges.flatMap { it.coordinates })
 
     /** 가본 길([VisitedRoadLayer]) GeoJSON — 동/시군구/시도 경계 에셋과 무관하게 [edges]만으로 만들어진다. */
     fun buildVisitedRoadGeoJson(edges: List<MatchedEdge>): String = VisitedRoadGeoJsonBuilder.build(edges)
@@ -92,7 +92,15 @@ class DongAssetRepository(private val context: Context) {
     fun buildOverlay(edges: List<MatchedEdge>): DongOverlayGeoJson {
         val boundaries = loadBoundaries()
         val percents = loadDongPercents(edges, boundaries)
-        val result = DongGeoJsonBuilder.build(boundaries, readAsset(DONG_BOUNDARY_ASSET_PATH), percents)
+        return buildOverlayFrom(boundaries, readAsset(DONG_BOUNDARY_ASSET_PATH), percents)
+    }
+
+    /** [buildOverlay]와 같은 렌더링 파이프라인을, 번들 에셋이 아니라 외부에서 받아 온 동 경계 geoJSON과
+     * 완주율로 돌린다 — 서버 지도 파일([ServerMapFileStore], `docs/api/API.md` §3.1.2)로 받은
+     * `index.geojson`을 적용해 볼 때 쓴다. [rawBoundaryGeoJson]의 각 feature는 [boundaries]와 같은
+     * `adm_cd2` 프로퍼티를 가지고 있어야 한다. */
+    fun buildOverlayFrom(boundaries: List<DongBoundary>, rawBoundaryGeoJson: String, percents: Map<String, Int>): DongOverlayGeoJson {
+        val result = DongGeoJsonBuilder.build(boundaries, rawBoundaryGeoJson, percents)
         return DongOverlayGeoJson(
             fillGeoJson = result.fillGeoJson,
             lineGeoJson = result.lineGeoJson,
