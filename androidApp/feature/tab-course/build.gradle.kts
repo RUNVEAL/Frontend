@@ -1,5 +1,5 @@
 plugins {
-    id("runveal.android.library.compose")
+    id("runveal.android.feature")
 }
 
 // design/images/* → Android drawable-xxxhdpi 리소스로 복사
@@ -18,7 +18,10 @@ android {
 dependencies {
     implementation(project(":androidApp:core:designsystem"))
     implementation(project(":androidApp:core:navigation"))
+    implementation(project(":androidApp:core:map"))
+    implementation(project(":sharedLogic"))
 
     implementation(libs.androidx.navigation.compose)
     implementation(libs.compose.material3)
+    implementation(libs.kotlinx.serialization.json)
 }

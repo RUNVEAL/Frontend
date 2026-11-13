@@ -18,48 +18,60 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.swyp.runveal.designsystem.RunvealIcons
 import com.swyp.runveal.designsystem.component.list.RunvealEmptyState
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLarge
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.tabcourse.R
+import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.tabcourse.component.CourseRecommendationCard
 import com.swyp.runveal.tabcourse.component.SavedCourseListItem
 import com.swyp.runveal.tabcourse.component.SavedCourseSectionHeader
-
-// TODO: 코스 저장 기능 연동 전까지 쓰는 임시 플래그/데이터 — 실제로는 저장한 코스 목록으로 갈린다.
-private const val HAS_SAVED_COURSES = true
-
-private data class SampleSavedCourse(
-    val title: String,
-    val distanceLabel: String,
-    val durationLabel: String,
-    val tag: String,
-    val runCountLabel: String,
-    val lastRunLabel: String,
-)
-
-private val SampleSavedCourses = listOf(
-    SampleSavedCourse(
-        title = "서울숲 근처 러닝",
-        distanceLabel = "7.3km",
-        durationLabel = "45분",
-        tag = "순환",
-        runCountLabel = "2회 달림",
-        lastRunLabel = "최근 10.31",
-    ),
-)
+import com.swyp.runveal.tabcourse.contract.CourseListIntent
+import com.swyp.runveal.tabcourse.contract.CourseListState
+import com.swyp.runveal.tabcourse.contract.SavedCourseUiModel
 
 @Composable
-fun CourseScreen(onCreateCourseClick: () -> Unit, modifier: Modifier = Modifier) {
+fun CourseScreen(
+    onCreateCourseClick: () -> Unit,
+    onStartCourse: (List<LatLon>) -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: CourseListViewModel = viewModel(),
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    // 탭을 나갔다 들어올 때마다(restoreState로 화면만 재구성) 새로 저장한 코스가 반영되게 매번 다시 불러온다.
+    LaunchedEffect(Unit) { viewModel.onIntent(CourseListIntent.Load) }
+    CourseListContent(
+        courses = (state as? CourseListState.Ready)?.courses ?: emptyList(),
+        isLoading = state is CourseListState.Loading,
+        onCreateCourseClick = onCreateCourseClick,
+        onStartCourse = onStartCourse,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun CourseListContent(
+    courses: List<SavedCourseUiModel>,
+    isLoading: Boolean,
+    onCreateCourseClick: () -> Unit,
+    onStartCourse: (List<LatLon>) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val colors = RunvealTheme.colors
+    val hasSavedCourses = courses.isNotEmpty()
 
     Box(modifier = modifier.fillMaxSize().background(colors.bg.canvas)) {
         // statusBar 영역까지 포함해서 화면 맨 위부터 깔리는 히어로 이미지 — 원본 비율(1920:544)대로 보여준다.
@@ -81,33 +93,35 @@ fun CourseScreen(onCreateCourseClick: () -> Unit, modifier: Modifier = Modifier)
                 .verticalScroll(rememberScrollState()),
         ) {
             RunvealTopAppBarLarge(
-                title = "내 코스",
-                metaLabel = if (HAS_SAVED_COURSES) "저장한 코스 1개" else "저장한 코스 0개",
+                title = stringResource(R.string.tab_course_title),
+                metaLabel = stringResource(R.string.tab_course_meta_label, courses.size),
                 action = {
                     CourseTopBarActionButton(onClick = onCreateCourseClick)
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            if (HAS_SAVED_COURSES) {
+            if (hasSavedCourses) {
+                val featured = courses.first()
                 CourseRecommendationCard(
-                    badgeLabel = "다음에 달려볼 코스",
-                    title = "코스 A",
-                    distanceLabel = "7.3km",
-                    durationLabel = "45분",
-                    tag = "순환",
-                    newRoadLabel = "새 길 1.3km",
-                    notRunLabel = "아직 안달림",
+                    badgeLabel = stringResource(R.string.tab_course_recommend_badge),
+                    title = featured.title,
+                    distanceLabel = featured.distanceLabel,
+                    durationLabel = featured.durationLabel,
+                    tag = featured.tagLabel,
+                    newRoadLabel = featured.newRoadLabel,
+                    notRunLabel = featured.notRunLabel,
                     onMoreClick = {},
-                    onStartClick = {},
+                    onStartClick = { onStartCourse(featured.path) },
+                    thumbnailRequest = featured.snapshotRequest,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = RunvealTheme.layout.marginScreen),
                 )
 
                 SavedCourseSectionHeader(
-                    title = "저장한 코스",
-                    sortLabel = "최근 저장순",
+                    title = stringResource(R.string.tab_course_section_title),
+                    sortLabel = stringResource(R.string.tab_course_sort_label),
                     onSortClick = {},
                     modifier = Modifier
                         .fillMaxWidth()
@@ -123,27 +137,28 @@ fun CourseScreen(onCreateCourseClick: () -> Unit, modifier: Modifier = Modifier)
                         .fillMaxWidth()
                         .padding(horizontal = RunvealTheme.layout.marginScreen),
                 ) {
-                    SampleSavedCourses.forEach { course ->
+                    courses.forEach { course ->
                         SavedCourseListItem(
                             title = course.title,
                             distanceLabel = course.distanceLabel,
                             durationLabel = course.durationLabel,
-                            tag = course.tag,
-                            runCountLabel = course.runCountLabel,
-                            lastRunLabel = course.lastRunLabel,
+                            tag = course.tagLabel,
+                            runCountLabel = course.notRunLabel,
+                            lastRunLabel = "",
                             onMoreClick = {},
-                            onStartClick = {},
+                            onStartClick = { onStartCourse(course.path) },
+                            thumbnailRequest = course.snapshotRequest,
                         )
                     }
                 }
             }
         }
 
-        if (!HAS_SAVED_COURSES) {
+        if (!hasSavedCourses && !isLoading) {
             RunvealEmptyState(
-                title = "아직 저장한 코스가 없어요",
-                description = "만든 코스를 저장하면\n여기서 바로 달릴 수 있어요",
-                actionLabel = "코스 만들기",
+                title = stringResource(R.string.tab_course_empty_title),
+                description = stringResource(R.string.tab_course_empty_description),
+                actionLabel = stringResource(R.string.tab_course_empty_action),
                 onActionClick = onCreateCourseClick,
                 graphic = { Image(painter = painterResource(R.drawable.empty_course), contentDescription = null) },
                 modifier = Modifier.align(Alignment.Center),
@@ -178,8 +193,38 @@ private fun CourseTopBarActionButton(onClick: () -> Unit, modifier: Modifier = M
 
 @Preview
 @Composable
-private fun CourseScreenPreview() {
+private fun CourseListContentPreview() {
     RunvealTheme {
-        CourseScreen(onCreateCourseClick = {})
+        CourseListContent(
+            courses = listOf(
+                SavedCourseUiModel(
+                    id = "preview-1",
+                    title = "코스 A",
+                    distanceLabel = "7.3km",
+                    durationLabel = "45분",
+                    tagLabel = "순환",
+                    newRoadLabel = "새 길 1.3km",
+                    notRunLabel = "아직 안달림",
+                    path = emptyList(),
+                    snapshotRequest = null,
+                ),
+            ),
+            isLoading = false,
+            onCreateCourseClick = {},
+            onStartCourse = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun CourseListContentEmptyPreview() {
+    RunvealTheme {
+        CourseListContent(
+            courses = emptyList(),
+            isLoading = false,
+            onCreateCourseClick = {},
+            onStartCourse = {},
+        )
     }
 }
