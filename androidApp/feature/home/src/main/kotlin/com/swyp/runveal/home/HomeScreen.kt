@@ -60,6 +60,7 @@ import com.swyp.runveal.permission.RequireLocationPermission
 import com.swyp.runveal.permission.rememberLocationPermissionState
 import com.swyp.runveal.recording.RecordingState
 import com.swyp.runveal.recording.TrackRecorder
+import com.swyp.runveal.result.LiveMatchHolder
 import com.swyp.runveal.result.TrackResultHolder
 import com.swyp.runveal.running.navigation.recordingOverlay
 import com.swyp.runveal.running.navigation.resultOverlay
@@ -297,16 +298,19 @@ private fun HomeMapLayer(
             }
         }
 
-        // 기록 중엔 지금까지 쌓인 "가본 길" 대신 지금 달리고 있는 실시간 경로를 보여준다 — TrackRecorder가
-        // 이미 들고 있는 점들로 그린다. TrackRecorder.state는 점이 추가될 때마다 새로 emit되지
-        // 않아서(§3 설계) 1초마다 직접 읽어 다시 그린다 — RecordingViewModel의 경과시간 틱과 같은 패턴.
+        // 기록 중엔 지금까지 쌓인 "가본 길" 대신 지금 달리고 있는 실시간 경로를 보여준다. TrackingService가
+        // 10초마다 publish하는 도로 매칭 선([LiveMatchHolder])이 있으면 그걸 쓰고, 아직 없으면(러닝
+        // 시작 직후 등) TrackRecorder가 들고 있는 원본 GPS 점으로 대신 그린다. TrackRecorder.state는
+        // 점이 추가될 때마다 새로 emit되지 않아서(§3 설계) 1초마다 직접 읽어 다시 그린다 —
+        // RecordingViewModel의 경과시간 틱과 같은 패턴.
         val recordingState by TrackRecorder.state.collectAsStateWithLifecycle()
         val isRecordingOrPaused = recordingState is RecordingState.Recording || recordingState is RecordingState.Paused
         var liveTrackGeoJson by remember { mutableStateOf(emptyVisitedRoadGeoJson) }
         LaunchedEffect(isRecordingOrPaused) {
             if (!isRecordingOrPaused) return@LaunchedEffect
             while (true) {
-                val livePoints = TrackRecorder.currentFilteredPoints().map { LatLon(lat = it.lat, lon = it.lon) }
+                val matchedPath = LiveMatchHolder.state.value
+                val livePoints = matchedPath ?: TrackRecorder.currentFilteredPoints().map { LatLon(lat = it.lat, lon = it.lon) }
                 liveTrackGeoJson = buildVisitedRoadGeoJson(listOf(livePoints))
                 delay(1000)
             }

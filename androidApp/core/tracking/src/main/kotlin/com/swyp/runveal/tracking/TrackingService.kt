@@ -32,13 +32,16 @@ import com.swyp.runveal.recording.RecordingState
 import com.swyp.runveal.recording.TrackPoint
 import com.swyp.runveal.recording.TrackRecorder
 import com.swyp.runveal.result.DongRateChange
+import com.swyp.runveal.result.LiveMatchHolder
 import com.swyp.runveal.result.TrackResult
 import com.swyp.runveal.result.TrackResultHolder
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
@@ -47,6 +50,10 @@ private const val DONG_BOUNDARY_ASSET_PATH = "dong/korea_dong.geojson"
 private const val DONG_LENGTHS_ASSET_PATH = "dong/dong_lengths_estimated.json"
 private const val MATCH_STATE_FAILED = "FAILED"
 
+/** 러닝 중 도로 매칭 재요청 간격 — `/meta`의 분당 30회 제한(§5.6)에 여유 있게 걸리고, §3.6.1의
+ * "10초 간격으로 줄인 것" 전처리 단위와도 맞춘다. */
+private val LIVE_MATCH_INTERVAL_MS = TimeUnit.SECONDS.toMillis(10)
+
 /**
  * 위치 수신 Foreground Service — `docs/running/recording-lifecycle.md` §3/§4.1/§5. 화면이 꺼져도
  * 기록이 끊기지 않게 알림을 띄워 둔다. 위치 권한은 이미 승인됐다고 전제한다(`core:permission`의
@@ -54,12 +61,17 @@ private const val MATCH_STATE_FAILED = "FAILED"
  *
  * GPS 요청 간격은 **5초**(문서 원안의 1초에서 조정 — 배터리/데이터량 고려). [TrackFilter]의 정확도/
  * 속도/거리 기준은 별개라 바뀌지 않는다.
+ *
+ * 녹화 중엔 [LIVE_MATCH_INTERVAL_MS](10초)마다 그때까지의 점을 통째로 `/match`(LIVE)에 다시 보내
+ * [LiveMatchHolder]를 갈아 끼운다 — 러닝 종료 후 최종 매칭([matchAndRecord])과 같은 호출을 여러 번
+ * 반복하는 것뿐, 별도 "실시간" 전용 엔드포인트는 없다.
  */
 class TrackingService : Service() {
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var fileStore: FileStore? = null
     private var trackLocalStore: TrackLocalStore? = null
+    private var liveMatchJob: Job? = null
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
@@ -98,6 +110,7 @@ class TrackingService : Service() {
 
     override fun onDestroy() {
         fusedLocationClient.removeLocationUpdates(locationCallback)
+        liveMatchJob?.cancel()
         super.onDestroy()
     }
 
@@ -106,9 +119,35 @@ class TrackingService : Service() {
         if (TrackRecorder.state.value is RecordingState.Recording) return // 이미 기록 중이면 무시.
 
         TrackResultHolder.clear() // 이전 결과가 남아 있으면 새 결과 화면이 잠깐 옛 값을 보여준다.
+        LiveMatchHolder.clear() // 지난 러닝의 매칭 선이 새 러닝 시작 직후 잠깐 겹쳐 보이지 않게.
         TrackRecorder.start(id = UUID.randomUUID().toString(), startedAtEpochMs = System.currentTimeMillis())
         startForeground(NOTIFICATION_ID, buildNotification(elapsedText = "00:00", distanceText = "0.0km"))
         requestLocationUpdates()
+        startLiveMatchLoop()
+    }
+
+    /** 녹화 중 주기적으로 지금까지의 필터링된 점을 그대로 `/match`(LIVE)에 보내 도로에 맞춘 선을
+     * [LiveMatchHolder]에 publish한다 — §3.6과 같은 호출이지만 러닝이 끝나기 전에 여러 번 부른다.
+     * 일시정지 중엔 새 점이 없어 다시 보낼 이유가 없어 건너뛴다. 실패해도 큐/재시도 없이 다음 주기에
+     * 다시 시도 — 화면은 마지막 성공 결과를 그대로 보여준다. */
+    private fun startLiveMatchLoop() {
+        liveMatchJob?.cancel()
+        liveMatchJob = serviceScope.launch {
+            while (true) {
+                delay(LIVE_MATCH_INTERVAL_MS)
+                if (TrackRecorder.state.value !is RecordingState.Recording) continue
+                val points = TrackRecorder.currentFilteredPoints().map { LatLon(lat = it.lat, lon = it.lon) }
+                if (points.size < 2) continue
+                try {
+                    val mapVersion = resolveMapVersion()
+                    val matcher = ServerRoadMatcher(mapVersion = mapVersion, purpose = MatchPurpose.LIVE)
+                    val result = ChunkedMatcher.matchInChunks(matcher, points)
+                    LiveMatchHolder.publish(result.path)
+                } catch (e: Exception) {
+                    android.util.Log.w("ServerMatchDebug", "실시간 매칭 실패 points=${points.size}", e)
+                }
+            }
+        }
     }
 
     private fun requestLocationUpdates() {
@@ -120,6 +159,9 @@ class TrackingService : Service() {
 
     private fun stopTracking() {
         fusedLocationClient.removeLocationUpdates(locationCallback)
+        liveMatchJob?.cancel()
+        liveMatchJob = null
+        LiveMatchHolder.clear()
         val finished = TrackRecorder.finish(finishedAtEpochMs = System.currentTimeMillis())
         if (finished != null) {
             serviceScope.launch { saveFinishedTrack(finished) }
