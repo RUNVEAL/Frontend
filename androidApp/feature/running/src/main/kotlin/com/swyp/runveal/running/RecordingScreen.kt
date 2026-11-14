@@ -108,7 +108,14 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
             RecordingEffect.StartTrackingService -> TrackingService.start(context)
             RecordingEffect.PauseTrackingService -> TrackingService.pause(context)
             RecordingEffect.ResumeTrackingService -> TrackingService.resume(context)
-            RecordingEffect.StopTrackingService -> TrackingService.stop(context)
+            // 결과 화면으로 넘어가는 건 서비스를 실제로 멈춘 **뒤**에 한다. 종료 버튼에서 바로
+            // onClose()를 부르면 이 화면이 pop되면서 effect 수집기가 취소돼, Channel에 들어간
+            // StopTrackingService가 전달되지 못한다 — 서비스가 계속 돌아 기록이 저장되지도,
+            // TrackResultHolder가 publish되지도 않아서 결과 화면이 무한 로딩에 빠졌다.
+            RecordingEffect.StopTrackingService -> {
+                TrackingService.stop(context)
+                onClose()
+            }
         }
     }
 
@@ -182,10 +189,8 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
             ) {
                 RunvealButtonGroupEqual(
                     firstLabel = stringResource(R.string.recording_stop_button),
-                    onFirstClick = {
-                        viewModel.onIntent(RecordingIntent.StopClicked)
-                        onClose()
-                    },
+                    // 화면 이동은 StopTrackingService effect를 처리한 뒤에 한다(위 CollectEffect).
+                    onFirstClick = { viewModel.onIntent(RecordingIntent.StopClicked) },
                     secondLabel = stringResource(R.string.recording_resume_button),
                     onSecondClick = { viewModel.onIntent(RecordingIntent.ResumeClicked) },
                     modifier = Modifier.fillMaxWidth(),
