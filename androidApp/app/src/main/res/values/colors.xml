@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 디자인 토큰 bg/canvas(= palette neutral/900)와 같은 값. 토큰이 바뀌면 같이 고쳐야 한다 —
+         이 값은 Compose 밖(창 배경·OS 스플래시)에서 쓰여서 생성된 Kotlin 토큰을 못 읽는다. -->
+    <color name="runveal_bg_canvas">#0E0E0E</color>
+</resources>

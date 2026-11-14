@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      앱 테마. Compose가 그리는 화면은 전부 다크 단일 테마라, 창 배경도 bg/canvas(#0E0E0E)로 맞춰
+      첫 프레임 전 흰 화면이 번쩍이지 않게 한다.
+    -->
+    <style name="Theme.Runveal" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/runveal_bg_canvas</item>
+    </style>
+
+    <!--
+      OS 스플래시(런처 → 첫 프레임 사이에 시스템이 그리는 화면). Android 12+에선 이 화면 자체를
+      끌 수 없어서, "없는 것처럼" 보이게 만든다 — 아이콘을 투명 drawable로 줘서 아무것도 안 그리고,
+      배경은 인앱 스플래시와 같은 bg/canvas(#0E0E0E)로 맞춘다. 그래서 앱을 켜면 어두운 화면이
+      이어지다가 인앱 스플래시의 로고가 떠오르는 것처럼 보이고, 로고가 두 번 나오지 않는다.
+      기본 종료 애니메이션(아이콘 줌아웃)도 MainActivity에서 바로 제거해 체류 시간을 줄인다.
+      androidx core-splashscreen을 쓰므로 minSdk(28)까지 같은 동작이다.
+    -->
+    <style name="Theme.Runveal.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/runveal_bg_canvas</item>
+        <item name="windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+        <item name="windowSplashScreenAnimationDuration">0</item>
+        <item name="postSplashScreenTheme">@style/Theme.Runveal</item>
+    </style>
+</resources>

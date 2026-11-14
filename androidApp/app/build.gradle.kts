@@ -7,6 +7,7 @@ dependencies {
     implementation(project(":androidApp:core:permission"))
     implementation(project(":androidApp:core:tracking"))
 
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.maplibre.android.sdk)
 }
 

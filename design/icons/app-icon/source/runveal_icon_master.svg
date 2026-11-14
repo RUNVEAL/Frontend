@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<linearGradient id="bg" x1="0" y1="1024" x2="1024" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0.0" stop-color="#1B1B19"/><stop offset="0.55" stop-color="#4A4636"/><stop offset="1.0" stop-color="#A39B75"/></linearGradient>
+<linearGradient id="gold" x1="270" y1="0" x2="858" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0.0" stop-color="#8A8064"/><stop offset="0.3" stop-color="#C4B78A"/><stop offset="0.52" stop-color="#F5EDB8"/><stop offset="0.75" stop-color="#FAF6E6"/><stop offset="1.0" stop-color="#FFFEF4"/></linearGradient>
+<linearGradient id="line" x1="0" y1="0" x2="870" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#F5EDB8" stop-opacity="0"/><stop offset="0.45" stop-color="#F5EDB8" stop-opacity="0.85"/><stop offset="1" stop-color="#FFFEF4"/></linearGradient>
+<radialGradient id="glow" cx="836" cy="758" r="70" gradientUnits="userSpaceOnUse" gradientTransform="translate(836 758) scale(1 0.26) translate(-836 -758)"><stop offset="0" stop-color="#FFFBE6" stop-opacity="1"/><stop offset="1" stop-color="#FFF6C8" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="1024" height="1024" fill="url(#bg)"/>
+<path d="M270.00,357.00 L312.00,285.00 Q327.00,260.00 362.00,260.00 L710.00,260.00 C790.00,260.00 848.00,325.00 848.00,412.00 C848.00,500.00 785.00,567.00 705.00,567.00 L683.00,567.00 L858.00,757.00 L690.00,757.00 L532.00,567.00 L440.00,567.00 L330.00,757.00 L165.00,757.00 L300.00,525.00 Q330.00,475.00 390.00,475.00 L675.00,475.00 C706.00,475.00 728.00,450.00 728.00,416.00 C728.00,382.00 706.00,357.00 675.00,357.00 Z" fill="url(#gold)"/>
+<rect x="0" y="754" width="862" height="7" rx="3.5" fill="url(#line)"/>
+<ellipse cx="836" cy="758" rx="70" ry="18.2" fill="url(#glow)"/>
+</svg>
