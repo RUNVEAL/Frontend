@@ -29,6 +29,12 @@ WHERE min_lat <= :maxLat AND max_lat >= :minLat AND min_lon <= :maxLon AND max_l
 countAll:
 SELECT COUNT(*) FROM road_segment;
 
+-- 그 시군구의 구간을 이미 들여왔는지 — 행정동 코드(adm_cd2) 앞 5자리가 시군구 코드라(에셋
+-- `SOURCE.md` 참고) `'11110%'` 형태로 넘긴다. 전국을 한 번에 들여오는 대신 러닝한 구만 골라
+-- 들여오기 위한 가드다(`RoadSegmentIndexImporter`).
+countBySigungu:
+SELECT COUNT(*) FROM road_segment WHERE adm_cd2 LIKE ?;
+
 -- 동별 전체 도로 길이(완주율 분모) — 번들 추정치(docs/local-db/local-db-schema-design.md §3.3의
 -- "임시 추정치") 대신 실제로 들여온 구간 길이를 합친 값. road_segment를 아직 안 들여왔으면 비어
 -- 있어서(TrackingService가 호출부에서 0%로 떨어진다) 호출 전에 RoadSegmentIndexImporter가 끝나

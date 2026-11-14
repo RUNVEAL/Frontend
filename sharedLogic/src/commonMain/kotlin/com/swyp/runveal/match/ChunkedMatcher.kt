@@ -15,6 +15,7 @@ object ChunkedMatcher {
         return MatchResult(
             path = results.flatMap { it.path },
             segmentIds = results.flatMap { it.segmentIds }.distinct(),
+            sigunguCodes = results.flatMap { it.sigunguCodes }.distinct(),
         )
     }
 

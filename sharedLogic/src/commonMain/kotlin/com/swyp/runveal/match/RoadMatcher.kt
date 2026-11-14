@@ -14,4 +14,7 @@ interface RoadMatcher {
 data class MatchResult(
     val path: List<LatLon>,
     val segmentIds: List<Long>,
+    /** 이번 러닝이 지나간 시군구 코드(5자리). 전국 구간 인덱스를 통째로 만드는 대신 이 구들의
+     * `segments-{구코드}.geojson`만 골라 들여오는 데 쓴다(`RoadSegmentIndexImporter`). */
+    val sigunguCodes: List<String> = emptyList(),
 )

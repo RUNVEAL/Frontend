@@ -227,9 +227,10 @@ class TrackingService : Service() {
                 "ServerMatchDebug",
                 "매칭 성공 points=${points.size} segmentIds=${result.segmentIds.size} pathPoints=${result.path.size} mapVersion=$mapVersion",
             )
-            // road_segment 인덱스가 아직 없으면(최초 1회) 여기서 들여온다 — 없으면 segmentId를 길이/동으로
-            // 못 바꿔서 이번 결과가 전부 집계에서 빠진다.
-            RoadSegmentIndexImporter(this, store.database).importIfNeeded()
+            // 이번에 달린 구의 road_segment 인덱스가 없으면 여기서 들여온다 — 없으면 segmentId를
+            // 길이/동으로 못 바꿔서 이번 결과가 전부 집계에서 빠진다. 전국을 들여오면 896MB·400만
+            // 구간이라 끝나지 않으므로 달린 구만 받는다(§3.6.2 sigunguCodes).
+            RoadSegmentIndexImporter(this, store.database).importIfNeeded(result.sigunguCodes)
             val boundaries = loadDongBoundaries()
             val beforeWalked = store.walkedLengthByDong()
             val summary = store.recordMatchResult(

@@ -13,8 +13,8 @@ import com.swyp.runveal.network.match.MatchRequest
  *
  * 서버가 주는 `segmentIds`를 그대로 [MatchResult.segmentIds]로 넘긴다 — "가본 길" 인정은 이제 이
  * ID 기준([com.swyp.runveal.dong.RoadSegment]/`explored_segment`)이라 로컬에서 별도로 edge를
- * 만들어 둘 필요가 없다. `dongBySegment`/`sigunguCodes`는 로컬 `road_segment` 인덱스로 직접
- * 계산하므로 지금은 안 쓴다.
+ * 만들어 둘 필요가 없다. `sigunguCodes`도 같이 넘겨서, 로컬 구간 인덱스를 전국이 아니라 이번에
+ * 달린 구만 골라 들여오는 데 쓴다. `dongBySegment`는 그 인덱스로 직접 계산하므로 아직 안 쓴다.
  */
 class ServerRoadMatcher(
     private val mapVersion: String,
@@ -32,6 +32,7 @@ class ServerRoadMatcher(
         return MatchResult(
             path = response.matchedPath.map { LatLon(lat = it[1], lon = it[0]) },
             segmentIds = response.segmentIds,
+            sigunguCodes = response.sigunguCodes,
         )
     }
 }
