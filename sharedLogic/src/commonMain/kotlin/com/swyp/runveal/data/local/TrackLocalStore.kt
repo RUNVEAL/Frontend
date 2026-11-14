@@ -122,6 +122,36 @@ class TrackLocalStore(
 
     private data class RoadSegmentInfo(val adm_cd2: String, val length_m: Double)
 
+    /** 기록 탭 한 줄치 요약 — 라벨 포맷은 화면(ViewModel)이 맡고, 여기선 숫자/시각만 넘긴다. */
+    data class TrackSummary(
+        val id: String,
+        val startedAtEpochMs: Long,
+        val elapsedMs: Long,
+        val distanceMeters: Double,
+        /** 역지오코딩으로 채우는 장소명 — 아직 조회 전/실패면 null이라 화면이 대체 제목을 쓴다. */
+        val placeName: String?,
+    )
+
+    /** 기록 탭 목록: `[fromEpochMs, toEpochMs)` 안에 *시작한* 트랙을 최신순으로. 러닝 횟수/총 거리는
+     * 이 목록만으로 계산되므로 따로 집계 쿼리를 두지 않는다. */
+    fun tracksBetween(fromEpochMs: Long, toEpochMs: Long): List<TrackSummary> =
+        database.trackQueries.selectStartedBetweenDesc(fromEpochMs = fromEpochMs, toEpochMs = toEpochMs)
+            .executeAsList()
+            .map { row ->
+                TrackSummary(
+                    id = row.id,
+                    startedAtEpochMs = row.started_at_epoch_ms,
+                    elapsedMs = row.finished_at_epoch_ms - row.started_at_epoch_ms,
+                    distanceMeters = row.distance_meters,
+                    placeName = row.place_name,
+                )
+            }
+
+    /** 그 기간에 처음 달린 구간의 길이 합(m) — 기록 탭 월간 "새로 탐험한 길". */
+    fun newRoadMetersBetween(fromEpochMs: Long, toEpochMs: Long): Double =
+        database.runSegmentQueries.newRoadMetersBetween(fromEpochMs = fromEpochMs, toEpochMs = toEpochMs)
+            .executeAsOne()
+
     /** 동별 완주 길이(분자) — `explored_segment`를 바로 집계한다. */
     fun walkedLengthByDong(): Map<String, Double> =
         database.exploredSegmentQueries.walkedLengthByDong().executeAsList()
