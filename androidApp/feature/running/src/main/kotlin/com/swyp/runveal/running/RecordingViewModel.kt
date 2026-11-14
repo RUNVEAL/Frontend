@@ -3,6 +3,7 @@ package com.swyp.runveal.running
 import androidx.lifecycle.viewModelScope
 import com.swyp.runveal.recording.RecordingState as TrackRecordingState
 import com.swyp.runveal.recording.TrackRecorder
+import com.swyp.runveal.result.LiveNewRoadHolder
 import com.swyp.runveal.result.SelectedCourseHolder
 import com.swyp.runveal.running.contract.RecordingEffect
 import com.swyp.runveal.running.contract.RecordingIntent
@@ -29,6 +30,14 @@ class RecordingViewModel : MviViewModel<RecordingIntent, RecordingState, Recordi
                         else -> RecordingState(selectedCoursePath = selectedCoursePath)
                     }
                 }
+            }
+        }
+        // "새로 탐험한 길"은 지도(HomeScreen)가 1초마다 돌리는 LiveRoadClassifier 결과를 그대로 받아
+        // 쓴다 — 여기서 또 분류하면 전국 구간 인덱스를 매초 두 번 훑게 되고, 지도 금색 선과 배지
+        // 숫자가 서로 다른 계산을 근거로 삼게 된다.
+        viewModelScope.launch {
+            LiveNewRoadHolder.state.collect { newRoadMeters ->
+                setState { copy(newRoadLabel = "%.2f".format(newRoadMeters / 1000.0)) }
             }
         }
         // `TrackRecorder.state`는 위치가 들어올 때만 갱신되므로, 경과 시간/페이스 표시는 따로 1초마다

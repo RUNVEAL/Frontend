@@ -10,6 +10,7 @@ import com.swyp.runveal.courserecommend.contract.RouteStepUiModel
 import com.swyp.runveal.data.local.DatabaseDriverFactory
 import com.swyp.runveal.db.RunvealDatabase
 import com.swyp.runveal.designsystem.component.list.RunvealRouteStepType
+import com.swyp.runveal.dong.NewRoadEstimator
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.map.snapshot.SnapshotVariant
 import com.swyp.runveal.map.snapshot.toSnapshotRequest
@@ -18,6 +19,9 @@ import com.swyp.runveal.network.routes.RouteDto
 import com.swyp.runveal.ui.mvi.MviViewModel
 import java.util.UUID
 import kotlin.math.roundToInt
+import kotlin.math.roundToLong
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
@@ -51,6 +55,10 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
      * 포맷된 문자열뿐이라 원본 숫자/배열이 필요하다). */
     private var currentRoute: RouteDto? = null
 
+    /** [resolveNewRoadMeters]가 정한 새 길 길이(m) — 저장할 때도 같은 값을 써야 "내 코스" 탭 카드가
+     * 코스 상세와 같은 숫자를 보여준다. */
+    private var currentNewRoadMeters: Double = 0.0
+
     override suspend fun handleIntent(intent: CourseDetailIntent) {
         when (intent) {
             is CourseDetailIntent.Load -> load(intent.routeId)
@@ -58,15 +66,33 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
         }
     }
 
-    private fun load(routeId: String) {
+    private suspend fun load(routeId: String) {
         val response = (CourseRecommendResultHolder.state.value as? CourseRecommendResult.Success)?.response
         val index = response?.routes?.indexOfFirst { it.routeId == routeId } ?: -1
         val route = response?.routes?.getOrNull(index)
         currentRoute = route
-        setState {
-            if (route != null) route.toDetailState(courseLabel = ('A' + index).toString()) else CourseDetailState.NotFound
+        if (route == null) {
+            setState { CourseDetailState.NotFound }
+            return
         }
+        currentNewRoadMeters = resolveNewRoadMeters(route)
+        setState { route.toDetailState(courseLabel = ('A' + index).toString(), newRoadMeters = currentNewRoadMeters) }
     }
+
+    /** 서버가 `newRoadM`을 줬으면 그대로 쓰고, 안 줬으면(요청에 `exploredSegmentIds`를 못 보냈거나
+     * 서버가 아직 안 채워 줄 때 — `docs/api/API.md` §3.3.1) 로컬 `explored_segment`로 추정한다. */
+    private suspend fun resolveNewRoadMeters(route: RouteDto): Double =
+        route.newRoadM?.toDouble() ?: withContext(Dispatchers.IO) {
+            NewRoadEstimator.newRoadMeters(
+                totalDistanceM = route.distanceM.toDouble(),
+                exploredLengthM = exploredLengthFor(route.segmentIds),
+            )
+        }
+
+    /** 빈 목록이면 쿼리가 `IN ()`이 돼서 SQLite 문법 오류가 나므로 먼저 거른다. */
+    private fun exploredLengthFor(segmentIds: List<Long>): Double =
+        if (segmentIds.isEmpty()) 0.0
+        else database.exploredSegmentQueries.exploredLengthForSegments(segmentIds).executeAsOne()
 
     /** `docs/local-db/local-db-schema-design.md` §3.4 `course` 테이블에 추천 응답을 그대로 저장한다.
      * 러닝 기록을 승격한 코스와 달리 `source_track_id`가 없어서, 추천 전용 컬럼(거리·시간·고도·태그·
@@ -95,8 +121,11 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
             duration_sec = route.durationSec.toLong(),
             elevation_gain_m = route.elevationGainM?.toLong(),
             elevation_profile = route.elevationProfile?.let { encodeDoubleMatrix(it) },
-            new_road_m = route.newRoadM?.toLong(),
-            new_road_ratio = route.newRoadRatio,
+            // 서버가 안 준 경우엔 [resolveNewRoadMeters]의 로컬 추정값을 그대로 저장한다 — "내 코스"
+            // 탭이 이 컬럼만 읽어서 새 길을 보여주기 때문에 여기서 비워 두면 목록에서만 값이 사라진다.
+            new_road_m = currentNewRoadMeters.roundToLong(),
+            new_road_ratio = route.newRoadRatio
+                ?: (currentNewRoadMeters / route.distanceM).takeIf { route.distanceM > 0 },
             tags = json.encodeToString(ListSerializer(String.serializer()), route.tags),
             segment_ids = json.encodeToString(ListSerializer(Long.serializer()), route.segmentIds),
             milestones = json.encodeToString(ListSerializer(MilestoneDto.serializer()), route.milestones),
@@ -105,8 +134,8 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
         setState { if (this is CourseDetailState.Ready) copy(isSaved = true) else this }
     }
 
-    /** "내 코스" 탭이 나중에 쓸 썸네일을 저장 시점에 같이 만들어 캐시해 둔다 — 지금은 캐시만 만들고
-     * 실제 화면 연동은 하지 않는다(요청 범위). 실패해도 코스 저장 자체는 이미 끝났으니 조용히 무시한다. */
+    /** "내 코스" 탭 목록·추천 카드가 쓸 썸네일을 저장 시점에 같이 만들어 캐시해 둔다. 실패해도 코스
+     * 저장 자체는 이미 끝났으니 조용히 무시한다 — 목록은 캐시가 없으면 플레이스홀더를 보여준다. */
     private suspend fun prerenderThumbnail(courseId: String, path: List<LatLon>) {
         val request = path.toSnapshotRequest(ownerId = courseId, variant = SnapshotVariant.THUMBNAIL) ?: return
         val density = AndroidAppContextHolder.context.resources.displayMetrics.density
@@ -118,9 +147,9 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
     private fun encodeDoubleMatrix(values: List<List<Double>>): String =
         json.encodeToString(ListSerializer(ListSerializer(Double.serializer())), values)
 
-    private fun RouteDto.toDetailState(courseLabel: String): CourseDetailState.Ready {
+    /** [newRoadMeters]는 서버 `newRoadM` 또는 [resolveNewRoadMeters]의 로컬 추정값(m). */
+    private fun RouteDto.toDetailState(courseLabel: String, newRoadMeters: Double): CourseDetailState.Ready {
         val elevation = elevationGainM
-        val newRoad = newRoadM
         return CourseDetailState.Ready(
             courseLabel = courseLabel,
             distanceValue = "%.1f".format(distanceM / 1000.0),
@@ -130,8 +159,8 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
             // 값이 없으면 "-" 같은 대체 텍스트 없이 그냥 공란 — RunvealStat이 weight로 칸 폭을 맞춘다.
             elevationValue = elevation?.let { "+$it" } ?: "",
             elevationUnit = if (elevation != null) "m" else "",
-            newRoadValue = newRoad?.let { "%.1f".format(it / 1000.0) } ?: "",
-            newRoadUnit = if (newRoad != null) "km" else "",
+            newRoadValue = "%.1f".format(newRoadMeters / 1000.0),
+            newRoadUnit = "km",
             elevationProfile = elevationProfile?.mapNotNull { point ->
                 if (point.size >= 2) ElevationPointUiModel(cumulativeDistanceM = point[0], elevationM = point[1]) else null
             } ?: emptyList(),
