@@ -158,7 +158,7 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
     Box(modifier = modifier.fillMaxSize()) {
         if (state.phase != RecordingPhase.IDLE) {
             NewRoadBadge(
-                distanceLabel = state.distanceLabel,
+                distanceLabel = state.newRoadLabel,
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .windowInsetsPadding(WindowInsets.statusBars)
@@ -203,9 +203,9 @@ private fun remainingCoursePath(coursePath: List<LatLon>, currentLocation: LatLo
     return coursePath.subList(nearestIndex, coursePath.size)
 }
 
-/** 좌상단 "새로 탐험한 길" 배지. 지금은 기존에 가본 길과 구분하지 않고 이번 기록의 누적 거리를 그대로
- * 보여준다 — 실시간으로 "새 길인지" 가리려면 서버 매칭이 필요한데, 러닝 중 매칭(§4.2)은 이번 범위
- * 밖이라 종료 후 최종 매칭(§6)에서만 정확해진다. */
+/** 좌상단 "새로 탐험한 길" 배지 — 총 거리가 아니라 이미 가본 구간을 뺀 거리다. 지도가 금색으로 칠하는
+ * 구간과 같은 `LiveRoadClassifier` 결과를 쓴다(전부 로컬 판정, `docs/api/API.md` §3.5). 서버 매칭이
+ * 아니라서 종료 후 최종 매칭(§6)으로 계산하는 결과 화면 값과는 조금 다를 수 있다. */
 @Composable
 private fun NewRoadBadge(distanceLabel: String, modifier: Modifier = Modifier) {
     val colors = RunvealTheme.colors

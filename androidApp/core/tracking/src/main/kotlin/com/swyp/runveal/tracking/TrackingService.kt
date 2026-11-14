@@ -34,6 +34,7 @@ import com.swyp.runveal.recording.TrackPoint
 import com.swyp.runveal.recording.TrackRecorder
 import com.swyp.runveal.result.DongRateChange
 import com.swyp.runveal.result.LiveMatchHolder
+import com.swyp.runveal.result.LiveNewRoadHolder
 import com.swyp.runveal.result.TrackResult
 import com.swyp.runveal.result.TrackResultHolder
 import java.util.UUID
@@ -118,6 +119,7 @@ class TrackingService : Service() {
 
         TrackResultHolder.clear() // 이전 결과가 남아 있으면 새 결과 화면이 잠깐 옛 값을 보여준다.
         LiveMatchHolder.clear() // 지난 러닝의 매칭 선이 새 러닝 시작 직후 잠깐 겹쳐 보이지 않게.
+        LiveNewRoadHolder.clear() // 같은 이유 — 새 러닝은 "새로 탐험한 길 0.00km"부터 시작해야 한다.
         TrackRecorder.start(id = UUID.randomUUID().toString(), startedAtEpochMs = System.currentTimeMillis())
         startForeground(NOTIFICATION_ID, buildNotification(elapsedText = "00:00", distanceText = "0.0km"))
         requestLocationUpdates()
@@ -160,6 +162,7 @@ class TrackingService : Service() {
         liveMatchJob?.cancel()
         liveMatchJob = null
         LiveMatchHolder.clear()
+        LiveNewRoadHolder.clear()
         val finished = TrackRecorder.finish(finishedAtEpochMs = System.currentTimeMillis())
         if (finished != null) {
             serviceScope.launch { saveFinishedTrack(finished) }

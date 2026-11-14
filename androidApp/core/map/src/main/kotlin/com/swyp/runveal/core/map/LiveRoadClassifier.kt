@@ -3,6 +3,7 @@ package com.swyp.runveal.core.map
 import com.swyp.runveal.db.RunvealDatabase
 import com.swyp.runveal.dong.RoadSegmentParser
 import com.swyp.runveal.dong.SegmentCoverageMatcher
+import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
 
 /** `/meta`의 manifest `matchDistanceM` 기본값(`docs/api/API.md` §3.1.2) — 매 분류 호출마다 manifest를
@@ -22,7 +23,11 @@ private const val DEGREES_PER_METER = 1.0 / 111_320.0
 class LiveRoadClassifier(private val database: RunvealDatabase) {
     private val exploredSegmentIds: Set<Long> by lazy { database.exploredSegmentQueries.selectAllSegmentIds().executeAsList().toSet() }
 
-    data class Result(val oldRuns: List<List<LatLon>>, val newRuns: List<List<LatLon>>)
+    data class Result(val oldRuns: List<List<LatLon>>, val newRuns: List<List<LatLon>>) {
+        /** 처음 가보는 구간들의 길이 합(m) — 기록 화면의 "새로 탐험한 길" 배지가 쓴다
+         * ([com.swyp.runveal.result.LiveNewRoadHolder]). 지도에 금색으로 칠하는 선과 같은 근거다. */
+        val newRoadMeters: Double get() = newRuns.sumOf { GeoMath.totalDistanceMeters(it) }
+    }
 
     /** [points]를 순서대로 훑어 "이미 가본 구간 근처"인지가 바뀌는 지점마다 쪼갠 연속 구간 목록. */
     fun classify(points: List<LatLon>, matchDistanceM: Double = DEFAULT_MATCH_DISTANCE_M): Result {

@@ -62,6 +62,7 @@ import com.swyp.runveal.permission.rememberLocationPermissionState
 import com.swyp.runveal.recording.RecordingState
 import com.swyp.runveal.recording.TrackRecorder
 import com.swyp.runveal.result.LiveMatchHolder
+import com.swyp.runveal.result.LiveNewRoadHolder
 import com.swyp.runveal.result.TrackResultHolder
 import com.swyp.runveal.running.navigation.recordingOverlay
 import com.swyp.runveal.running.navigation.resultOverlay
@@ -326,6 +327,9 @@ private fun HomeMapLayer(
                     val classified = liveRoadClassifier.classify(livePoints)
                     liveRunOldGeoJson = buildVisitedRoadGeoJson(classified.oldRuns)
                     liveRunNewGeoJson = buildVisitedRoadGeoJson(classified.newRuns)
+                    // 기록 화면의 "새로 탐험한 길" 배지가 같은 분류 결과를 쓰게 넘긴다 — 분류는 전국
+                    // 구간 인덱스를 훑어서, 화면마다 따로 돌리면 매초 같은 계산을 두 번 하게 된다.
+                    LiveNewRoadHolder.publish(classified.newRoadMeters)
                 }
                 delay(1000)
             }
