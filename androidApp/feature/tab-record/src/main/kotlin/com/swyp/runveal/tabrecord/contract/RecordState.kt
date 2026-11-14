@@ -1,5 +1,6 @@
 package com.swyp.runveal.tabrecord.contract
 
+import com.swyp.runveal.map.snapshot.SnapshotRequest
 import com.swyp.runveal.ui.mvi.UiState
 
 /** 기록 목록 한 줄 — 전부 화면에 그대로 찍히는 라벨이다(포맷은 [RecordViewModel][com.swyp.runveal.tabrecord.RecordViewModel]). */
@@ -10,6 +11,8 @@ data class RecordItem(
     val distanceLabel: String,
     val durationLabel: String,
     val paceLabel: String,
+    /** 카드 왼쪽 지도 썸네일. 매칭 경로가 없으면(매칭 실패/점 부족) null이라 플레이스홀더만 보인다. */
+    val thumbnailRequest: SnapshotRequest? = null,
 )
 
 /**

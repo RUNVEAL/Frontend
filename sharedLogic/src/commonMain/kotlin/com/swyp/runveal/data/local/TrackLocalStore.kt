@@ -152,6 +152,15 @@ class TrackLocalStore(
         database.runSegmentQueries.newRoadMetersBetween(fromEpochMs = fromEpochMs, toEpochMs = toEpochMs)
             .executeAsOne()
 
+    /** 기록 탭 썸네일용 트랙별 매칭 경로. 매칭이 아직/끝내 안 된 트랙은 `track_edge`가 비어 있어서
+     * 결과 맵에 키가 없다 — 호출부는 그때 썸네일 없이(플레이스홀더) 그린다. */
+    fun routesForTracks(trackIds: List<String>): Map<String, List<LatLon>> {
+        if (trackIds.isEmpty()) return emptyMap()
+        return database.trackEdgeQueries.selectEdgesForTracks(trackIds).executeAsList()
+            .groupBy { it.track_id }
+            .mapValues { (_, rows) -> rows.flatMap { decodeCoordinates(it.coordinates) } }
+    }
+
     /** 동별 완주 길이(분자) — `explored_segment`를 바로 집계한다. */
     fun walkedLengthByDong(): Map<String, Double> =
         database.exploredSegmentQueries.walkedLengthByDong().executeAsList()

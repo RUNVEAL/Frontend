@@ -99,6 +99,7 @@ private fun RecordScreen(state: RecordState, modifier: Modifier = Modifier) {
                             distanceLabel = record.distanceLabel,
                             durationLabel = record.durationLabel,
                             paceLabel = record.paceLabel,
+                            thumbnailRequest = record.thumbnailRequest,
                         )
                     }
                 }

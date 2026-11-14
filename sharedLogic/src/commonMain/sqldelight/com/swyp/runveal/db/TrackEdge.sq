@@ -19,3 +19,11 @@ ORDER BY t.started_at_epoch_ms, e.track_id, e.seq;
 
 insertEdge:
 INSERT INTO track_edge (track_id, seq, coordinates, length_meters) VALUES (?, ?, ?, ?);
+
+-- 기록 탭 썸네일: 주어진 트랙들의 매칭 경로를 한 번에. 빈 목록으로 부르면 `IN ()`이 돼서 SQLite
+-- 문법 오류가 나니 호출부가 먼저 걸러야 한다(TrackLocalStore.routesForTracks).
+selectEdgesForTracks:
+SELECT track_id, coordinates
+FROM track_edge
+WHERE track_id IN ?
+ORDER BY track_id, seq;

@@ -5,6 +5,9 @@ import com.swyp.runveal.data.local.DatabaseDriverFactory
 import com.swyp.runveal.data.local.FileStore
 import com.swyp.runveal.data.local.TrackLocalStore
 import com.swyp.runveal.db.RunvealDatabase
+import com.swyp.runveal.map.LatLon
+import com.swyp.runveal.map.snapshot.SnapshotVariant
+import com.swyp.runveal.map.snapshot.toSnapshotRequest
 import com.swyp.runveal.result.TrackResultHolder
 import com.swyp.runveal.tabrecord.contract.RecordItem
 import com.swyp.runveal.tabrecord.contract.RecordState
@@ -53,6 +56,8 @@ class RecordViewModel(
 
         val tracks = withContext(Dispatchers.IO) { store.tracksBetween(from, to) }
         val newRoadMeters = withContext(Dispatchers.IO) { store.newRoadMetersBetween(from, to) }
+        // 썸네일 경로는 트랙마다 따로 묻지 않고 이 달치를 한 번에 읽는다.
+        val routes = withContext(Dispatchers.IO) { store.routesForTracks(tracks.map { it.id }) }
         val totalDistanceMeters = tracks.sumOf { it.distanceMeters }
 
         setState {
@@ -61,13 +66,13 @@ class RecordViewModel(
                 runCountLabel = "${tracks.size}회",
                 totalDistanceValue = "%.2f".format(totalDistanceMeters / 1000.0),
                 newRoadValue = "+%.2f".format(newRoadMeters / 1000.0),
-                records = tracks.map(::toRecordItem),
+                records = tracks.map { toRecordItem(it, routes[it.id].orEmpty()) },
                 isLoading = false,
             )
         }
     }
 
-    private fun toRecordItem(track: TrackLocalStore.TrackSummary): RecordItem {
+    private fun toRecordItem(track: TrackLocalStore.TrackSummary, route: List<LatLon>): RecordItem {
         val startedAt = Instant.ofEpochMilli(track.startedAtEpochMs).atZone(zoneId)
         return RecordItem(
             trackId = track.id,
@@ -77,6 +82,7 @@ class RecordViewModel(
             distanceLabel = "%.2fkm".format(track.distanceMeters / 1000.0),
             durationLabel = formatElapsed(track.elapsedMs),
             paceLabel = formatPace(track.elapsedMs, track.distanceMeters),
+            thumbnailRequest = route.toSnapshotRequest(ownerId = track.id, variant = SnapshotVariant.THUMBNAIL),
         )
     }
 
