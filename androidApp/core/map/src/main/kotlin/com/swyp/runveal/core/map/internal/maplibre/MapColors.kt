@@ -21,4 +21,6 @@ internal data class MapColors(
     /** 러닝 중 실시간 선 — 처음 가보는 구간(금색 코어 + glow). */
     val liveRunNew: Int,
     val liveRunNewGlow: Int,
+    /** "안 가본 길" 보기에서 베이스 지도 도로를 덮는 색. */
+    val roadUnexploredFocus: Int,
 )

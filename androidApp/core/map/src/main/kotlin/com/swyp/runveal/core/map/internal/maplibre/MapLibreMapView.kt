@@ -66,6 +66,7 @@ internal fun MapLibreMapView(
     var cameraIdleTick by remember { mutableIntStateOf(0) }
     val dongGlowProvider = remember { DongGlowProvider(context) }
     val dongGlowImageLayer = remember { DongGlowImageLayer(dongGlowProvider) }
+    val baseStyleRoadFocus = remember { BaseStyleRoadFocus() }
     DisposableEffect(Unit) { onDispose { dongGlowProvider.dispose() } }
     val colors = RunvealTheme.colors
     val mapColors = remember(colors) {
@@ -83,6 +84,7 @@ internal fun MapLibreMapView(
             liveRunOld = colors.map.roadToday.toArgb(),
             liveRunNew = colors.map.roadNew.toArgb(),
             liveRunNewGlow = colors.map.roadNewHalo.toArgb(),
+            roadUnexploredFocus = colors.map.roadUnexploredFocus.toArgb(),
         )
     }
 
@@ -125,6 +127,8 @@ internal fun MapLibreMapView(
                         // 베이스 스타일 레이어 스냅샷이 필요해서 다른 레이어를 추가하기 전에 가장 먼저 호출한다.
                         BaseMapDimmer.applyAtStyleLoad(loadedStyle)
                         BaseStyleDarkCorrection.applyAtStyleLoad(loadedStyle)
+                        // 도로 색을 바꾸기 전의 원래 색을 기억해 둬야 "안 가본 길" 토글을 끌 때 되돌릴 수 있다.
+                        baseStyleRoadFocus.rememberOriginalColors(loadedStyle)
                         CurrentLocationLayer.activate(view.context, map, loadedStyle, mapColors.currentLocation)
                         BaseStyleLabels.hide(loadedStyle)
                     }
@@ -177,6 +181,12 @@ internal fun MapLibreMapView(
         }
     }
 
+    // "안 가본 길" 보기를 켠 동안만 베이스 지도 도로를 그 색으로 덮고, 끄면 원래 색으로 되돌린다.
+    val unexploredRoadFocus = state.unexploredRoadFocus
+    LaunchedEffect(style, unexploredRoadFocus, mapColors) {
+        val focusColor = if (unexploredRoadFocus) mapColors.roadUnexploredFocus else null
+        style?.let { baseStyleRoadFocus.apply(it, focusColor) }
+    }
     val visitedRoadGeoJson = state.layers[MapConfig.SOURCE_VISITED_ROAD]
     LaunchedEffect(style, visitedRoadGeoJson, mapColors) {
         style?.let {

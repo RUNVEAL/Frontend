@@ -31,6 +31,9 @@ import com.swyp.runveal.designsystem.component.button.RunvealRunStartButton
 import com.swyp.runveal.designsystem.component.navigation.RunvealSegmentedToggle
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 
+/** 보기 전환 토글에서 "안 가본 길"의 인덱스 — 아래 옵션 목록 순서와 짝이다. */
+internal const val TOGGLE_INDEX_UNEXPLORED = 1
+
 /** A3-4(줌 인) 오버레이. 지도/탭바는 제외, 요약 카드 + 하단 액션 줄만 담당. */
 @Composable
 fun ZoomedInMapOverlay(

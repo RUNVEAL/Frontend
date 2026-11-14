@@ -111,4 +111,15 @@ object MapConfig {
         "highway_motorway_inner",
         "highway_motorway_subtle",
     )
+
+    /**
+     * 기본 스타일의 도로 선 레이어 ID 전체 — 보행로/이면도로부터 간선/고속도로까지. 철도(`railway_*`)와
+     * 부두(`road_pier`)는 도로가 아니라 제외한다. "안 가본 길" 보기에서 이 레이어들의 색을 한 번에
+     * 바꿔 도로를 강조한다. `*_casing`은 `*_inner` 아래에 더 두껍게 깔리는 외곽선이라, 둘 다 같은 색으로
+     * 덮어야 도로가 테두리 없는 한 덩어리 선으로 보인다.
+     */
+    val BASE_STYLE_ROAD_LAYERS: List<String> = listOf(
+        "highway_path",
+        "highway_minor",
+    ) + BASE_STYLE_MAJOR_ROAD_LAYERS
 }

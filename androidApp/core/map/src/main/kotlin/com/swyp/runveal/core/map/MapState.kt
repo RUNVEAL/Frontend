@@ -40,6 +40,11 @@ class MapState(
      * 용도지만 Pin 스타일로 그린다. [pin](선택 중 임시 핀)과도 별개. */
     var pinMarkers: List<MapPin> by mutableStateOf(emptyList())
 
+    /** 홈 줌인 뷰에서 "안 가본 길" 보기를 고른 동안만 true — 켜면 베이스 지도의 도로를
+     * `map.roadUnexploredFocus` 색으로 덮어 아직 안 가본 길이 어디로 이어지는지 보이게 한다
+     * ([BaseStyleRoadFocus]). 가본 길(금색 선)은 그대로 둔다. */
+    var unexploredRoadFocus: Boolean by mutableStateOf(false)
+
     /** 지도를 탭한 마지막 좌표 — [MapLibreMapView]가 탭마다 채우고, 소비한 화면이 바로 null로 되돌려
      * 한 번만 처리되는 이벤트처럼 쓴다. */
     var lastMapClick: LatLon? by mutableStateOf(null)
