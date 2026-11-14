@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -50,6 +51,7 @@ import com.swyp.runveal.designsystem.component.card.RunvealSummaryCard
 import com.swyp.runveal.designsystem.component.navigation.RunvealTabBar
 import com.swyp.runveal.designsystem.component.navigation.RunvealTabBarContainer
 import com.swyp.runveal.designsystem.component.navigation.RunvealTabItemSpec
+import com.swyp.runveal.designsystem.component.overlay.RunvealToast
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.map.MapConfig
 import com.swyp.runveal.navigation.RunVealRoute
@@ -72,9 +74,13 @@ import com.swyp.runveal.tabmypage.navigation.myGraph
 import com.swyp.runveal.tabrecord.navigation.recordGraph
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 private val HOME_BOTTOM_PANEL_INNER_INSET = 6.dp
+
+/** 토스트가 떠 있는 시간 — 디자인시스템 토스트 주석의 "3초"를 그대로 따른다. */
+private const val TOAST_DURATION_MS = 3000L
 
 /**
  * 줌인 오버레이의 하단 액션 줄이 위치 안내 배너 때문에 더 높아진 패널과 안 겹치게 추가로 띄워야 하는
@@ -117,6 +123,16 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() != true &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Result>() != true
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
+
+    // 너무 짧아 저장하지 않은 러닝처럼, 화면 전환만으로는 이유를 알 수 없는 경우에만 띄우는 안내.
+    // 토스트 자체는 타이머를 모르는 순수 컴포넌트라 사라지는 건 여기서 재운다.
+    val discardedToastMessage = stringResource(R.string.home_recording_discarded_toast)
+    var toastMessage by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(toastMessage) {
+        if (toastMessage == null) return@LaunchedEffect
+        delay(TOAST_DURATION_MS)
+        toastMessage = null
+    }
 
     val onSelectTab: (Int) -> Unit = { index ->
         val route: RunVealRoute.HomeTab = when (index) {
@@ -178,12 +194,30 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                                 popUpTo(RunVealRoute.HomeTab.Recording) { inclusive = true }
                             }
                         },
+                        // 저장하지 않은 러닝은 결과 화면이 없으니 홈 지도로 되돌리고, 왜 기록이 안
+                        // 남았는지 토스트로 알려준다.
+                        onDiscarded = {
+                            tabNavigator.navController.navigate(RunVealRoute.HomeTab.HomeMap) {
+                                popUpTo(RunVealRoute.HomeTab.Recording) { inclusive = true }
+                            }
+                            toastMessage = discardedToastMessage
+                        },
                     )
                     resultOverlay(onClose = tabNavigator::popBackStack)
                 }
                 courseGraph(tabNavigator)
                 recordGraph(tabNavigator)
                 myGraph(tabNavigator)
+            }
+
+            toastMessage?.let { message ->
+                RunvealToast(
+                    message = message,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space16),
+                )
             }
 
             if (showTabBar) {

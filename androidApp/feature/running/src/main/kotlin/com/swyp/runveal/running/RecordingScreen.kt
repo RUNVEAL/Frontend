@@ -99,7 +99,12 @@ private val LEGEND_SWATCH_LABEL_GAP = 6.dp
  * [LaunchedEffect]로 바로 기록을 시작한다.
  */
 @Composable
-fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewModel: RecordingViewModel = viewModel()) {
+fun RecordingScreen(
+    onClose: () -> Unit,
+    onDiscarded: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: RecordingViewModel = viewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
@@ -112,9 +117,11 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
             // onClose()를 부르면 이 화면이 pop되면서 effect 수집기가 취소돼, Channel에 들어간
             // StopTrackingService가 전달되지 못한다 — 서비스가 계속 돌아 기록이 저장되지도,
             // TrackResultHolder가 publish되지도 않아서 결과 화면이 무한 로딩에 빠졌다.
-            RecordingEffect.StopTrackingService -> {
-                TrackingService.stop(context)
-                onClose()
+            is RecordingEffect.StopTrackingService -> {
+                TrackingService.stop(context, saveRecord = effect.saveRecord)
+                // 100m/1분을 못 채운 러닝은 저장하지 않으니 보여줄 결과도 없다 — 결과 화면을 건너뛰고
+                // 홈으로 돌려보낸다.
+                if (effect.saveRecord) onClose() else onDiscarded()
             }
         }
     }

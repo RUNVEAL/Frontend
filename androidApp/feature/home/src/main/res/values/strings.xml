@@ -4,4 +4,5 @@
     <string name="home_location_permission_off_banner_action">허용하기</string>
     <string name="home_location_services_off_banner_message">위치 서비스가 꺼져 있어요</string>
     <string name="home_location_services_off_banner_action">위치 켜기</string>
+    <string name="home_recording_discarded_toast">100m·1분을 넘겨야 기록으로 저장돼요</string>
 </resources>
