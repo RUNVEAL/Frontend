@@ -190,19 +190,25 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
         return steps
     }
 
-    /** `kind`별로 이름이 없을 때(특히 `NEW_ROAD`는 항상 없음, §3.6.2) 보여줄 문구를 앱이 정한다. */
+    /** `NEW_ROAD`는 제목을 "새 길"로 두고, 서버가 주는 도로명([MilestoneDto.name], §3.3.2)을 그 옆에
+     * 덧붙인다 — 이름을 못 받았으면 예전처럼 "새로 탐험하는 길"로 메운다. 나머지 `kind`는 제목이
+     * 장소명이고 옆 문구는 앱이 정한다. 강조 스타일은 이름과 무관하게 `kind` 기준. */
     private fun MilestoneDto.toRouteStep(): RouteStepUiModel {
         val isNewRoad = kind == "NEW_ROAD"
-        val place = name ?: when (kind) {
-            "PARK" -> "공원"
-            "RIVER" -> "하천길"
-            "NEW_ROAD" -> "새 길"
-            else -> "도로"
+        val placeName = name?.takeIf { it.isNotBlank() }
+        val place = if (isNewRoad) {
+            "새 길"
+        } else {
+            placeName ?: when (kind) {
+                "PARK" -> "공원"
+                "RIVER" -> "하천길"
+                else -> "도로"
+            }
         }
         val note = when (kind) {
             "PARK" -> "공원 지나가기"
             "RIVER" -> "하천길 따라가기"
-            "NEW_ROAD" -> "새로 탐험하는 길"
+            "NEW_ROAD" -> placeName ?: "새로 탐험하는 길"
             else -> null
         }
         return RouteStepUiModel(
