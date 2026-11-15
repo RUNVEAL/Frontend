@@ -20,7 +20,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -36,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.swyp.runveal.core.map.LocalMapState
+import com.swyp.runveal.core.map.MapDotMarkers
 import com.swyp.runveal.core.map.MapLayerSpec
 import com.swyp.runveal.core.map.MapLayers
 import com.swyp.runveal.core.map.MapPin
@@ -91,16 +91,19 @@ fun CourseDetailScreen(
             ),
         )
     }
-    LaunchedEffect(readyState?.path, readyState?.isLoop, bottomSheetHeightPx) {
-        val detail = readyState ?: return@LaunchedEffect
-        mapState.dotMarkers = listOfNotNull(
+    val courseMarkers = remember(readyState?.path, readyState?.isLoop) {
+        val detail = readyState ?: return@remember emptyList()
+        listOfNotNull(
             detail.path.firstOrNull()?.let { MapPin(it, RunvealMapMarkerType.Start) },
             detail.path.lastOrNull()?.takeIf { !detail.isLoop }?.let { MapPin(it, RunvealMapMarkerType.End) },
         )
+    }
+    MapDotMarkers(courseMarkers)
+    LaunchedEffect(readyState?.path, bottomSheetHeightPx) {
+        val detail = readyState ?: return@LaunchedEffect
         val extraBottomPadding = with(density) { bottomSheetHeightPx.toDp() }
         mapState.focusOnBounds(detail.path, extraBottomPadding = extraBottomPadding)
     }
-    DisposableEffect(Unit) { onDispose { mapState.dotMarkers = emptyList() } }
 
     Box(modifier = modifier.fillMaxSize()) {
         RunvealTopAppBar(
@@ -170,7 +173,7 @@ fun CourseDetailScreen(
                                     primaryLabel = stringResource(R.string.course_detail_start_running_action),
                                     // 코스 경로를 기록 화면에 넘기기만 한다 — 가이드/오버레이 적용은 보류.
                                     onPrimaryClick = {
-                                        SelectedCourseHolder.publish(current.path)
+                                        SelectedCourseHolder.publish(current.path, current.isLoop)
                                         onStartRunning()
                                     },
                                 )

@@ -45,14 +45,17 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.swyp.runveal.core.map.LocalMapState
+import com.swyp.runveal.core.map.MapDotMarkers
 import com.swyp.runveal.core.map.MapLayerSpec
 import com.swyp.runveal.core.map.MapLayers
+import com.swyp.runveal.core.map.MapPin
 import com.swyp.runveal.core.map.RecommendedRoute
 import com.swyp.runveal.core.map.buildRecommendedRouteGeoJson
 import com.swyp.runveal.core.map.rememberMapState
 import com.swyp.runveal.designsystem.RunvealIcons
 import com.swyp.runveal.designsystem.component.button.RunvealButtonGroupEqual
 import com.swyp.runveal.designsystem.component.button.RunvealRunPauseButton
+import com.swyp.runveal.designsystem.component.map.RunvealMapMarkerType
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.running.R
 import com.swyp.runveal.map.GeoMath
@@ -135,6 +138,17 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
         // 러닝이 시작되는 시점에 한 번 코스 전체가 보이게 카메라를 맞춘다 — 이후 위치가 움직여도
         // 다시 맞추지 않는다(계속 다시 맞추면 러닝 중 카메라가 제멋대로 움직이는 것처럼 보인다).
         LaunchedEffect(selectedCoursePath) { mapState.focusOnBounds(selectedCoursePath) }
+
+        // 출발·도착 핀 — 코스 상세/추천 결과 화면과 같은 규칙으로, 순환 코스는 도착이 곧 출발이라
+        // 같은 자리에 마커가 겹치지 않게 출발만 띄운다.
+        val courseMarkers = remember(selectedCoursePath, state.selectedCourseIsLoop) {
+            listOfNotNull(
+                selectedCoursePath.firstOrNull()?.let { MapPin(it, RunvealMapMarkerType.Start) },
+                selectedCoursePath.lastOrNull()?.takeIf { !state.selectedCourseIsLoop }
+                    ?.let { MapPin(it, RunvealMapMarkerType.End) },
+            )
+        }
+        MapDotMarkers(courseMarkers)
 
         val totalCourseDistanceMeters = remember(selectedCoursePath) { GeoMath.totalDistanceMeters(selectedCoursePath) }
         // 코스가 바뀌지 않는 한 안내선도 그대로다 — 매초 다시 만들 이유가 없다.

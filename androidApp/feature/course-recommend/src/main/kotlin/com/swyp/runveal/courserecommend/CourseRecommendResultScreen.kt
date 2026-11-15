@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -38,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.swyp.runveal.core.map.LocalMapState
+import com.swyp.runveal.core.map.MapDotMarkers
 import com.swyp.runveal.core.map.MapLayerSpec
 import com.swyp.runveal.core.map.MapLayers
 import com.swyp.runveal.core.map.MapPin
@@ -99,15 +99,19 @@ fun CourseRecommendResultScreen(
     }
     // 선택된 코스의 출발/도착(경로의 첫·끝 좌표)을 Dot 마커로 띄우고, 그 코스가 전부 보이게 카메라를 맞춘다.
     // 순환(LOOP) 코스는 도착이 곧 출발이라 — 같은 자리에 마커 2개가 겹쳐 보이지 않게 출발만 띄운다.
-    LaunchedEffect(readyState?.selectedRouteId, readyState?.routes) {
-        val selected = readyState?.routes?.firstOrNull { it.routeId == readyState.selectedRouteId } ?: return@LaunchedEffect
-        mapState.dotMarkers = listOfNotNull(
+    val courseMarkers = remember(readyState?.selectedRouteId, readyState?.routes) {
+        val selected = readyState?.routes?.firstOrNull { it.routeId == readyState.selectedRouteId }
+            ?: return@remember emptyList()
+        listOfNotNull(
             selected.path.firstOrNull()?.let { MapPin(it, RunvealMapMarkerType.Start) },
             selected.path.lastOrNull()?.takeIf { !selected.isLoop }?.let { MapPin(it, RunvealMapMarkerType.End) },
         )
+    }
+    MapDotMarkers(courseMarkers)
+    LaunchedEffect(readyState?.selectedRouteId, readyState?.routes) {
+        val selected = readyState?.routes?.firstOrNull { it.routeId == readyState.selectedRouteId } ?: return@LaunchedEffect
         mapState.focusOnBounds(selected.path)
     }
-    DisposableEffect(Unit) { onDispose { mapState.dotMarkers = emptyList() } }
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(
