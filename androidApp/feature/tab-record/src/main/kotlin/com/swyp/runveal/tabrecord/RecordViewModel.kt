@@ -57,7 +57,10 @@ class RecordViewModel(
         val tracks = withContext(Dispatchers.IO) { store.tracksBetween(from, to) }
         val newRoadMeters = withContext(Dispatchers.IO) { store.newRoadMetersBetween(from, to) }
         // 썸네일 경로는 트랙마다 따로 묻지 않고 이 달치를 한 번에 읽는다.
-        val routes = withContext(Dispatchers.IO) { store.routesForTracks(tracks.map { it.id }) }
+        val trackIds = tracks.map { it.id }
+        val routes = withContext(Dispatchers.IO) { store.routesForTracks(trackIds) }
+        // 그 러닝이 처음 밟은 구간 — 썸네일에서 "새로 탐험한 길"을 금색으로 덧그린다.
+        val newRoads = withContext(Dispatchers.IO) { store.newRoadPathsForTracks(trackIds) }
         val totalDistanceMeters = tracks.sumOf { it.distanceMeters }
 
         setState {
@@ -66,13 +69,17 @@ class RecordViewModel(
                 runCountLabel = "${tracks.size}회",
                 totalDistanceValue = "%.2f".format(totalDistanceMeters / 1000.0),
                 newRoadValue = "+%.2f".format(newRoadMeters / 1000.0),
-                records = tracks.map { toRecordItem(it, routes[it.id].orEmpty()) },
+                records = tracks.map { toRecordItem(it, routes[it.id].orEmpty(), newRoads[it.id].orEmpty()) },
                 isLoading = false,
             )
         }
     }
 
-    private fun toRecordItem(track: TrackLocalStore.TrackSummary, route: List<LatLon>): RecordItem {
+    private fun toRecordItem(
+        track: TrackLocalStore.TrackSummary,
+        route: List<LatLon>,
+        newRoadPaths: List<List<LatLon>>,
+    ): RecordItem {
         val startedAt = Instant.ofEpochMilli(track.startedAtEpochMs).atZone(zoneId)
         return RecordItem(
             trackId = track.id,
@@ -82,7 +89,11 @@ class RecordViewModel(
             distanceLabel = "%.2fkm".format(track.distanceMeters / 1000.0),
             durationLabel = formatElapsed(track.elapsedMs),
             paceLabel = formatPace(track.elapsedMs, track.distanceMeters),
-            thumbnailRequest = route.toSnapshotRequest(ownerId = track.id, variant = SnapshotVariant.THUMBNAIL),
+            thumbnailRequest = route.toSnapshotRequest(
+                ownerId = track.id,
+                variant = SnapshotVariant.THUMBNAIL,
+                newRoadPaths = newRoadPaths,
+            ),
         )
     }
 

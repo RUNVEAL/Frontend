@@ -48,9 +48,10 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
         routeColor = SNAPSHOT_ROUTE_COLOR,
         endpointColor = SNAPSHOT_ENDPOINT_COLOR,
         endpointStrokeColor = SNAPSHOT_ENDPOINT_STROKE_COLOR,
-        // 썸네일(THUMBNAIL)은 "처음 간 길"을 따로 칠하지 않아서 이 색은 실제로 안 쓰인다 — 결과
-        // 카드(RESULT_CARD)에서만 쓰는 값이라 경로 색을 그대로 넘긴다.
+        // 코스 썸네일은 러닝이 아니라서(isRunRoute=false) 아래 두 색은 실제로 안 쓰인다 —
+        // 러닝 경로에서만 쓰는 값이라 경로 색을 그대로 넘긴다.
         newRoadColor = SNAPSHOT_ROUTE_COLOR,
+        todayRoadColor = SNAPSHOT_ROUTE_COLOR,
     )
 
     /** [load]가 찾아 둔 원본 — [CourseDetailIntent.SaveCourse]가 DB에 쓸 때 다시 쓴다(화면 상태는
