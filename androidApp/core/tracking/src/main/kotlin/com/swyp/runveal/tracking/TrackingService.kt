@@ -218,7 +218,7 @@ class TrackingService : Service() {
         val elapsedMs = finished.finishedAtEpochMs - finished.startedAtEpochMs
 
         if (points.size < 2) {
-            publishResult(finished, distanceMeters, elapsedMs, newRoadMeters = 0.0, dongStats = emptyList(), routePoints = points)
+            publishResult(finished, distanceMeters, elapsedMs, newRoadMeters = 0.0, dongStats = emptyList(), routePaths = listOf(points))
             return
         }
 
@@ -256,7 +256,9 @@ class TrackingService : Service() {
                 // 그리면 도로를 들쭉날쭉 벗어나서, 도로를 따라 그려지는 금색 "새로 탐험한 길"과 어긋나
                 // 보인다 — 같은 러닝인데 기록 탭에선 도로에 붙고 결과 화면에선 안 붙는 이유였다.
                 // 매칭이 점 2개도 못 돌려주면 원본 GPS로 떨어진다.
-                routePoints = result.path.takeIf { it.size >= 2 } ?: points,
+                // 지도의 가본 길·러닝 중 선과 **같은** 경로를 쓴다 — 서버가 도로 데이터 없는 구간을
+                // 메워 준 부분을 결과 카드만 그대로 그리면, 러닝 중 보던 선과 전혀 다른 길이 나온다.
+                routePaths = matchedPaths.ifEmpty { listOf(points) },
                 newRoadPaths = summary.newRoadPaths,
             )
         } catch (e: Exception) {
@@ -269,7 +271,7 @@ class TrackingService : Service() {
                 updated_at_epoch_ms = System.currentTimeMillis(),
                 id = finished.id,
             )
-            publishResult(finished, distanceMeters, elapsedMs, newRoadMeters = 0.0, dongStats = emptyList(), routePoints = points)
+            publishResult(finished, distanceMeters, elapsedMs, newRoadMeters = 0.0, dongStats = emptyList(), routePaths = listOf(points))
         }
     }
 
@@ -279,7 +281,7 @@ class TrackingService : Service() {
         elapsedMs: Long,
         newRoadMeters: Double,
         dongStats: List<DongRateChange>,
-        routePoints: List<LatLon>,
+        routePaths: List<List<LatLon>>,
         newRoadPaths: List<List<LatLon>> = emptyList(),
     ) {
         TrackResultHolder.publish(
@@ -290,7 +292,7 @@ class TrackingService : Service() {
                 elapsedMs = elapsedMs,
                 newRoadMeters = newRoadMeters,
                 dongStats = dongStats,
-                routePoints = routePoints,
+                routePaths = routePaths,
                 newRoadPaths = newRoadPaths,
             ),
         )

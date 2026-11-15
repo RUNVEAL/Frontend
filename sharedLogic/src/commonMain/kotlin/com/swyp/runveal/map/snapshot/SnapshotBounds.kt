@@ -78,3 +78,31 @@ fun List<LatLon>.toSnapshotRequest(
         isRunRoute = newRoadPaths != null,
     )
 }
+
+/**
+ * 여러 조각으로 나뉜 경로용 — 매칭 경로에서 실제로 달린 자리와 동떨어진 부분을 잘라내면
+ * ([com.swyp.runveal.match.MatchedPathFilter]) 선이 조각난다. 조각을 이어 붙이면 잘라낸 구간이
+ * 직선으로 되살아나므로 MultiLineString 한 장으로 그린다. 그릴 선이 없으면 `null`.
+ *
+ * [newRoadPaths]의 의미는 [toSnapshotRequest]와 같다. 이름이 다른 건 제네릭이 지워진 JVM 시그니처가
+ * 겹쳐서다.
+ */
+fun List<List<LatLon>>.toMultiPathSnapshotRequest(
+    ownerId: String,
+    variant: SnapshotVariant,
+    newRoadPaths: List<List<LatLon>>? = null,
+): SnapshotRequest? {
+    val paths = filter { it.size >= 2 }
+    if (paths.isEmpty()) return null
+    val highlight = newRoadPaths?.filter { it.size >= 2 }
+    return SnapshotRequest(
+        ownerId = ownerId,
+        variant = variant,
+        routeGeoJson = paths.toMultiLineGeoJson(),
+        bounds = paths.flatten().snapshotBounds(),
+        start = if (variant == SnapshotVariant.RESULT_CARD) paths.first().first() else null,
+        end = if (variant == SnapshotVariant.RESULT_CARD) paths.last().last() else null,
+        highlightGeoJson = highlight?.takeIf { it.isNotEmpty() }?.toMultiLineGeoJson(),
+        isRunRoute = newRoadPaths != null,
+    )
+}
