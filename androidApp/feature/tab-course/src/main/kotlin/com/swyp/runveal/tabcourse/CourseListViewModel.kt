@@ -51,6 +51,7 @@ class CourseListViewModel : MviViewModel<CourseListIntent, CourseListState, Noth
             newRoadLabel = new_road_m?.let { "새 길 %.1fkm".format(it / 1000.0) } ?: "",
             notRunLabel = "아직 안달림",
             path = path,
+            isLoop = route_type == "LOOP",
             snapshotRequest = path.toSnapshotRequest(ownerId = id, variant = SnapshotVariant.THUMBNAIL),
         )
     }

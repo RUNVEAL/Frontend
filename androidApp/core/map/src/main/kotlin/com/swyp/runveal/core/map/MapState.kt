@@ -33,8 +33,13 @@ class MapState(
     var pin: MapPin? by mutableStateOf(null)
 
     /** 지도 위에 늘 떠 있는 점 마커들(추천 코스의 출발·도착 등) — 선택 중 임시 핀([pin])과 별개로,
-     * 설정한 화면이 떠 있는 동안 계속 보인다. */
+     * 설정한 화면이 떠 있는 동안 계속 보인다. 직접 쓰지 말고 [MapDotMarkers]를 쓴다. */
     var dotMarkers: List<MapPin> by mutableStateOf(emptyList())
+
+    /** [dotMarkers]를 지금 띄워 둔 화면을 가리키는 표식 — [MapDotMarkers]가 "내가 올린 것만 치우기"를
+     * 판단하는 데 쓴다. Compose 상태가 아니라 일반 필드다: 화면이 사라질 때(onDispose) 읽는 값이
+     * 스냅샷 격리 때문에 옛 값으로 보이면 다음 화면이 올린 마커를 지워 버린다. */
+    internal var dotMarkersOwner: Any? = null
 
     /** 지도 위에 늘 떠 있는 핀 마커들(코스 만들기에서 확정한 출발·도착 등) — [dotMarkers]와 같은
      * 용도지만 Pin 스타일로 그린다. [pin](선택 중 임시 핀)과도 별개. */

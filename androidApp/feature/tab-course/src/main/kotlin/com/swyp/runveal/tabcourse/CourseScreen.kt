@@ -35,7 +35,6 @@ import com.swyp.runveal.designsystem.component.list.RunvealEmptyState
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLarge
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.tabcourse.R
-import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.tabcourse.component.CourseRecommendationCard
 import com.swyp.runveal.tabcourse.component.SavedCourseListItem
 import com.swyp.runveal.tabcourse.component.SavedCourseSectionHeader
@@ -46,7 +45,7 @@ import com.swyp.runveal.tabcourse.contract.SavedCourseUiModel
 @Composable
 fun CourseScreen(
     onCreateCourseClick: () -> Unit,
-    onStartCourse: (List<LatLon>) -> Unit,
+    onStartCourse: (SavedCourseUiModel) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: CourseListViewModel = viewModel(),
 ) {
@@ -67,7 +66,7 @@ private fun CourseListContent(
     courses: List<SavedCourseUiModel>,
     isLoading: Boolean,
     onCreateCourseClick: () -> Unit,
-    onStartCourse: (List<LatLon>) -> Unit,
+    onStartCourse: (SavedCourseUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = RunvealTheme.colors
@@ -112,7 +111,7 @@ private fun CourseListContent(
                     newRoadLabel = featured.newRoadLabel,
                     notRunLabel = featured.notRunLabel,
                     onMoreClick = {},
-                    onStartClick = { onStartCourse(featured.path) },
+                    onStartClick = { onStartCourse(featured) },
                     thumbnailRequest = featured.snapshotRequest,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -146,7 +145,7 @@ private fun CourseListContent(
                             runCountLabel = course.notRunLabel,
                             lastRunLabel = "",
                             onMoreClick = {},
-                            onStartClick = { onStartCourse(course.path) },
+                            onStartClick = { onStartCourse(course) },
                             thumbnailRequest = course.snapshotRequest,
                         )
                     }
@@ -206,6 +205,7 @@ private fun CourseListContentPreview() {
                     newRoadLabel = "새 길 1.3km",
                     notRunLabel = "아직 안달림",
                     path = emptyList(),
+                    isLoop = true,
                     snapshotRequest = null,
                 ),
             ),

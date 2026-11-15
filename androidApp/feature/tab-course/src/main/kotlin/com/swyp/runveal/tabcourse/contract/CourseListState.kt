@@ -21,6 +21,8 @@ data class SavedCourseUiModel(
     val newRoadLabel: String,
     val notRunLabel: String,
     val path: List<LatLon>,
+    /** 순환 코스면 출발·도착이 같은 자리 — 기록 화면이 도착 핀을 생략하는 데 쓴다. */
+    val isLoop: Boolean,
     val snapshotRequest: SnapshotRequest?,
 )
 

@@ -15,8 +15,18 @@ import kotlinx.coroutines.launch
 
 private const val TICKER_INTERVAL_MS = 1000L
 
+/** "이 코스로 러닝 시작"으로 넘어온 코스를 한 번만 꺼내 초기 상태에 담는다 — 홀더는 읽는 순간
+ * 비워지므로([SelectedCourseHolder.consume]) 생성자에서 딱 한 번만 읽어야 한다. */
+private fun initialRecordingState(): RecordingState {
+    val selected = SelectedCourseHolder.consume()
+    return RecordingState(
+        selectedCoursePath = selected?.path,
+        selectedCourseIsLoop = selected?.isLoop == true,
+    )
+}
+
 class RecordingViewModel : MviViewModel<RecordingIntent, RecordingState, RecordingEffect>(
-    initialState = RecordingState(selectedCoursePath = SelectedCourseHolder.consume()),
+    initialState = initialRecordingState(),
 ) {
     init {
         viewModelScope.launch {
@@ -25,9 +35,12 @@ class RecordingViewModel : MviViewModel<RecordingIntent, RecordingState, Recordi
                     when (recording) {
                         is TrackRecordingState.Recording -> copy(phase = RecordingPhase.RECORDING)
                         is TrackRecordingState.Paused -> copy(phase = RecordingPhase.PAUSED)
-                        // 코스 데이터(selectedCoursePath)는 그대로 들고 있는다 — 전체 리셋을 쓰면
-                        // 위에서 미리 읽어 둔 값이 지워진다.
-                        else -> RecordingState(selectedCoursePath = selectedCoursePath)
+                        // 코스 데이터(selectedCoursePath/selectedCourseIsLoop)는 그대로 들고 있는다 —
+                        // 전체 리셋을 쓰면 위에서 미리 읽어 둔 값이 지워진다.
+                        else -> RecordingState(
+                            selectedCoursePath = selectedCoursePath,
+                            selectedCourseIsLoop = selectedCourseIsLoop,
+                        )
                     }
                 }
             }

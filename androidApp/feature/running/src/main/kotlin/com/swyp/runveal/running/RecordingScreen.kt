@@ -45,19 +45,22 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.swyp.runveal.core.map.LocalMapState
+import com.swyp.runveal.core.map.MapDotMarkers
 import com.swyp.runveal.core.map.MapLayerSpec
 import com.swyp.runveal.core.map.MapLayers
+import com.swyp.runveal.core.map.MapPin
 import com.swyp.runveal.core.map.RecommendedRoute
 import com.swyp.runveal.core.map.buildRecommendedRouteGeoJson
 import com.swyp.runveal.core.map.rememberMapState
 import com.swyp.runveal.designsystem.RunvealIcons
 import com.swyp.runveal.designsystem.component.button.RunvealButtonGroupEqual
 import com.swyp.runveal.designsystem.component.button.RunvealRunPauseButton
+import com.swyp.runveal.designsystem.component.map.RunvealMapMarkerType
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.running.R
-import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.map.MapConfig
+import com.swyp.runveal.recording.CourseProgressTracker
 import com.swyp.runveal.recording.TrackRecorder
 import com.swyp.runveal.running.contract.RecordingEffect
 import com.swyp.runveal.running.contract.RecordingIntent
@@ -126,9 +129,9 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
     // 뒤로가기로 화면을 못 벗어나게 한다 — 종료는 반드시 "종료하기" 버튼으로.
     BackHandler(enabled = true) {}
 
-    // "이 코스로 러닝 시작"으로 들어왔으면(selectedCoursePath) 그 코스를 흰 점선 안내선으로 그린다 —
-    // 이미 지나온 구간은 매초 지금 위치 기준으로 잘라내서 "오늘 달린 길"과 안 겹치게 한다. 같은 주기로
-    // 남은 거리·진행률([CourseProgress])도 계산해서 패널에 넘긴다.
+    // "이 코스로 러닝 시작"으로 들어왔으면(selectedCoursePath) 그 코스를 흰 점선 안내선으로 그린다.
+    // 안내선은 현위치와 무관하게 추천 코스 **전체**를 그대로 유지한다 — MVP 1차에서는 현위치에 따라
+    // 코스를 바꾸지 않는다. 매초 남은 거리·진행률([CourseProgress])만 따로 계산해서 패널에 넘긴다.
     val selectedCoursePath = state.selectedCoursePath
     var courseProgress by remember { mutableStateOf<CourseProgress?>(null) }
     if (selectedCoursePath != null && selectedCoursePath.size >= 2) {
@@ -137,24 +140,40 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
         // 다시 맞추지 않는다(계속 다시 맞추면 러닝 중 카메라가 제멋대로 움직이는 것처럼 보인다).
         LaunchedEffect(selectedCoursePath) { mapState.focusOnBounds(selectedCoursePath) }
 
-        val totalCourseDistanceMeters = remember(selectedCoursePath) { GeoMath.totalDistanceMeters(selectedCoursePath) }
-        var courseGuideGeoJson by remember {
-            mutableStateOf(buildRecommendedRouteGeoJson(listOf(RecommendedRoute(id = "selected-course", points = selectedCoursePath, selected = true))))
+        // 출발·도착 핀 — 코스 상세/추천 결과 화면과 같은 규칙으로, 순환 코스는 도착이 곧 출발이라
+        // 같은 자리에 마커가 겹치지 않게 출발만 띄운다.
+        val courseMarkers = remember(selectedCoursePath, state.selectedCourseIsLoop) {
+            listOfNotNull(
+                selectedCoursePath.firstOrNull()?.let { MapPin(it, RunvealMapMarkerType.Start) },
+                selectedCoursePath.lastOrNull()?.takeIf { !state.selectedCourseIsLoop }
+                    ?.let { MapPin(it, RunvealMapMarkerType.End) },
+            )
         }
+        MapDotMarkers(courseMarkers)
+
+        // 코스가 바뀌지 않는 한 안내선도 그대로다 — 매초 다시 만들 이유가 없다.
+        val courseGuideGeoJson = remember(selectedCoursePath) {
+            buildRecommendedRouteGeoJson(listOf(RecommendedRoute(id = "selected-course", points = selectedCoursePath, selected = true)))
+        }
+        // 진행률은 "달린 거리"가 아니라 **코스를 실제로 지나간 만큼**으로 센다([CourseProgressTracker]).
+        // 달린 거리로 세면 코스와 상관없는 곳을 달려도 진행률이 오르고, 코스를 다 안 돌았는데 거리만
+        // 채워도 100%가 됐다. 순환 코스는 출발점과 도착점이 같은 자리라 "현위치에서 가장 가까운 점"
+        // 방식도 못 쓴다 — 출발하자마자 도착점이 잡혀서 100%로 튄다.
+        val progressTracker = remember(selectedCoursePath) { CourseProgressTracker(selectedCoursePath) }
         LaunchedEffect(selectedCoursePath) {
+            var consumedPointCount = 0
             while (true) {
-                val currentLocation = TrackRecorder.currentFilteredPoints().lastOrNull()?.let { LatLon(lat = it.lat, lon = it.lon) }
-                val remainingPath = currentLocation?.let { remainingCoursePath(selectedCoursePath, it) } ?: selectedCoursePath
-                courseGuideGeoJson = buildRecommendedRouteGeoJson(listOf(RecommendedRoute(id = "selected-course", points = remainingPath, selected = true)))
-                val remainingDistanceMeters = GeoMath.totalDistanceMeters(remainingPath)
-                val progressPercent = if (totalCourseDistanceMeters <= 0.0) {
-                    0
-                } else {
-                    (((totalCourseDistanceMeters - remainingDistanceMeters) / totalCourseDistanceMeters) * 100).toInt().coerceIn(0, 100)
+                // 매초 "마지막 위치"만 보면 그 사이 지나친 코스 구간을 놓칠 수 있어, 아직 안 본 점을 전부 넘긴다.
+                val filteredPoints = TrackRecorder.currentFilteredPoints()
+                if (filteredPoints.size > consumedPointCount) {
+                    progressTracker.advance(
+                        filteredPoints.drop(consumedPointCount).map { LatLon(lat = it.lat, lon = it.lon) },
+                    )
+                    consumedPointCount = filteredPoints.size
                 }
                 courseProgress = CourseProgress(
-                    remainingDistanceLabel = "%.2f".format(remainingDistanceMeters / 1000.0),
-                    progressPercent = progressPercent,
+                    remainingDistanceLabel = "%.2f".format(progressTracker.remainingMeters / 1000.0),
+                    progressPercent = progressTracker.progressPercent,
                 )
                 delay(COURSE_GUIDE_TICKER_INTERVAL_MS)
             }
@@ -198,14 +217,6 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
             }
         }
     }
-}
-
-/** [coursePath]에서 [currentLocation]과 가장 가까운 점부터 끝까지만 남긴다 — 이미 지나온 구간은
- * 점선 안내선에서 빼서 "오늘 달린 길"과 안 겹쳐 보이게 한다. 가장 가까운 점 기준이라 코스를
- * 역주행하면 오탐할 수 있지만, 정방향으로 뛴다는 전제의 단순 추정이다. */
-private fun remainingCoursePath(coursePath: List<LatLon>, currentLocation: LatLon): List<LatLon> {
-    val nearestIndex = coursePath.indices.minByOrNull { GeoMath.distanceMeters(coursePath[it], currentLocation) } ?: 0
-    return coursePath.subList(nearestIndex, coursePath.size)
 }
 
 /** 좌상단 "새로 탐험한 길" 배지 — 총 거리가 아니라 이미 가본 구간을 뺀 거리다. 지도가 금색으로 칠하는

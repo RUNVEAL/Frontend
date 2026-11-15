@@ -19,4 +19,6 @@ data class RecordingState(
      * ([com.swyp.runveal.result.LiveNewRoadHolder]). */
     val newRoadLabel: String = "0.00",
     val selectedCoursePath: List<LatLon>? = null,
+    /** 선택한 코스가 순환이면 출발·도착이 같은 자리라 도착 핀을 생략한다(코스 상세와 같은 규칙). */
+    val selectedCourseIsLoop: Boolean = false,
 ) : UiState
