@@ -33,6 +33,24 @@ object SegmentCoverageMatcher {
     fun isNearAnyPath(point: LatLon, paths: List<List<LatLon>>, matchDistanceM: Double): Boolean =
         paths.any { path -> isNearPath(point, path, matchDistanceM) }
 
+    /** [point]에서 [paths]까지의 최단거리(m). 선이 없으면 [Double.MAX_VALUE].
+     *
+     * "근처냐"가 아니라 거리가 필요한 곳 — 예를 들어 **여러 구간 중 어느 쪽 위에 서 있는지** 고를 때
+     * 쓴다. 나란한 도로·인도가 15m 안에 같이 잡히면 "근처냐"만으로는 구분이 안 된다. */
+    fun distanceToPathsMeters(point: LatLon, paths: List<List<LatLon>>): Double =
+        paths.minOfOrNull { path -> distanceToPathMeters(point, path) } ?: Double.MAX_VALUE
+
+    private fun distanceToPathMeters(point: LatLon, path: List<LatLon>): Double {
+        if (path.isEmpty()) return Double.MAX_VALUE
+        if (path.size < 2) return GeoMath.distanceMeters(point, path.first())
+        var nearest = Double.MAX_VALUE
+        for (i in 0 until path.size - 1) {
+            val distance = distanceToSegmentMeters(point, path[i], path[i + 1])
+            if (distance < nearest) nearest = distance
+        }
+        return nearest
+    }
+
     private fun sampleLine(line: List<LatLon>): List<LatLon> {
         if (line.size < 2) return line
         val samples = mutableListOf<LatLon>()

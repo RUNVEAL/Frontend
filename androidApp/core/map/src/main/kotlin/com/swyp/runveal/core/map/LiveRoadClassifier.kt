@@ -35,10 +35,10 @@ class LiveRoadClassifier(private val database: RunvealDatabase) {
         val oldRuns = mutableListOf<List<LatLon>>()
         val newRuns = mutableListOf<List<LatLon>>()
         var currentRun = mutableListOf(points.first())
-        var currentIsOld = isNearExploredSegment(points.first(), matchDistanceM)
+        var currentIsOld = isOnExploredSegment(points.first(), matchDistanceM)
         for (i in 1 until points.size) {
             val point = points[i]
-            val isOld = isNearExploredSegment(point, matchDistanceM)
+            val isOld = isOnExploredSegment(point, matchDistanceM)
             if (isOld != currentIsOld) {
                 currentRun.add(point) // 색이 바뀌는 지점을 양쪽 구간이 공유해야 선이 안 끊겨 보인다.
                 (if (currentIsOld) oldRuns else newRuns).add(currentRun)
@@ -52,7 +52,15 @@ class LiveRoadClassifier(private val database: RunvealDatabase) {
         return Result(oldRuns, newRuns)
     }
 
-    private fun isNearExploredSegment(point: LatLon, matchDistanceM: Double): Boolean {
+    /**
+      * 이 점이 **지금 밟고 있는 구간**이 이미 가본 구간인지.
+      *
+      * 예전엔 "반경 [matchDistanceM] 안에 가본 구간이 하나라도 있으면 가본 길"로 봤는데, 그러면 왕복
+      * 차로 반대편·나란한 이면도로·인도처럼 **다른 구간이 가까이 있기만 해도** 지금 처음 달리는 길이
+      * 흰색으로 칠해졌다. 그래서 가본 구간만 보지 말고 **후보 전체에서 가장 가까운 구간**을 고른 뒤,
+      * 그게 가본 구간일 때만 가본 길로 친다.
+      */
+    private fun isOnExploredSegment(point: LatLon, matchDistanceM: Double): Boolean {
         if (exploredSegmentIds.isEmpty()) return false
         val padding = matchDistanceM * DEGREES_PER_METER
         val candidates = database.roadSegmentIndexQueries.selectNear(
@@ -60,10 +68,21 @@ class LiveRoadClassifier(private val database: RunvealDatabase) {
             minLat = point.lat - padding,
             maxLon = point.lon + padding,
             minLon = point.lon - padding,
-        ).executeAsList().filter { it.segment_id in exploredSegmentIds }
+        ).executeAsList()
         if (candidates.isEmpty()) return false
-        return candidates.any { row ->
-            SegmentCoverageMatcher.isNearAnyPath(point, RoadSegmentParser.decodeLines(row.coordinates), matchDistanceM)
+
+        var nearestSegmentId: Long? = null
+        var nearestDistance = Double.MAX_VALUE
+        candidates.forEach { row ->
+            val distance = SegmentCoverageMatcher.distanceToPathsMeters(
+                point,
+                RoadSegmentParser.decodeLines(row.coordinates),
+            )
+            if (distance < nearestDistance) {
+                nearestDistance = distance
+                nearestSegmentId = row.segment_id
+            }
         }
+        return nearestDistance <= matchDistanceM && nearestSegmentId in exploredSegmentIds
     }
 }
