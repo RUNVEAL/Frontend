@@ -96,7 +96,7 @@ class TrackingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_STOP -> stopTracking()
+            ACTION_STOP -> stopTracking(saveRecord = intent.getBooleanExtra(EXTRA_SAVE_RECORD, true))
             ACTION_PAUSE -> pauseTracking()
             ACTION_RESUME -> resumeTracking()
             else -> startTracking()
@@ -158,14 +158,17 @@ class TrackingService : Service() {
         fusedLocationClient.requestLocationUpdates(request, locationCallback, mainLooper)
     }
 
-    private fun stopTracking() {
+    /** [saveRecord]가 false면 100m/1분을 못 채운 러닝이라 GPX·track row를 아예 만들지 않고 버린다
+     * (판단은 호출부 — `RecordingViewModel`이 [com.swyp.runveal.recording.RecordingSavePolicy]로 한다).
+     * 그때는 [TrackResultHolder]도 publish하지 않는다 — 결과 화면으로 넘어가지 않으니 기다리는 쪽이 없다. */
+    private fun stopTracking(saveRecord: Boolean) {
         fusedLocationClient.removeLocationUpdates(locationCallback)
         liveMatchJob?.cancel()
         liveMatchJob = null
         LiveMatchHolder.clear()
         LiveNewRoadHolder.clear()
         val finished = TrackRecorder.finish(finishedAtEpochMs = System.currentTimeMillis())
-        if (finished != null) {
+        if (finished != null && saveRecord) {
             serviceScope.launch { saveFinishedTrack(finished) }
         }
         TrackRecorder.reset()
@@ -378,6 +381,7 @@ class TrackingService : Service() {
         private const val ACTION_STOP = "com.swyp.runveal.tracking.ACTION_STOP"
         private const val ACTION_PAUSE = "com.swyp.runveal.tracking.ACTION_PAUSE"
         private const val ACTION_RESUME = "com.swyp.runveal.tracking.ACTION_RESUME"
+        private const val EXTRA_SAVE_RECORD = "com.swyp.runveal.tracking.EXTRA_SAVE_RECORD"
 
         fun start(context: Context) {
             val intent = Intent(context, TrackingService::class.java)
@@ -394,8 +398,11 @@ class TrackingService : Service() {
             context.startService(intent)
         }
 
-        fun stop(context: Context) {
-            val intent = Intent(context, TrackingService::class.java).setAction(ACTION_STOP)
+        /** [saveRecord]가 false면 이번 러닝을 기록으로 남기지 않고 버린다(너무 짧은 러닝). */
+        fun stop(context: Context, saveRecord: Boolean = true) {
+            val intent = Intent(context, TrackingService::class.java)
+                .setAction(ACTION_STOP)
+                .putExtra(EXTRA_SAVE_RECORD, saveRecord)
             context.startService(intent)
         }
     }

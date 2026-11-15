@@ -1,6 +1,7 @@
 package com.swyp.runveal.running
 
 import androidx.lifecycle.viewModelScope
+import com.swyp.runveal.recording.RecordingSavePolicy
 import com.swyp.runveal.recording.RecordingState as TrackRecordingState
 import com.swyp.runveal.recording.TrackRecorder
 import com.swyp.runveal.result.LiveNewRoadHolder
@@ -80,7 +81,16 @@ class RecordingViewModel : MviViewModel<RecordingIntent, RecordingState, Recordi
             RecordingIntent.StartClicked -> sendEffect(RecordingEffect.StartTrackingService)
             RecordingIntent.PauseClicked -> sendEffect(RecordingEffect.PauseTrackingService)
             RecordingIntent.ResumeClicked -> sendEffect(RecordingEffect.ResumeTrackingService)
-            RecordingIntent.StopClicked -> sendEffect(RecordingEffect.StopTrackingService)
+            // 저장 여부는 여기서 한 번만 정해 서비스까지 그대로 넘긴다 — 서비스가 따로 다시 판단하면
+            // 그 사이 1분/100m 경계를 넘겨서 "홈으로 돌려보냈는데 기록은 저장됨" 같은 어긋남이 생긴다.
+            RecordingIntent.StopClicked -> sendEffect(
+                RecordingEffect.StopTrackingService(
+                    saveRecord = RecordingSavePolicy.isSavable(
+                        distanceMeters = TrackRecorder.totalDistanceMeters(),
+                        elapsedMs = TrackRecorder.elapsedMs(System.currentTimeMillis()),
+                    ),
+                ),
+            )
         }
     }
 
