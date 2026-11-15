@@ -1,0 +1,143 @@
+name: build-debug
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: '빌드 대상'
+        type: choice
+        # iOS(iosApp)는 macOS 러너 + Xcode 서명이 필요해 아직 잡을 안 만들었다.
+        options: [ all, android ]
+        default: all
+
+  push:
+    branches: [ dev ]
+
+concurrency:
+  group: build-debug-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─────────────────────────────── Android ───────────────────────────────
+  android:
+    name: Android Release APK
+    if: ${{ github.event_name == 'push' || inputs.platform == 'all' || inputs.platform == 'android' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Gradle 배포판·의존성 캐시. 이 저장소는 Gradle 9.5 래퍼 + AGP 9를 쓴다.
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: 시크릿 파일 복원
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+          KAKAO_NATIVE_APP_KEY: ${{ secrets.KAKAO_NATIVE_APP_KEY }}
+          GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+          NETWORK_BASE_URL: ${{ secrets.NETWORK_BASE_URL }}
+        run: |
+          # Firebase 설정 — 저장소에 없다(.gitignore). 없으면 google-services 플러그인이 안 붙을 뿐
+          # 빌드는 그대로 된다(androidApp/app/build.gradle.kts의 조건부 apply).
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            echo "$GOOGLE_SERVICES_JSON" | base64 --decode > androidApp/app/google-services.json
+          else
+            echo "::warning::GOOGLE_SERVICES_JSON 미설정 — Firebase 설정 없이 빌드합니다."
+          fi
+
+          # sharedLogic이 local.properties(없으면 환경변수)에서 읽어 AuthConfig/NetworkConfig를 생성한다.
+          # network.baseUrl은 이름에 점이 있어 환경변수로 못 넘기므로 local.properties에 쓴다.
+          {
+            echo "KAKAO_NATIVE_APP_KEY=$KAKAO_NATIVE_APP_KEY"
+            echo "GOOGLE_WEB_CLIENT_ID=$GOOGLE_WEB_CLIENT_ID"
+            echo "network.baseUrl=$NETWORK_BASE_URL"
+          } >> local.properties
+
+      - name: 릴리스 키스토어 복원
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          # 키스토어 값이 있으면 업로드 키로 서명. 없으면 build.gradle.kts가 debug로 폴백하는데,
+          # 그 경우 배포본 SHA가 미등록이라 카카오/구글 로그인이 실패하므로 경고를 남긴다.
+          if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo "::warning::ANDROID_KEYSTORE_BASE64 미설정 — 릴리스가 debug 키로 서명됩니다(로그인 실패 위험)."
+            exit 0
+          fi
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > androidApp/app/upload-keystore.jks
+          # RELEASE_* 값을 local.properties에 주입 (build.gradle.kts가 여기서 읽음 — KAKAO 키와 동일 패턴).
+          # storeFile은 app 모듈 기준 상대경로.
+          {
+            echo "RELEASE_STORE_FILE=upload-keystore.jks"
+            echo "RELEASE_STORE_PASSWORD=$ANDROID_KEYSTORE_PASSWORD"
+            echo "RELEASE_KEY_PASSWORD=$ANDROID_KEY_PASSWORD"
+            echo "RELEASE_KEY_ALIAS=$ANDROID_KEY_ALIAS"
+          } >> local.properties
+
+      - name: APK·AAB 빌드 (release)
+        # 릴리스 서명(업로드 키) + 디자인 토큰·아이콘 생성까지 Gradle이 알아서 돌린다.
+        # versionCode를 run_number로 주입해 실행마다 자동 증가(build.gradle.kts는 값을 안 바꿈).
+        # APK와 AAB를 한 번에 만들어 배포본과 스토어 업로드본의 산출물을 일치시킨다.
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :androidApp:app:assembleRelease :androidApp:app:bundleRelease \
+            -PversionCode=${{ github.run_number }} --no-daemon
+
+      - name: Firebase 서비스 계정 복원 (base64 → JSON 파일)
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          echo "$FIREBASE_SERVICE_ACCOUNT" | base64 --decode > "$RUNNER_TEMP/firebase-sa.json"
+          echo "FIREBASE_SA=$RUNNER_TEMP/firebase-sa.json" >> "$GITHUB_ENV"
+
+      # Gradle 플러그인 대신 Firebase CLI로 업로드한다 — 배포 링크를 로그에서 뽑아 쓸 수 있고,
+      # AGP 버전에 묶이지 않는다.
+      - name: Firebase App Distribution 업로드 (CLI)
+        id: distribute
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ env.FIREBASE_SA }}
+        run: |
+          npm install -g firebase-tools
+          # 업로드가 유일한 필수 단계. tee를 거쳐도 firebase 종료코드를 PIPESTATUS로 직접 확인.
+          firebase appdistribution:distribute androidApp/app/build/outputs/apk/release/app-release.apk \
+            --app "${{ secrets.FIREBASE_APP_ID_ANDROID }}" \
+            --groups qa \
+            --release-notes "${{ github.ref_name }}@${{ github.sha }}" 2>&1 | tee distribute.log
+          status=${PIPESTATUS[0]}
+          [ "$status" -eq 0 ] || { echo "::error::Firebase 배포 실패 (exit $status)"; exit "$status"; }
+
+          # 이하 링크 추출은 best-effort — 실패해도 배포 잡을 죽이지 않는다.
+          echo "----- distribute URLs -----"
+          grep -E 'https?://' distribute.log || true
+          echo "---------------------------"
+
+          # 테스터 경험(다운로드) 링크만 도메인(appdistribution.firebase…)으로 추출.
+          TESTING_URI=$(grep -oE 'https://appdistribution\.firebase[^[:space:]"]*' distribute.log | head -n1 || true)
+          echo "추출된 testing_uri: ${TESTING_URI:-(없음)}"
+          # 링크를 파일로 저장해 아티팩트로 넘긴다.
+          # (잡 간 outputs는 URL 내 시크릿 때문에 redact되지만, 아티팩트 내용은 redact 안 됨)
+          printf '%s\n' "$TESTING_URI" > testing_uri.txt
+
+      - name: 테스터 링크 아티팩트 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: testing-uri-android
+          path: testing_uri.txt
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: AAB 아티팩트 업로드 (다운로드용)
+        # Actions 실행 페이지 하단 Artifacts에서 app-release.aab 다운로드 가능.
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab
+          path: androidApp/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30

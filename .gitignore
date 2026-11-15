@@ -23,3 +23,15 @@ CLAUDE.md
 /sample-data/
 /tools/
 /androidApp/core/map/src/main/assets/tracks/
+
+# Firebase 설정 — API 키/프로젝트 식별자가 들어 있어 저장소에 올리지 않는다.
+# 각자 Firebase 콘솔에서 받아 androidApp/app/ 에 둔다.
+google-services.json
+
+# 서명 키스토어 — CI는 시크릿(ANDROID_KEYSTORE_BASE64)에서 복원해 쓴다.
+*.jks
+*.keystore
+/key
+
+# AGP가 bundleRelease 때 AAB를 복사해 두는 자리(build/ 밖이라 따로 무시한다).
+/androidApp/app/release/
