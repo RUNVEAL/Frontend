@@ -16,6 +16,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.swyp.runveal.core.map.DongAssetRepository
+import com.swyp.runveal.core.map.LiveRoadClassifier
 import com.swyp.runveal.core.map.RoadSegmentIndexImporter
 import com.swyp.runveal.core.tracking.R
 import com.swyp.runveal.data.local.RunvealDatabaseProvider
@@ -241,7 +242,21 @@ class TrackingService : Service() {
             //  - 경로: 실제 GPS와 동떨어진 부분을 잘라내고 조각으로 나눈다.
             //  - 구간: 로컬 구간 인덱스의 도로선과 대조해 GPS가 진짜 지나간 것만 적립한다.
             val matchedPaths = MatchedPathFilter.keepNearRecordedPoints(result.path, points)
-            val passedSegmentIds = store.segmentIdsActuallyPassed(result.segmentIds, listOf(points))
+            val runPaths = matchedPaths.ifEmpty { listOf(points) }
+            // 탐험률에 적립할 구간도 러닝 중 색 판정과 **같은 규칙**으로 고른다 — 서버 segmentIds를
+            // 그대로 믿으면 안 지난 도로가 섞여 들어오고, 반대로 로컬 인덱스에 없는 ID만 와서
+            // 아무것도 적립 안 되는 일도 생긴다(러닝 중엔 새 길이었는데 탐험률은 그대로인 원인).
+            val passedSegmentIds = store.segmentIdsOnPaths(runPaths)
+
+            // "새로 탐험한 길"은 러닝 중 배지·금색 선과 **같은 기준**으로 센다 — 달린 선에서 아직 안
+            // 가본 도로 위를 지난 부분의 길이다. 적립(구간 단위)으로 세면 러닝 중엔 0.38km였는데 결과는
+            // 0km로 나오는 일이 생긴다: 그 구간이 로컬 인덱스에 없거나 이미 적립돼 있으면 0이 되기 때문.
+            // 적립보다 **먼저** 분류해야 이번 러닝으로 막 적립될 구간이 "가본 길"로 바뀌기 전 상태를 본다.
+            val classifier = LiveRoadClassifier(store.database).also { it.refreshExploredSegments() }
+            val classified = runPaths.map { classifier.classify(it) }
+            val newRoadMeters = classified.sumOf { it.newRoadMeters }
+            val newRoadPaths = classified.flatMap { it.newRuns }
+
             val summary = store.recordMatchResult(
                 trackId = finished.id,
                 matchedPaths = matchedPaths,
@@ -251,15 +266,16 @@ class TrackingService : Service() {
             val afterWalked = store.walkedLengthByDong()
             val dongStats = buildDongStats(summary.touchedDongAdmCodes, beforeWalked, afterWalked)
             publishResult(
-                finished, distanceMeters, elapsedMs, summary.newRoadMeters, dongStats,
+                finished, distanceMeters, elapsedMs, newRoadMeters, dongStats,
                 // 결과 카드도 기록 탭 썸네일과 같은 선을 그리도록 **매칭 경로**를 넘긴다. 원본 GPS를
                 // 그리면 도로를 들쭉날쭉 벗어나서, 도로를 따라 그려지는 금색 "새로 탐험한 길"과 어긋나
                 // 보인다 — 같은 러닝인데 기록 탭에선 도로에 붙고 결과 화면에선 안 붙는 이유였다.
                 // 매칭이 점 2개도 못 돌려주면 원본 GPS로 떨어진다.
                 // 지도의 가본 길·러닝 중 선과 **같은** 경로를 쓴다 — 서버가 도로 데이터 없는 구간을
                 // 메워 준 부분을 결과 카드만 그대로 그리면, 러닝 중 보던 선과 전혀 다른 길이 나온다.
-                routePaths = matchedPaths.ifEmpty { listOf(points) },
-                newRoadPaths = summary.newRoadPaths,
+                routePaths = runPaths,
+                // 금색 덧그림도 구간 전체가 아니라 **실제로 지난 부분**이다 — 러닝 중 금색 선과 같다.
+                newRoadPaths = newRoadPaths,
             )
         } catch (e: Exception) {
             // TEMP DEBUG — 확인 끝나면 catch (_: Exception)으로 되돌린다.

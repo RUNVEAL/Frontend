@@ -1,18 +1,9 @@
 package com.swyp.runveal.core.map
 
 import com.swyp.runveal.db.RunvealDatabase
-import com.swyp.runveal.dong.RoadSegmentParser
-import com.swyp.runveal.dong.SegmentCoverageMatcher
+import com.swyp.runveal.data.local.RoadSegmentLocator
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
-
-/** `/meta`의 manifest `matchDistanceM` 기본값(`docs/api/API.md` §3.1.2) — 매 분류 호출마다 manifest를
- * 다시 받지 않고 이 값을 쓴다. */
-private const val DEFAULT_MATCH_DISTANCE_M = 15.0
-
-/** 위도 1도 ≈ 111,320m — 바운딩 박스 사전 거르기용 대략치(경도는 위도에 따라 더 좁아지지만, 후보를
- * 넉넉하게 거르는 용도라 보수적으로 같은 비율을 쓴다). */
-private const val DEGREES_PER_METER = 1.0 / 111_320.0
 
 /**
  * 러닝 중 "오늘 달린 길"을 이미 가본 구간(흰색)/처음 가보는 구간(금색)으로 나눈다 — 서버 호출 없이
@@ -21,6 +12,7 @@ private const val DEGREES_PER_METER = 1.0 / 111_320.0
  * 본다 — 크래시 대신 "전부 새 길"로 보이는 쪽을 선택한다.
  */
 class LiveRoadClassifier(private val database: RunvealDatabase) {
+    private val locator = RoadSegmentLocator(database)
     private var exploredSegmentIds: Set<Long>? = null
 
     /**
@@ -45,15 +37,15 @@ class LiveRoadClassifier(private val database: RunvealDatabase) {
     }
 
     /** [points]를 순서대로 훑어 "이미 가본 구간 근처"인지가 바뀌는 지점마다 쪼갠 연속 구간 목록. */
-    fun classify(points: List<LatLon>, matchDistanceM: Double = DEFAULT_MATCH_DISTANCE_M): Result {
+    fun classify(points: List<LatLon>): Result {
         if (points.size < 2) return Result(emptyList(), emptyList())
         val oldRuns = mutableListOf<List<LatLon>>()
         val newRuns = mutableListOf<List<LatLon>>()
         var currentRun = mutableListOf(points.first())
-        var currentIsOld = isOnExploredSegment(points.first(), matchDistanceM)
+        var currentIsOld = isOnExploredSegment(points.first())
         for (i in 1 until points.size) {
             val point = points[i]
-            val isOld = isOnExploredSegment(point, matchDistanceM)
+            val isOld = isOnExploredSegment(point)
             if (isOld != currentIsOld) {
                 currentRun.add(point) // 색이 바뀌는 지점을 양쪽 구간이 공유해야 선이 안 끊겨 보인다.
                 (if (currentIsOld) oldRuns else newRuns).add(currentRun)
@@ -75,30 +67,9 @@ class LiveRoadClassifier(private val database: RunvealDatabase) {
       * 흰색으로 칠해졌다. 그래서 가본 구간만 보지 말고 **후보 전체에서 가장 가까운 구간**을 고른 뒤,
       * 그게 가본 구간일 때만 가본 길로 친다.
       */
-    private fun isOnExploredSegment(point: LatLon, matchDistanceM: Double): Boolean {
+    private fun isOnExploredSegment(point: LatLon): Boolean {
         val exploredSegmentIds = exploredSegmentIds()
         if (exploredSegmentIds.isEmpty()) return false
-        val padding = matchDistanceM * DEGREES_PER_METER
-        val candidates = database.roadSegmentIndexQueries.selectNear(
-            maxLat = point.lat + padding,
-            minLat = point.lat - padding,
-            maxLon = point.lon + padding,
-            minLon = point.lon - padding,
-        ).executeAsList()
-        if (candidates.isEmpty()) return false
-
-        var nearestSegmentId: Long? = null
-        var nearestDistance = Double.MAX_VALUE
-        candidates.forEach { row ->
-            val distance = SegmentCoverageMatcher.distanceToPathsMeters(
-                point,
-                RoadSegmentParser.decodeLines(row.coordinates),
-            )
-            if (distance < nearestDistance) {
-                nearestDistance = distance
-                nearestSegmentId = row.segment_id
-            }
-        }
-        return nearestDistance <= matchDistanceM && nearestSegmentId in exploredSegmentIds
+        return locator.nearestSegmentId(point) in exploredSegmentIds
     }
 }

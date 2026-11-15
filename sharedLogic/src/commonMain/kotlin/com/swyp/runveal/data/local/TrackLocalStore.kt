@@ -2,9 +2,7 @@ package com.swyp.runveal.data.local
 
 import com.swyp.runveal.db.RunvealDatabase
 import com.swyp.runveal.dong.MatchedEdge
-import com.swyp.runveal.dong.RoadSegment
 import com.swyp.runveal.dong.RoadSegmentParser
-import com.swyp.runveal.dong.SegmentCoverageMatcher
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
 import kotlinx.serialization.builtins.ListSerializer
@@ -13,12 +11,8 @@ import kotlinx.serialization.json.Json
 
 private const val MATCH_STATE_MATCHED = "MATCHED"
 
-/** `/meta` manifest 기본값(`docs/api/API.md` §3.1.2) — 호출할 때마다 manifest를 다시 받지 않는다. */
+/** `/meta` manifest `matchDistanceM` 기본값(`docs/api/API.md` §3.1.2). */
 private const val DEFAULT_MATCH_DISTANCE_M = 15.0
-private const val DEFAULT_SEGMENT_COVERAGE = 0.6
-
-/** 위도 1도 ≈ 111,320m — 바운딩 박스 사전 거르기용 대략치. */
-private const val DEGREES_PER_METER = 1.0 / 111_320.0
 
 /** [TrackLocalStore.recordMatchResult] 결과 요약 — 러닝 결과 화면(§새로 탐험한 길, 동별 완주율 변화)이
  * 바로 쓸 수 있게 "이번에 처음 걸은 구간"만 집계해서 돌려준다. */
@@ -144,46 +138,18 @@ class TrackLocalStore(
     private data class RoadSegmentInfo(val adm_cd2: String, val length_m: Double, val coordinates: String)
 
     /**
-     * 서버가 준 구간 ID 중 **GPS가 실제로 지나간 구간만** 남긴다.
+     * 달린 선이 **올라탄 구간**들의 ID — 탐험률(`explored_segment`)에 적립할 대상이다.
      *
-     * 서버 매칭은 도로망을 따라 경로를 메우기 때문에, 스쳐 지나가거나 아예 안 지난 도로의 구간 ID까지
-     * 섞여 올 수 있다. 그걸 그대로 적립하면 구간 **전체 길이**가 "가본 길"로 들어가 동 탐험률이
-     * 부풀려진다. 그래서 로컬 `road_segment` 인덱스의 실제 도로선과 GPS 경로를 대조해
-     * ([SegmentCoverageMatcher]) 기준을 넘긴 구간만 남긴다 — 서버 `/meta` manifest와 같은 두 기준
-     * ([matchDistanceM], [segmentCoverage])을 쓴다.
-     *
-     * 인덱스에 아직 없는 구간은 판정할 근거가 없어 그대로 통과시킨다 — 어차피 적립 단계에서
-     * ([adoptSegment]) 길이를 몰라 건너뛴다.
+     * 서버가 준 `segmentIds`를 쓰지 않는다. 서버는 도로망을 따라 경로를 메우기 때문에 안 지난 도로의
+     * 구간까지 섞여 오고, 반대로 로컬 인덱스에 없는 ID를 줘서 아무것도 적립 안 되는 경우도 생긴다.
+     * 대신 러닝 중 흰색/금색을 가르는 것과 **같은 규칙**([RoadSegmentLocator] — 점에서 가장 가까운
+     * 구간)으로 직접 고른다. 그래야 "러닝 중엔 새 길이었는데 탐험률은 안 움직이는" 어긋남이 없다.
      */
-    fun segmentIdsActuallyPassed(
-        segmentIds: List<Long>,
-        recordedPaths: List<List<LatLon>>,
-        matchDistanceM: Double = DEFAULT_MATCH_DISTANCE_M,
-        segmentCoverage: Double = DEFAULT_SEGMENT_COVERAGE,
-    ): List<Long> {
-        if (recordedPaths.all { it.size < 2 }) return segmentIds
-
-        // 먼저 GPS 경로 전체의 바운딩 박스로 걸러낸다 — 박스에도 안 걸리는 구간은 선분 거리를 재볼
-        // 필요가 없다(구간 하나당 샘플 수 × 경로 점 수만큼 계산이 든다).
-        val points = recordedPaths.flatten()
-        val padding = matchDistanceM * DEGREES_PER_METER
-        val minLat = points.minOf { it.lat } - padding
-        val maxLat = points.maxOf { it.lat } + padding
-        val minLon = points.minOf { it.lon } - padding
-        val maxLon = points.maxOf { it.lon } + padding
-
-        return segmentIds.distinct().filter { segmentId ->
-            val row = database.roadSegmentIndexQueries.selectById(segmentId).executeAsOneOrNull() ?: return@filter true
-            if (row.max_lat < minLat || row.min_lat > maxLat || row.max_lon < minLon || row.min_lon > maxLon) {
-                return@filter false
-            }
-            val segment = RoadSegment(
-                segmentId = row.segment_id,
-                lengthM = row.length_m.toInt(),
-                lines = RoadSegmentParser.decodeLines(row.coordinates),
-            )
-            SegmentCoverageMatcher.isCovered(segment, recordedPaths, matchDistanceM, segmentCoverage)
-        }
+    fun segmentIdsOnPaths(paths: List<List<LatLon>>, matchDistanceM: Double = DEFAULT_MATCH_DISTANCE_M): List<Long> {
+        val locator = RoadSegmentLocator(database, matchDistanceM)
+        val ids = linkedSetOf<Long>()
+        paths.forEach { path -> path.forEach { point -> locator.nearestSegmentId(point)?.let(ids::add) } }
+        return ids.toList()
     }
 
     /** 기록 탭 한 줄치 요약 — 라벨 포맷은 화면(ViewModel)이 맡고, 여기선 숫자/시각만 넘긴다. */
