@@ -14,5 +14,10 @@ internal class DongGlowMemoryCache(maxBytes: Int = 32 * 1024 * 1024) {
         cache.put(key(admCd2, level), asset)
     }
 
+    /** 경계 출처가 바뀌었을 때 — 옛 경계로 만든 이미지를 더 쓰면 안 된다. */
+    fun clear() {
+        cache.evictAll()
+    }
+
     private fun key(admCd2: String, level: Int) = "$admCd2:$level"
 }

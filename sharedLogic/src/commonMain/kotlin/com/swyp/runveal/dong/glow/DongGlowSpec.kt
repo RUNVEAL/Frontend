@@ -10,5 +10,6 @@ object DongGlowSpec {
     const val REF_EFFECT_SCALE = 0.7f
     const val QUALITY = 1.0f
     const val MAX_SIDE = 1024
-    const val VERSION = 1
+    /** 2 = 빛 이미지 입력 폴리곤을 테두리 선과 같은(인접 동 정점 스냅 적용) 좌표로 바꾼 버전. */
+    const val VERSION = 2
 }
