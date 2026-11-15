@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -92,6 +95,9 @@ private fun MapActionRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            // 탭바와 같은 기준선에서 재야 한다 — 탭바도 이 inset 위에 떠 있어서, 이게 빠지면 제스처
+            // 바/3버튼 바가 두꺼운 기기(예: 플립)에서 이 줄만 그만큼 내려와 탭바와 겹친다.
+            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
             .padding(
                 start = RunvealTheme.layout.marginMapControls,
                 end = RunvealTheme.layout.marginMapControls,
