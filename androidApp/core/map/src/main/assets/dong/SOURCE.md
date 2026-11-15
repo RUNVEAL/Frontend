@@ -1,5 +1,15 @@
 # 전국 행정구역 경계·계층 데이터 출처
 
+> **2026-11 변경**: 동 경계(`korea_dong.geojson`)와 동별 도로 길이는 더 이상 번들에 두지 않는다.
+> 서버 `index.geojson`/`index.json`(`docs/api/API.md` §3.1.2)에서 받는다 — 완주율의 분자·분모·지도
+> 경계가 **같은 행정동 코드 체계**를 써야 하는데, 아래 vuski 스냅샷은 서버와 코드가 달랐다
+> (광주·전남 통합 `12` vs 분리 `29`/`46`, 인천 중구 재배정 등 약 13%).
+>
+> 지금 번들에 남은 세 파일(`korea_sigungu.geojson`, `korea_sido.geojson`,
+> `korea_region_hierarchy.json`)은 **서버가 주지 않는 자료**라 유지하되, `tools/gen_region_assets.py`로
+> **서버 `index.geojson`에서 생성**해 코드 체계를 맞췄다. 갱신하려면 새 `index.geojson`으로 그
+> 스크립트를 다시 돌리면 된다 — 아래 mapshaper 절차는 이제 쓰지 않는다(이력으로 남겨 둠).
+
 `korea_dong.geojson`, `korea_sigungu.geojson`, `korea_sido.geojson`, `korea_region_hierarchy.json`은 **모두 같은 원본, 같은 코드 체계**에서 만든다. (선택: `korea_sigungu_city.geojson`)
 
 ## 원본

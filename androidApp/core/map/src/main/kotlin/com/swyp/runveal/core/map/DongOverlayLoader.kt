@@ -25,11 +25,24 @@ data class DongOverlayBundle(
     val sigunguOverlay: SigunguOverlayGeoJson,
     val sidoOverlay: SidoOverlayGeoJson,
     val builtForTrackId: String?,
-    /** 이 오버레이를 만든 경계 데이터의 출처 — `"asset"` 또는 `"server:<지도 버전>"`. 빛 이미지
-     * 디스크 캐시 키에 들어가서, 서버가 경계를 고쳐 새 버전으로 배포하면 옛 경계로 만들어 둔
-     * 빛 이미지가 자동으로 버려진다(안 그러면 새 테두리와 어긋난 채로 남는다). */
+    /** 이 오버레이를 만든 경계 데이터의 출처 — `"server:<지도 버전>"`(동 경계가 없으면 `"none"`).
+     * 빛 이미지 디스크 캐시 키에 들어가서, 서버가 경계를 고쳐 새 버전으로 배포하면 옛 경계로
+     * 만들어 둔 빛 이미지가 자동으로 버려진다(안 그러면 새 테두리와 어긋난 채로 남는다). */
     val boundarySourceKey: String,
-)
+) {
+    companion object {
+        /** 서버 동 경계를 못 받았을 때 — 동/시군구/시도 레이어를 비워 둔다. 지도는 그대로 뜨고
+         * 경계만 안 보인다. 다음에 다시 만들 때 서버가 살아 있으면 정상으로 채워진다. */
+        fun empty(builtForTrackId: String?): DongOverlayBundle = DongOverlayBundle(
+            dongOverlay = DongOverlayGeoJson.EMPTY,
+            glowPolygonParts = emptyMap(),
+            sigunguOverlay = SigunguOverlayGeoJson.EMPTY,
+            sidoOverlay = SidoOverlayGeoJson.EMPTY,
+            builtForTrackId = builtForTrackId,
+            boundarySourceKey = "none",
+        )
+    }
+}
 
 /**
  * 만들어 둔 오버레이를 스플래시 → 홈으로 건네주는 StateFlow 싱글톤. 전국 경계 geoJSON을 파싱하고
@@ -58,18 +71,16 @@ suspend fun loadDongOverlayBundle(context: Context, builtForTrackId: String?): D
         val repository = DongAssetRepository(context)
         val trackLocalStore = TrackLocalStore(RunvealDatabaseProvider.database, FileStore())
 
-        val server = repository.syncFromServer()
+        // 동 경계는 서버에서만 온다. 못 받으면(오프라인 등) 동 레이어를 비운 채 돌려준다 —
+        // 번들 스냅샷으로 대신 그리면 서버와 코드 체계가 달라 완주율이 조용히 틀어진다.
+        val server = repository.syncFromServer() ?: return@withContext DongOverlayBundle.empty(builtForTrackId)
+
         val walkedLengths = trackLocalStore.walkedLengthByDong()
-        val totalLengths = server?.totalLengthsByDong
-            ?: trackLocalStore.totalLengthByDong().ifEmpty { repository.loadTotalLengthsByDong() }
+        val totalLengths = server.totalLengthsByDong.ifEmpty { trackLocalStore.totalLengthByDong() }
         val dongPercents = DongExploreRate.percents(walkedLengths, totalLengths)
 
         // 테두리 선과 빛 이미지가 같은 정점을 쓰도록 한 번에 받는다([DongOverlayResult]).
-        val dong = if (server != null) {
-            repository.buildOverlay(dongPercents, server.boundaryGeoJson)
-        } else {
-            repository.buildOverlay(dongPercents)
-        }
+        val dong = repository.buildOverlay(dongPercents, server.boundaryGeoJson)
 
         DongOverlayBundle(
             dongOverlay = dong.overlay,
@@ -77,6 +88,6 @@ suspend fun loadDongOverlayBundle(context: Context, builtForTrackId: String?): D
             sigunguOverlay = repository.buildSigunguOverlay(dongPercents),
             sidoOverlay = repository.buildSidoOverlay(dongPercents),
             builtForTrackId = builtForTrackId,
-            boundarySourceKey = server?.let { "server:${it.mapVersion}" } ?: "asset",
+            boundarySourceKey = "server:${server.mapVersion}",
         )
     }

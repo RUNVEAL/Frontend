@@ -15,8 +15,11 @@ private const val META_WAIT_TIMEOUT_MS = 5_000L
 
 /**
  * 서버 지도 파일 `segments-{구코드}.geojson`(`docs/api/API.md` §3.1.2)을 로컬 `road_segment`
- * 인덱스로 들여온다. `adm_cd2`는 서버 `index.geojson`이 아니라 번들 동 경계([DongAssetRepository])
- * 로 직접 계산한다 — 그래야 서버 동 데이터 연동 여부와 무관하게 항상 동작한다. 구코드로
+ * 인덱스로 들여온다. `adm_cd2`는 **서버 `index.geojson`의 동 경계**로 계산한다 — 완주율의 분자(이
+ * 인덱스)와 분모(`index.json`의 `dongLengthM`)가 같은 코드 체계를 써야 하기 때문이다. 예전엔 번들
+ * `korea_dong.geojson`으로 판정했는데, 그건 서버 연동 전 테스트용 스냅샷이라 코드 체계가 달랐고
+ * (광주·전남 통합 `12` vs 분리 `29`/`46` 등 약 13%) 그 지역 완주율이 분모와 안 맞아 0%로 떨어졌다.
+ * 구코드로
  * 계층 정보에서 그 구에 속한 동만 먼저 추려서 point-in-polygon 대상을 줄인다(전국 3,559개 동을
  * 매 구간마다 전부 검사하면 너무 느리다).
  *
@@ -43,7 +46,10 @@ class RoadSegmentIndexImporter(
         return try {
             val store = ServerMapFileStore(context)
             val repository = DongAssetRepository(context)
-            val boundariesByAdmCd2 = repository.loadBoundaries().associateBy { it.admCd2 }
+            // 서버 동 경계를 못 받으면(오프라인 등) 인덱스를 만들지 않는다 — 번들로 대신 만들면
+            // 코드 체계가 섞여서 완주율이 조용히 틀어진다. 다음 러닝에서 다시 시도한다.
+            val server = repository.syncFromServer() ?: return false
+            val boundariesByAdmCd2 = repository.loadBoundaries(server.boundaryGeoJson).associateBy { it.admCd2 }
             val dongCodesBySigungu = repository.loadRegionHierarchy().sido
                 .flatMap { it.sigungu }
                 .associate { it.code to it.dongs.map { dong -> dong.code } }

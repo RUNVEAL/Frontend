@@ -23,8 +23,6 @@ import kotlinx.serialization.json.Json
 /** `"code":` / `"code" :` / `"code": ` 어느 형태든 잡는다(서버 JSON 포맷이 바뀌어도 깨지지 않게). */
 private val DONG_CODE_PROPERTY_REGEX = Regex("\"code\"\\s*:")
 
-private const val DONG_BOUNDARY_ASSET_PATH = "dong/korea_dong.geojson"
-private const val DONG_LENGTHS_ASSET_PATH = "dong/asan_dong_lengths.json"
 private const val SIGUNGU_BOUNDARY_ASSET_PATH = "dong/korea_sigungu.geojson"
 private const val SIDO_BOUNDARY_ASSET_PATH = "dong/korea_sido.geojson"
 private const val REGION_HIERARCHY_ASSET_PATH = "dong/korea_region_hierarchy.json"
@@ -37,17 +35,22 @@ private const val VISITED_SAMPLE_TRACKS_ASSET_DIR = "tracks"
 private const val META_WAIT_TIMEOUT_MS = 5000L
 
 /**
- * 전국 동/시군구/시도 경계 에셋을 읽어 [DongOverlayGeoJson]/[SigunguOverlayGeoJson]/[SidoOverlayGeoJson]을
- * 만든다. 동 경계(`index.geojson`)와 완주율 분모(`index.json`)는 [syncFromServer]로 서버 값을 받아 쓸 수
- * 있고, 못 받았을 때만 번들 에셋([DONG_BOUNDARY_ASSET_PATH]/[DONG_LENGTHS_ASSET_PATH])으로 떨어진다 —
- * 시군구/시도 경계·계층(`korea_sigungu.geojson` 등)은 서버가 안 주는 자료라 계속 번들로 둔다.
+ * 동/시군구/시도 경계를 읽어 [DongOverlayGeoJson]/[SigunguOverlayGeoJson]/[SidoOverlayGeoJson]을 만든다.
+ *
+ * **동 경계와 완주율 분모는 서버만 쓴다**([syncFromServer] — `index.geojson`/`index.json`). 예전엔 못
+ * 받았을 때 번들 `korea_dong.geojson`으로 떨어졌는데, 그건 서버 연동 전 테스트용 스냅샷이라 코드
+ * 체계가 달라서(광주·전남 통합 등 약 13%) 서버 분모와 안 맞았다 — 섞어 쓰느니 그 경우엔 동을 안
+ * 그리는 쪽이 낫다.
+ *
+ * 시군구/시도 경계와 계층(`korea_sigungu.geojson` 등)은 서버가 안 주는 자료라 번들로 둔다. 다만
+ * `tools/gen_region_assets.py`로 **서버 `index.geojson`에서 생성**해 코드 체계를 맞춰 뒀다.
  */
 class DongAssetRepository(private val context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
     private var cachedRegionHierarchy: RegionHierarchy? = null
 
-    /** [rawGeoJson]을 안 주면 번들 에셋 — [syncFromServer]로 받은 서버 `index.geojson`을 주면 그걸 쓴다. */
-    fun loadBoundaries(rawGeoJson: String = readAsset(DONG_BOUNDARY_ASSET_PATH)): List<DongBoundary> =
+    /** [rawGeoJson]은 [syncFromServer]로 받은 서버 `index.geojson`. */
+    fun loadBoundaries(rawGeoJson: String): List<DongBoundary> =
         DongBoundaryParser.parse(rawGeoJson)
 
     /** 시도 16 → 시군구 256 → 행정동 3,559 계층(`docs/map/refactoring/REGION_HIERARCHY.md`). 한 번
@@ -62,17 +65,6 @@ class DongAssetRepository(private val context: Context) {
     fun loadSigunguBoundaries(): List<DongBoundary> = DongBoundaryParser.parse(readAsset(SIGUNGU_BOUNDARY_ASSET_PATH))
 
     fun loadSidoBoundaries(): List<DongBoundary> = DongBoundaryParser.parse(readAsset(SIDO_BOUNDARY_ASSET_PATH))
-
-    /** [syncFromServer]로 받은 서버 `index.json`의 `dongLengthM`이 있으면 그걸 쓴다 — 없으면(서버를
-     * 아직 못 받았을 때) 번들 에셋으로 떨어진다. */
-    fun loadTotalLengthsByDong(): Map<String, Double> =
-        try {
-            json.decodeFromString(readAsset(DONG_LENGTHS_ASSET_PATH))
-        } catch (_: FileNotFoundException) {
-            // [korea_dong.geojson]로 바뀌면서 아산시 전용이던 이 에셋은 더 이상 없다 — 완주율(%)은
-            // 서버에서 받아오는 걸로 바뀔 예정이라 분모가 없으면 전부 0%로 둔다.
-            emptyMap()
-        }
 
     /** 스플래시가 이미 받아 둔 `/api/v1/meta`([MetaHolder])의 지도 버전으로 서버 지도 파일을 내려받고,
      * `index.geojson`/`index.json`을 홈 지도가 바로 쓸 수 있게 뽑아 온다. 실패하거나(오프라인·서버 꺼짐)
@@ -124,11 +116,11 @@ class DongAssetRepository(private val context: Context) {
     fun buildVisitedRoadGeoJson(edges: List<MatchedEdge>): String = VisitedRoadGeoJsonBuilder.build(edges)
 
     /** [dongPercents]는 내 기록 기준 동별 탐험률(%) — `TrackLocalStore`의 가본 길 길이와 그 동의 전체
-     * 도로 길이로 [com.swyp.runveal.dong.DongExploreRate]가 계산한다. [rawBoundaryGeoJson]을 안 주면
-     * 번들 에셋 — [syncFromServer] 결과([ServerDongMapData])를 주면 서버 데이터로 그린다. */
+     * 도로 길이로 [com.swyp.runveal.dong.DongExploreRate]가 계산한다. [rawBoundaryGeoJson]은
+     * [syncFromServer]로 받은 서버 `index.geojson`. */
     fun buildOverlay(
         dongPercents: Map<String, Int>,
-        rawBoundaryGeoJson: String = readAsset(DONG_BOUNDARY_ASSET_PATH),
+        rawBoundaryGeoJson: String,
     ): DongOverlayResult {
         val boundaries = loadBoundaries(rawBoundaryGeoJson)
         return buildOverlayFrom(boundaries, rawBoundaryGeoJson, dongPercents)
