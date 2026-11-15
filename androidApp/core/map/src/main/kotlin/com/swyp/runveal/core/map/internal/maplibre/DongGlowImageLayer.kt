@@ -40,9 +40,14 @@ internal class DongGlowImageLayer(private val provider: DongGlowProvider) {
         polygonPartsByAdmCd2: Map<String, List<DongPolygonPart>>,
         boundarySourceKey: String,
     ) {
-        if (polygonPartsByAdmCd2.isEmpty()) return
-        val admCd2Levels = admCd2LevelsFor(overlayFillGeoJson)
-        if (admCd2Levels.isEmpty()) return
+        // 러닝 기록 중·코스 추천 중처럼 동 오버레이를 숨길 때는 parts/overlay가 비어서 들어온다. 그냥
+        // 돌아가면 테두리·라벨만 사라지고 **이미 올라간 빛 이미지는 지도에 그대로 남는다** — 올라가 있던
+        // 것까지 같이 내린다.
+        val admCd2Levels = if (polygonPartsByAdmCd2.isEmpty()) emptyMap() else admCd2LevelsFor(overlayFillGeoJson)
+        if (admCd2Levels.isEmpty()) {
+            removeAllDongs(style)
+            return
+        }
 
         val visibleBounds = map.projection.visibleRegion.latLngBounds
         // target이 null인 건 사실상 없지만(스타일 로드 후 카메라는 항상 설정돼 있다) 타입상 nullable이라
@@ -105,6 +110,14 @@ internal class DongGlowImageLayer(private val provider: DongGlowProvider) {
                 style.addLayer(layer)
             }
         }
+    }
+
+    /** 올라가 있는 동 빛 이미지를 전부 내리고 대기 중인 생성 작업도 취소한다. */
+    private fun removeAllDongs(style: Style) {
+        if (activeAdmCd2.isEmpty()) return
+        provider.cancelExcept(emptySet())
+        activeAdmCd2.toList().forEach { admCd2 -> removeDong(style, admCd2) }
+        activeAdmCd2.clear()
     }
 
     private fun removeDong(style: Style, admCd2: String) {
