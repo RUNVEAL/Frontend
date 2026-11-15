@@ -60,7 +60,9 @@ object DongBoundaryParser {
     private fun parseFeature(feature: JsonObject): DongBoundary? {
         val properties = feature["properties"]?.jsonObject ?: return null
         val admCd2 = properties["adm_cd2"]?.jsonPrimitive?.content ?: return null
-        val name = properties["name"]?.jsonPrimitive?.content ?: admCd2
+        // 번들 에셋은 "사직동"처럼 동 이름만 주지만, 서버 index.geojson은 "서울특별시 종로구 사직동"처럼
+        // 시/도·시/군/구까지 붙여서 준다 — 지도 라벨엔 동 이름만 보여야 해서 마지막 토큰만 쓴다.
+        val name = properties["name"]?.jsonPrimitive?.content?.substringAfterLast(' ') ?: admCd2
         val geometry = feature["geometry"]?.jsonObject ?: return null
         val rings = parseRings(geometry)
         if (rings.isEmpty()) return null

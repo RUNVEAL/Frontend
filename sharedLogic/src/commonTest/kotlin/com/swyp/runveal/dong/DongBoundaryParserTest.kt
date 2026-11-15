@@ -53,6 +53,21 @@ class DongBoundaryParserTest {
     }
 
     @Test
+    fun keepsOnlyLastTokenWhenNameIncludesSidoAndSigungu() {
+        // 서버 index.geojson은 "서울특별시 종로구 사직동"처럼 시/도·시/군/구까지 붙여서 준다.
+        val serverStyleName = """
+            {"type":"FeatureCollection","features":[
+              {"type":"Feature","properties":{"adm_cd2":"1111053000","name":"서울특별시 종로구 사직동"},
+               "geometry":{"type":"Polygon","coordinates":[[[126.97,37.57],[126.98,37.57],[126.98,37.58],[126.97,37.57]]]}}
+            ]}
+        """.trimIndent()
+
+        val boundaries = DongBoundaryParser.parse(serverStyleName)
+
+        assertEquals("사직동", boundaries.first().name)
+    }
+
+    @Test
     fun skipsFeaturesWithoutAdmCd2() {
         val missingKey = """
             {"type":"FeatureCollection","features":[

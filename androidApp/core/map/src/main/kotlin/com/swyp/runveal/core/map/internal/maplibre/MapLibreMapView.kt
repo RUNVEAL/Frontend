@@ -54,6 +54,7 @@ internal fun MapLibreMapView(
     state: MapState,
     dongOverlay: DongOverlayGeoJson?,
     dongGlowPolygonParts: Map<String, List<DongPolygonPart>>,
+    dongBoundarySourceKey: String,
     sigunguOverlay: SigunguOverlayGeoJson?,
     sidoOverlay: SidoOverlayGeoJson?,
 ) {
@@ -64,7 +65,10 @@ internal fun MapLibreMapView(
     var liveMap by remember { mutableStateOf<MapLibreMap?>(null) }
     // 카메라가 멈출 때마다(OnCameraIdle) 화면에 보이는 동 빛 이미지를 다시 계산하기 위한 트리거.
     var cameraIdleTick by remember { mutableIntStateOf(0) }
-    val dongGlowProvider = remember { DongGlowProvider(context) }
+    // 빛 이미지 생성이 끝날 때마다 올라가는 트리거. 생성은 비동기라 요청한 그 자리에선 아직 이미지가
+    // 없고, 이게 없으면 캐시가 빈 첫 실행에서 지도를 한 번 움직이기 전까지 빛이 안 붙는다.
+    var glowAssetReadyTick by remember { mutableIntStateOf(0) }
+    val dongGlowProvider = remember { DongGlowProvider(context) { glowAssetReadyTick++ } }
     val dongGlowImageLayer = remember { DongGlowImageLayer(dongGlowProvider) }
     val baseStyleRoadFocus = remember { BaseStyleRoadFocus() }
     DisposableEffect(Unit) { onDispose { dongGlowProvider.dispose() } }
@@ -218,12 +222,18 @@ internal fun MapLibreMapView(
     LaunchedEffect(style, dongOverlay, mapColors) {
         style?.let { DongOverlayLayer.apply(it, dongOverlay, mapColors) }
     }
-    // 동 빛 이미지. dongOverlay(단계 변경)나 카메라가 멈출 때(화면 범위 변경) 둘 중 하나라도 바뀌면
+    // 동 빛 이미지. dongOverlay(단계 변경)·카메라 멈춤(화면 범위 변경)·생성 완료 중 하나라도 바뀌면
     // 다시 계산한다(docs/DONG_GLOW_ON_DEVICE.md Step 4).
-    LaunchedEffect(style, liveMap, dongOverlay, dongGlowPolygonParts, cameraIdleTick) {
+    LaunchedEffect(style, liveMap, dongOverlay, dongGlowPolygonParts, dongBoundarySourceKey, cameraIdleTick, glowAssetReadyTick) {
         val currentStyle = style ?: return@LaunchedEffect
         val currentMap = liveMap ?: return@LaunchedEffect
-        dongGlowImageLayer.refresh(currentStyle, currentMap, dongOverlay?.fillGeoJson, dongGlowPolygonParts)
+        dongGlowImageLayer.refresh(
+            currentStyle,
+            currentMap,
+            dongOverlay?.fillGeoJson,
+            dongGlowPolygonParts,
+            dongBoundarySourceKey,
+        )
     }
     LaunchedEffect(style, sigunguOverlay, mapColors) {
         style?.let { SigunguOverlayLayer.apply(it, sigunguOverlay, mapColors) }

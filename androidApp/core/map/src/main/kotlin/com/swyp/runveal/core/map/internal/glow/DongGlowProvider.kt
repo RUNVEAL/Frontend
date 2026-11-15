@@ -23,21 +23,33 @@ private const val BOUNDARY_ASSET_PATH = "dong/korea_dong.geojson"
  * [request]를 부르는 것**으로 맞춘다 — limitedParallelism 디스패처의 작업 큐가 제출 순서를 대체로
  * 따르므로 이 정도로 충분하다.
  */
-internal class DongGlowProvider(private val context: Context) {
+internal class DongGlowProvider(
+    private val context: Context,
+    /** 빛 이미지 한 장이 새로 만들어질 때마다 호출된다(메인 스레드). 생성은 비동기라, 이 신호가 없으면
+     * 호출 쪽이 다음 카메라 idle까지 이미지를 못 붙인다 — 캐시가 빈 첫 실행에서 "지도를 한 번
+     * 움직여야 빛이 뜨는" 현상의 원인이다. */
+    private val onAssetReady: () -> Unit = {},
+) {
     private val memoryCache = DongGlowMemoryCache()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(2))
     private val activeJobs = mutableMapOf<String, Job>()
     private var cacheDir: File? = null
+    private var cacheDirSourceKey: String? = null
 
     /**
      * 메모리나 디스크에 이미 있으면 즉시 돌려준다. 없으면 생성 큐에 넣고 `null`을 돌려준다 — 생성이
      * 끝나면 메모리 캐시에 올라가므로, 호출 쪽은 다음 새로고침(카메라 idle)에서 다시 [request]를 불러
      * 결과를 받으면 된다. 준비 전에는 호출 쪽이 이전 이미지를 그대로 둔다(문서 4장).
      */
-    suspend fun request(admCd2: String, level: Int, parts: List<DongPolygonPart>): DongGlowAsset? {
+    suspend fun request(
+        admCd2: String,
+        level: Int,
+        parts: List<DongPolygonPart>,
+        boundarySourceKey: String,
+    ): DongGlowAsset? {
         memoryCache.get(admCd2, level)?.let { return it }
 
-        val dir = ensureCacheDir()
+        val dir = ensureCacheDir(boundarySourceKey)
         val fromDisk = withContext(Dispatchers.IO) { DongGlowDiskCache.read(dir, admCd2, level) }
         if (fromDisk != null) {
             memoryCache.put(admCd2, level, fromDisk)
@@ -74,6 +86,7 @@ internal class DongGlowProvider(private val context: Context) {
             val bitmap = result.toBitmap()
             withContext(Dispatchers.IO) { DongGlowDiskCache.write(dir, admCd2, level, bitmap, result.corners) }
             memoryCache.put(admCd2, level, DongGlowAsset(bitmap, result.corners))
+            withContext(Dispatchers.Main) { onAssetReady() }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -81,12 +94,18 @@ internal class DongGlowProvider(private val context: Context) {
         }
     }
 
-    private suspend fun ensureCacheDir(): File {
-        cacheDir?.let { return it }
+    /** 경계 출처가 바뀌면(번들 ↔ 서버, 또는 서버 지도 버전 업) 폴더를 다시 잡는다 — 옛 경계로 만든
+     * 이미지가 새 경계 위에 그대로 올라오는 걸 막는다. 메모리 캐시도 같이 비운다. */
+    private suspend fun ensureCacheDir(boundarySourceKey: String): File {
+        if (cacheDirSourceKey == boundarySourceKey) cacheDir?.let { return it }
+        if (cacheDirSourceKey != null) memoryCache.clear()
         return withContext(Dispatchers.IO) {
-            val key = DongGlowCacheKey.compute(context, BOUNDARY_ASSET_PATH)
+            val key = DongGlowCacheKey.compute(context, BOUNDARY_ASSET_PATH, boundarySourceKey)
             DongGlowDiskCache.ensureCacheDir(context, key)
-        }.also { cacheDir = it }
+        }.also {
+            cacheDir = it
+            cacheDirSourceKey = boundarySourceKey
+        }
     }
 
     companion object {

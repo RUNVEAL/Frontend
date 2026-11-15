@@ -81,12 +81,23 @@ object MapConfig {
         "place_city",
         "place_city_large",
         "place_state",
+        "place_country_other",
+        "place_country_minor",
+        "place_country_major",
     )
 
     /** 기본 스타일에 내장된 도로 이름 라벨 레이어 ID. [BASE_STYLE_PLACE_LABEL_LAYERS]와 같은 기준으로 숨긴다. */
     val BASE_STYLE_ROAD_LABEL_LAYERS: List<String> = listOf(
         "highway_name_other",
         "highway_name_motorway",
+    )
+
+    /** 기본 스타일에 내장된 행정구역 경계선(시/도·국가 테두리) 레이어 ID. 라벨과 별개로 항상 켜져
+     * 있어서, 우리 동/시군구/시도 테두리([DongOverlayLayer] 등)와 겹쳐 보이지 않게 같이 숨긴다. */
+    val BASE_STYLE_BOUNDARY_LAYERS: List<String> = listOf(
+        "boundary_state",
+        "boundary_country_z0-4",
+        "boundary_country_z5-",
     )
 
     /** 기본 스타일의 vector 소스 ID. [LAYER_BASE_LANDCOVER_GRASS]처럼 새 레이어를 추가할 때 필요하다. */
