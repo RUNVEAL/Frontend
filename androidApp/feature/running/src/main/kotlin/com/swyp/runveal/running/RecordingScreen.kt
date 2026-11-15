@@ -58,8 +58,9 @@ import com.swyp.runveal.designsystem.component.button.RunvealRunPauseButton
 import com.swyp.runveal.designsystem.component.map.RunvealMapMarkerType
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.running.R
-import com.swyp.runveal.map.GeoMath
+import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.map.MapConfig
+import com.swyp.runveal.recording.CourseProgressTracker
 import com.swyp.runveal.recording.TrackRecorder
 import com.swyp.runveal.running.contract.RecordingEffect
 import com.swyp.runveal.running.contract.RecordingIntent
@@ -150,26 +151,29 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
         }
         MapDotMarkers(courseMarkers)
 
-        val totalCourseDistanceMeters = remember(selectedCoursePath) { GeoMath.totalDistanceMeters(selectedCoursePath) }
         // 코스가 바뀌지 않는 한 안내선도 그대로다 — 매초 다시 만들 이유가 없다.
         val courseGuideGeoJson = remember(selectedCoursePath) {
             buildRecommendedRouteGeoJson(listOf(RecommendedRoute(id = "selected-course", points = selectedCoursePath, selected = true)))
         }
-        // 남은 거리·진행률도 현위치가 아니라 **지금까지 달린 거리**로만 계산한다 — 현위치에서 가장
-        // 가까운 코스 점을 찾는 방식은 코스를 이탈하면 그 점이 코스 뒤쪽으로 튀어서 진행률이 갑자기
-        // 뛰었다. 이탈해서 더 달린 만큼도 진행으로 쳐주는 어림값이지만, 숫자가 요동치지 않는다.
+        // 진행률은 "달린 거리"가 아니라 **코스를 실제로 지나간 만큼**으로 센다([CourseProgressTracker]).
+        // 달린 거리로 세면 코스와 상관없는 곳을 달려도 진행률이 오르고, 코스를 다 안 돌았는데 거리만
+        // 채워도 100%가 됐다. 순환 코스는 출발점과 도착점이 같은 자리라 "현위치에서 가장 가까운 점"
+        // 방식도 못 쓴다 — 출발하자마자 도착점이 잡혀서 100%로 튄다.
+        val progressTracker = remember(selectedCoursePath) { CourseProgressTracker(selectedCoursePath) }
         LaunchedEffect(selectedCoursePath) {
+            var consumedPointCount = 0
             while (true) {
-                val ranMeters = TrackRecorder.totalDistanceMeters()
-                val remainingDistanceMeters = (totalCourseDistanceMeters - ranMeters).coerceAtLeast(0.0)
-                val progressPercent = if (totalCourseDistanceMeters <= 0.0) {
-                    0
-                } else {
-                    ((ranMeters / totalCourseDistanceMeters) * 100).toInt().coerceIn(0, 100)
+                // 매초 "마지막 위치"만 보면 그 사이 지나친 코스 구간을 놓칠 수 있어, 아직 안 본 점을 전부 넘긴다.
+                val filteredPoints = TrackRecorder.currentFilteredPoints()
+                if (filteredPoints.size > consumedPointCount) {
+                    progressTracker.advance(
+                        filteredPoints.drop(consumedPointCount).map { LatLon(lat = it.lat, lon = it.lon) },
+                    )
+                    consumedPointCount = filteredPoints.size
                 }
                 courseProgress = CourseProgress(
-                    remainingDistanceLabel = "%.2f".format(remainingDistanceMeters / 1000.0),
-                    progressPercent = progressPercent,
+                    remainingDistanceLabel = "%.2f".format(progressTracker.remainingMeters / 1000.0),
+                    progressPercent = progressTracker.progressPercent,
                 )
                 delay(COURSE_GUIDE_TICKER_INTERVAL_MS)
             }
