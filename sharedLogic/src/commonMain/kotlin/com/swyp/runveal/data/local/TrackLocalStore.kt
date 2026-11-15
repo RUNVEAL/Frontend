@@ -225,6 +225,21 @@ class TrackLocalStore(
             .mapValues { (_, rows) -> rows.flatMap { decodeCoordinates(it.coordinates) } }
     }
 
+    /**
+     * [trackIds] 각각이 **처음 밟은** 구간들의 경로(구간마다 한 줄). 결과 카드·기록 썸네일에서 "새로
+     * 탐험한 길"을 금색으로 덧그리는 데 쓴다 — 같은 길을 또 달린 러닝은 그만큼 비어 있다.
+     *
+     * 러닝이 끝나는 순간에는 [recordMatchResult]가 돌려주지만, 지나고 나면 `explored_segment`엔
+     * "지금 가봤는가"만 남아 어느 러닝이 그 길을 뚫었는지 모른다 — 그래서 `run_segment`를 트랙 시작
+     * 시각으로 되짚어 가린다.
+     */
+    fun newRoadPathsForTracks(trackIds: List<String>): Map<String, List<List<LatLon>>> {
+        if (trackIds.isEmpty()) return emptyMap()
+        return database.runSegmentQueries.selectFirstRunSegmentGeometries(trackIds).executeAsList()
+            .groupBy { it.track_id }
+            .mapValues { (_, rows) -> rows.flatMap { RoadSegmentParser.decodeLines(it.coordinates) } }
+    }
+
     /** 동별 완주 길이(분자) — `explored_segment`를 바로 집계한다. */
     fun walkedLengthByDong(): Map<String, Double> =
         database.exploredSegmentQueries.walkedLengthByDong().executeAsList()

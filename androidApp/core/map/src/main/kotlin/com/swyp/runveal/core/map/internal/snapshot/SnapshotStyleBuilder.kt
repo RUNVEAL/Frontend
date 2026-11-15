@@ -28,7 +28,12 @@ internal object SnapshotStyleBuilder {
         endpointColor: Int,
         endpointStrokeColor: Int,
         newRoadColor: Int,
+        todayRoadColor: Int,
     ): Style.Builder {
+        // 러닝 기록은 "오늘 달린 길"(흰색) 위에 "새로 탐험한 길"(금색)을 덧그려 둘을 구분한다 —
+        // 결과 화면 범례가 그 두 색으로 설명하고 있어서 기본선도 범례와 같아야 한다. 아직 달리지
+        // 않은 코스는 그 구분이 없어 경로색(금색) 한 가지로 그린다.
+        val baseColor = if (request.isRunRoute) todayRoadColor else routeColor
         val builder = Style.Builder()
             .fromUri(MapConfig.STYLE_URL)
             .withSource(GeoJsonSource(SnapshotConfig.ROUTE_SOURCE_ID, request.routeGeoJson))
@@ -36,7 +41,7 @@ internal object SnapshotStyleBuilder {
                 LineLayer(SnapshotConfig.ROUTE_LAYER_ID, SnapshotConfig.ROUTE_SOURCE_ID).withProperties(
                     PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
                     PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
-                    PropertyFactory.lineColor(routeColor),
+                    PropertyFactory.lineColor(baseColor),
                     PropertyFactory.lineWidth(ROUTE_WIDTH_DP),
                 ),
             )
