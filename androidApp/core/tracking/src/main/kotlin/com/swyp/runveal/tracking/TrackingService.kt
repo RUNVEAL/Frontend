@@ -246,7 +246,12 @@ class TrackingService : Service() {
             val dongStats = buildDongStats(summary.touchedDongAdmCodes, beforeWalked, afterWalked, boundaries)
             publishResult(
                 finished, distanceMeters, elapsedMs, summary.newRoadMeters, dongStats,
-                routePoints = points, newRoadPaths = summary.newRoadPaths,
+                // 결과 카드도 기록 탭 썸네일과 같은 선을 그리도록 **매칭 경로**를 넘긴다. 원본 GPS를
+                // 그리면 도로를 들쭉날쭉 벗어나서, 도로를 따라 그려지는 금색 "새로 탐험한 길"과 어긋나
+                // 보인다 — 같은 러닝인데 기록 탭에선 도로에 붙고 결과 화면에선 안 붙는 이유였다.
+                // 매칭이 점 2개도 못 돌려주면 원본 GPS로 떨어진다.
+                routePoints = result.path.takeIf { it.size >= 2 } ?: points,
+                newRoadPaths = summary.newRoadPaths,
             )
         } catch (e: Exception) {
             // TEMP DEBUG — 확인 끝나면 catch (_: Exception)으로 되돌린다.
