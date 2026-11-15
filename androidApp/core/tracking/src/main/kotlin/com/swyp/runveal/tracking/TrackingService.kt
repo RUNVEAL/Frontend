@@ -246,7 +246,8 @@ class TrackingService : Service() {
             // 탐험률에 적립할 구간도 러닝 중 색 판정과 **같은 규칙**으로 고른다 — 서버 segmentIds를
             // 그대로 믿으면 안 지난 도로가 섞여 들어오고, 반대로 로컬 인덱스에 없는 ID만 와서
             // 아무것도 적립 안 되는 일도 생긴다(러닝 중엔 새 길이었는데 탐험률은 그대로인 원인).
-            val passedSegmentIds = store.segmentIdsOnPaths(runPaths)
+            // 구간 전체가 아니라 그 구간에서 **지나간 부분만** 적립한다(TrackLocalStore.coverageOnPaths).
+            val coverages = store.coverageOnPaths(runPaths)
 
             // "새로 탐험한 길"은 러닝 중 배지·금색 선과 **같은 기준**으로 센다 — 달린 선에서 아직 안
             // 가본 도로 위를 지난 부분의 길이다. 적립(구간 단위)으로 세면 러닝 중엔 0.38km였는데 결과는
@@ -260,7 +261,7 @@ class TrackingService : Service() {
             val summary = store.recordMatchResult(
                 trackId = finished.id,
                 matchedPaths = matchedPaths,
-                segmentIds = passedSegmentIds,
+                coverages = coverages,
                 nowEpochMs = System.currentTimeMillis(),
             )
             val afterWalked = store.walkedLengthByDong()

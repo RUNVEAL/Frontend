@@ -1,0 +1,7 @@
+-- v1 → v2: 구간 적립을 "구간 전체"에서 "지나간 부분만"으로 쪼갰다(ExploredSegment.sq 주석).
+-- 이미 쌓인 행은 구간 전체를 적립한 것이라, mask는 빈 문자열(= 전체)로 두고 covered_m만 length_m로
+-- 채운다 — 그래야 업데이트 전에 올려둔 탐험률이 그대로 유지된다.
+ALTER TABLE explored_segment ADD COLUMN covered_mask TEXT NOT NULL DEFAULT '';
+ALTER TABLE explored_segment ADD COLUMN covered_m REAL NOT NULL DEFAULT 0.0;
+UPDATE explored_segment SET covered_m = length_m;
+ALTER TABLE run_segment ADD COLUMN covered_mask TEXT NOT NULL DEFAULT '';

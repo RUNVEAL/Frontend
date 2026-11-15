@@ -1,6 +1,7 @@
 package com.swyp.runveal.core.map
 
 import com.swyp.runveal.db.RunvealDatabase
+import com.swyp.runveal.data.local.ExploredCoverageIndex
 import com.swyp.runveal.data.local.RoadSegmentLocator
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
@@ -11,24 +12,15 @@ import com.swyp.runveal.map.LatLon
  * [RoadSegmentIndexImporter]를 안 돌렸으면) 아무 점도 "가본 구간"으로 못 찾아서 전부 새 구간으로
  * 본다 — 크래시 대신 "전부 새 길"로 보이는 쪽을 선택한다.
  */
-class LiveRoadClassifier(private val database: RunvealDatabase) {
+class LiveRoadClassifier(database: RunvealDatabase) {
     private val locator = RoadSegmentLocator(database)
-    private var exploredSegmentIds: Set<Long>? = null
+    private val explored = ExploredCoverageIndex(database)
 
-    /**
-     * "이미 가본 구간" 목록을 DB에서 다시 읽는다. **러닝을 시작할 때마다** 불러야 한다.
-     *
-     * 이 목록은 한 번 읽어 캐시해 두는데(매 점마다 DB를 다시 읽을 수는 없다), 적립은 러닝이 끝날 때
-     * 일어난다. 그래서 앱을 켠 채 두 번째 러닝을 하면 첫 러닝에서 적립된 구간이 캐시에 없어서, 방금
-     * 달렸던 길인데도 처음 가는 길(금색)로 칠해졌다.
-     */
+    /** "이미 가본 길" 적립 내역을 DB에서 다시 읽는다 — **러닝을 시작할 때마다** 불러야 한다
+     * ([ExploredCoverageIndex.refresh]). */
     fun refreshExploredSegments() {
-        exploredSegmentIds = database.exploredSegmentQueries.selectAllSegmentIds().executeAsList().toSet()
+        explored.refresh()
     }
-
-    private fun exploredSegmentIds(): Set<Long> =
-        exploredSegmentIds ?: database.exploredSegmentQueries.selectAllSegmentIds().executeAsList().toSet()
-            .also { exploredSegmentIds = it }
 
     data class Result(val oldRuns: List<List<LatLon>>, val newRuns: List<List<LatLon>>) {
         /** 처음 가보는 구간들의 길이 합(m) — 기록 화면의 "새로 탐험한 길" 배지가 쓴다
@@ -62,14 +54,16 @@ class LiveRoadClassifier(private val database: RunvealDatabase) {
     /**
       * 이 점이 **지금 밟고 있는 구간**이 이미 가본 구간인지.
       *
-      * 예전엔 "반경 [matchDistanceM] 안에 가본 구간이 하나라도 있으면 가본 길"로 봤는데, 그러면 왕복
-      * 차로 반대편·나란한 이면도로·인도처럼 **다른 구간이 가까이 있기만 해도** 지금 처음 달리는 길이
-      * 흰색으로 칠해졌다. 그래서 가본 구간만 보지 말고 **후보 전체에서 가장 가까운 구간**을 고른 뒤,
-      * 그게 가본 구간일 때만 가본 길로 친다.
+      * 예전엔 "반경 안에 가본 구간이 하나라도 있으면 가본 길"로 봤는데, 그러면 왕복 차로 반대편·
+      * 나란한 이면도로·인도처럼 **다른 구간이 가까이 있기만 해도** 지금 처음 달리는 길이 흰색으로
+      * 칠해졌다. 그래서 가본 구간만 보지 말고 **후보 전체에서 가장 가까운 구간**을 고른다.
+      *
+      * 구간을 찾은 뒤 한 번 더 본다 — 그 구간의 **이 자리**를 지나갔는지(적립이 구간 전체가 아니라
+      * 샘플 단위라, 같은 구간이라도 안 밟은 쪽은 아직 새 길이다).
       */
     private fun isOnExploredSegment(point: LatLon): Boolean {
-        val exploredSegmentIds = exploredSegmentIds()
-        if (exploredSegmentIds.isEmpty()) return false
-        return locator.nearestSegmentId(point) in exploredSegmentIds
+        if (explored.isEmpty()) return false
+        val hit = locator.locate(point) ?: return false
+        return explored.isCovered(hit.segmentId, hit.sampleIndex, hit.sampleCount)
     }
 }

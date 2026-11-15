@@ -1,8 +1,9 @@
 package com.swyp.runveal.data.local
 
 import com.swyp.runveal.db.RunvealDatabase
+import com.swyp.runveal.dong.CoverageMask
 import com.swyp.runveal.dong.MatchedEdge
-import com.swyp.runveal.dong.RoadSegmentParser
+import com.swyp.runveal.dong.SegmentCoverageMatcher
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
 import kotlinx.serialization.builtins.ListSerializer
@@ -14,13 +15,17 @@ private const val MATCH_STATE_MATCHED = "MATCHED"
 /** `/meta` manifest `matchDistanceM` 기본값(`docs/api/API.md` §3.1.2). */
 private const val DEFAULT_MATCH_DISTANCE_M = 15.0
 
+/** 구간 하나에서 **지나간 부분** — [TrackLocalStore.coverageOnPaths]가 고르고
+ * [TrackLocalStore.recordMatchResult]가 적립한다. */
+data class SegmentCoverage(val segmentId: Long, val mask: CoverageMask)
+
 /** [TrackLocalStore.recordMatchResult] 결과 요약 — 러닝 결과 화면(§새로 탐험한 길, 동별 완주율 변화)이
- * 바로 쓸 수 있게 "이번에 처음 걸은 구간"만 집계해서 돌려준다. */
+ * 바로 쓸 수 있게 "이번에 처음 지나간 부분"만 집계해서 돌려준다. */
 data class MatchRecordSummary(
     val newRoadMeters: Double,
     val touchedDongAdmCodes: Set<String>,
-    /** 이번에 처음 걸은 구간들의 경로(구간마다 한 줄) — 결과 카드에서 "처음 간 길"만 금색으로
-     * 덧그리는 데 쓴다. 적립이 끝나면 `explored_segment`에 들어가 버려서 나중엔 다시 가려낼 수 없으니
+    /** 이번에 처음 지나간 부분의 경로(토막마다 한 줄) — 결과 카드에서 "처음 간 길"만 금색으로
+     * 덧그리는 데 쓴다. 적립이 끝나면 `explored_segment`에 합쳐져서 나중엔 다시 가려낼 수 없으니
      * 여기서 같이 돌려준다. */
     val newRoadPaths: List<List<LatLon>>,
 )
@@ -30,10 +35,10 @@ data class MatchRecordSummary(
  * §2, §5). 테이블 하나짜리 단순 CRUD는 호출부가 `database.xxxQueries`를 직접 쓰면 되고, 이 클래스는
  * DB와 파일을 같이 건드려야 하는 작업([saveTrack], [deleteTrack])과 완주율 집계만 책임진다.
  *
- * "가본 길" 인정 여부는 서버 매칭이 돌려주는 `segmentId`(`docs/api/API.md` §3.6.2) 기준이다 — 구간
- * 길이·행정동은 미리 로컬에 캐시해 둔 `road_segment` 인덱스([com.swyp.runveal.core.map.RoadSegmentIndexImporter])
- * 에서 찾는다. `run_segment`(트랙별 구간, 진실의 원천) → `explored_segment`(구간별 누적, 캐시) 두
- * 단계로 나눠서, 트랙을 지워도 [regenerateCoverage]로 캐시를 다시 만들 수 있다.
+ * "가본 길" 인정은 달린 선이 로컬 `road_segment` 인덱스의 도로선 위를 지났는지로 판정한다
+ * ([coverageOnPaths]) — 구간 전체가 아니라 **지나간 부분만**([com.swyp.runveal.dong.CoverageMask]).
+ * `run_segment`(트랙별 커버리지, 진실의 원천) → `explored_segment`(구간별 누적, 캐시) 두 단계로
+ * 나눠서, 트랙을 지워도 [regenerateCoverage]로 캐시를 다시 만들 수 있다.
  */
 class TrackLocalStore(
     val database: RunvealDatabase,
@@ -78,8 +83,11 @@ class TrackLocalStore(
     }
 
     /** 매칭 완료 시 호출. [matchedPaths]를 `track_edge`에 조각별로 저장하고(가본 길 렌더링용),
-     * [segmentIds] 중 [road_segment] 인덱스에 있는 것만 `run_segment`/`explored_segment`에
+     * [coverages] 중 [road_segment] 인덱스에 있는 것만 `run_segment`/`explored_segment`에
      * 적립한다(인덱스에 없으면 — 아직 import 전이거나 알 수 없는 구간이면 — 조용히 건너뛴다).
+     *
+     * 적립은 구간 단위가 아니라 **샘플 단위**다 — 300m 구간을 20m만 달렸으면 그 20m만 쌓인다. 이미
+     * 쌓인 커버리지와 OR로 합치므로, 나머지를 나중에 달리면 그때 이어서 채워진다.
      *
      * [matchedPaths]가 **조각 목록**인 이유: 서버 매칭 경로에서 실제로 달린 자리와 동떨어진 구간을
      * 잘라내면([com.swyp.runveal.match.MatchedPathFilter]) 선이 여러 조각으로 나뉜다. 그 조각들을
@@ -90,9 +98,10 @@ class TrackLocalStore(
     fun recordMatchResult(
         trackId: String,
         matchedPaths: List<List<LatLon>>,
-        segmentIds: List<Long>,
+        coverages: List<SegmentCoverage>,
         nowEpochMs: Long,
     ): MatchRecordSummary {
+        val geometry = SegmentGeometry(database)
         var newRoadMeters = 0.0
         val touchedDongAdmCodes = mutableSetOf<String>()
         val newRoadPaths = mutableListOf<List<LatLon>>()
@@ -105,13 +114,39 @@ class TrackLocalStore(
                     length_meters = GeoMath.totalDistanceMeters(path),
                 )
             }
-            segmentIds.distinct().forEach { segmentId ->
-                database.runSegmentQueries.insertRunSegment(trackId, segmentId)
-                adoptSegment(segmentId) { info ->
-                    newRoadMeters += info.length_m
-                    touchedDongAdmCodes += info.adm_cd2
-                    newRoadPaths += RoadSegmentParser.decodeLines(info.coordinates)
+            coverages.forEach { coverage ->
+                val info = geometry.info(coverage.segmentId) ?: return@forEach
+                val sampleLines = geometry.sampleLines(coverage.segmentId)
+                val sampleCount = sampleLines.sumOf { it.size }
+                if (sampleCount == 0) return@forEach
+                val mask = coverage.mask.resizedTo(sampleCount)
+                if (mask.isEmpty()) return@forEach
+                database.runSegmentQueries.insertRunSegment(trackId, coverage.segmentId, mask.encode())
+
+                // 지금까지 쌓인 커버리지와 합치고(OR), 이번에 **새로** 덮인 부분만 결과 화면에 돌려준다.
+                val storedMask = database.exploredSegmentQueries
+                    .selectCoverageForSegment(coverage.segmentId).executeAsOneOrNull()
+                val accumulated = storedMask?.let { CoverageMask.decode(it).resizedTo(sampleCount) }
+                val merged = accumulated?.or(mask) ?: mask
+                val metersPerSample = info.lengthM / sampleCount
+                val coveredM = merged.coveredCount * metersPerSample
+                if (accumulated == null) {
+                    database.exploredSegmentQueries.insertSegment(
+                        coverage.segmentId, info.admCd2, info.lengthM, merged.encode(), coveredM,
+                    )
+                } else {
+                    database.exploredSegmentQueries.updateCoverage(
+                        coveredMask = merged.encode(),
+                        coveredM = coveredM,
+                        segmentId = coverage.segmentId,
+                    )
                 }
+
+                val added = accumulated?.let { mask.andNot(it) } ?: mask
+                if (added.isEmpty()) return@forEach
+                newRoadMeters += added.coveredCount * metersPerSample
+                touchedDongAdmCodes += info.admCd2
+                newRoadPaths += SegmentCoverageMatcher.coveredSubPaths(sampleLines, added)
             }
             database.trackQueries.updateMatchState(
                 match_state = MATCH_STATE_MATCHED,
@@ -124,32 +159,53 @@ class TrackLocalStore(
         return MatchRecordSummary(newRoadMeters, touchedDongAdmCodes, newRoadPaths)
     }
 
-    /** [segmentId]가 [road_segment] 인덱스에 있고, 전역에서 처음 채택되는 경우에만 [onAdopted]를
-     * 부른다(`INSERT OR IGNORE` + `changes()`로 실제 insert됐는지 확인 — 같은 트랜잭션 안에서 바로
-     * 이어 호출해야 한다). 인덱스에 없는 구간(아직 import 전)은 그냥 무시한다. */
-    private inline fun adoptSegment(segmentId: Long, onAdopted: (RoadSegmentInfo) -> Unit): Boolean {
-        val info = database.roadSegmentIndexQueries.selectById(segmentId).executeAsOneOrNull() ?: return false
-        database.exploredSegmentQueries.insertSegmentIfAbsent(info.segment_id, info.adm_cd2, info.length_m)
-        val adopted = database.exploredSegmentQueries.changes().executeAsOne() > 0
-        if (adopted) onAdopted(RoadSegmentInfo(info.adm_cd2, info.length_m, info.coordinates))
-        return adopted
+    /** 구간 하나의 길이·행정동·샘플 점을 한 번만 읽어 들고 있는 조회 캐시 — 같은 구간을 여러 번
+     * 묻기 때문이다(구간마다 MultiLineString 디코딩 + 샘플링이라 다시 하면 비싸다). */
+    private class SegmentGeometry(private val database: RunvealDatabase) {
+        private val locator = RoadSegmentLocator(database)
+        private val infos = mutableMapOf<Long, Info>()
+
+        data class Info(val admCd2: String, val lengthM: Double)
+
+        /** `road_segment` 인덱스에 없으면 null — 길이·동을 몰라 적립도 집계도 못 한다. */
+        fun info(segmentId: Long): Info? = infos.getOrPut(segmentId) {
+            val row = database.roadSegmentIndexQueries.selectById(segmentId).executeAsOneOrNull()
+                ?: return null
+            Info(admCd2 = row.adm_cd2, lengthM = row.length_m)
+        }
+
+        fun sampleLines(segmentId: Long): List<List<LatLon>> = locator.samplePointsByLine(segmentId)
     }
 
-    private data class RoadSegmentInfo(val adm_cd2: String, val length_m: Double, val coordinates: String)
-
     /**
-     * 달린 선이 **올라탄 구간**들의 ID — 탐험률(`explored_segment`)에 적립할 대상이다.
+     * 달린 선이 **올라탄 구간**과 그 구간에서 **지나간 부분** — 탐험률에 적립할 대상이다.
      *
-     * 서버가 준 `segmentIds`를 쓰지 않는다. 서버는 도로망을 따라 경로를 메우기 때문에 안 지난 도로의
+     * 두 단계로 거른다:
+     *  1. 구간 고르기 — 점마다 **가장 가까운 구간 하나**([RoadSegmentLocator]). 러닝 중 흰색/금색을
+     *     가르는 것과 같은 규칙이라 "러닝 중엔 새 길이었는데 탐험률은 안 움직이는" 어긋남이 없다.
+     *  2. 부분 고르기 — 고른 구간에서 달린 선 [matchDistanceM] 안에 있는 샘플만. 구간 전체를 통째로
+     *     적립하면 300m 도로를 20m 밟고 지나가도 300m를 다 탐험한 것이 된다.
+     *
+     * 서버가 준 `segmentIds`는 쓰지 않는다. 서버는 도로망을 따라 경로를 메우기 때문에 안 지난 도로의
      * 구간까지 섞여 오고, 반대로 로컬 인덱스에 없는 ID를 줘서 아무것도 적립 안 되는 경우도 생긴다.
-     * 대신 러닝 중 흰색/금색을 가르는 것과 **같은 규칙**([RoadSegmentLocator] — 점에서 가장 가까운
-     * 구간)으로 직접 고른다. 그래야 "러닝 중엔 새 길이었는데 탐험률은 안 움직이는" 어긋남이 없다.
      */
-    fun segmentIdsOnPaths(paths: List<List<LatLon>>, matchDistanceM: Double = DEFAULT_MATCH_DISTANCE_M): List<Long> {
+    fun coverageOnPaths(
+        paths: List<List<LatLon>>,
+        matchDistanceM: Double = DEFAULT_MATCH_DISTANCE_M,
+    ): List<SegmentCoverage> {
         val locator = RoadSegmentLocator(database, matchDistanceM)
-        val ids = linkedSetOf<Long>()
-        paths.forEach { path -> path.forEach { point -> locator.nearestSegmentId(point)?.let(ids::add) } }
-        return ids.toList()
+        val candidates = linkedSetOf<Long>()
+        paths.forEach { path -> path.forEach { point -> locator.nearestSegmentId(point)?.let(candidates::add) } }
+        return candidates.map { segmentId ->
+            SegmentCoverage(
+                segmentId = segmentId,
+                mask = SegmentCoverageMatcher.coverageMask(
+                    samples = locator.samplePoints(segmentId),
+                    referencePaths = paths,
+                    matchDistanceM = matchDistanceM,
+                ),
+            )
+        }
     }
 
     /** 기록 탭 한 줄치 요약 — 라벨 포맷은 화면(ViewModel)이 맡고, 여기선 숫자/시각만 넘긴다. */
@@ -177,10 +233,17 @@ class TrackLocalStore(
                 )
             }
 
-    /** 그 기간에 처음 달린 구간의 길이 합(m) — 기록 탭 월간 "새로 탐험한 길". */
-    fun newRoadMetersBetween(fromEpochMs: Long, toEpochMs: Long): Double =
-        database.runSegmentQueries.newRoadMetersBetween(fromEpochMs = fromEpochMs, toEpochMs = toEpochMs)
-            .executeAsOne()
+    /** 그 기간에 **처음 지나간 부분**의 길이 합(m) — 기록 탭 월간 "새로 탐험한 길". 구간을 쪼개
+     * 적립하므로, 지난달에 절반 달린 구간을 이달에 끝까지 달리면 나머지 절반만 이달에 들어간다. */
+    fun newRoadMetersBetween(fromEpochMs: Long, toEpochMs: Long): Double {
+        var meters = 0.0
+        replayRunSegments { delta ->
+            if (delta.startedAtEpochMs >= fromEpochMs && delta.startedAtEpochMs < toEpochMs) {
+                meters += delta.addedMeters
+            }
+        }
+        return meters
+    }
 
     /** 기록 탭 썸네일용 트랙별 매칭 경로. 매칭이 아직/끝내 안 된 트랙은 `track_edge`가 비어 있어서
      * 결과 맵에 키가 없다 — 호출부는 그때 썸네일 없이(플레이스홀더) 그린다. */
@@ -192,19 +255,80 @@ class TrackLocalStore(
     }
 
     /**
-     * [trackIds] 각각이 **처음 밟은** 구간들의 경로(구간마다 한 줄). 결과 카드·기록 썸네일에서 "새로
-     * 탐험한 길"을 금색으로 덧그리는 데 쓴다 — 같은 길을 또 달린 러닝은 그만큼 비어 있다.
+     * [trackIds] 각각이 **처음 지나간 부분**의 경로. 결과 카드·기록 썸네일에서 "새로 탐험한 길"을
+     * 금색으로 덧그리는 데 쓴다 — 같은 길을 또 달린 러닝은 그만큼 비어 있고, 구간을 쪼개 적립하므로
+     * 그 러닝이 실제로 지난 토막만 나온다.
      *
      * 러닝이 끝나는 순간에는 [recordMatchResult]가 돌려주지만, 지나고 나면 `explored_segment`엔
-     * "지금 가봤는가"만 남아 어느 러닝이 그 길을 뚫었는지 모른다 — 그래서 `run_segment`를 트랙 시작
-     * 시각으로 되짚어 가린다.
+     * 누적만 남아 어느 러닝이 그 길을 뚫었는지 모른다 — 그래서 `run_segment`를 트랙 시작 시각으로
+     * 되짚어 가린다.
      */
     fun newRoadPathsForTracks(trackIds: List<String>): Map<String, List<List<LatLon>>> {
         if (trackIds.isEmpty()) return emptyMap()
-        return database.runSegmentQueries.selectFirstRunSegmentGeometries(trackIds).executeAsList()
-            .groupBy { it.track_id }
-            .mapValues { (_, rows) -> rows.flatMap { RoadSegmentParser.decodeLines(it.coordinates) } }
+        val wanted = trackIds.toSet()
+        val geometry = SegmentGeometry(database)
+        val paths = mutableMapOf<String, MutableList<List<LatLon>>>()
+        replayRunSegments { delta ->
+            if (delta.trackId in wanted) {
+                // 선을 그릴 때만 지오메트리가 필요하다 — mask 해상도를 지금 샘플 수에 맞춰 놓고 센다.
+                val sampleLines = geometry.sampleLines(delta.segmentId)
+                val subPaths = SegmentCoverageMatcher.coveredSubPaths(
+                    sampleLines = sampleLines,
+                    mask = delta.added.resizedTo(sampleLines.sumOf { it.size }),
+                )
+                if (subPaths.isNotEmpty()) paths.getOrPut(delta.trackId) { mutableListOf() } += subPaths
+            }
+        }
+        return paths
     }
+
+    /** `run_segment`를 트랙 시작 시각 순으로 재생한다 — [onNewlyCovered]는 그 트랙이 그 시점까지의
+     * 누적 대비 **새로 덮은 부분**만 받는다. 반환값은 전부 합친 구간별 커버리지(캐시 재생성용).
+     *
+     * 시간순이어야 하는 이유: "이번에 처음 덮인 부분"은 앞선 트랙들을 합친 결과에 따라 달라진다. */
+    private fun replayRunSegments(
+        onNewlyCovered: (RunSegmentDelta) -> Unit = {},
+    ): Map<Long, ReplayedSegment> {
+        val accumulated = mutableMapOf<Long, ReplayedSegment>()
+        database.runSegmentQueries.selectAllForReplay().executeAsList().forEach { row ->
+            val decoded = CoverageMask.decode(row.covered_mask)
+            val before = accumulated[row.segment_id]
+            // 해상도(샘플 수)는 둘 중 촘촘한 쪽에 맞춘다 — 지도 버전이 바뀌어 샘플 수가 달라진
+            // 기록이 섞여 있어도 적립을 깎지 않고, 읽는 순서에 따라 결과가 달라지지도 않는다.
+            val size = maxOf(decoded.size, before?.mask?.size ?: 0)
+            val mask = decoded.resizedTo(size)
+            val accumulatedMask = before?.mask?.resizedTo(size) ?: CoverageMask.empty(size)
+            accumulated[row.segment_id] = ReplayedSegment(
+                mask = accumulatedMask.or(mask),
+                admCd2 = row.adm_cd2,
+                lengthM = row.length_m,
+            )
+            val added = mask.andNot(accumulatedMask)
+            if (added.isEmpty()) return@forEach
+            onNewlyCovered(
+                RunSegmentDelta(
+                    trackId = row.track_id,
+                    startedAtEpochMs = row.started_at_epoch_ms,
+                    segmentId = row.segment_id,
+                    added = added,
+                    addedMeters = added.coveredCount * (row.length_m / size),
+                ),
+            )
+        }
+        return accumulated
+    }
+
+    /** 재생 결과 — 구간별 누적 커버리지와 길이 환산에 필요한 값. */
+    private data class ReplayedSegment(val mask: CoverageMask, val admCd2: String, val lengthM: Double)
+
+    private data class RunSegmentDelta(
+        val trackId: String,
+        val startedAtEpochMs: Long,
+        val segmentId: Long,
+        val added: CoverageMask,
+        /** [added]를 길이로 환산한 값(m). */
+        val addedMeters: Double,
+    )
 
     /** 동별 완주 길이(분자) — `explored_segment`를 바로 집계한다. */
     fun walkedLengthByDong(): Map<String, Double> =
@@ -237,14 +361,20 @@ class TrackLocalStore(
         fileStore.delete(track.gpx_raw_path)
     }
 
-    /** `explored_segment` 캐시를 비우고 `run_segment`(남은 트랙 전체)를 다시 돌려 채운다 — segment_id가
-     * PK라 순서와 무관하게 결과가 같다(멱등). */
+    /** `explored_segment` 캐시를 비우고 `run_segment`(남은 트랙 전체)의 커버리지를 다시 합쳐 채운다 —
+     * 트랙별 mask를 OR하는 것뿐이라 순서와 무관하게 결과가 같다(멱등). */
     fun regenerateCoverage() {
+        val coverage = replayRunSegments()
         database.transaction {
             database.exploredSegmentQueries.clearExploredSegments()
-            database.runSegmentQueries.selectAllForRebuild().executeAsList().forEach { row ->
-                val info = database.roadSegmentIndexQueries.selectById(row.segment_id).executeAsOneOrNull() ?: return@forEach
-                database.exploredSegmentQueries.insertSegmentIfAbsent(info.segment_id, info.adm_cd2, info.length_m)
+            coverage.forEach { (segmentId, segment) ->
+                database.exploredSegmentQueries.insertSegment(
+                    segmentId,
+                    segment.admCd2,
+                    segment.lengthM,
+                    segment.mask.encode(),
+                    segment.mask.coveredCount * (segment.lengthM / segment.mask.size),
+                )
             }
         }
     }
