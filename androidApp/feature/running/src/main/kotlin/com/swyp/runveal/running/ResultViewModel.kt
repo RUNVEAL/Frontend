@@ -34,7 +34,11 @@ class ResultViewModel : MviViewModel<Nothing, ResultState, Nothing>(initialState
             distanceLabel = "%.2f".format(distanceKm),
             elapsedLabel = formatElapsed(result.elapsedMs),
             paceLabel = formatPace(result.elapsedMs, result.distanceMeters),
-            mapSnapshotRequest = result.routePoints.toSnapshotRequest(result.trackId, SnapshotVariant.RESULT_CARD),
+            mapSnapshotRequest = result.routePoints.toSnapshotRequest(
+                ownerId = result.trackId,
+                variant = SnapshotVariant.RESULT_CARD,
+                newRoadPaths = result.newRoadPaths,
+            ),
         )
     }
 

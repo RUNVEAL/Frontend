@@ -72,6 +72,32 @@ class SnapshotBoundsTest {
         assertEquals(route.last(), resultCard.end)
     }
 
+    @Test
+    fun highlightsNewRoadOnlyForResultCard() {
+        val route = listOf(LatLon(37.0, 127.0), LatLon(37.001, 127.001), LatLon(37.002, 127.002))
+        val newRoad = listOf(listOf(LatLon(37.001, 127.001), LatLon(37.002, 127.002)))
+
+        // 72dp 썸네일은 두 색이 구분되지 않아 넘겨도 무시한다.
+        assertNull(route.toSnapshotRequest("id", SnapshotVariant.THUMBNAIL, newRoad)?.highlightGeoJson)
+
+        val resultCard = route.toSnapshotRequest("id", SnapshotVariant.RESULT_CARD, newRoad)
+        assertNotNull(resultCard)
+        val highlight = assertNotNull(resultCard.highlightGeoJson)
+        assertTrue("MultiLineString" in highlight, highlight)
+        assertTrue("127.002" in highlight, highlight)
+    }
+
+    @Test
+    fun leavesHighlightNullWhenNothingIsNewRoad() {
+        val route = listOf(LatLon(37.0, 127.0), LatLon(37.001, 127.001))
+
+        // 매칭 실패 등으로 새 구간을 못 가려냈으면 전부 한 색으로 그린다.
+        assertNull(route.toSnapshotRequest("id", SnapshotVariant.RESULT_CARD)?.highlightGeoJson)
+        // 점이 1개뿐인 줄은 선이 못 되니 버린다.
+        val degenerate = listOf(listOf(LatLon(37.0, 127.0)))
+        assertNull(route.toSnapshotRequest("id", SnapshotVariant.RESULT_CARD, degenerate)?.highlightGeoJson)
+    }
+
     private fun assertApproxEquals(expected: Double, actual: Double, tolerance: Double = 1e-9) {
         assertTrue(abs(expected - actual) < tolerance, "expected=$expected actual=$actual")
     }

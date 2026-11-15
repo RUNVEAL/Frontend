@@ -2,6 +2,7 @@ package com.swyp.runveal.data.local
 
 import com.swyp.runveal.db.RunvealDatabase
 import com.swyp.runveal.dong.MatchedEdge
+import com.swyp.runveal.dong.RoadSegmentParser
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
 import kotlinx.serialization.builtins.ListSerializer
@@ -15,6 +16,10 @@ private const val MATCH_STATE_MATCHED = "MATCHED"
 data class MatchRecordSummary(
     val newRoadMeters: Double,
     val touchedDongAdmCodes: Set<String>,
+    /** 이번에 처음 걸은 구간들의 경로(구간마다 한 줄) — 결과 카드에서 "처음 간 길"만 금색으로
+     * 덧그리는 데 쓴다. 적립이 끝나면 `explored_segment`에 들어가 버려서 나중엔 다시 가려낼 수 없으니
+     * 여기서 같이 돌려준다. */
+    val newRoadPaths: List<List<LatLon>>,
 )
 
 /**
@@ -82,6 +87,7 @@ class TrackLocalStore(
     ): MatchRecordSummary {
         var newRoadMeters = 0.0
         val touchedDongAdmCodes = mutableSetOf<String>()
+        val newRoadPaths = mutableListOf<List<LatLon>>()
         database.transaction {
             if (matchedPath.size >= 2) {
                 database.trackEdgeQueries.insertEdge(
@@ -96,6 +102,7 @@ class TrackLocalStore(
                 adoptSegment(segmentId) { info ->
                     newRoadMeters += info.length_m
                     touchedDongAdmCodes += info.adm_cd2
+                    newRoadPaths += RoadSegmentParser.decodeLines(info.coordinates)
                 }
             }
             database.trackQueries.updateMatchState(
@@ -106,7 +113,7 @@ class TrackLocalStore(
                 id = trackId,
             )
         }
-        return MatchRecordSummary(newRoadMeters, touchedDongAdmCodes)
+        return MatchRecordSummary(newRoadMeters, touchedDongAdmCodes, newRoadPaths)
     }
 
     /** [segmentId]가 [road_segment] 인덱스에 있고, 전역에서 처음 채택되는 경우에만 [onAdopted]를
@@ -116,11 +123,11 @@ class TrackLocalStore(
         val info = database.roadSegmentIndexQueries.selectById(segmentId).executeAsOneOrNull() ?: return false
         database.exploredSegmentQueries.insertSegmentIfAbsent(info.segment_id, info.adm_cd2, info.length_m)
         val adopted = database.exploredSegmentQueries.changes().executeAsOne() > 0
-        if (adopted) onAdopted(RoadSegmentInfo(info.adm_cd2, info.length_m))
+        if (adopted) onAdopted(RoadSegmentInfo(info.adm_cd2, info.length_m, info.coordinates))
         return adopted
     }
 
-    private data class RoadSegmentInfo(val adm_cd2: String, val length_m: Double)
+    private data class RoadSegmentInfo(val adm_cd2: String, val length_m: Double, val coordinates: String)
 
     /** 동별 완주 길이(분자) — `explored_segment`를 바로 집계한다. */
     fun walkedLengthByDong(): Map<String, Double> =

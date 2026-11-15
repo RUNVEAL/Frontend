@@ -1,5 +1,6 @@
 package com.swyp.runveal.map.snapshot
 
+import com.swyp.runveal.geojson.toMultiLineGeoJson
 import com.swyp.runveal.geojson.toRouteGeoJson
 import com.swyp.runveal.map.LatLon
 import kotlin.math.PI
@@ -51,9 +52,19 @@ fun List<LatLon>.snapshotBounds(): GeoBounds {
     return GeoBounds(south = south, west = west, north = north, east = east)
 }
 
-/** 점이 1개 이하인 경로는 스냅샷 요청을 만들지 않는다. */
-fun List<LatLon>.toSnapshotRequest(ownerId: String, variant: SnapshotVariant): SnapshotRequest? {
+/**
+ * 점이 1개 이하인 경로는 스냅샷 요청을 만들지 않는다.
+ *
+ * [newRoadPaths]는 이번에 처음 간 구간들 — 결과 카드에서만 경로 위에 금색으로 덧그린다. 썸네일은
+ * 72dp라 두 색이 구분되지 않아 넘겨도 무시한다.
+ */
+fun List<LatLon>.toSnapshotRequest(
+    ownerId: String,
+    variant: SnapshotVariant,
+    newRoadPaths: List<List<LatLon>> = emptyList(),
+): SnapshotRequest? {
     if (size <= 1) return null
+    val highlight = newRoadPaths.filter { it.size >= 2 }
     return SnapshotRequest(
         ownerId = ownerId,
         variant = variant,
@@ -61,5 +72,8 @@ fun List<LatLon>.toSnapshotRequest(ownerId: String, variant: SnapshotVariant): S
         bounds = snapshotBounds(),
         start = if (variant == SnapshotVariant.RESULT_CARD) first() else null,
         end = if (variant == SnapshotVariant.RESULT_CARD) last() else null,
+        highlightGeoJson = highlight
+            .takeIf { variant == SnapshotVariant.RESULT_CARD && it.isNotEmpty() }
+            ?.toMultiLineGeoJson(),
     )
 }

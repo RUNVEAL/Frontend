@@ -34,6 +34,7 @@ internal class CourseSnapshotRendererImpl(
     private val routeColor: Int,
     private val endpointColor: Int,
     private val endpointStrokeColor: Int,
+    private val newRoadColor: Int,
 ) : CourseSnapshotRenderer {
     private val density = context.resources.displayMetrics.density
 
@@ -81,7 +82,7 @@ internal class CourseSnapshotRendererImpl(
     private suspend fun snapshot(request: SnapshotRequest, widthPx: Int, heightPx: Int): Bitmap? =
         withContext(Dispatchers.Main.immediate) {
             suspendCancellableCoroutine { continuation ->
-                val styleBuilder = SnapshotStyleBuilder.build(request, routeColor, endpointColor, endpointStrokeColor)
+                val styleBuilder = SnapshotStyleBuilder.build(request, routeColor, endpointColor, endpointStrokeColor, newRoadColor)
                 val options = MapSnapshotter.Options(widthPx, heightPx)
                     .withPixelRatio(density)
                     .withLogo(false)

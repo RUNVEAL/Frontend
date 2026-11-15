@@ -33,4 +33,6 @@ fun CourseSnapshotRenderer(
     routeColor: Int,
     endpointColor: Int,
     endpointStrokeColor: Int,
-): CourseSnapshotRenderer = CourseSnapshotRendererImpl(context, routeColor, endpointColor, endpointStrokeColor)
+    newRoadColor: Int,
+): CourseSnapshotRenderer =
+    CourseSnapshotRendererImpl(context, routeColor, endpointColor, endpointStrokeColor, newRoadColor)

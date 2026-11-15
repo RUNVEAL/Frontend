@@ -38,3 +38,36 @@ fun List<LatLon>.toRouteGeoJson(): String {
     }
     return featureCollection.toString()
 }
+
+/** 여러 줄(서로 떨어져 있어도 된다)을 GeoJSON `MultiLineString` Feature 하나로 묶는다 — 러닝 결과
+ * 카드에서 "이번에 처음 간 구간"들만 골라 금색으로 덧그릴 때 쓴다. 점이 2개 미만인 줄은 버린다. */
+fun List<List<LatLon>>.toMultiLineGeoJson(): String {
+    val lines = filter { it.size >= 2 }
+    val geometry: JsonObject = buildJsonObject {
+        put("type", "MultiLineString")
+        put(
+            "coordinates",
+            buildJsonArray {
+                lines.forEach { line ->
+                    addJsonArray {
+                        line.forEach { point ->
+                            addJsonArray {
+                                add(point.lon)
+                                add(point.lat)
+                            }
+                        }
+                    }
+                }
+            },
+        )
+    }
+    val feature = buildJsonObject {
+        put("type", "Feature")
+        put("properties", buildJsonObject {})
+        put("geometry", geometry)
+    }
+    return buildJsonObject {
+        put("type", "FeatureCollection")
+        put("features", buildJsonArray { add(feature) })
+    }.toString()
+}
