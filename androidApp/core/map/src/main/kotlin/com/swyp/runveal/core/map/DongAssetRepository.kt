@@ -20,6 +20,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 
+/** `"code":` / `"code" :` / `"code": ` 어느 형태든 잡는다(서버 JSON 포맷이 바뀌어도 깨지지 않게). */
+private val DONG_CODE_PROPERTY_REGEX = Regex("\"code\"\\s*:")
+
 private const val DONG_BOUNDARY_ASSET_PATH = "dong/korea_dong.geojson"
 private const val DONG_LENGTHS_ASSET_PATH = "dong/asan_dong_lengths.json"
 private const val SIGUNGU_BOUNDARY_ASSET_PATH = "dong/korea_sigungu.geojson"
@@ -95,8 +98,12 @@ class DongAssetRepository(private val context: Context) {
      * 이 raw GeoJSON을 직접 읽는 모든 곳(`DongGeoJsonBuilder`/`SigunguGeoJsonBuilder`/
      * `DongGlowImageLayer`)이 번들 에셋과 같은 `adm_cd2` 키를 기대한다 — 값은 서로 같아서(둘 다 10자리
      * 행정동 코드) 키 이름만 바꿔 맞춘다. 파서들을 전부 고치는 대신 서버 데이터가 들어오는 이 지점
-     * 한 곳에서만 정규화한다. */
-    private fun String.normalizeDongCodeKey(): String = replace("\"code\":\"", "\"adm_cd2\":\"")
+     * 한 곳에서만 정규화한다.
+     *
+     * 콜론 뒤 공백은 정규식으로 흡수한다 — 2026-11-15 배포에서 서버가 `{"code":"…"}`에서
+     * `{"code": "…"}`(공백 포함)로 포맷이 바뀌자 치환이 한 건도 안 먹어서, 모든 동에 코드가 없다고
+     * 판단해 홈 지도의 동 테두리·라벨·빛이 통째로 사라졌다. */
+    private fun String.normalizeDongCodeKey(): String = replace(DONG_CODE_PROPERTY_REGEX, "\"adm_cd2\":")
 
     /** [VISITED_SAMPLE_TRACKS_ASSET_DIR]에 있는 실제 기록 트랙을 전부 읽어 합친다 — 가본 길 렌더링을
      * 시연하는 용도. 디렉터리 자체가 없으면(에셋을 안 넣은 빌드) 빈
