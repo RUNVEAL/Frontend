@@ -75,7 +75,11 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
-            isMinifyEnabled = false
+            // R8로 코드 축소·난독화 + 안 쓰는 리소스 제거. 규칙은 proguard-rules.pro 참고 —
+            // 라이브러리 대부분은 자기 consumer 규칙을 들고 오고, 리플렉션을 쓰는
+            // kotlinx.serialization(서버 모델 + 네비게이션 라우트)만 직접 지켜 준다.
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
