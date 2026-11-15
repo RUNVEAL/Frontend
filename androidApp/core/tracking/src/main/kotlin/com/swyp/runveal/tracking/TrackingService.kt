@@ -23,6 +23,7 @@ import com.swyp.runveal.data.local.TrackLocalStore
 import com.swyp.runveal.db.RunvealDatabase
 import com.swyp.runveal.dong.DongBoundary
 import com.swyp.runveal.dong.DongBoundaryParser
+import com.swyp.runveal.dong.DongExploreRate
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.match.ChunkedMatcher
@@ -294,13 +295,11 @@ class TrackingService : Service() {
             DongRateChange(
                 admCd2 = admCd2,
                 name = name,
-                beforePercent = percentOf(beforeWalked[admCd2] ?: 0.0, total),
-                afterPercent = percentOf(afterWalked[admCd2] ?: 0.0, total),
+                beforePercent = DongExploreRate.percentOf(beforeWalked[admCd2] ?: 0.0, total),
+                afterPercent = DongExploreRate.percentOf(afterWalked[admCd2] ?: 0.0, total),
             )
         }
     }
-
-    private fun percentOf(walked: Double, total: Double): Int = ((walked / total) * 100).toInt().coerceIn(0, 100)
 
     /** 앱 실행 시 스플래시가 받아 둔 버전([MetaHolder])이 있으면 그대로 쓰고, 없으면(스플래시 호출
      * 실패·아직 전) 여기서 한 번 더 받는다 — `/match` 요청엔 `mapVersion`이 꼭 있어야 한다. */

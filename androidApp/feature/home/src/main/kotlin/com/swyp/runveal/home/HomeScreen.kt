@@ -27,6 +27,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import com.swyp.runveal.core.map.DongAssetRepository
+import com.swyp.runveal.core.map.DongOverlayHolder
 import com.swyp.runveal.core.map.LiveRoadClassifier
 import com.swyp.runveal.core.map.LocalMapOverlayBottomInset
 import com.swyp.runveal.core.map.LocalMapState
@@ -35,6 +36,7 @@ import com.swyp.runveal.core.map.MapLayers
 import com.swyp.runveal.core.map.MapState
 import com.swyp.runveal.core.map.RunvealMap
 import com.swyp.runveal.core.map.buildVisitedRoadGeoJson
+import com.swyp.runveal.core.map.loadDongOverlayBundle
 import com.swyp.runveal.core.map.rememberMapState
 import com.swyp.runveal.courserecommend.navigation.courseDetailOverlay
 import com.swyp.runveal.courserecommend.navigation.courseRecommendOverlay
@@ -340,10 +342,15 @@ private fun HomeMapLayer(
             MapLayerSpec(MapConfig.SOURCE_LIVE_RUN_NEW, if (isRecordingOrPaused) liveRunNewGeoJson else emptyVisitedRoadGeoJson),
         )
 
-        val dongOverlayData = remember { repository.buildOverlay(edges = emptyList()) }
-        val dongGlowPolygonPartsData = remember { repository.loadPolygonParts() }
-        val sigunguOverlayData = remember { repository.buildSigunguOverlay(edges = emptyList()) }
-        val sidoOverlayData = remember { repository.buildSidoOverlay(edges = emptyList()) }
+        // 동/시군구/시도 오버레이는 스플래시가 미리 만들어 [DongOverlayHolder]에 담아 둔다 — 전국 경계
+        // geoJSON 파싱이 몇 초 걸려서 홈에 들어온 뒤에 시작하면 지도가 한참 비어 있다가 뒤늦게 동이
+        // 떠오른다. 여기선 담긴 걸 그대로 쓰고, 러닝을 끝냈을 때만(= 담긴 묶음이 그 기록을 아직 반영
+        // 못 했을 때만) 다시 만들어 홀더를 갈아 끼운다.
+        val overlayBundle by DongOverlayHolder.state.collectAsStateWithLifecycle()
+        LaunchedEffect(latestTrackResult) {
+            if (overlayBundle != null && overlayBundle?.builtForTrackId == latestTrackResult?.trackId) return@LaunchedEffect
+            DongOverlayHolder.publish(loadDongOverlayBundle(context, builtForTrackId = latestTrackResult?.trackId))
+        }
 
         // 기록 중이거나 코스 추천(만들기/결과) 중엔 줌아웃해도 동/시군구/시도 테두리·라벨·빛을 안
         // 보여준다 — 지금 뛰고 있는 길, 또는 지금 고르고 있는 코스에만 집중하게 한다.
@@ -351,10 +358,11 @@ private fun HomeMapLayer(
         RunvealMap(
             modifier = Modifier.fillMaxSize(),
             state = mapState,
-            dongOverlay = if (hideOverlays) null else dongOverlayData,
-            dongGlowPolygonParts = if (hideOverlays) emptyMap() else dongGlowPolygonPartsData,
-            sigunguOverlay = if (hideOverlays) null else sigunguOverlayData,
-            sidoOverlay = if (hideOverlays) null else sidoOverlayData,
+            dongOverlay = if (hideOverlays) null else overlayBundle?.dongOverlay,
+            dongGlowPolygonParts = if (hideOverlays) emptyMap() else overlayBundle?.glowPolygonParts.orEmpty(),
+            dongBoundarySourceKey = overlayBundle?.boundarySourceKey.orEmpty(),
+            sigunguOverlay = if (hideOverlays) null else overlayBundle?.sigunguOverlay,
+            sidoOverlay = if (hideOverlays) null else overlayBundle?.sidoOverlay,
         )
     }
 }

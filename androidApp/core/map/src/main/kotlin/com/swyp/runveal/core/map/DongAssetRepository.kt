@@ -6,13 +6,18 @@ import com.swyp.runveal.core.map.internal.maplibre.SigunguGeoJsonBuilder
 import com.swyp.runveal.core.map.internal.maplibre.VisitedRoadGeoJsonBuilder
 import com.swyp.runveal.dong.DongBoundary
 import com.swyp.runveal.dong.DongBoundaryParser
-import com.swyp.runveal.dong.DongCoverageCalculator
 import com.swyp.runveal.dong.DongPolygonPart
 import com.swyp.runveal.dong.MatchedEdge
 import com.swyp.runveal.dong.MatchedEdgeParser
 import com.swyp.runveal.dong.region.RegionHierarchy
 import com.swyp.runveal.dong.region.RegionHierarchyParser
+import com.swyp.runveal.network.maps.IndexResponse
+import com.swyp.runveal.network.meta.MetaHolder
+import java.io.File
 import java.io.FileNotFoundException
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 
 private const val DONG_BOUNDARY_ASSET_PATH = "dong/korea_dong.geojson"
@@ -24,17 +29,23 @@ private const val REGION_HIERARCHY_ASSET_PATH = "dong/korea_region_hierarchy.jso
  * 모아 둔 디렉터리 — 개인 위치 기록이라 `.gitignore`로 제외했다(`sample-data/tracks/`와 같은 원본). */
 private const val VISITED_SAMPLE_TRACKS_ASSET_DIR = "tracks"
 
+/** [DongAssetRepository.syncFromServer]가 스플래시에서 이미 쏴 둔 `/api/v1/meta` 결과([MetaHolder])를
+ * 기다리는 최대 시간 — 서버가 꺼져 있거나 느려도 홈 지도는 번들 에셋으로 계속 떠야 한다(§5.7). */
+private const val META_WAIT_TIMEOUT_MS = 5000L
+
 /**
  * 전국 동/시군구/시도 경계 에셋을 읽어 [DongOverlayGeoJson]/[SigunguOverlayGeoJson]/[SidoOverlayGeoJson]을
- * 만든다. [DONG_LENGTHS_ASSET_PATH]는 아산시 전용 샘플이라 이 경계 파일과 더 이상 맞지 않는다 —
- * 완주율(%) 계산을 서버로 옮기기로 하면서 [loadTotalLengthsByDong]/[loadDongPercents]의 분모 로직
- * 자체를 다시 설계해야 해서 일단 그대로 둔다.
+ * 만든다. 동 경계(`index.geojson`)와 완주율 분모(`index.json`)는 [syncFromServer]로 서버 값을 받아 쓸 수
+ * 있고, 못 받았을 때만 번들 에셋([DONG_BOUNDARY_ASSET_PATH]/[DONG_LENGTHS_ASSET_PATH])으로 떨어진다 —
+ * 시군구/시도 경계·계층(`korea_sigungu.geojson` 등)은 서버가 안 주는 자료라 계속 번들로 둔다.
  */
 class DongAssetRepository(private val context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
     private var cachedRegionHierarchy: RegionHierarchy? = null
 
-    fun loadBoundaries(): List<DongBoundary> = DongBoundaryParser.parse(readAsset(DONG_BOUNDARY_ASSET_PATH))
+    /** [rawGeoJson]을 안 주면 번들 에셋 — [syncFromServer]로 받은 서버 `index.geojson`을 주면 그걸 쓴다. */
+    fun loadBoundaries(rawGeoJson: String = readAsset(DONG_BOUNDARY_ASSET_PATH)): List<DongBoundary> =
+        DongBoundaryParser.parse(rawGeoJson)
 
     /** 시도 16 → 시군구 256 → 행정동 3,559 계층(`docs/map/refactoring/REGION_HIERARCHY.md`). 한 번
      * 파싱한 결과를 재사용한다 — 다른 동/시군구/시도 경계 에셋(수백 KB~4MB)도 전부 호출부(`remember{}`)
@@ -45,13 +56,12 @@ class DongAssetRepository(private val context: Context) {
     }
 
     /** 구멍(hole)을 보존한 폴리곤 — 동 빛 이미지 생성([com.swyp.runveal.dong.glow.DongGlowRenderer])에만 쓴다. */
-    fun loadPolygonParts(): Map<String, List<DongPolygonPart>> =
-        DongBoundaryParser.parsePolygonParts(readAsset(DONG_BOUNDARY_ASSET_PATH))
-
     fun loadSigunguBoundaries(): List<DongBoundary> = DongBoundaryParser.parse(readAsset(SIGUNGU_BOUNDARY_ASSET_PATH))
 
     fun loadSidoBoundaries(): List<DongBoundary> = DongBoundaryParser.parse(readAsset(SIDO_BOUNDARY_ASSET_PATH))
 
+    /** [syncFromServer]로 받은 서버 `index.json`의 `dongLengthM`이 있으면 그걸 쓴다 — 없으면(서버를
+     * 아직 못 받았을 때) 번들 에셋으로 떨어진다. */
     fun loadTotalLengthsByDong(): Map<String, Double> =
         try {
             json.decodeFromString(readAsset(DONG_LENGTHS_ASSET_PATH))
@@ -61,15 +71,32 @@ class DongAssetRepository(private val context: Context) {
             emptyMap()
         }
 
-    /** 동별 완주율(%). [buildOverlay]뿐 아니라 [buildSigunguOverlay]/[buildSidoOverlay]도 이 값을
-     * 집계해서 쓴다 — 시군구/시도 테두리 단계가 소속 동들의 완주율 평균이기 때문. */
-    fun loadDongPercents(edges: List<MatchedEdge>, boundaries: List<DongBoundary>): Map<String, Int> {
-        val totalLengths = loadTotalLengthsByDong()
-        val walkedLengths = DongCoverageCalculator.lengthByDong(boundaries, edges.flatMap { it.coordinates })
-        return totalLengths.mapValues { (admCd2, total) ->
-            if (total <= 0.0) 0 else (((walkedLengths[admCd2] ?: 0.0) / total) * 100).toInt().coerceIn(0, 100)
+    /** 스플래시가 이미 받아 둔 `/api/v1/meta`([MetaHolder])의 지도 버전으로 서버 지도 파일을 내려받고,
+     * `index.geojson`/`index.json`을 홈 지도가 바로 쓸 수 있게 뽑아 온다. 실패하거나(오프라인·서버 꺼짐)
+     * [MetaHolder]가 아직 안 채워졌으면 `null` — 호출부는 번들 에셋을 그대로 쓰면 된다. */
+    suspend fun syncFromServer(): ServerDongMapData? {
+        val meta = withTimeoutOrNull(META_WAIT_TIMEOUT_MS) { MetaHolder.state.filterNotNull().first() } ?: return null
+        return try {
+            val dir = ServerMapFileStore(context).ensureDownloaded(meta.mapVersions.current, listOf("index.geojson", "index.json"))
+            val boundaryGeoJson = File(dir, "index.geojson").readText().normalizeDongCodeKey()
+            val totalLengthsByDong = json.decodeFromString<IndexResponse>(File(dir, "index.json").readText()).dongLengthM
+            ServerDongMapData(
+                boundaryGeoJson = boundaryGeoJson,
+                totalLengthsByDong = totalLengthsByDong,
+                mapVersion = meta.mapVersions.current,
+            )
+        } catch (_: Exception) {
+            null
         }
     }
+
+    /** 서버 `index.geojson`은 행정동 코드를 `code` 프로퍼티로 주는데(`docs/api/API.md` §3.1.2의
+     * 플레이스홀더 경고 — 전국 데이터로 바뀐 뒤에도 키 이름은 그대로임), [DongBoundaryParser]를 비롯해
+     * 이 raw GeoJSON을 직접 읽는 모든 곳(`DongGeoJsonBuilder`/`SigunguGeoJsonBuilder`/
+     * `DongGlowImageLayer`)이 번들 에셋과 같은 `adm_cd2` 키를 기대한다 — 값은 서로 같아서(둘 다 10자리
+     * 행정동 코드) 키 이름만 바꿔 맞춘다. 파서들을 전부 고치는 대신 서버 데이터가 들어오는 이 지점
+     * 한 곳에서만 정규화한다. */
+    private fun String.normalizeDongCodeKey(): String = replace("\"code\":\"", "\"adm_cd2\":\"")
 
     /** [VISITED_SAMPLE_TRACKS_ASSET_DIR]에 있는 실제 기록 트랙을 전부 읽어 합친다 — 가본 길 렌더링을
      * 시연하는 용도. 디렉터리 자체가 없으면(에셋을 안 넣은 빌드) 빈
@@ -89,29 +116,36 @@ class DongAssetRepository(private val context: Context) {
     /** 가본 길([VisitedRoadLayer]) GeoJSON — 동/시군구/시도 경계 에셋과 무관하게 [edges]만으로 만들어진다. */
     fun buildVisitedRoadGeoJson(edges: List<MatchedEdge>): String = VisitedRoadGeoJsonBuilder.build(edges)
 
-    fun buildOverlay(edges: List<MatchedEdge>): DongOverlayGeoJson {
-        val boundaries = loadBoundaries()
-        val percents = loadDongPercents(edges, boundaries)
-        return buildOverlayFrom(boundaries, readAsset(DONG_BOUNDARY_ASSET_PATH), percents)
+    /** [dongPercents]는 내 기록 기준 동별 탐험률(%) — `TrackLocalStore`의 가본 길 길이와 그 동의 전체
+     * 도로 길이로 [com.swyp.runveal.dong.DongExploreRate]가 계산한다. [rawBoundaryGeoJson]을 안 주면
+     * 번들 에셋 — [syncFromServer] 결과([ServerDongMapData])를 주면 서버 데이터로 그린다. */
+    fun buildOverlay(
+        dongPercents: Map<String, Int>,
+        rawBoundaryGeoJson: String = readAsset(DONG_BOUNDARY_ASSET_PATH),
+    ): DongOverlayResult {
+        val boundaries = loadBoundaries(rawBoundaryGeoJson)
+        return buildOverlayFrom(boundaries, rawBoundaryGeoJson, dongPercents)
     }
 
     /** [buildOverlay]와 같은 렌더링 파이프라인을, 번들 에셋이 아니라 외부에서 받아 온 동 경계 geoJSON과
      * 완주율로 돌린다 — 서버 지도 파일([ServerMapFileStore], `docs/api/API.md` §3.1.2)로 받은
      * `index.geojson`을 적용해 볼 때 쓴다. [rawBoundaryGeoJson]의 각 feature는 [boundaries]와 같은
      * `adm_cd2` 프로퍼티를 가지고 있어야 한다. */
-    fun buildOverlayFrom(boundaries: List<DongBoundary>, rawBoundaryGeoJson: String, percents: Map<String, Int>): DongOverlayGeoJson {
+    fun buildOverlayFrom(boundaries: List<DongBoundary>, rawBoundaryGeoJson: String, percents: Map<String, Int>): DongOverlayResult {
         val result = DongGeoJsonBuilder.build(boundaries, rawBoundaryGeoJson, percents)
-        return DongOverlayGeoJson(
-            fillGeoJson = result.fillGeoJson,
-            lineGeoJson = result.lineGeoJson,
-            labelGeoJson = result.labelGeoJson,
+        return DongOverlayResult(
+            overlay = DongOverlayGeoJson(
+                fillGeoJson = result.fillGeoJson,
+                lineGeoJson = result.lineGeoJson,
+                labelGeoJson = result.labelGeoJson,
+            ),
+            polygonPartsByAdmCd2 = result.polygonPartsByAdmCd2,
         )
     }
 
     /** 줌아웃 시 보여줄 시군구 테두리/라벨 — 테두리 단계는 소속 동들의 완주율 평균([aggregateBySigungu]). */
-    fun buildSigunguOverlay(edges: List<MatchedEdge>): SigunguOverlayGeoJson {
+    fun buildSigunguOverlay(dongPercents: Map<String, Int>): SigunguOverlayGeoJson {
         val boundaries = loadSigunguBoundaries()
-        val dongPercents = loadDongPercents(edges, loadBoundaries())
         val sigunguPercents = aggregateBySigungu(dongPercents, loadRegionHierarchy())
         val result = SigunguGeoJsonBuilder.build(boundaries, readAsset(SIGUNGU_BOUNDARY_ASSET_PATH), sigunguPercents)
         return SigunguOverlayGeoJson(
@@ -121,10 +155,9 @@ class DongAssetRepository(private val context: Context) {
     }
 
     /** 더 줌아웃하면 보여줄 시도 테두리/라벨 — 테두리 단계는 소속 시군구 평균의 평균([aggregateBySido]). */
-    fun buildSidoOverlay(edges: List<MatchedEdge>): SidoOverlayGeoJson {
+    fun buildSidoOverlay(dongPercents: Map<String, Int>): SidoOverlayGeoJson {
         val boundaries = loadSidoBoundaries()
         val hierarchy = loadRegionHierarchy()
-        val dongPercents = loadDongPercents(edges, loadBoundaries())
         val sigunguPercents = aggregateBySigungu(dongPercents, hierarchy)
         val sidoPercents = aggregateBySido(sigunguPercents, hierarchy)
         val result = SigunguGeoJsonBuilder.build(boundaries, readAsset(SIDO_BOUNDARY_ASSET_PATH), sidoPercents)

@@ -38,6 +38,7 @@ internal class DongGlowImageLayer(private val provider: DongGlowProvider) {
         map: MapLibreMap,
         overlayFillGeoJson: String?,
         polygonPartsByAdmCd2: Map<String, List<DongPolygonPart>>,
+        boundarySourceKey: String,
     ) {
         if (polygonPartsByAdmCd2.isEmpty()) return
         val admCd2Levels = admCd2LevelsFor(overlayFillGeoJson)
@@ -72,7 +73,7 @@ internal class DongGlowImageLayer(private val provider: DongGlowProvider) {
 
         for ((admCd2, level, _) in candidates) {
             val parts = polygonPartsByAdmCd2.getValue(admCd2)
-            val asset = provider.request(admCd2, level, parts) ?: continue
+            val asset = provider.request(admCd2, level, parts, boundarySourceKey) ?: continue
             addOrUpdateDong(style, admCd2, asset.corners, asset.bitmap)
             activeAdmCd2.add(admCd2)
         }

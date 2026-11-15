@@ -16,6 +16,9 @@ fun RunvealMap(
     dongOverlay: DongOverlayGeoJson? = null,
     /** 동 빛 이미지 생성([com.swyp.runveal.dong.glow.DongGlowRenderer])에 쓰는, 구멍을 보존한 전국 동 폴리곤. */
     dongGlowPolygonParts: Map<String, List<DongPolygonPart>> = emptyMap(),
+    /** [dongGlowPolygonParts]가 어느 경계 데이터에서 나왔는지(`"asset"` / `"server:<지도 버전>"`).
+     * 빛 이미지 캐시 키에 들어가, 서버가 경계를 고쳐 배포하면 옛 이미지를 쓰지 않는다. */
+    dongBoundarySourceKey: String = "",
     sigunguOverlay: SigunguOverlayGeoJson? = null,
     sidoOverlay: SidoOverlayGeoJson? = null,
 ) {
@@ -24,6 +27,7 @@ fun RunvealMap(
         state = state,
         dongOverlay = dongOverlay,
         dongGlowPolygonParts = dongGlowPolygonParts,
+        dongBoundarySourceKey = dongBoundarySourceKey,
         sigunguOverlay = sigunguOverlay,
         sidoOverlay = sidoOverlay,
     )

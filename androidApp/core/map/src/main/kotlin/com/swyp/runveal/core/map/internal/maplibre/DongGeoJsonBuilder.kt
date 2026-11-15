@@ -20,7 +20,15 @@ import org.maplibre.geojson.Polygon
  */
 internal object DongGeoJsonBuilder {
 
-    data class Result(val fillGeoJson: String, val lineGeoJson: String, val labelGeoJson: String)
+    data class Result(
+        val fillGeoJson: String,
+        val lineGeoJson: String,
+        val labelGeoJson: String,
+        /** 빛 이미지도 선과 **같은** 정점을 쓰도록 스냅까지 끝난 polygon part를 함께 돌려준다 —
+         * 따로 파싱하면 [VertexSnapper]를 안 거쳐서 공유 경계가 최대 15m까지 어긋나고, 테두리와
+         * 빛 이미지가 나란히 두 겹으로 보인다. */
+        val polygonPartsByAdmCd2: Map<String, List<DongPolygonPart>>,
+    )
 
     fun build(boundaries: List<DongBoundary>, rawBoundaryGeoJson: String, percents: Map<String, Int>): Result {
         val raw = FeatureCollection.fromJson(rawBoundaryGeoJson)
@@ -31,6 +39,7 @@ internal object DongGeoJsonBuilder {
             fillGeoJson = buildFillGeoJson(raw, percents),
             lineGeoJson = buildLineGeoJson(partsByAdmCd2, percents),
             labelGeoJson = buildLabelGeoJson(partsByAdmCd2, nameByAdmCd2, percents),
+            polygonPartsByAdmCd2 = partsByAdmCd2,
         )
     }
 
@@ -94,13 +103,17 @@ internal object DongGeoJsonBuilder {
     }
 
     /** adm_cd2 -> 폴리곤 part(exterior + 구멍). 원본 GeoJSON에서 구멍·MultiPolygon을 그대로 보존해 뽑고,
-     * 각 part는 [RingWinding.normalize]로 외곽은 반시계, 구멍은 시계로 맞춘다. */
+     * 각 part는 [RingWinding.normalize]로 외곽은 반시계, 구멍은 시계로 맞춘다. [VertexSnapper]로 인접
+     * 동과의 공유 경계 정점을 합쳐서 [buildLineGeoJson]의 이중선을 막는다. */
     private fun polygonPartsByAdmCd2(raw: FeatureCollection): Map<String, List<DongPolygonPart>> {
+        val snapper = VertexSnapper()
         val result = mutableMapOf<String, MutableList<DongPolygonPart>>()
         raw.features()?.forEach { feature ->
             val admCd2 = feature.getStringProperty("adm_cd2") ?: return@forEach
             polygonsOf(feature).forEach { polygon ->
-                val rings = polygon.coordinates().map { ring -> ring.map { LatLon(lat = it.latitude(), lon = it.longitude()) } }
+                val rings = polygon.coordinates().map { ring ->
+                    ring.map { snapper.snap(LatLon(lat = it.latitude(), lon = it.longitude())) }
+                }
                 val part = RingWinding.normalize(exterior = rings.first(), holes = rings.drop(1))
                 result.getOrPut(admCd2) { mutableListOf() }.add(part)
             }

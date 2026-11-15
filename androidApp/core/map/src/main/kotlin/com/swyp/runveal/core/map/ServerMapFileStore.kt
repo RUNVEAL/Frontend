@@ -5,7 +5,7 @@ import com.swyp.runveal.network.maps.MapsApi
 import java.io.File
 
 /**
- * 서버 지도 파일(`GET /maps/{mapVersion}/...`, `docs/api/API.md` §3.1.2/§8.3)을 받아 기기 내부
+ * 서버 지도 파일(`GET /maps/{mapVersion}/...`, `docs/api/API.md` §3.1.2)을 받아 기기 내부
  * 저장소(`context.filesDir/maps/{mapVersion}/`)에 캐시한다. 같은 버전의 파일은 절대 안 바뀌므로
  * 이미 받은 파일은 다시 받지 않는다.
  *
