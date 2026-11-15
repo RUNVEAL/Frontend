@@ -25,6 +25,7 @@ import com.swyp.runveal.dong.DongExploreRate
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.match.ChunkedMatcher
+import com.swyp.runveal.match.MatchedPathFilter
 import com.swyp.runveal.network.match.MatchPurpose
 import com.swyp.runveal.network.meta.MetaApi
 import com.swyp.runveal.network.meta.MetaHolder
@@ -140,7 +141,9 @@ class TrackingService : Service() {
                     val mapVersion = resolveMapVersion()
                     val matcher = ServerRoadMatcher(mapVersion = mapVersion, purpose = MatchPurpose.LIVE)
                     val result = ChunkedMatcher.matchInChunks(matcher, points)
-                    LiveMatchHolder.publish(result.path)
+                    // 서버는 도로 데이터가 없는 구간을 도로망을 따라 메워서 돌려준다 — 그대로 그리면
+                    // 가지도 않은 길이 "오늘 달린 길"로 보인다. 실제 GPS와 떨어진 부분은 잘라낸다.
+                    LiveMatchHolder.publish(MatchedPathFilter.keepNearRecordedPoints(result.path, points))
                 } catch (e: Exception) {
                     android.util.Log.w("ServerMatchDebug", "실시간 매칭 실패 points=${points.size}", e)
                 }
@@ -230,10 +233,16 @@ class TrackingService : Service() {
             // 구간이라 끝나지 않으므로 달린 구만 받는다(§3.6.2 sigunguCodes).
             RoadSegmentIndexImporter(this, store.database).importIfNeeded(result.sigunguCodes)
             val beforeWalked = store.walkedLengthByDong()
+            // 서버 매칭 결과를 두 군데서 거른다 — 안 거르면 안 지난 길이 "가본 길"로 그려지고
+            // 동 탐험률도 부풀려진다(서버가 도로 데이터 없는 구간을 도로망으로 메워서 주기 때문).
+            //  - 경로: 실제 GPS와 동떨어진 부분을 잘라내고 조각으로 나눈다.
+            //  - 구간: 로컬 구간 인덱스의 도로선과 대조해 GPS가 진짜 지나간 것만 적립한다.
+            val matchedPaths = MatchedPathFilter.keepNearRecordedPoints(result.path, points)
+            val passedSegmentIds = store.segmentIdsActuallyPassed(result.segmentIds, listOf(points))
             val summary = store.recordMatchResult(
                 trackId = finished.id,
-                matchedPath = result.path,
-                segmentIds = result.segmentIds,
+                matchedPaths = matchedPaths,
+                segmentIds = passedSegmentIds,
                 nowEpochMs = System.currentTimeMillis(),
             )
             val afterWalked = store.walkedLengthByDong()

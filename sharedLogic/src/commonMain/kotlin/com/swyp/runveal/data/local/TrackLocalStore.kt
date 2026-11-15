@@ -2,7 +2,9 @@ package com.swyp.runveal.data.local
 
 import com.swyp.runveal.db.RunvealDatabase
 import com.swyp.runveal.dong.MatchedEdge
+import com.swyp.runveal.dong.RoadSegment
 import com.swyp.runveal.dong.RoadSegmentParser
+import com.swyp.runveal.dong.SegmentCoverageMatcher
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
 import kotlinx.serialization.builtins.ListSerializer
@@ -10,6 +12,13 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
 private const val MATCH_STATE_MATCHED = "MATCHED"
+
+/** `/meta` manifest 기본값(`docs/api/API.md` §3.1.2) — 호출할 때마다 manifest를 다시 받지 않는다. */
+private const val DEFAULT_MATCH_DISTANCE_M = 15.0
+private const val DEFAULT_SEGMENT_COVERAGE = 0.6
+
+/** 위도 1도 ≈ 111,320m — 바운딩 박스 사전 거르기용 대략치. */
+private const val DEGREES_PER_METER = 1.0 / 111_320.0
 
 /** [TrackLocalStore.recordMatchResult] 결과 요약 — 러닝 결과 화면(§새로 탐험한 길, 동별 완주율 변화)이
  * 바로 쓸 수 있게 "이번에 처음 걸은 구간"만 집계해서 돌려준다. */
@@ -74,14 +83,19 @@ class TrackLocalStore(
         )
     }
 
-    /** 매칭 완료 시 호출. 매칭된 경로는 `track_edge`에 그대로 저장(가본 길 렌더링용)하고, [segmentIds]
-     * 중 [road_segment] 인덱스에 있는 것만 `run_segment`/`explored_segment`에 적립한다(인덱스에
-     * 없으면 — 아직 import 전이거나 알 수 없는 구간이면 — 조용히 건너뛴다). 반환값은 "이번에 전역에서
-     * 처음 채택된" 구간만 집계한 [MatchRecordSummary] — 러닝 결과 화면용. 한 트랜잭션이라 도중에
-     * 실패하면 전부 롤백된다. */
+    /** 매칭 완료 시 호출. [matchedPaths]를 `track_edge`에 조각별로 저장하고(가본 길 렌더링용),
+     * [segmentIds] 중 [road_segment] 인덱스에 있는 것만 `run_segment`/`explored_segment`에
+     * 적립한다(인덱스에 없으면 — 아직 import 전이거나 알 수 없는 구간이면 — 조용히 건너뛴다).
+     *
+     * [matchedPaths]가 **조각 목록**인 이유: 서버 매칭 경로에서 실제로 달린 자리와 동떨어진 구간을
+     * 잘라내면([com.swyp.runveal.match.MatchedPathFilter]) 선이 여러 조각으로 나뉜다. 그 조각들을
+     * 다시 하나로 이으면 잘라낸 구간을 직선으로 바꿔 그릴 뿐이라, 따로 저장하고 따로 그린다.
+     *
+     * 반환값은 "이번에 전역에서 처음 채택된" 구간만 집계한 [MatchRecordSummary] — 러닝 결과 화면용.
+     * 한 트랜잭션이라 도중에 실패하면 전부 롤백된다. */
     fun recordMatchResult(
         trackId: String,
-        matchedPath: List<LatLon>,
+        matchedPaths: List<List<LatLon>>,
         segmentIds: List<Long>,
         nowEpochMs: Long,
     ): MatchRecordSummary {
@@ -89,12 +103,12 @@ class TrackLocalStore(
         val touchedDongAdmCodes = mutableSetOf<String>()
         val newRoadPaths = mutableListOf<List<LatLon>>()
         database.transaction {
-            if (matchedPath.size >= 2) {
+            matchedPaths.filter { it.size >= 2 }.forEachIndexed { index, path ->
                 database.trackEdgeQueries.insertEdge(
                     track_id = trackId,
-                    seq = 0,
-                    coordinates = encodeCoordinates(matchedPath),
-                    length_meters = GeoMath.totalDistanceMeters(matchedPath),
+                    seq = index.toLong(),
+                    coordinates = encodeCoordinates(path),
+                    length_meters = GeoMath.totalDistanceMeters(path),
                 )
             }
             segmentIds.distinct().forEach { segmentId ->
@@ -129,6 +143,49 @@ class TrackLocalStore(
 
     private data class RoadSegmentInfo(val adm_cd2: String, val length_m: Double, val coordinates: String)
 
+    /**
+     * 서버가 준 구간 ID 중 **GPS가 실제로 지나간 구간만** 남긴다.
+     *
+     * 서버 매칭은 도로망을 따라 경로를 메우기 때문에, 스쳐 지나가거나 아예 안 지난 도로의 구간 ID까지
+     * 섞여 올 수 있다. 그걸 그대로 적립하면 구간 **전체 길이**가 "가본 길"로 들어가 동 탐험률이
+     * 부풀려진다. 그래서 로컬 `road_segment` 인덱스의 실제 도로선과 GPS 경로를 대조해
+     * ([SegmentCoverageMatcher]) 기준을 넘긴 구간만 남긴다 — 서버 `/meta` manifest와 같은 두 기준
+     * ([matchDistanceM], [segmentCoverage])을 쓴다.
+     *
+     * 인덱스에 아직 없는 구간은 판정할 근거가 없어 그대로 통과시킨다 — 어차피 적립 단계에서
+     * ([adoptSegment]) 길이를 몰라 건너뛴다.
+     */
+    fun segmentIdsActuallyPassed(
+        segmentIds: List<Long>,
+        recordedPaths: List<List<LatLon>>,
+        matchDistanceM: Double = DEFAULT_MATCH_DISTANCE_M,
+        segmentCoverage: Double = DEFAULT_SEGMENT_COVERAGE,
+    ): List<Long> {
+        if (recordedPaths.all { it.size < 2 }) return segmentIds
+
+        // 먼저 GPS 경로 전체의 바운딩 박스로 걸러낸다 — 박스에도 안 걸리는 구간은 선분 거리를 재볼
+        // 필요가 없다(구간 하나당 샘플 수 × 경로 점 수만큼 계산이 든다).
+        val points = recordedPaths.flatten()
+        val padding = matchDistanceM * DEGREES_PER_METER
+        val minLat = points.minOf { it.lat } - padding
+        val maxLat = points.maxOf { it.lat } + padding
+        val minLon = points.minOf { it.lon } - padding
+        val maxLon = points.maxOf { it.lon } + padding
+
+        return segmentIds.distinct().filter { segmentId ->
+            val row = database.roadSegmentIndexQueries.selectById(segmentId).executeAsOneOrNull() ?: return@filter true
+            if (row.max_lat < minLat || row.min_lat > maxLat || row.max_lon < minLon || row.min_lon > maxLon) {
+                return@filter false
+            }
+            val segment = RoadSegment(
+                segmentId = row.segment_id,
+                lengthM = row.length_m.toInt(),
+                lines = RoadSegmentParser.decodeLines(row.coordinates),
+            )
+            SegmentCoverageMatcher.isCovered(segment, recordedPaths, matchDistanceM, segmentCoverage)
+        }
+    }
+
     /** 동별 완주 길이(분자) — `explored_segment`를 바로 집계한다. */
     fun walkedLengthByDong(): Map<String, Double> =
         database.exploredSegmentQueries.walkedLengthByDong().executeAsList()
@@ -140,13 +197,15 @@ class TrackLocalStore(
         database.roadSegmentIndexQueries.totalLengthByDong().executeAsList()
             .associate { it.adm_cd2 to (it.total_meters ?: 0.0) }
 
-    /** 가본 길 렌더링(§3.2): 트랙별로 seq 순서대로 합쳐 트랙당 Feature 1개가 되게 한다 — 안 그러면
-     * glow 레이어가 조각 경계마다 round cap이 겹쳐서 꺾이는 지점에 빛이 번진다. */
+    /** 가본 길 렌더링(§3.2): `track_edge` row 하나가 Feature 하나다.
+     *
+     * 예전엔 트랙별로 합쳐 Feature 1개로 만들었다(조각 경계마다 glow round cap이 겹쳐 빛이 번지는
+     * 문제 때문). 지금은 한 트랙의 조각들이 **실제로 떨어져 있는** 구간이라 — 매칭 경로에서 GPS와
+     * 동떨어진 부분을 잘라낸 결과([com.swyp.runveal.match.MatchedPathFilter]) — 합치면 안 지난 길을
+     * 직선으로 이어 그리게 된다. */
     fun visitedRoadEdges(): List<MatchedEdge> =
         database.trackEdgeQueries.selectAllEdgesForRendering().executeAsList()
-            .groupBy { it.track_id }
-            .values
-            .map { rows -> MatchedEdge(coordinates = rows.flatMap { decodeCoordinates(it.coordinates) }) }
+            .map { MatchedEdge(coordinates = decodeCoordinates(it.coordinates)) }
 
     /** 트랙 삭제(§5): DB row 삭제(→ edge/note/run_segment CASCADE) → 완주율 캐시 재생성 → GPX 파일
      * 삭제. 중간에 실패해도 고아 GPX만 남고 기능엔 영향 없다. */
