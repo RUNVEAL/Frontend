@@ -354,6 +354,9 @@ private fun HomeMapLayer(
         var liveRunNewGeoJson by remember { mutableStateOf(emptyVisitedRoadGeoJson) }
         LaunchedEffect(isRecordingOrPaused) {
             if (!isRecordingOrPaused) return@LaunchedEffect
+            // 직전 러닝에서 적립된 구간까지 반영해 "이미 가본 길"을 다시 읽는다 — 안 그러면 앱을 켠 채
+            // 두 번째로 달릴 때 방금 달린 길이 또 처음 가는 길(금색)로 보인다.
+            withContext(Dispatchers.IO) { liveRoadClassifier.refreshExploredSegments() }
             while (true) {
                 withContext(Dispatchers.IO) {
                     // 매칭 경로는 GPS와 동떨어진 부분을 잘라낸 **조각 목록**이라(MatchedPathFilter),

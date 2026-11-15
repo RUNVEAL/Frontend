@@ -21,7 +21,22 @@ private const val DEGREES_PER_METER = 1.0 / 111_320.0
  * 본다 — 크래시 대신 "전부 새 길"로 보이는 쪽을 선택한다.
  */
 class LiveRoadClassifier(private val database: RunvealDatabase) {
-    private val exploredSegmentIds: Set<Long> by lazy { database.exploredSegmentQueries.selectAllSegmentIds().executeAsList().toSet() }
+    private var exploredSegmentIds: Set<Long>? = null
+
+    /**
+     * "이미 가본 구간" 목록을 DB에서 다시 읽는다. **러닝을 시작할 때마다** 불러야 한다.
+     *
+     * 이 목록은 한 번 읽어 캐시해 두는데(매 점마다 DB를 다시 읽을 수는 없다), 적립은 러닝이 끝날 때
+     * 일어난다. 그래서 앱을 켠 채 두 번째 러닝을 하면 첫 러닝에서 적립된 구간이 캐시에 없어서, 방금
+     * 달렸던 길인데도 처음 가는 길(금색)로 칠해졌다.
+     */
+    fun refreshExploredSegments() {
+        exploredSegmentIds = database.exploredSegmentQueries.selectAllSegmentIds().executeAsList().toSet()
+    }
+
+    private fun exploredSegmentIds(): Set<Long> =
+        exploredSegmentIds ?: database.exploredSegmentQueries.selectAllSegmentIds().executeAsList().toSet()
+            .also { exploredSegmentIds = it }
 
     data class Result(val oldRuns: List<List<LatLon>>, val newRuns: List<List<LatLon>>) {
         /** 처음 가보는 구간들의 길이 합(m) — 기록 화면의 "새로 탐험한 길" 배지가 쓴다
@@ -61,6 +76,7 @@ class LiveRoadClassifier(private val database: RunvealDatabase) {
       * 그게 가본 구간일 때만 가본 길로 친다.
       */
     private fun isOnExploredSegment(point: LatLon, matchDistanceM: Double): Boolean {
+        val exploredSegmentIds = exploredSegmentIds()
         if (exploredSegmentIds.isEmpty()) return false
         val padding = matchDistanceM * DEGREES_PER_METER
         val candidates = database.roadSegmentIndexQueries.selectNear(
