@@ -47,3 +47,9 @@ UPDATE track SET place_name = ?, place_lookup_attempted = 1, updated_at_epoch_ms
 
 deleteTrack:
 DELETE FROM track WHERE id = ?;
+
+-- 기록 탭(한 달) 목록 — `[fromEpochMs, toEpochMs)` 반열린 구간이라 달 경계에서 겹치지 않는다.
+selectStartedBetweenDesc:
+SELECT * FROM track
+WHERE started_at_epoch_ms >= :fromEpochMs AND started_at_epoch_ms < :toEpochMs
+ORDER BY started_at_epoch_ms DESC;

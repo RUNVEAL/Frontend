@@ -21,9 +21,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.swyp.runveal.core.map.CourseSnapshotImage
 import com.swyp.runveal.designsystem.theme.RunvealTheme
+import com.swyp.runveal.map.snapshot.SnapshotRequest
 
-/** 기록 목록의 한 줄 — 날짜 + 타임라인 마커(점/세로선) + 러닝 카드(지도/코스/거리·시간·페이스). */
+/** 기록 목록의 한 줄 — 날짜 + 타임라인 마커(점/세로선) + 러닝 카드(지도/코스/거리·시간·페이스).
+ * [thumbnailRequest]가 null이면(매칭 경로 없음) 지도 자리는 빈 플레이스홀더로 남는다. */
 @Composable
 fun RecordListItem(
     dateLabel: String,
@@ -32,6 +35,7 @@ fun RecordListItem(
     durationLabel: String,
     paceLabel: String,
     modifier: Modifier = Modifier,
+    thumbnailRequest: SnapshotRequest? = null,
 ) {
     val colors = RunvealTheme.colors
     val cardShape = RunvealTheme.shapes.radius16
@@ -87,8 +91,10 @@ fun RecordListItem(
                 horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // 경로 지도 자리 — 실제 지도 연동 전까지는 빈 플레이스홀더.
-                Box(
+                // 달린 경로 지도 스냅샷 — 캐시가 없으면 렌더링이 끝날 때까지 빈 지도색으로 보인다.
+                CourseSnapshotImage(
+                    request = thumbnailRequest,
+                    contentDescription = null,
                     modifier = Modifier
                         .size(80.dp)
                         .clip(thumbnailShape)
