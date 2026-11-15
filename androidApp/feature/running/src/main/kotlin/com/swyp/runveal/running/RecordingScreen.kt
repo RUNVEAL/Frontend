@@ -56,7 +56,6 @@ import com.swyp.runveal.designsystem.component.button.RunvealRunPauseButton
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.running.R
 import com.swyp.runveal.map.GeoMath
-import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.map.MapConfig
 import com.swyp.runveal.recording.TrackRecorder
 import com.swyp.runveal.running.contract.RecordingEffect
@@ -126,9 +125,9 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
     // 뒤로가기로 화면을 못 벗어나게 한다 — 종료는 반드시 "종료하기" 버튼으로.
     BackHandler(enabled = true) {}
 
-    // "이 코스로 러닝 시작"으로 들어왔으면(selectedCoursePath) 그 코스를 흰 점선 안내선으로 그린다 —
-    // 이미 지나온 구간은 매초 지금 위치 기준으로 잘라내서 "오늘 달린 길"과 안 겹치게 한다. 같은 주기로
-    // 남은 거리·진행률([CourseProgress])도 계산해서 패널에 넘긴다.
+    // "이 코스로 러닝 시작"으로 들어왔으면(selectedCoursePath) 그 코스를 흰 점선 안내선으로 그린다.
+    // 안내선은 현위치와 무관하게 추천 코스 **전체**를 그대로 유지한다 — MVP 1차에서는 현위치에 따라
+    // 코스를 바꾸지 않는다. 매초 남은 거리·진행률([CourseProgress])만 따로 계산해서 패널에 넘긴다.
     val selectedCoursePath = state.selectedCoursePath
     var courseProgress by remember { mutableStateOf<CourseProgress?>(null) }
     if (selectedCoursePath != null && selectedCoursePath.size >= 2) {
@@ -138,19 +137,21 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
         LaunchedEffect(selectedCoursePath) { mapState.focusOnBounds(selectedCoursePath) }
 
         val totalCourseDistanceMeters = remember(selectedCoursePath) { GeoMath.totalDistanceMeters(selectedCoursePath) }
-        var courseGuideGeoJson by remember {
-            mutableStateOf(buildRecommendedRouteGeoJson(listOf(RecommendedRoute(id = "selected-course", points = selectedCoursePath, selected = true))))
+        // 코스가 바뀌지 않는 한 안내선도 그대로다 — 매초 다시 만들 이유가 없다.
+        val courseGuideGeoJson = remember(selectedCoursePath) {
+            buildRecommendedRouteGeoJson(listOf(RecommendedRoute(id = "selected-course", points = selectedCoursePath, selected = true)))
         }
+        // 남은 거리·진행률도 현위치가 아니라 **지금까지 달린 거리**로만 계산한다 — 현위치에서 가장
+        // 가까운 코스 점을 찾는 방식은 코스를 이탈하면 그 점이 코스 뒤쪽으로 튀어서 진행률이 갑자기
+        // 뛰었다. 이탈해서 더 달린 만큼도 진행으로 쳐주는 어림값이지만, 숫자가 요동치지 않는다.
         LaunchedEffect(selectedCoursePath) {
             while (true) {
-                val currentLocation = TrackRecorder.currentFilteredPoints().lastOrNull()?.let { LatLon(lat = it.lat, lon = it.lon) }
-                val remainingPath = currentLocation?.let { remainingCoursePath(selectedCoursePath, it) } ?: selectedCoursePath
-                courseGuideGeoJson = buildRecommendedRouteGeoJson(listOf(RecommendedRoute(id = "selected-course", points = remainingPath, selected = true)))
-                val remainingDistanceMeters = GeoMath.totalDistanceMeters(remainingPath)
+                val ranMeters = TrackRecorder.totalDistanceMeters()
+                val remainingDistanceMeters = (totalCourseDistanceMeters - ranMeters).coerceAtLeast(0.0)
                 val progressPercent = if (totalCourseDistanceMeters <= 0.0) {
                     0
                 } else {
-                    (((totalCourseDistanceMeters - remainingDistanceMeters) / totalCourseDistanceMeters) * 100).toInt().coerceIn(0, 100)
+                    ((ranMeters / totalCourseDistanceMeters) * 100).toInt().coerceIn(0, 100)
                 }
                 courseProgress = CourseProgress(
                     remainingDistanceLabel = "%.2f".format(remainingDistanceMeters / 1000.0),
@@ -198,14 +199,6 @@ fun RecordingScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewMode
             }
         }
     }
-}
-
-/** [coursePath]에서 [currentLocation]과 가장 가까운 점부터 끝까지만 남긴다 — 이미 지나온 구간은
- * 점선 안내선에서 빼서 "오늘 달린 길"과 안 겹쳐 보이게 한다. 가장 가까운 점 기준이라 코스를
- * 역주행하면 오탐할 수 있지만, 정방향으로 뛴다는 전제의 단순 추정이다. */
-private fun remainingCoursePath(coursePath: List<LatLon>, currentLocation: LatLon): List<LatLon> {
-    val nearestIndex = coursePath.indices.minByOrNull { GeoMath.distanceMeters(coursePath[it], currentLocation) } ?: 0
-    return coursePath.subList(nearestIndex, coursePath.size)
 }
 
 /** 좌상단 "새로 탐험한 길" 배지 — 총 거리가 아니라 이미 가본 구간을 뺀 거리다. 지도가 금색으로 칠하는
