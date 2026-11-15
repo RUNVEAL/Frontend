@@ -41,10 +41,9 @@ import com.swyp.runveal.core.map.rememberMapState
 import com.swyp.runveal.courserecommend.navigation.courseDetailOverlay
 import com.swyp.runveal.courserecommend.navigation.courseRecommendOverlay
 import com.swyp.runveal.courserecommend.navigation.courseRecommendResultOverlay
-import com.swyp.runveal.data.local.DatabaseDriverFactory
+import com.swyp.runveal.data.local.RunvealDatabaseProvider
 import com.swyp.runveal.data.local.FileStore
 import com.swyp.runveal.data.local.TrackLocalStore
-import com.swyp.runveal.db.RunvealDatabase
 import com.swyp.runveal.designsystem.RunvealIcons
 import com.swyp.runveal.designsystem.component.card.RunvealHomeBottomPanel
 import com.swyp.runveal.designsystem.component.card.RunvealLocationOffBanner
@@ -295,7 +294,7 @@ private fun HomeMapLayer(
     RequireLocationPermission(modifier = modifier, state = locationPermissionState) {
         val context = LocalContext.current
         val repository = remember { DongAssetRepository(context) }
-        val trackLocalStore = remember { TrackLocalStore(RunvealDatabase(DatabaseDriverFactory().createDriver()), FileStore()) }
+        val trackLocalStore = remember { TrackLocalStore(RunvealDatabaseProvider.database, FileStore()) }
         // TrackResultHolder가 매칭 완료마다 새 값을 publish하므로, 그걸 키로 "가본 길"/동별 완주율을
         // DB에서 다시 읽어 새 기록이 반영되게 한다.
         val latestTrackResult by TrackResultHolder.state.collectAsStateWithLifecycle()

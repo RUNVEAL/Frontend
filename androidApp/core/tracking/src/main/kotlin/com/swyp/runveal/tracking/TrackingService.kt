@@ -17,10 +17,9 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.swyp.runveal.core.map.RoadSegmentIndexImporter
 import com.swyp.runveal.core.tracking.R
-import com.swyp.runveal.data.local.DatabaseDriverFactory
+import com.swyp.runveal.data.local.RunvealDatabaseProvider
 import com.swyp.runveal.data.local.FileStore
 import com.swyp.runveal.data.local.TrackLocalStore
-import com.swyp.runveal.db.RunvealDatabase
 import com.swyp.runveal.dong.DongBoundary
 import com.swyp.runveal.dong.DongBoundaryParser
 import com.swyp.runveal.dong.DongExploreRate
@@ -92,7 +91,7 @@ class TrackingService : Service() {
         super.onCreate()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         fileStore = FileStore()
-        trackLocalStore = TrackLocalStore(RunvealDatabase(DatabaseDriverFactory().createDriver()), fileStore!!)
+        trackLocalStore = TrackLocalStore(RunvealDatabaseProvider.database, fileStore!!)
         ensureNotificationChannel()
     }
 

@@ -7,8 +7,7 @@ import com.swyp.runveal.courserecommend.contract.CourseCreateState
 import com.swyp.runveal.courserecommend.contract.DefaultCustomDistanceIndex
 import com.swyp.runveal.courserecommend.contract.DefaultDistance
 import com.swyp.runveal.courserecommend.contract.LocationSelectionTarget
-import com.swyp.runveal.data.local.DatabaseDriverFactory
-import com.swyp.runveal.db.RunvealDatabase
+import com.swyp.runveal.data.local.RunvealDatabaseProvider
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.network.meta.MetaApi
 import com.swyp.runveal.network.meta.MetaHolder
@@ -36,7 +35,7 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
     initialState = CourseCreateState(),
 ) {
     private val routesApi = RoutesApi()
-    private val database = RunvealDatabase(DatabaseDriverFactory().createDriver())
+    private val database = RunvealDatabaseProvider.database
 
     override suspend fun handleIntent(intent: CourseCreateIntent) {
         when (intent) {

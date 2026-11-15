@@ -7,8 +7,7 @@ import com.swyp.runveal.courserecommend.contract.CourseDetailIntent
 import com.swyp.runveal.courserecommend.contract.CourseDetailState
 import com.swyp.runveal.courserecommend.contract.ElevationPointUiModel
 import com.swyp.runveal.courserecommend.contract.RouteStepUiModel
-import com.swyp.runveal.data.local.DatabaseDriverFactory
-import com.swyp.runveal.db.RunvealDatabase
+import com.swyp.runveal.data.local.RunvealDatabaseProvider
 import com.swyp.runveal.designsystem.component.list.RunvealRouteStepType
 import com.swyp.runveal.dong.NewRoadEstimator
 import com.swyp.runveal.map.LatLon
@@ -42,7 +41,7 @@ private const val SNAPSHOT_ENDPOINT_STROKE_COLOR = 0xFFF4EEEA.toInt()
 class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState, Nothing>(
     initialState = CourseDetailState.Loading,
 ) {
-    private val database = RunvealDatabase(DatabaseDriverFactory().createDriver())
+    private val database = RunvealDatabaseProvider.database
     private val json = Json
     private val snapshotRenderer = CourseSnapshotRenderer(
         context = AndroidAppContextHolder.context,

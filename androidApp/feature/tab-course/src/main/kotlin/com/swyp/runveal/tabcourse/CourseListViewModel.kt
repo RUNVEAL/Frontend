@@ -1,7 +1,6 @@
 package com.swyp.runveal.tabcourse
 
-import com.swyp.runveal.data.local.DatabaseDriverFactory
-import com.swyp.runveal.db.RunvealDatabase
+import com.swyp.runveal.data.local.RunvealDatabaseProvider
 import com.swyp.runveal.db.SelectAllCourses
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.map.snapshot.SnapshotVariant
@@ -20,7 +19,7 @@ import kotlinx.serialization.json.Json
  * 불러오면 탭을 나갔다 온 사이 새로 저장한 코스가 안 보인다 — 화면이 들어올 때마다 [CourseListIntent.Load]를
  * 보내 매번 다시 불러오게 한다. Effect 타입 인자는 [Nothing]. */
 class CourseListViewModel : MviViewModel<CourseListIntent, CourseListState, Nothing>(initialState = CourseListState.Loading) {
-    private val database = RunvealDatabase(DatabaseDriverFactory().createDriver())
+    private val database = RunvealDatabaseProvider.database
     private val json = Json
 
     override suspend fun handleIntent(intent: CourseListIntent) {

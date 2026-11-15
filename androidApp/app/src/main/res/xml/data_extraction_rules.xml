@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ 백업/전송 규칙. AndroidManifest의 android:allowBackup="false"가 클라우드 백업을
+  막고, 여기서는 기기 간 직접 전송(device-to-server / device-to-device)까지 전부 막는다 —
+  둘 중 하나만 꺼 두면 기기 교체 경로로 옛 스키마 DB가 그대로 넘어올 수 있다.
+
+  왜 막는지는 AndroidManifest의 <application> 주석 참고.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" />
+        <exclude domain="file" />
+        <exclude domain="database" />
+        <exclude domain="sharedpref" />
+        <exclude domain="external" />
+    </device-transfer>
+</data-extraction-rules>

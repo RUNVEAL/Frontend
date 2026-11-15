@@ -1,10 +1,9 @@
 package com.swyp.runveal.core.map
 
 import android.content.Context
-import com.swyp.runveal.data.local.DatabaseDriverFactory
+import com.swyp.runveal.data.local.RunvealDatabaseProvider
 import com.swyp.runveal.data.local.FileStore
 import com.swyp.runveal.data.local.TrackLocalStore
-import com.swyp.runveal.db.RunvealDatabase
 import com.swyp.runveal.dong.DongExploreRate
 import com.swyp.runveal.dong.DongPolygonPart
 import kotlinx.coroutines.Dispatchers
@@ -57,7 +56,7 @@ object DongOverlayHolder {
 suspend fun loadDongOverlayBundle(context: Context, builtForTrackId: String?): DongOverlayBundle =
     withContext(Dispatchers.IO) {
         val repository = DongAssetRepository(context)
-        val trackLocalStore = TrackLocalStore(RunvealDatabase(DatabaseDriverFactory().createDriver()), FileStore())
+        val trackLocalStore = TrackLocalStore(RunvealDatabaseProvider.database, FileStore())
 
         val server = repository.syncFromServer()
         val walkedLengths = trackLocalStore.walkedLengthByDong()
