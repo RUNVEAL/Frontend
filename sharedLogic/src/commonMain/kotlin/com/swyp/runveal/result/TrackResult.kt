@@ -24,6 +24,9 @@ data class TrackResult(
     val newRoadMeters: Double,
     val dongStats: List<DongRateChange>,
     val routePoints: List<LatLon>,
+    /** 이번에 처음 간 구간들 — 결과 카드 지도에서 [routePoints] 위에 금색으로 덧그린다. 매칭이
+     * 실패하면 비어 있고, 그때는 전부 한 색("오늘 달린 길")으로만 그려진다. */
+    val newRoadPaths: List<List<LatLon>> = emptyList(),
 )
 
 /**

@@ -242,7 +242,10 @@ class TrackingService : Service() {
             )
             val afterWalked = store.walkedLengthByDong()
             val dongStats = buildDongStats(summary.touchedDongAdmCodes, beforeWalked, afterWalked, boundaries)
-            publishResult(finished, distanceMeters, elapsedMs, summary.newRoadMeters, dongStats, routePoints = points)
+            publishResult(
+                finished, distanceMeters, elapsedMs, summary.newRoadMeters, dongStats,
+                routePoints = points, newRoadPaths = summary.newRoadPaths,
+            )
         } catch (e: Exception) {
             // TEMP DEBUG — 확인 끝나면 catch (_: Exception)으로 되돌린다.
             android.util.Log.w("ServerMatchDebug", "매칭 실패 points=${points.size}", e)
@@ -264,6 +267,7 @@ class TrackingService : Service() {
         newRoadMeters: Double,
         dongStats: List<DongRateChange>,
         routePoints: List<LatLon>,
+        newRoadPaths: List<List<LatLon>> = emptyList(),
     ) {
         TrackResultHolder.publish(
             TrackResult(
@@ -274,6 +278,7 @@ class TrackingService : Service() {
                 newRoadMeters = newRoadMeters,
                 dongStats = dongStats,
                 routePoints = routePoints,
+                newRoadPaths = newRoadPaths,
             ),
         )
     }

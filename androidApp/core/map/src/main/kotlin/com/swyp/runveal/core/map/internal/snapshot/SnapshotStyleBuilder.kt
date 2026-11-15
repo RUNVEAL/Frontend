@@ -22,7 +22,13 @@ internal object SnapshotStyleBuilder {
     private const val ENDPOINT_RADIUS_DP = 5f
     private const val ENDPOINT_STROKE_WIDTH_DP = 2f
 
-    fun build(request: SnapshotRequest, routeColor: Int, endpointColor: Int, endpointStrokeColor: Int): Style.Builder {
+    fun build(
+        request: SnapshotRequest,
+        routeColor: Int,
+        endpointColor: Int,
+        endpointStrokeColor: Int,
+        newRoadColor: Int,
+    ): Style.Builder {
         val builder = Style.Builder()
             .fromUri(MapConfig.STYLE_URL)
             .withSource(GeoJsonSource(SnapshotConfig.ROUTE_SOURCE_ID, request.routeGeoJson))
@@ -34,6 +40,21 @@ internal object SnapshotStyleBuilder {
                     PropertyFactory.lineWidth(ROUTE_WIDTH_DP),
                 ),
             )
+
+        // "이번에 처음 간 길"은 전체 경로를 깔고 그 위에 금색으로 덧그린다 — 경로를 새/옛 구간으로
+        // 쪼개서 따로 그리면 이어지는 지점마다 선이 끊겨 보인다.
+        request.highlightGeoJson?.let { highlight ->
+            builder
+                .withSource(GeoJsonSource(SnapshotConfig.HIGHLIGHT_SOURCE_ID, highlight))
+                .withLayer(
+                    LineLayer(SnapshotConfig.HIGHLIGHT_LAYER_ID, SnapshotConfig.HIGHLIGHT_SOURCE_ID).withProperties(
+                        PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                        PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+                        PropertyFactory.lineColor(newRoadColor),
+                        PropertyFactory.lineWidth(ROUTE_WIDTH_DP),
+                    ),
+                )
+        }
 
         val start = request.start
         val end = request.end

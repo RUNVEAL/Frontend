@@ -46,8 +46,9 @@ fun CourseSnapshotImage(
     val routeColor = colors.map.roadExplored.toArgb()
     val endpointColor = colors.map.location.toArgb()
     val endpointStrokeColor = colors.text.primary.toArgb()
-    val renderer = remember(routeColor, endpointColor, endpointStrokeColor) {
-        CourseSnapshotRendererImpl(context, routeColor, endpointColor, endpointStrokeColor)
+    val newRoadColor = colors.map.roadNew.toArgb()
+    val renderer = remember(routeColor, endpointColor, endpointStrokeColor, newRoadColor) {
+        CourseSnapshotRendererImpl(context, routeColor, endpointColor, endpointStrokeColor, newRoadColor)
     }
 
     var sizePx by remember { mutableStateOf(IntSize.Zero) }
