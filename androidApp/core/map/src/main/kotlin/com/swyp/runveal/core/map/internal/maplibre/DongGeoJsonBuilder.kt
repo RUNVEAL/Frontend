@@ -24,9 +24,9 @@ internal object DongGeoJsonBuilder {
         val fillGeoJson: String,
         val lineGeoJson: String,
         val labelGeoJson: String,
-        /** 빛 이미지도 선과 **같은** 정점을 쓰도록 스냅까지 끝난 polygon part를 함께 돌려준다 —
-         * 따로 파싱하면 [VertexSnapper]를 안 거쳐서 공유 경계가 최대 15m까지 어긋나고, 테두리와
-         * 빛 이미지가 나란히 두 겹으로 보인다. */
+        /** 빛 이미지도 선과 **같은** 정점을 쓰도록 여기서 만든 polygon part를 함께 돌려준다 — 경계
+         * GeoJSON을 따로 한 번 더 파싱하면 전국 데이터를 두 번 읽게 되고, 전처리(ring 방향 정규화)가
+         * 어긋날 여지도 생긴다. */
         val polygonPartsByAdmCd2: Map<String, List<DongPolygonPart>>,
     )
 
@@ -103,16 +103,20 @@ internal object DongGeoJsonBuilder {
     }
 
     /** adm_cd2 -> 폴리곤 part(exterior + 구멍). 원본 GeoJSON에서 구멍·MultiPolygon을 그대로 보존해 뽑고,
-     * 각 part는 [RingWinding.normalize]로 외곽은 반시계, 구멍은 시계로 맞춘다. [VertexSnapper]로 인접
-     * 동과의 공유 경계 정점을 합쳐서 [buildLineGeoJson]의 이중선을 막는다. */
+     * 각 part는 [RingWinding.normalize]로 외곽은 반시계, 구멍은 시계로 맞춘다.
+     *
+     * 예전에는 인접 동의 공유 경계 정점을 15m 톨러런스로 합치는 보정(`VertexSnapper`)을 거쳤다 —
+     * 서버 `index.geojson`이 동마다 따로 단순화돼 공유 경계가 몇 m씩 어긋났고, 그게 경계선이 두 줄로
+     * 보이는 원인이었다. 2026-11-15 지도부터는 서버가 공유 경계를 같은 좌표로 내려주고(어긋난 정점
+     * 0개), 번들 에셋도 원래 어긋나지 않아서 보정이 필요 없어졌다. 오히려 15m 안의 멀쩡한 정점까지
+     * 합쳐 경계를 뭉갤 수 있어 걷어냈다. */
     private fun polygonPartsByAdmCd2(raw: FeatureCollection): Map<String, List<DongPolygonPart>> {
-        val snapper = VertexSnapper()
         val result = mutableMapOf<String, MutableList<DongPolygonPart>>()
         raw.features()?.forEach { feature ->
             val admCd2 = feature.getStringProperty("adm_cd2") ?: return@forEach
             polygonsOf(feature).forEach { polygon ->
                 val rings = polygon.coordinates().map { ring ->
-                    ring.map { snapper.snap(LatLon(lat = it.latitude(), lon = it.longitude())) }
+                    ring.map { LatLon(lat = it.latitude(), lon = it.longitude()) }
                 }
                 val part = RingWinding.normalize(exterior = rings.first(), holes = rings.drop(1))
                 result.getOrPut(admCd2) { mutableListOf() }.add(part)

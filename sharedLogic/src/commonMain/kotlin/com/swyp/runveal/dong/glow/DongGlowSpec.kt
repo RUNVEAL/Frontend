@@ -10,6 +10,8 @@ object DongGlowSpec {
     const val REF_EFFECT_SCALE = 0.7f
     const val QUALITY = 1.0f
     const val MAX_SIDE = 1024
-    /** 2 = 빛 이미지 입력 폴리곤을 테두리 선과 같은(인접 동 정점 스냅 적용) 좌표로 바꾼 버전. */
-    const val VERSION = 2
+    /** 2 = 빛 이미지 입력 폴리곤을 테두리 선과 같은 좌표로 맞춘 버전.
+     *  3 = 그 좌표에서 인접 동 정점 스냅(15m) 보정을 걷어낸 버전 — 서버 지도가 공유 경계를 같은
+     *      좌표로 내려주면서 보정이 필요 없어졌고, 보정이 멀쩡한 정점까지 합칠 수 있었다. */
+    const val VERSION = 3
 }
