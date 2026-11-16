@@ -198,6 +198,10 @@ class TrackLocalStore(
     }
 
     /** 동별 완주 길이(분자) — `explored_segment`를 바로 집계한다. */
+    /** 지금까지 달린 거리 전부(m). 기록이 없으면 0. */
+    fun totalDistanceMeters(): Double =
+        database.trackQueries.totalDistanceMeters().executeAsOne().total_meters ?: 0.0
+
     fun walkedLengthByDong(): Map<String, Double> =
         database.exploredSegmentQueries.walkedLengthByDong().executeAsList()
             .associate { it.adm_cd2 to (it.walked_meters ?: 0.0) }

@@ -60,6 +60,11 @@ WHERE id = ?;
 updatePlaceName:
 UPDATE track SET place_name = ?, place_lookup_attempted = 1, updated_at_epoch_ms = ? WHERE id = ?;
 
+-- 누적 거리(마이페이지) — 행을 전부 읽어 더하는 대신 DB가 집계한다. 기록이 하나도 없으면
+-- SUM이 NULL이라 호출부가 0으로 읽는다.
+totalDistanceMeters:
+SELECT SUM(distance_meters) AS total_meters FROM track;
+
 deleteTrack:
 DELETE FROM track WHERE id = ?;
 

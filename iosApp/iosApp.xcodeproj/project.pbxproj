@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A1C0DE000000000000000021 /* MapLibre in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE000000000000000011 /* MapLibre */; };
+		A1C0DE000000000000000022 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE000000000000000012 /* Lottie */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		88F9F68A6654612A031C497B /* Runveal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runveal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -41,6 +46,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1C0DE000000000000000021 /* MapLibre in Frameworks */,
+				A1C0DE000000000000000022 /* Lottie in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,7 +78,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2A7D31CC5E50DA68EBFC4D0A /* Build configuration list for PBXNativeTarget "iosApp" */;
 			buildPhases = (
-				6FDACDDF3F0EF193CA654288 /* Generate Runveal Design Tokens */,
+				6FDACDDF3F0EF193CA654288 /* Generate Runveal iOS Resources */,
 				AC05A22903859CD089FFD27C /* Compile Kotlin Framework */,
 				0D88F3CE80730C380C9C03C4 /* Sources */,
 				A613A73EBE640E87A88B335F /* Frameworks */,
@@ -86,6 +93,8 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
+				A1C0DE000000000000000011 /* MapLibre */,
+				A1C0DE000000000000000012 /* Lottie */,
 			);
 			productName = iosApp;
 			productReference = 88F9F68A6654612A031C497B /* Runveal.app */;
@@ -115,6 +124,10 @@
 			);
 			mainGroup = 9C5BD4548748A870ECED943C;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A1C0DE000000000000000001 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */,
+				A1C0DE000000000000000002 /* XCRemoteSwiftPackageReference "lottie-ios" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A0B30ACB1FF18B38DCE63575 /* Products */;
 			projectDirPath = "";
@@ -136,7 +149,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		6FDACDDF3F0EF193CA654288 /* Generate Runveal Design Tokens */ = {
+		6FDACDDF3F0EF193CA654288 /* Generate Runveal iOS Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -146,14 +159,14 @@
 			);
 			inputPaths = (
 			);
-			name = "Generate Runveal Design Tokens";
+			name = "Generate Runveal iOS Resources";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle token generation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\ncd \"$SRCROOT/..\"\n./gradlew :generateRunvealTokensSwift\n";
+			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle iOS resource generation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\ncd \"$SRCROOT/..\"\n./gradlew :generateRunvealIosResources\n";
 		};
 		AC05A22903859CD089FFD27C /* Compile Kotlin Framework */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -326,15 +339,14 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -354,15 +366,14 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -388,6 +399,38 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A1C0DE000000000000000001 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/maplibre/maplibre-gl-native-distribution";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.0.0;
+			};
+		};
+		A1C0DE000000000000000002 /* XCRemoteSwiftPackageReference "lottie-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/airbnb/lottie-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.5.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A1C0DE000000000000000011 /* MapLibre */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE000000000000000001 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */;
+			productName = MapLibre;
+		};
+		A1C0DE000000000000000012 /* Lottie */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE000000000000000002 /* XCRemoteSwiftPackageReference "lottie-ios" */;
+			productName = Lottie;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BB0B32361F3BD455DFF09B33 /* Project object */;
 }

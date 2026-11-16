@@ -46,8 +46,13 @@ actual class GoogleAuthService actual constructor() : SocialAuthService {
             if (credential is CustomCredential &&
                 credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL
             ) {
-                val idToken = GoogleIdTokenCredential.createFrom(credential.data).idToken
-                SocialAuthResult.Success(idToken)
+                val googleId = GoogleIdTokenCredential.createFrom(credential.data)
+                // 이름은 자격증명 안에 이미 들어 있어서 추가 조회가 필요 없다. 표시 이름이 없는
+                // 계정은 이름(givenName)이라도 쓴다.
+                SocialAuthResult.Success(
+                    token = googleId.idToken,
+                    displayName = googleId.displayName ?: googleId.givenName,
+                )
             } else {
                 SocialAuthResult.Failure("알 수 없는 Credential 타입: ${credential.type}")
             }
