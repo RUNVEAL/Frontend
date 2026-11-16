@@ -2,13 +2,15 @@
  * Runveal Design Tokens 코드 생성 (iOS/Swift)
  *
  * design/runveal-tokens.json(W3C Design Tokens 형식)을 읽어서
- * iosApp/iosApp/DesignSystem/Generated 아래에 Swift 파일을 만든다.
+ * iosApp/iosApp/DesignSystem/Generated/Tokens 아래에 Swift 파일을 만든다 (아이콘·이미지 생성기와
+ * 출력 폴더가 겹치지 않게 Generated 밑에서 한 번 더 갈라 둔다 — 이 태스크는 자기 출력 폴더를
+ * 통째로 비우고 다시 쓴다).
  * Xcode가 빌드할 때 "Generate Runveal Design Tokens" Run Script 빌드 단계가
  * `./gradlew :generateRunvealTokensSwift`로 이 태스크를 호출한다
  * (iosApp/iosApp.xcodeproj/project.pbxproj). JSON만 바꾸고 다시 빌드하면 앱에 반영된다.
  * 생성된 파일은 직접 수정하지 않는다. gradle/runveal-tokens.gradle.kts(Kotlin용)의 Swift 버전.
  *
- * iosApp/iosApp/DesignSystem/ 폴더는 Xcode의 File System Synchronized Group이라
+ * iosApp/iosApp/ 폴더 전체가 Xcode의 File System Synchronized Group이라
  * Generated 밑에 파일을 새로 만들어도 pbxproj를 따로 손대지 않고 바로 컴파일 대상에 들어간다.
  *
  * 생성 결과 (손으로 쓴 RunvealShadow.swift, RunvealTextStyle.swift 등과 같은 폴더에 공존)
@@ -296,5 +298,5 @@ val generateRunvealTokensSwift = tasks.register<GenerateRunvealTokensSwiftTask>(
     group = "runveal"
     description = "design/runveal-tokens.json → Swift 디자인 토큰 생성 (iOS, Xcode Run Script에서 호출)"
     tokensFile.set(layout.projectDirectory.file("design/runveal-tokens.json"))
-    outputDir.set(layout.projectDirectory.dir("iosApp/iosApp/DesignSystem/Generated"))
+    outputDir.set(layout.projectDirectory.dir("iosApp/iosApp/DesignSystem/Generated/Tokens"))
 }

@@ -1,0 +1,386 @@
+import SharedLogic
+import SwiftUI
+
+/// "기록 시작/종료" 오버레이 — Map Shell 위에 얹힌다(`recording-lifecycle.md` §3/§5).
+///
+/// 이 화면에 들어오는 경로는 홈 지도의 "러닝 시작" 버튼, 또는 코스 상세의 "이 코스로 러닝 시작"
+/// 버튼 — 어느 쪽이든 진입 자체를 "시작" 의도로 본다. 별도의 "시작" 버튼을 다시 보여주지 않고
+/// 나타날 때 바로 기록을 시작한다. 뒤로가기(스와이프)로는 못 벗어난다 — 종료는 "종료하기" 버튼으로만.
+struct RecordingScreen: View {
+    @ObservedObject var mapState: RunvealMapState
+    let onFinished: () -> Void
+    /// 너무 짧아서 저장하지 않은 러닝 — 결과 화면 없이 홈으로 돌아가는 경로.
+    let onDiscarded: () -> Void
+
+    @StateObject private var viewModel = RecordingViewModel()
+    @State private var courseProgress: RecordingCourseProgress?
+    /// `.runvealMapDotMarkers`가 "내가 올린 마커만 치우기"를 판단하는 표식.
+    @State private var courseMarkersOwner = UUID()
+
+    private static let courseGuideTickerInterval: Duration = .seconds(1)
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            if viewModel.state.phase != .idle {
+                NewRoadBadge(distanceLabel: viewModel.state.newRoadLabel)
+                    .padding(.leading, RunvealLayout.marginScreen)
+                    .padding(.top, RunvealSpacing.space16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            VStack {
+                Spacer()
+                switch viewModel.state.phase {
+                case .idle:
+                    // 시작 직후 기록 상태가 아직 안 바뀐 찰나 — 그릴 게 없다.
+                    EmptyView()
+                case .recording:
+                    RecordingOverlay(state: viewModel.state, courseProgress: courseProgress, mapState: mapState) {
+                        RunvealRunPauseButton { viewModel.onIntent(.pauseClicked) }
+                    }
+                case .paused:
+                    RecordingOverlay(state: viewModel.state, courseProgress: courseProgress, mapState: mapState) {
+                        RunvealButtonGroupEqual(
+                            firstLabel: RunningStrings.recordingStopButton,
+                            onFirstClick: { viewModel.onIntent(.stopClicked) },
+                            secondLabel: RunningStrings.recordingResumeButton,
+                            onSecondClick: { viewModel.onIntent(.resumeClicked) }
+                        )
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .runvealMapLayers(mapState, courseGuideLayers)
+        .runvealMapDotMarkers(mapState, courseMarkers, owner: courseMarkersOwner)
+        .collectEffect(viewModel.effects) { effect in
+            switch effect {
+            case .startTracking:
+                RunvealRunTracker.shared.start()
+            case .pauseTracking:
+                RunvealRunTracker.shared.pause()
+            case .resumeTracking:
+                RunvealRunTracker.shared.resume()
+            case .stopTracking(let saveRecord):
+                // 화면 전환은 트래커를 실제로 멈춘 **뒤**에 한다 — 먼저 전환하면 이 화면이 사라지면서
+                // effect 구독이 끊겨 정지 요청이 전달되지 못한다.
+                RunvealRunTracker.shared.stop(saveRecord: saveRecord)
+                // 100m·1분을 못 채운 러닝은 저장하지 않으니 보여줄 결과도 없다 — 결과 화면을 건너뛰고
+                // 홈으로 돌려보낸다.
+                if saveRecord { onFinished() } else { onDiscarded() }
+            }
+        }
+        .task {
+            if viewModel.state.phase == .idle {
+                viewModel.onIntent(.startClicked)
+            }
+            await focusCourseAndTrackProgress()
+        }
+        .onDisappear { viewModel.onDisappear() }
+    }
+
+    // MARK: - 코스 안내선
+
+    /// "이 코스로 러닝 시작"으로 들어왔으면 그 코스를 흰 점선 안내선으로 그린다. 안내선은 현위치와
+    /// 무관하게 추천 코스 **전체**를 그대로 유지한다 — MVP 1차에서는 현위치에 따라 코스를 바꾸지 않는다.
+    private var courseGuideLayers: [String: String] {
+        guard let path = viewModel.state.selectedCoursePath, path.count >= 2 else { return [:] }
+        return [RunvealMapConfig.sourceRecordingCourseGuide: IosRouteGeoJson.shared.courseGuide(path: path)]
+    }
+
+    /// 출발·도착 핀 — 코스 상세/추천 결과 화면과 같은 규칙으로, 순환 코스는 도착이 곧 출발이라
+    /// 같은 자리에 마커가 겹치지 않게 출발만 띄운다.
+    private var courseMarkers: [MapPin] {
+        guard let path = viewModel.state.selectedCoursePath, path.count >= 2 else { return [] }
+        var markers: [MapPin] = []
+        if let start = path.first {
+            markers.append(MapPin(location: start, type: .start))
+        }
+        if !viewModel.state.selectedCourseIsLoop, let end = path.last {
+            markers.append(MapPin(location: end, type: .end))
+        }
+        return markers
+    }
+
+    /// 러닝이 시작되는 시점에 한 번 코스 전체가 보이게 카메라를 맞추고, 그 뒤 매초 남은 거리·진행률을
+    /// 계산해 패널에 넘긴다.
+    ///
+    /// 진행률은 "달린 거리"가 아니라 **코스를 실제로 지나간 만큼**으로 센다(`CourseProgressTracker`).
+    /// 달린 거리로 세면 코스와 상관없는 곳을 달려도 진행률이 오르고, 순환 코스는 출발점과 도착점이
+    /// 같은 자리라 "현위치에서 가장 가까운 점" 방식도 못 쓴다.
+    private func focusCourseAndTrackProgress() async {
+        guard let path = viewModel.state.selectedCoursePath, path.count >= 2 else { return }
+        mapState.focusOnBounds(points: path)
+
+        let tracker = IosCourseProgress.shared.tracker(coursePath: path)
+        var consumedPointCount = 0
+        while !Task.isCancelled {
+            // 매초 "마지막 위치"만 보면 그 사이 지나친 코스 구간을 놓칠 수 있어, 아직 안 본 점을 전부 넘긴다.
+            let filtered = RunvealRecorder.shared.currentFilteredPath()
+            if filtered.count > consumedPointCount {
+                tracker.advance(points: Array(filtered[consumedPointCount...]))
+                consumedPointCount = filtered.count
+            }
+            courseProgress = RecordingCourseProgress(
+                remainingDistanceLabel: RunFormat.kilometers(tracker.remainingMeters),
+                progressPercent: Int(tracker.progressPercent)
+            )
+            try? await Task.sleep(for: Self.courseGuideTickerInterval)
+        }
+    }
+}
+
+/// 좌상단 "새로 탐험한 길" 배지 — 총 거리가 아니라 이미 가본 구간을 뺀 거리다. 지도가 금색으로
+/// 칠하는 구간과 같은 분류 결과를 쓴다(전부 로컬 판정, `docs/api/API.md` §3.5).
+private struct NewRoadBadge: View {
+    let distanceLabel: String
+
+    var body: some View {
+        let colors = RunvealTheme.colors
+        HStack(spacing: RunvealSpacing.space8) {
+            Text(RunningStrings.recordingLegendNewLabel)
+                .runvealTextStyle(RunvealTheme.typography.bodyMSemibold)
+                .foregroundStyle(colors.text.secondary)
+            Text(RunningStrings.recordingNewDistance(distanceLabel))
+                .runvealTextStyle(RunvealTheme.typography.bodyMSemibold)
+                .foregroundStyle(colors.text.accent)
+        }
+        .padding(.horizontal, RunvealSpacing.space12)
+        .padding(.vertical, RunvealSpacing.space8)
+        .background(colors.surface.raised, in: RunvealShapes.full)
+    }
+}
+
+/// 범례+내 위치 줄 + 패널(16 간격) — 기록 중/일시정지 공통.
+private struct RecordingOverlay<Action: View>: View {
+    let state: RecordingScreenState
+    let courseProgress: RecordingCourseProgress?
+    let mapState: RunvealMapState
+    @ViewBuilder let action: () -> Action
+
+    var body: some View {
+        VStack(spacing: RunvealSpacing.space16) {
+            MapLegendRow(
+                showCourseGuide: state.selectedCoursePath != nil,
+                onLocateClick: { mapState.recenterToCurrentLocation() }
+            )
+            .padding(.horizontal, RunvealLayout.marginScreen)
+
+            RecordingPanel(state: state, courseProgress: courseProgress, action: action)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+/// 지도 범례 칩([showCourseGuide]면 추천 코스 칩이 그 위에 따로 한 줄 더) + 내 위치 버튼.
+private struct MapLegendRow: View {
+    let showCourseGuide: Bool
+    let onLocateClick: () -> Void
+
+    /// 디자인의 locate 버튼 크기(보이는 원 44, 터치 영역 48) — `RunvealIconButton`의 M/L 어느 쪽도
+    /// 배경(glass)이 정확히 맞지 않아 토큰을 직접 조합했다(Android도 같은 이유로 하드코딩).
+    private static let locateVisibleSize: CGFloat = 44
+    private static let locateTouchSize: CGFloat = 48
+
+    var body: some View {
+        let colors = RunvealTheme.colors
+        HStack(alignment: .bottom) {
+            VStack(alignment: .leading, spacing: RunvealSpacing.space4) {
+                if showCourseGuide {
+                    LegendChip {
+                        // 지도 위 안내선과 같은 색(text.primary, 흰색) · 같은 점선.
+                        LegendItem(
+                            swatchColor: colors.text.primary,
+                            label: RunningStrings.recordingLegendCourseLabel,
+                            dashed: true
+                        )
+                    }
+                }
+                LegendChip {
+                    LegendItem(swatchColor: colors.map.roadToday, label: RunningStrings.recordingLegendTodayLabel)
+                    LegendItem(
+                        swatchColor: colors.map.roadNew,
+                        label: RunningStrings.recordingLegendNewLabel,
+                        haloColor: colors.map.roadNewHalo
+                    )
+                }
+            }
+
+            Spacer()
+
+            Button(action: onLocateClick) {
+                RunvealIcon(RunvealIcons.locate, tint: colors.icon.primary, size: RunvealLayout.sizeIcon)
+                    .frame(width: Self.locateVisibleSize, height: Self.locateVisibleSize)
+                    .background(colors.surface.default, in: RunvealShapes.full)
+                    .overlay { RunvealShapes.full.stroke(colors.border.default, lineWidth: 1) }
+                    .frame(width: Self.locateTouchSize, height: Self.locateTouchSize)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(RunningStrings.recordingLocateAccessibilityLabel)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+/// 범례 칩 하나 — 배경(`bg.scrim`)으로 묶인 [LegendItem] 한 줄.
+private struct LegendChip<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        HStack(spacing: RunvealSpacing.space12) {
+            content()
+        }
+        .padding(.horizontal, RunvealSpacing.space12)
+        .padding(.vertical, RunvealSpacing.space8)
+        .background(RunvealTheme.colors.bg.scrim, in: RunvealShapes.radius8)
+    }
+}
+
+/// 범례 한 칸 — 지도 선 색(작은 선 스와치) + 라벨. [haloColor]를 주면 실제 지도에 도로가 칠해질 때와
+/// 같은 번짐 효과를 작게 얹는다. [dashed]면 실선 대신 점선 스와치(추천 코스 안내선용).
+struct LegendItem: View {
+    let swatchColor: Color
+    let label: String
+    var haloColor: Color?
+    var dashed: Bool = false
+
+    /// 바텀시트 드래그 핸들과 같은 모양이지만 12pt 라벨 옆에 쓰기엔 커서 절반 정도로 줄인 값.
+    private static let swatchWidth: CGFloat = 16
+    private static let swatchHeight: CGFloat = 3
+    private static let haloSize: CGFloat = 10
+    private static let haloPadding: CGFloat = 3
+    private static let haloBlur: CGFloat = 4
+    private static let labelGap: CGFloat = 6
+
+    var body: some View {
+        HStack(spacing: Self.labelGap) {
+            ZStack {
+                if let haloColor {
+                    RunvealShapes.full
+                        .fill(haloColor)
+                        .frame(width: Self.swatchWidth + Self.haloPadding * 2, height: Self.haloSize)
+                        .blur(radius: Self.haloBlur)
+                }
+                if dashed {
+                    // 지도 안내선과 같은 비율(대시:간격 = 1.4:0.5) — 살짝 긴 대시, 촘촘한 간격.
+                    Path { path in
+                        path.move(to: CGPoint(x: 0, y: Self.swatchHeight / 2))
+                        path.addLine(to: CGPoint(x: Self.swatchWidth, y: Self.swatchHeight / 2))
+                    }
+                    .stroke(
+                        swatchColor,
+                        style: StrokeStyle(
+                            lineWidth: Self.swatchHeight,
+                            dash: [Self.swatchHeight * 1.4, Self.swatchHeight * 0.5]
+                        )
+                    )
+                    .frame(width: Self.swatchWidth, height: Self.swatchHeight)
+                } else {
+                    RunvealShapes.full
+                        .fill(swatchColor)
+                        .frame(width: Self.swatchWidth, height: Self.swatchHeight)
+                }
+            }
+            Text(label)
+                .runvealTextStyle(RunvealTheme.typography.captionMRegular)
+                .foregroundStyle(RunvealTheme.colors.text.secondary)
+        }
+    }
+}
+
+/// 기록 중/일시정지 공통 패널 — 거리, 경과 시간/평균 페이스(+코스 진행), 하단 액션만 상태별로 다르다.
+/// 바텀시트처럼 화면 하단에 깔리지만 드래그 핸들은 없다.
+private struct RecordingPanel<Action: View>: View {
+    let state: RecordingScreenState
+    let courseProgress: RecordingCourseProgress?
+    @ViewBuilder let action: () -> Action
+
+    private static var actionHeight: CGFloat { 80 }
+
+    var body: some View {
+        let colors = RunvealTheme.colors
+        let shape = UnevenRoundedRectangle(
+            topLeadingRadius: RunvealRadius.radius24,
+            bottomLeadingRadius: 0,
+            bottomTrailingRadius: 0,
+            topTrailingRadius: RunvealRadius.radius24
+        )
+
+        VStack(spacing: RunvealSpacing.space20) {
+            VStack(spacing: RunvealSpacing.space4) {
+                HStack(alignment: .lastTextBaseline, spacing: 0) {
+                    Text(state.distanceLabel)
+                        .runvealTextStyle(RunvealTheme.typography.numDisplay)
+                        .foregroundStyle(colors.text.primary)
+                    Text(RunningStrings.recordingDistanceUnit)
+                        .runvealTextStyle(RunvealTheme.typography.unitDisplay)
+                        .foregroundStyle(colors.text.secondary)
+                }
+                if let courseProgress {
+                    Text(RunningStrings.recordingCourseRemainingDistance(courseProgress.remainingDistanceLabel))
+                        .runvealTextStyle(RunvealTheme.typography.bodyMRegular)
+                        .foregroundStyle(colors.text.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            HStack(spacing: RunvealSpacing.space8) {
+                RecordingStat(label: RunningStrings.recordingElapsedLabel, value: state.elapsedLabel)
+                    .frame(maxWidth: .infinity)
+                RecordingStat(label: RunningStrings.recordingPaceLabel, value: state.paceLabel)
+                    .frame(maxWidth: .infinity)
+                if let courseProgress {
+                    RecordingStat(
+                        label: RunningStrings.recordingCourseProgressLabel,
+                        value: "\(courseProgress.progressPercent)",
+                        unit: RunningStrings.recordingCourseProgressUnit
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .frame(maxWidth: .infinity)
+
+            ZStack {
+                action()
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: Self.actionHeight)
+        }
+        .padding(.horizontal, RunvealLayout.marginScreen)
+        .padding(.top, RunvealSpacing.space24)
+        .padding(.bottom, RunvealSpacing.space32)
+        .frame(maxWidth: .infinity)
+        .background(colors.surface.raised, in: shape)
+    }
+}
+
+/// [unit]을 주면(코스 진행의 "%") 값·단위를 한 줄로, 안 주면(경과 시간/평균 페이스) 값만.
+private struct RecordingStat: View {
+    let label: String
+    let value: String
+    var unit: String?
+
+    var body: some View {
+        let colors = RunvealTheme.colors
+        VStack(spacing: RunvealSpacing.space4) {
+            Text(label)
+                .runvealTextStyle(RunvealTheme.typography.bodyMRegular)
+                .foregroundStyle(colors.text.secondary)
+            if let unit {
+                HStack(alignment: .lastTextBaseline, spacing: 2) {
+                    Text(value)
+                        .runvealTextStyle(RunvealTheme.typography.numM)
+                        .foregroundStyle(colors.text.primary)
+                    Text(unit)
+                        .runvealTextStyle(RunvealTheme.typography.unitM)
+                        .foregroundStyle(colors.text.secondary)
+                }
+            } else {
+                Text(value)
+                    .runvealTextStyle(RunvealTheme.typography.numM)
+                    .foregroundStyle(colors.text.primary)
+            }
+        }
+    }
+}

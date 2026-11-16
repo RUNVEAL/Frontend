@@ -5,7 +5,25 @@ val localProperties = Properties().apply {
     if (file.exists()) load(file.inputStream())
 }
 
-fun authConfigValue(key: String): String = localProperties.getProperty(key) ?: System.getenv(key) ?: ""
+/**
+ * 빌드 설정값을 local.properties → 환경변수(같은 이름) → 환경변수(대문자 스네이크) 순으로 찾는다.
+ *
+ * 마지막 단계는 CI 전용이다. `network.baseUrl`처럼 **이름에 점이 있는 키는 GitHub Actions의
+ * 환경변수로 넘길 수 없어서**(env 이름 규칙이 `[A-Za-z_][A-Za-z0-9_]*`), CI는 `NETWORK_BASE_URL`로
+ * 주고 여기서 받는다. 로컬에 local.properties가 있으면 그 값이 항상 먼저다.
+ *
+ * 로컬에 키를 두지 않고 Actions에만 넣는 방식으로도 빌드가 되게 하는 게 목적이다
+ * (.github/workflows/build-ios.yml).
+ */
+fun authConfigValue(key: String): String =
+    localProperties.getProperty(key)
+        ?: System.getenv(key)
+        ?: System.getenv(key.toEnvVarName())
+        ?: ""
+
+/** `network.baseUrl` → `NETWORK_BASE_URL`. 이미 대문자 스네이크인 키는 그대로 돌아온다. */
+fun String.toEnvVarName(): String =
+    replace(Regex("([a-z0-9])([A-Z])"), "$1_$2").replace('.', '_').uppercase()
 
 plugins {
     id("runveal.kmp.library")
