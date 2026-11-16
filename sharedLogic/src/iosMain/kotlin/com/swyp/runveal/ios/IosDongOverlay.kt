@@ -33,6 +33,10 @@ data class DongOverlayGeoJsonBundle(
     /** 빛 이미지도 테두리 선과 **같은 정점**을 쓰도록 같이 돌려준다 — 경계 GeoJSON을 따로 한 번 더
      * 파싱하면 전국 데이터를 두 번 읽게 되고, 전처리(ring 방향 정규화)가 어긋날 여지도 생긴다. */
     val dongPolygonPartsByAdmCd2: Map<String, List<DongPolygonPart>>,
+    /** 행정동 코드 → 단계(0~6). 빛 이미지 레이어가 "어느 동에 몇 단계 이미지를 올릴지" 판단할 때 쓴다 —
+     * Android는 fill GeoJSON을 다시 파싱해서 뽑지만(4MB짜리 재파싱이 팬·줌 버벅임의 원인이었다),
+     * 여기서는 만들 때 이미 아는 값이라 그대로 같이 돌려준다. */
+    val dongLevelByAdmCd2: Map<String, Int>,
     /** 이 오버레이를 만든 경계 데이터의 출처 — `"asset"` 또는 `"server:<지도 버전>"`.
      * 빛 이미지 디스크 캐시 키에 들어간다. */
     val boundarySourceKey: String,
@@ -97,6 +101,7 @@ object IosDongOverlayBuilder {
             sidoLineGeoJson = sido.lineGeoJson,
             sidoLabelGeoJson = sido.labelGeoJson,
             dongPolygonPartsByAdmCd2 = dongParts,
+            dongLevelByAdmCd2 = dongParts.keys.associateWith { levelOf(dongPercents[it] ?: 0) },
             boundarySourceKey = boundarySourceKey,
         )
     }
@@ -178,6 +183,9 @@ object IosDongOverlayBuilder {
                 put("name", name)
                 put("level", levelOf(percent))
                 put("percentValue", percent.toString())
+                // iOS 라벨 레이어는 `Expression.format`(토큰마다 다른 색)을 쓸 수 없어서 한 레이어에
+                // 문자열 하나만 넣는다 — 두 줄 라벨을 여기서 미리 만들어 둔다.
+                put("label", name + "\n" + percent + "%")
             }
         }
         return featureCollection(features)
