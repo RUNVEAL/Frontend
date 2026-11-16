@@ -61,6 +61,7 @@ import com.swyp.runveal.feature.home.R
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.permission.LocationPermissionState
 import com.swyp.runveal.permission.RequireLocationPermission
+import com.swyp.runveal.devicestate.rememberLocationServicesState
 import com.swyp.runveal.permission.rememberLocationPermissionState
 import com.swyp.runveal.recording.RecordingState
 import com.swyp.runveal.recording.TrackRecorder
@@ -99,7 +100,9 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
     val tabNavigator = rememberRunVealNavigator()
     val mapState = rememberMapState()
     val locationPermissionState = rememberLocationPermissionState()
-    val isLocationBannerNeeded = !locationPermissionState.isGranted || !locationPermissionState.isLocationServicesEnabled
+    // 권한(앱)과 위치 서비스(기기)는 서로 다른 상태라 따로 본다 — 둘 중 하나만 꺼져 있어도 위치를 못 받는다.
+    val locationServicesState = rememberLocationServicesState()
+    val isLocationBannerNeeded = !locationPermissionState.isGranted || !locationServicesState.isEnabled
     val currentDestination by tabNavigator.navController.currentBackStackEntryAsState()
     val tabItems = listOf(
         RunvealTabItemSpec(RunvealIcons.Home, "홈"),
@@ -232,12 +235,12 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                             )
                         }
                     }
-                    !locationPermissionState.isLocationServicesEnabled -> {
+                    !locationServicesState.isEnabled -> {
                         {
                             RunvealLocationOffBanner(
                                 message = stringResource(R.string.home_location_services_off_banner_message),
                                 actionLabel = stringResource(R.string.home_location_services_off_banner_action),
-                                onActionClick = locationPermissionState::requestEnableLocationServices,
+                                onActionClick = locationServicesState::requestEnable,
                             )
                         }
                     }
@@ -396,6 +399,7 @@ private fun HomeMapLayer(
             dongBoundarySourceKey = overlayBundle?.boundarySourceKey.orEmpty(),
             sigunguOverlay = if (hideOverlays) null else overlayBundle?.sigunguOverlay,
             sidoOverlay = if (hideOverlays) null else overlayBundle?.sidoOverlay,
+            locationPermissionGranted = locationPermissionState.isGranted,
         )
     }
 }

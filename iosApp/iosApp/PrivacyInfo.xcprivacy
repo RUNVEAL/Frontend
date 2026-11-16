@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  개인정보 매니페스트. 2024년 5월부터 App Store 제출에 필수다.
+	  App Store Connect의 "앱 개인정보" 설문과 내용이 일치해야 한다.
+
+	  iosApp/iosApp 폴더 전체가 Xcode의 File System Synchronized Group이라, 이 파일을 두면
+	  pbxproj를 손대지 않아도 번들 리소스로 들어간다.
+	-->
+
+	<!-- 광고·추적 목적으로 데이터를 쓰지 않는다. ATT 권한 요청도 하지 않는다. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<dict>
+			<!--
+			  정밀 위치. 지도에 현재 위치를 띄우고 러닝 경로를 기록하는 데 쓴다.
+			  서버로는 `POST /api/v1/match`에 익명 좌표만 보내고(인증 토큰을 붙이지 않는다),
+			  서버가 저장하지 않는다 — docs/api/API.md §1 핵심 원칙 7.
+			  그래서 사용자 신원에 연결되지 않는다(Linked = false).
+			-->
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePreciseLocation</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+
+	<!--
+	  "사유를 밝혀야 하는 API"(파일 타임스탬프, 시스템 부팅 시각, 디스크 공간, 활성 키보드,
+	  UserDefaults)는 쓰지 않아서 비워 둔다.
+
+	  앱이 쓰는 파일 API는 읽기·쓰기·삭제·디렉터리 조회뿐이고(FileStore, 지도 파일 캐시,
+	  동 빛 이미지 캐시, 스냅샷 캐시) 타임스탬프를 읽지 않는다. 설정 저장은 UserDefaults가 아니라
+	  Keychain(SecureTokenStore)을 쓴다.
+
+	  서드파티(MapLibre, Lottie)는 각자의 매니페스트를 함께 번들에 넣는다 — 여기에 적지 않는다.
+	  업로드 시 Apple이 특정 카테고리를 지적하면 그때 해당 항목만 추가한다.
+	-->
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array/>
+</dict>
+</plist>

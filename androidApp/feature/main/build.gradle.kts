@@ -1,5 +1,5 @@
 plugins {
-    id("runveal.android.library.compose")
+    id("runveal.android.feature")
 }
 
 // design/images/* → Android drawable-xxxhdpi 리소스로 복사
@@ -25,8 +25,6 @@ dependencies {
 
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.core.splashscreen)
-    implementation(libs.androidx.lifecycle.viewmodelCompose)
-    implementation(libs.androidx.lifecycle.runtimeCompose)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.core)

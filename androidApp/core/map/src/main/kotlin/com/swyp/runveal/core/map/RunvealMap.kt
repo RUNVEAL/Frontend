@@ -21,6 +21,10 @@ fun RunvealMap(
     dongBoundarySourceKey: String = "",
     sigunguOverlay: SigunguOverlayGeoJson? = null,
     sidoOverlay: SidoOverlayGeoJson? = null,
+    /** 위치 권한이 허용돼 있는지. 지도는 권한을 받기 전에 떠 있고(`RequireLocationPermission`이 지도
+     * 위에 안내 시트를 띄운다) 허용은 그 뒤에 일어나므로, 이 값이 true로 바뀌는 순간을 보고 현재
+     * 위치 점을 켠다. 기본값이 false라 안 넘기면 내 위치가 안 뜬다. */
+    locationPermissionGranted: Boolean = false,
 ) {
     MapLibreMapView(
         modifier = modifier,
@@ -30,5 +34,6 @@ fun RunvealMap(
         dongBoundarySourceKey = dongBoundarySourceKey,
         sigunguOverlay = sigunguOverlay,
         sidoOverlay = sidoOverlay,
+        locationPermissionGranted = locationPermissionGranted,
     )
 }

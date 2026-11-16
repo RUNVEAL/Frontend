@@ -1,7 +1,14 @@
+// 서명 팀 ID. 로컬에는 값을 두지 않고 CI가 주입한다 —
+// .github/workflows/build-ios.yml의 archive 잡이 IOS_TEAM_ID로
+// DEVELOPMENT_TEAM / TEAM_ID를 xcodebuild 인자로 넘긴다.
+// Mac에서 직접 실행할 때만 여기에 10자리 팀 ID를 채운다.
 TEAM_ID=
 
 PRODUCT_NAME=Runveal
-PRODUCT_BUNDLE_IDENTIFIER=com.swyp.runveal.Runveal$(TEAM_ID)
+// App Store Connect에 등록하는 고정 식별자 — Android applicationId와 같게 맞춘다.
+// KMP 템플릿은 로컬 개발 충돌을 피하려고 $(TEAM_ID)를 뒤에 붙여 두는데,
+// 그 상태로는 스토어에 앱을 등록할 수 없다(식별자가 머신마다 달라진다).
+PRODUCT_BUNDLE_IDENTIFIER=com.swyp.runveal
 
 CURRENT_PROJECT_VERSION=1
 MARKETING_VERSION=1.0

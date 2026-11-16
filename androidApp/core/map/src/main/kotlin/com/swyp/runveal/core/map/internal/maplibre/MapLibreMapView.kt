@@ -57,6 +57,7 @@ internal fun MapLibreMapView(
     dongBoundarySourceKey: String,
     sigunguOverlay: SigunguOverlayGeoJson?,
     sidoOverlay: SidoOverlayGeoJson?,
+    locationPermissionGranted: Boolean,
 ) {
     val mapView = rememberMapViewWithLifecycle()
     val context = LocalContext.current
@@ -133,7 +134,9 @@ internal fun MapLibreMapView(
                         BaseStyleDarkCorrection.applyAtStyleLoad(loadedStyle)
                         // 도로 색을 바꾸기 전의 원래 색을 기억해 둬야 "안 가본 길" 토글을 끌 때 되돌릴 수 있다.
                         baseStyleRoadFocus.rememberOriginalColors(loadedStyle)
-                        CurrentLocationLayer.activate(view.context, map, loadedStyle, mapColors.currentLocation)
+                        // 현재 위치 점은 여기서 켜지 않는다 — 이 블록은 스타일 로드 때 한 번만 도는데
+                        // 그 시점엔 아직 위치 권한이 없는 게 정상이라(아래 LaunchedEffect 주석) 한 번만
+                        // 시도하면 그 세션 내내 내 위치가 안 뜬다.
                         BaseStyleLabels.hide(loadedStyle)
                     }
                 }
@@ -241,7 +244,19 @@ internal fun MapLibreMapView(
     LaunchedEffect(style, sidoOverlay, mapColors) {
         style?.let { SidoOverlayLayer.apply(it, sidoOverlay, mapColors) }
     }
-    // 0은 초기값(= 아직 요청 안 함) — activate()가 이미 최초 1회 추적을 돈다. 그 이후 값이 바뀔 때만
+    // 현재 위치 점. 지도는 권한을 받기 **전에** 떠 있다 — `RequireLocationPermission`이 지도를 먼저
+    // 그리고 그 위에 권한 안내 시트를 띄우기 때문이다. 그래서 스타일 로드 시점에 한 번만 켜려고 하면
+    // 그때는 권한이 없어 조용히 실패하고, 사용자가 허용한 뒤에도 다시 켜 주는 경로가 없어서 앱을
+    // 재시작할 때까지 내 위치가 안 뜬다(`isLocationComponentActivated`를 보는 "내 위치" 버튼도 같이
+    // 죽는다). 권한 상태를 키로 둬서 허용되는 순간 켜 준다.
+    LaunchedEffect(style, liveMap, locationPermissionGranted, mapColors) {
+        if (!locationPermissionGranted) return@LaunchedEffect
+        val currentStyle = style ?: return@LaunchedEffect
+        val currentMap = liveMap ?: return@LaunchedEffect
+        CurrentLocationLayer.activate(context, currentMap, currentStyle, mapColors.currentLocation)
+    }
+
+    // 0은 초기값(= 아직 요청 안 함) — 위 activate()가 이미 최초 1회 추적을 돈다. 그 이후 값이 바뀔 때만
     // "내 위치" 버튼 요청으로 보고 다시 추적한다.
     LaunchedEffect(state.recenterRequestId, liveMap) {
         if (state.recenterRequestId == 0) return@LaunchedEffect

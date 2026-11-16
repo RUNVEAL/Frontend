@@ -16,6 +16,7 @@ import com.swyp.runveal.sign.signin.navigation.signInGraph
 import com.swyp.runveal.sign.signup.navigation.nicknameGraph
 import com.swyp.runveal.sign.signup.navigation.termsGraph
 import com.swyp.runveal.splash.splashGraph
+import com.swyp.runveal.ui.network.NetworkErrorOverlay
 
 @Composable
 @Preview
@@ -37,6 +38,10 @@ internal fun App(
                 nicknameGraph(navigator = navigator)
                 homeGraph(navigator = navigator)
             }
+
+            // 어느 화면에 있든 네트워크가 끊기면 그 위를 덮는다. 화면마다 붙이지 않고 여기 한 번만
+            // 둔다 — 뒤로가기로 닫으면 원래 화면으로 돌아간다(NetworkErrorOverlay 주석).
+            NetworkErrorOverlay(modifier = Modifier.fillMaxSize())
         }
     }
 }
