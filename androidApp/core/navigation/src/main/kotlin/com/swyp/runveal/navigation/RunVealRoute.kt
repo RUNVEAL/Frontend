@@ -9,6 +9,21 @@ sealed interface RunVealRoute : Route {
         data object Splash : Main
     }
 
+    /** 로그인 + 신규 가입 흐름. 신규면 [SignIn] → [Terms] → [Nickname]을 거쳐 홈으로 간다. */
+    sealed interface Sign : RunVealRoute {
+        /** 소셜 로그인 화면. 스플래시가 로컬 토큰을 못 찾았을 때 여기로 보낸다. */
+        @Serializable
+        data object SignIn : Sign
+
+        /** 약관 동의 — 신규 사용자만 거친다. 가입 도중 앱이 끊기면 스플래시가 다시 여기로 보낸다. */
+        @Serializable
+        data object Terms : Sign
+
+        /** 닉네임 입력. "가입 완료"를 누르면 가입이 확정되고 홈으로 간다. */
+        @Serializable
+        data object Nickname : Sign
+    }
+
     sealed interface Home : RunVealRoute {
         @Serializable
         data object Main : Home
