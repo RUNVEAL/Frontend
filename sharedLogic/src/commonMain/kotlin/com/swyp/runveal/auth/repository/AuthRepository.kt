@@ -1,13 +1,22 @@
 package com.swyp.runveal.auth.repository
 
-import com.swyp.runveal.auth.model.SocialAuthResult
+import com.swyp.runveal.auth.model.LoginResult
 import com.swyp.runveal.auth.model.SocialLoginType
 
 interface AuthRepository {
     /** 소셜 로그인 1회 전체 플로우: SDK 로그인 → 서버 교환 → 토큰 저장. */
-    suspend fun login(social: SocialLoginType): SocialAuthResult
+    suspend fun login(social: SocialLoginType): LoginResult
 
     suspend fun logout()
+
+    /** 약관 동의·닉네임까지 받아 회원가입을 마무리한다. */
+    suspend fun completeSignUp(nickname: String)
+
+    /** 가입 절차를 이미 끝냈는지. 토큰은 있는데 이게 false면 가입 도중에 앱이 끊긴 상태다. */
+    suspend fun isSignUpCompleted(): Boolean
+
+    /** 가입 때 정한 닉네임. 아직 가입을 안 끝냈으면 null. */
+    suspend fun nickname(): String?
 
     /** 로컬에 저장된 AccessToken을 그대로 읽기만 한다 (네트워크 호출 없음). */
     suspend fun getAccessToken(): String?

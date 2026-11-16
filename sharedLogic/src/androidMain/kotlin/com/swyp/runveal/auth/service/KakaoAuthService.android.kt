@@ -11,7 +11,34 @@ import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 actual class KakaoAuthService actual constructor() : SocialAuthService {
-    actual override suspend fun signIn(): SocialAuthResult = suspendCancellableCoroutine { cont ->
+    actual override suspend fun signIn(): SocialAuthResult {
+        val result = kakaoLogin()
+        if (result !is SocialAuthResult.Success) return result
+        // 닉네임은 가입 화면 기본값으로만 쓰는 부가 정보다 — 조회가 실패해도 로그인은 성공시킨다.
+        return result.copy(displayName = fetchNicknameOrNull())
+    }
+
+    /**
+     * TODO(서버 인증) **실기기에서 닉네임이 안 채워지는 것을 확인했다**(로그인 → 약관 → 닉네임까지 갔는데
+     * 입력란이 비어 있음). 원인 후보는 셋이고, 여기서 실패를 조용히 삼키고 있어 아직 못 가렸다.
+     *  1. 카카오 콘솔에서 "닉네임" 동의 항목이 꺼져 있어 `profile.nickname`이 null
+     *  2. `me()` 자체가 실패(권한/네트워크)
+     *  3. [com.swyp.runveal.auth.model.SocialAuthResult] 이후 단계에서 값이 유실
+     *
+     * 서버 인증 API를 붙일 때 로그인 응답이 닉네임을 주도록 바뀌므로, 그때 이 경로를 같이 정리하며
+     * 원인을 확인한다. 급하면 임시 로그를 넣어 `me()` 결과부터 보면 된다.
+     *
+     * 카카오 계정에 설정된 닉네임. 콘솔에서 "닉네임" 동의 항목을 켜 두고 사용자가 동의했을 때만
+     * 값이 온다 — 거부했거나 조회가 실패하면 null이고, 그러면 가입 화면 닉네임은 공란으로 둔다.
+     */
+    private suspend fun fetchNicknameOrNull(): String? = suspendCancellableCoroutine { cont ->
+        UserApiClient.instance.me { user, error ->
+            val nickname = if (error == null) user?.kakaoAccount?.profile?.nickname else null
+            if (!cont.isCompleted) cont.resume(nickname)
+        }
+    }
+
+    private suspend fun kakaoLogin(): SocialAuthResult = suspendCancellableCoroutine { cont ->
         fun resumeWith(token: OAuthToken?, error: Throwable?) {
             if (cont.isCompleted) return
             when {

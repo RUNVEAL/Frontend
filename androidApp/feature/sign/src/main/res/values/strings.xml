@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sign_in_logo">RUNVEAL</string>
+    <string name="sign_in_headline">달릴수록 채워지는\n우리 동네 지도</string>
+    <string name="sign_in_kakao_button">카카오 로그인</string>
+    <string name="sign_in_google_button">구글 로그인</string>
+    <string name="sign_in_error">로그인에 실패했어요. 잠시 후 다시 시도해 주세요.</string>
+
+    <string name="sign_up_title">회원가입</string>
+    <string name="sign_up_error">가입을 마치지 못했어요. 잠시 후 다시 시도해 주세요.</string>
+
+    <string name="terms_agreement_headline">서비스 이용을 위해\n아래 약관에 동의해 주세요.</string>
+    <string name="terms_agreement_all">전체 동의</string>
+    <string name="terms_agreement_service_required">[필수] 서비스 이용약관</string>
+    <string name="terms_agreement_privacy_required">[필수] 개인정보 수집 및 이용 동의</string>
+    <string name="terms_agreement_location_required">[필수] 위치기반서비스 이용약관</string>
+    <string name="terms_agreement_next">다음</string>
+    <string name="terms_agreement_view_button">보기</string>
+
+    <string name="nickname_headline">닉네임을 설정해주세요.</string>
+    <string name="nickname_label">닉네임*</string>
+    <string name="nickname_placeholder">닉네임을 입력해 주세요.</string>
+    <string name="nickname_error_invalid_char">특수문자는 사용할 수 없어요</string>
+    <string name="nickname_complete">가입 완료</string>
+</resources>
