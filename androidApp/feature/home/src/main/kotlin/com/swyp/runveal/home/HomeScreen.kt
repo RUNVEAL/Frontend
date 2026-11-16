@@ -399,6 +399,7 @@ private fun HomeMapLayer(
             dongBoundarySourceKey = overlayBundle?.boundarySourceKey.orEmpty(),
             sigunguOverlay = if (hideOverlays) null else overlayBundle?.sigunguOverlay,
             sidoOverlay = if (hideOverlays) null else overlayBundle?.sidoOverlay,
+            locationPermissionGranted = locationPermissionState.isGranted,
         )
     }
 }
