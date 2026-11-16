@@ -89,7 +89,8 @@ internal fun TermsAgreementScreen(
                 Box(
                     modifier = Modifier
                         .clip(RunvealTheme.shapes.radius16)
-                        .background(RunvealTheme.colors.surface.raised),
+                        .background(RunvealTheme.colors.surface.raised)
+                        .padding(horizontal = RunvealTheme.spacing.space12),
                 ) {
                     RunvealListItem(
                         title = stringResource(R.string.terms_agreement_all),
