@@ -22,7 +22,6 @@ import com.swyp.runveal.data.local.FileStore
 import com.swyp.runveal.data.local.TrackLocalStore
 import com.swyp.runveal.dong.DongBoundary
 import com.swyp.runveal.dong.DongBoundaryParser
-import com.swyp.runveal.dong.DongExploreRate
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.match.ChunkedMatcher
@@ -34,6 +33,7 @@ import com.swyp.runveal.recording.RecordingState
 import com.swyp.runveal.recording.TrackPoint
 import com.swyp.runveal.recording.TrackRecorder
 import com.swyp.runveal.result.DongRateChange
+import com.swyp.runveal.result.DongRateChanges
 import com.swyp.runveal.result.LiveMatchHolder
 import com.swyp.runveal.result.LiveNewRoadHolder
 import com.swyp.runveal.result.TrackResult
@@ -291,28 +291,20 @@ class TrackingService : Service() {
         )
     }
 
-    /** 이번 트랙이 닿은 동만 — 전체 길이가 없거나(road_segment 인덱스에 없는 동) 이름을 못 찾으면 그
-     * 동은 뺀다. */
+    /** 이번 트랙이 닿은 동만 — 거르는 규칙과 계산은 [DongRateChanges]에 있다(기록 불러오기 결과와
+     * 같은 숫자를 보여 줘야 해서 공용). */
     private fun buildDongStats(
         touchedAdmCodes: Set<String>,
         beforeWalked: Map<String, Double>,
         afterWalked: Map<String, Double>,
         boundaries: List<DongBoundary>,
-    ): List<DongRateChange> {
-        if (touchedAdmCodes.isEmpty()) return emptyList()
-        val totalLengths = trackLocalStore?.totalLengthByDong() ?: emptyMap()
-        val namesByCode = boundaries.associate { it.admCd2 to it.name }
-        return touchedAdmCodes.mapNotNull { admCd2 ->
-            val total = totalLengths[admCd2]?.takeIf { it > 0.0 } ?: return@mapNotNull null
-            val name = namesByCode[admCd2] ?: return@mapNotNull null
-            DongRateChange(
-                admCd2 = admCd2,
-                name = name,
-                beforePercent = DongExploreRate.percentOf(beforeWalked[admCd2] ?: 0.0, total),
-                afterPercent = DongExploreRate.percentOf(afterWalked[admCd2] ?: 0.0, total),
-            )
-        }
-    }
+    ): List<DongRateChange> = DongRateChanges.build(
+        touchedAdmCodes = touchedAdmCodes,
+        beforeWalked = beforeWalked,
+        afterWalked = afterWalked,
+        totalLengths = trackLocalStore?.totalLengthByDong() ?: emptyMap(),
+        namesByCode = boundaries.associate { it.admCd2 to it.name },
+    )
 
     /** 앱 실행 시 스플래시가 받아 둔 버전([MetaHolder])이 있으면 그대로 쓰고, 없으면(스플래시 호출
      * 실패·아직 전) 여기서 한 번 더 받는다 — `/match` 요청엔 `mapVersion`이 꼭 있어야 한다. */

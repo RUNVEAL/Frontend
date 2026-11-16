@@ -2,9 +2,12 @@ package com.swyp.runveal.tabmypage.navigation
 
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
+import androidx.navigation.navOptions
 import androidx.navigation.toRoute
 import com.swyp.runveal.navigation.RunVealNavigator
 import com.swyp.runveal.navigation.RunVealRoute
+import com.swyp.runveal.tabmypage.ImportRecordsProgressScreen
+import com.swyp.runveal.tabmypage.ImportRecordsResultScreen
 import com.swyp.runveal.tabmypage.ImportRecordsScreen
 import com.swyp.runveal.tabmypage.MyScreen
 import com.swyp.runveal.tabmypage.TermsDetailScreen
@@ -15,7 +18,12 @@ import com.swyp.runveal.tabmypage.contract.TermsPolicyItem
  * @param onLoggedOut 로그아웃 후 이동. 로그인 화면은 탭 바깥(루트 그래프)에 있어서 여기 [navigator]
  *  (탭 네비게이터)로는 못 간다 — 루트 네비게이터를 쥔 `homeGraph`가 넘겨준다.
  */
-fun NavGraphBuilder.myGraph(navigator: RunVealNavigator, onLoggedOut: () -> Unit) {
+fun NavGraphBuilder.myGraph(
+    navigator: RunVealNavigator,
+    onLoggedOut: () -> Unit,
+    onCreateCourseClick: () -> Unit,
+    onGoHomeClick: () -> Unit,
+) {
     composable<RunVealRoute.HomeTab.My> {
         MyScreen(
             onLoggedOut = onLoggedOut,
@@ -26,9 +34,39 @@ fun NavGraphBuilder.myGraph(navigator: RunVealNavigator, onLoggedOut: () -> Unit
     composable<RunVealRoute.HomeTab.ImportRecords> {
         ImportRecordsScreen(
             onBackClick = { navigator.navigateUp() },
-            // TODO: HealthConnectImporter 실행 — 권한 요청 UI를 붙인 뒤 연결한다.
-            onImportClick = {},
+            // 진행 화면은 안내 화면을 대체한다(popUpTo inclusive) — 가져오기가 끝나고 돌아갈
+            // 자리는 안내 화면이 아니라 마이페이지다. 가져오는 중 뒤로가기도 마이페이지로 간다.
+            onReadyToImport = {
+                navigator.navigate(
+                    route = RunVealRoute.HomeTab.ImportRecordsProgress,
+                    navOptions = navOptions {
+                        popUpTo<RunVealRoute.HomeTab.ImportRecords> { inclusive = true }
+                    },
+                )
+            },
             onLaterClick = { navigator.navigateUp() },
+        )
+    }
+    composable<RunVealRoute.HomeTab.ImportRecordsProgress> {
+        ImportRecordsProgressScreen(
+            // 결과 화면도 진행 화면을 대체한다 — 결과를 보다가 뒤로 누르면 돌아갈 자리는 이미
+            // 끝난 진행 화면이 아니라 마이페이지다.
+            onFinished = {
+                navigator.navigate(
+                    route = RunVealRoute.HomeTab.ImportRecordsResult,
+                    navOptions = navOptions {
+                        popUpTo<RunVealRoute.HomeTab.ImportRecordsProgress> { inclusive = true }
+                    },
+                )
+            },
+            onClose = { navigator.navigateUp() },
+        )
+    }
+    composable<RunVealRoute.HomeTab.ImportRecordsResult> {
+        ImportRecordsResultScreen(
+            onBackClick = { navigator.navigateUp() },
+            onCreateCourseClick = onCreateCourseClick,
+            onGoHomeClick = onGoHomeClick,
         )
     }
     composable<RunVealRoute.HomeTab.Terms> {

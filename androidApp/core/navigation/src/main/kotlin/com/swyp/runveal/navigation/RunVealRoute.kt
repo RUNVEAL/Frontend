@@ -77,6 +77,15 @@ sealed interface RunVealRoute : Route {
         @Serializable
         data object ImportRecords : HomeTab
 
+        /** 기록 불러오기 진행 화면 — Health Connect에서 가져오는 동안 보인다. */
+        @Serializable
+        data object ImportRecordsProgress : HomeTab
+
+        /** 기록 불러오기 결과. 값은 라우트가 아니라 `ImportResultHolder`에서 읽는다 — 경로·동
+         * 목록은 라우트 인자로 싣기 어렵다(러닝 결과 화면이 `TrackResultHolder`를 쓰는 방식). */
+        @Serializable
+        data object ImportRecordsResult : HomeTab
+
         /** 약관 한 건의 본문. [item]은 어떤 약관인지(`TermsPolicyItem`의 이름) — 상단 제목과 본문을
          * 고르는 데 쓴다. 문서 자체를 라우트로 넘기지 않는 건 본문이 길고 서버에서 받아올 값이라서다. */
         @Serializable

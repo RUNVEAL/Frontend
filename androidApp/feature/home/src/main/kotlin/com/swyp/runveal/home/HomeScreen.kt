@@ -127,7 +127,9 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     // 목록·MY 탭으로 돌아온다.
     val isTermsFlow = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Terms>() == true ||
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.TermsDetail>() == true ||
-        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.ImportRecords>() == true
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.ImportRecords>() == true ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.ImportRecordsProgress>() == true ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.ImportRecordsResult>() == true
     // 지도 위 흐름(코스 추천, 코스 추천 결과, 코스 상세, 러닝 기록, 러닝 결과)과 약관 흐름에
     // 들어가 있을 때만 탭바를 완전히 숨긴다.
     val showTabBar = !isCourseRecommendFlow &&
@@ -231,7 +233,17 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                 }
                 courseGraph(tabNavigator)
                 recordGraph(tabNavigator)
-                myGraph(tabNavigator, onLoggedOut = onLoggedOut)
+                myGraph(
+                    tabNavigator,
+                    onLoggedOut = onLoggedOut,
+                    // 기록 불러오기 결과에서 나가는 두 길 — 둘 다 홈 탭으로 넘긴다. onSelectTab이
+                    // 시작 목적지까지 되감아서 결과 화면은 스택에서 빠진다.
+                    onCreateCourseClick = {
+                        onSelectTab(0)
+                        tabNavigator.navigate(RunVealRoute.HomeTab.CourseRecommend)
+                    },
+                    onGoHomeClick = { onSelectTab(0) },
+                )
             }
 
             toastMessage?.let { message ->

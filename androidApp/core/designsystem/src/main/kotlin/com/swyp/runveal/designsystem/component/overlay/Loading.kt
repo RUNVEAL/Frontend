@@ -41,3 +41,34 @@ private fun RunvealLoadingPreview() {
         RunvealLoading()
     }
 }
+
+/** JSON 원본 크기(100x100)와 맞춘 기본 크기. [DEFAULT_LOADING_SIZE]와 같은 이유로 둔다. */
+private val DEFAULT_IMPORT_RECORDS_LOADING_SIZE = 100.dp
+
+/** 기록 불러오기 전용 로딩 모션(`res/raw/runveal_loading_import_records.json`, 100x100 / 4.5초).
+ * 공용 모션([RunvealLoading])과 달리 한 번 재생이 길어서, 끝날 때까지 기다리는 화면에만 쓴다. */
+@Composable
+fun RunvealImportRecordsLoading(
+    modifier: Modifier = Modifier.size(DEFAULT_IMPORT_RECORDS_LOADING_SIZE),
+) {
+    val composition by rememberLottieComposition(
+        LottieCompositionSpec.RawRes(R.raw.runveal_loading_import_records),
+    )
+    val progress by animateLottieCompositionAsState(
+        composition = composition,
+        iterations = LottieConstants.IterateForever,
+    )
+    LottieAnimation(
+        composition = composition,
+        progress = { progress },
+        modifier = modifier,
+    )
+}
+
+@Preview
+@Composable
+private fun RunvealImportRecordsLoadingPreview() {
+    RunvealTheme {
+        RunvealImportRecordsLoading()
+    }
+}

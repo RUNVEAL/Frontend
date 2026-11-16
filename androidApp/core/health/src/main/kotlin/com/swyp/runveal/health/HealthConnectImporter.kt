@@ -12,14 +12,19 @@ import com.swyp.runveal.external.ExternalWorkoutPoint
 import com.swyp.runveal.external.ImportCheckpointStore
 import com.swyp.runveal.external.ImportProgress
 import com.swyp.runveal.external.ImportProgressHolder
+import com.swyp.runveal.external.ImportResult
+import com.swyp.runveal.external.ImportResultHolder
 import com.swyp.runveal.external.ImportUnavailableReason
 import com.swyp.runveal.external.MatchPointReducer
+import com.swyp.runveal.dong.DongBoundaryParser
 import com.swyp.runveal.map.GeoMath
+import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.match.ChunkedMatcher
 import com.swyp.runveal.match.ServerRoadMatcher
 import com.swyp.runveal.network.match.MatchPurpose
 import com.swyp.runveal.network.meta.MetaApi
 import com.swyp.runveal.network.meta.MetaHolder
+import com.swyp.runveal.result.DongRateChanges
 import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.delay
@@ -39,6 +44,9 @@ private const val MATCH_RETRY_BASE_DELAY_MS = 2_000L
 private const val BETWEEN_WORKOUTS_DELAY_MS = 500L
 
 private const val MATCH_STATE_FAILED = "FAILED"
+
+/** 동 이름을 얻는 경계 GeoJSON — `core:map`의 asset. `TrackingService`도 같은 파일을 쓴다. */
+private const val DONG_BOUNDARY_ASSET_PATH = "dong/korea_dong.geojson"
 
 /** 재개 지점이 없는 첫 실행에서 훑을 기간 — 90일. 전체 이력을 훑으면 첫 연동에만 수백 건이 걸릴
  * 수 있고, IMPORT는 서버가 한 건씩만 처리한다(§3.7). */
@@ -103,11 +111,16 @@ class HealthConnectImporter(
             .filter { it.externalId !in alreadyImported }
             .take(MAX_WORKOUTS_PER_RUN)
 
+        // 결과 화면의 "상승한 탐험률"은 이번 가져오기 **전체**의 전/후 차이다 — 기록마다 재면
+        // 한 동을 여러 기록이 지날 때 같은 동이 여러 줄로 나온다. 그래서 루프 밖에서 한 번만 잰다.
+        val beforeWalked = store.walkedLengthByDong()
+        val accumulated = ImportAccumulator()
+
         var imported = 0
         var skipped = 0
         var failed = 0
         candidates.forEachIndexed { index, workout ->
-            when (importOne(workout)) {
+            when (importOne(workout, accumulated)) {
                 ImportOutcome.IMPORTED -> imported++
                 ImportOutcome.SKIPPED -> skipped++
                 ImportOutcome.FAILED -> failed++
@@ -124,15 +137,76 @@ class HealthConnectImporter(
             if (index != candidates.lastIndex) delay(BETWEEN_WORKOUTS_DELAY_MS)
         }
 
+        publishResult(
+            imported = imported,
+            skipped = skipped,
+            failed = failed,
+            beforeWalked = beforeWalked,
+            accumulated = accumulated,
+        )
+
         val result = ImportProgress.Finished(imported = imported, skipped = skipped, failed = failed)
         Log.i(TAG, "가져오기 완료 imported=$imported skipped=$skipped failed=$failed")
         ImportProgressHolder.publish(result)
         return result
     }
 
+    /**
+     * 결과 화면이 쓸 값을 모아 [ImportResultHolder]에 올린다. 진행 상황([ImportProgressHolder])과
+     * 따로 두는 건 경로·동 목록처럼 진행률에는 필요 없는 값까지 담기 때문이다.
+     */
+    private fun publishResult(
+        imported: Int,
+        skipped: Int,
+        failed: Int,
+        beforeWalked: Map<String, Double>,
+        accumulated: ImportAccumulator,
+    ) {
+        val dongStats = if (accumulated.touchedDongAdmCodes.isEmpty()) {
+            emptyList()
+        } else {
+            DongRateChanges.build(
+                touchedAdmCodes = accumulated.touchedDongAdmCodes,
+                beforeWalked = beforeWalked,
+                afterWalked = store.walkedLengthByDong(),
+                totalLengths = store.totalLengthByDong(),
+                namesByCode = loadDongNames(),
+            )
+        }
+
+        ImportResultHolder.publish(
+            ImportResult(
+                imported = imported,
+                skipped = skipped,
+                failed = failed,
+                newRoadMeters = accumulated.newRoadMeters,
+                dongStats = dongStats,
+                routePaths = accumulated.routePaths.toList(),
+                newRoadPaths = accumulated.newRoadPaths.toList(),
+            ),
+        )
+    }
+
+    /** 행정동 코드 → 이름. 동 경계 GeoJSON은 `core:map`의 asset이고, 러닝 결과 화면도 같은 파일에서
+     * 이름을 얻는다(`TrackingService.loadDongBoundaries`). 못 읽으면 탐험률 줄이 비는 것으로 끝나고
+     * 가져오기 자체는 이미 끝나 있어서 실패를 삼킨다. */
+    private fun loadDongNames(): Map<String, String> = runCatching {
+        val geoJson = context.assets.open(DONG_BOUNDARY_ASSET_PATH).bufferedReader().use { it.readText() }
+        DongBoundaryParser.parse(geoJson).associate { it.admCd2 to it.name }
+    }.onFailure { Log.w(TAG, "동 경계 읽기 실패 — 탐험률 줄을 비운다", it) }
+        .getOrDefault(emptyMap())
+
     private enum class ImportOutcome { IMPORTED, SKIPPED, FAILED }
 
-    private suspend fun importOne(workout: ExternalWorkout): ImportOutcome {
+    /** 기록 여러 건에 걸쳐 모으는 값 — 결과 화면이 "이번 가져오기"를 한 덩어리로 보여 주기 때문이다. */
+    private class ImportAccumulator {
+        var newRoadMeters: Double = 0.0
+        val touchedDongAdmCodes: MutableSet<String> = mutableSetOf()
+        val routePaths: MutableList<List<LatLon>> = mutableListOf()
+        val newRoadPaths: MutableList<List<LatLon>> = mutableListOf()
+    }
+
+    private suspend fun importOne(workout: ExternalWorkout, accumulated: ImportAccumulator): ImportOutcome {
         val reduced = MatchPointReducer.reduce(workout.route)
         if (reduced.isEmpty()) {
             // 경로가 아예 없거나(권한 거부·실내 기록) 점이 너무 적어 서버가 받지 않는 기록.
@@ -165,7 +239,7 @@ class HealthConnectImporter(
             return ImportOutcome.SKIPPED
         }
 
-        return runCatching { matchAndRecord(trackId, reduced) }.getOrElse { e ->
+        return runCatching { matchAndRecord(trackId, reduced, accumulated) }.getOrElse { e ->
             // 기록 자체는 남긴다 — 거리·시간은 이미 유효하고, 지도 교체 때 REMATCH로 다시 매칭할
             // 대상이 된다(§3.7). 다시 매칭하는 흐름은 아직 없어서 TODO로 남는다.
             Log.w(TAG, "매칭 실패 — FAILED로 남긴다 id=${workout.externalId}", e)
@@ -180,7 +254,11 @@ class HealthConnectImporter(
         }
     }
 
-    private suspend fun matchAndRecord(trackId: String, reduced: List<ExternalWorkoutPoint>): ImportOutcome {
+    private suspend fun matchAndRecord(
+        trackId: String,
+        reduced: List<ExternalWorkoutPoint>,
+        accumulated: ImportAccumulator,
+    ): ImportOutcome {
         val points = reduced.map { it.toLatLon() }
         val matcher = ServerRoadMatcher(mapVersion = resolveMapVersion(), purpose = MatchPurpose.IMPORT)
         val result = retryingMatch { ChunkedMatcher.matchInChunks(matcher, points) }
@@ -188,12 +266,21 @@ class HealthConnectImporter(
         // 이번 기록이 지나간 구의 구간 인덱스가 없으면 segmentId를 길이·행정동으로 못 바꿔서
         // 집계에서 통째로 빠진다(러닝 종료 흐름과 같은 이유).
         RoadSegmentIndexImporter(context, store.database).importIfNeeded(result.sigunguCodes)
-        store.recordMatchResult(
+        val summary = store.recordMatchResult(
             trackId = trackId,
             matchedPath = result.path,
             segmentIds = result.segmentIds,
             nowEpochMs = System.currentTimeMillis(),
         )
+
+        accumulated.newRoadMeters += summary.newRoadMeters
+        accumulated.touchedDongAdmCodes += summary.touchedDongAdmCodes
+        accumulated.newRoadPaths += summary.newRoadPaths
+        // 결과 지도도 기록 탭 썸네일과 같은 선을 그리도록 **매칭 경로**를 모은다 — 원본 GPS를 그리면
+        // 도로를 벗어나서 금색 "새로 탐험한 길"과 어긋나 보인다(러닝 결과 화면과 같은 이유).
+        // 매칭이 점 2개도 못 돌려주면 줄여 둔 GPS로 떨어진다.
+        accumulated.routePaths += result.path.takeIf { it.size >= 2 } ?: points
+
         return ImportOutcome.IMPORTED
     }
 

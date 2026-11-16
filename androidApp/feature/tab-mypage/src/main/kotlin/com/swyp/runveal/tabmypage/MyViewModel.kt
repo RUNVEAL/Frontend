@@ -8,6 +8,8 @@ import com.swyp.runveal.data.local.FileStore
 import com.swyp.runveal.data.local.RunvealDatabaseProvider
 import com.swyp.runveal.data.local.TrackLocalStore
 import com.swyp.runveal.dong.DongExploreRate
+import com.swyp.runveal.external.ImportProgress
+import com.swyp.runveal.external.ImportProgressHolder
 import com.swyp.runveal.result.TrackResultHolder
 import com.swyp.runveal.tabmypage.contract.MyEffect
 import com.swyp.runveal.tabmypage.contract.MyIntent
@@ -36,6 +38,15 @@ class MyViewModel : MviViewModel<MyIntent, MyState, MyEffect>(
         // 탭을 떠났다 돌아오지 않아도 숫자가 맞춰진다(HomeScreen이 "가본 길"을 갱신하는 방식과 같다).
         viewModelScope.launch {
             TrackResultHolder.state.collectLatest { loadRunningSummary() }
+        }
+
+        // Health Connect에서 기록을 가져오면 "탐험한 동"·"누적 거리"가 늘어난다. 진행 화면은 이
+        // 화면 위에 올라갔다 내려오기만 해서 ViewModel이 다시 만들어지지 않으므로, 끝나는 걸 보고
+        // 직접 다시 집계한다.
+        viewModelScope.launch {
+            ImportProgressHolder.state.collectLatest { progress ->
+                if (progress is ImportProgress.Finished) loadRunningSummary()
+            }
         }
     }
 
