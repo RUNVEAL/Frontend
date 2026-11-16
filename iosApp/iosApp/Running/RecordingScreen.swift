@@ -114,7 +114,7 @@ struct RecordingScreen: View {
         guard let path = viewModel.state.selectedCoursePath, path.count >= 2 else { return }
         mapState.focusOnBounds(points: path)
 
-        let tracker = CourseProgressTracker(coursePath: path)
+        let tracker = IosCourseProgress.shared.tracker(coursePath: path)
         var consumedPointCount = 0
         while !Task.isCancelled {
             // 매초 "마지막 위치"만 보면 그 사이 지나친 코스 구간을 놓칠 수 있어, 아직 안 본 점을 전부 넘긴다.
