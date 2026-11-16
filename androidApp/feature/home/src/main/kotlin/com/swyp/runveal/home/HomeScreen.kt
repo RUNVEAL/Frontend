@@ -96,7 +96,7 @@ private val LOCATION_BANNER_EXTRA_INSET = 56.dp
  * 코스 추천)은 전부 이 아래 단일 NavHost로 조립한다. 탭바 노출 규칙도 여기 한 곳에만 둔다.
  */
 @Composable
-internal fun HomeScreen(modifier: Modifier = Modifier) {
+internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) {
     val tabNavigator = rememberRunVealNavigator()
     val mapState = rememberMapState()
     val locationPermissionState = rememberLocationPermissionState()
@@ -211,7 +211,7 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                 }
                 courseGraph(tabNavigator)
                 recordGraph(tabNavigator)
-                myGraph(tabNavigator)
+                myGraph(tabNavigator, onLoggedOut = onLoggedOut)
             }
 
             toastMessage?.let { message ->

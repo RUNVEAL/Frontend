@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -36,13 +37,16 @@ import com.swyp.runveal.designsystem.component.list.RunvealListItem
 import com.swyp.runveal.designsystem.component.list.RunvealListItemTrailing
 import com.swyp.runveal.designsystem.component.list.RunvealSectionHeader
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLarge
+import com.swyp.runveal.designsystem.component.overlay.RunvealDialog
 import com.swyp.runveal.designsystem.component.overlay.RunvealToast
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.tabmypage.R
 import com.swyp.runveal.permission.openAppSettings
 import com.swyp.runveal.permission.rememberLocationPermissionState
 import com.swyp.runveal.tabmypage.component.ProfileSummaryCard
+import com.swyp.runveal.tabmypage.contract.MyEffect
 import com.swyp.runveal.tabmypage.contract.MyIntent
+import com.swyp.runveal.ui.mvi.CollectEffect
 import kotlinx.coroutines.delay
 
 /** `mypage_bg.png`의 원본 크기(2062x2032px, xxxhdpi 4배). 화면 너비(360dp)보다 넓은 건 의도 —
@@ -67,10 +71,17 @@ private const val TOAST_DURATION_MILLIS = 3000L
 
 @Composable
 fun MyScreen(
+    onLoggedOut: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MyViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+
+    CollectEffect(viewModel.effect) { effect ->
+        when (effect) {
+            MyEffect.LoggedOut -> onLoggedOut()
+        }
+    }
     val context = LocalContext.current
     // 권한은 Activity/런처에 묶여 있어 ViewModel이 아니라 화면이 직접 다룬다(HomeScreen과 같은 방식).
     val locationPermissionState = rememberLocationPermissionState()
@@ -151,6 +162,21 @@ fun MyScreen(
                     )
                     AccountSection(onIntent = viewModel::onIntent)
                 }
+            }
+        }
+
+        // RunvealDialog는 내용만 그리는 컴포넌트다(scrim·모달 동작은 호출부 몫, 그 KDoc 참고) —
+        // Compose의 Dialog로 감싸 바깥 탭·뒤로가기로 닫히게 한다.
+        if (state.showLogoutDialog) {
+            Dialog(onDismissRequest = { viewModel.onIntent(MyIntent.LogoutDismissed) }) {
+                RunvealDialog(
+                    title = stringResource(R.string.my_logout_dialog_title),
+                    description = stringResource(R.string.my_logout_dialog_description),
+                    confirmLabel = stringResource(R.string.my_logout_dialog_confirm),
+                    cancelLabel = stringResource(R.string.my_logout_dialog_cancel),
+                    onConfirm = { viewModel.onIntent(MyIntent.LogoutConfirmed) },
+                    onCancel = { viewModel.onIntent(MyIntent.LogoutDismissed) },
+                )
             }
         }
 

@@ -1,11 +1,15 @@
 package com.swyp.runveal.tabmypage
 
 import androidx.lifecycle.viewModelScope
+import com.swyp.runveal.auth.AuthProvider
+import com.swyp.runveal.auth.usecase.GetNicknameUseCase
+import com.swyp.runveal.auth.usecase.LogoutUseCase
 import com.swyp.runveal.data.local.FileStore
 import com.swyp.runveal.data.local.RunvealDatabaseProvider
 import com.swyp.runveal.data.local.TrackLocalStore
 import com.swyp.runveal.dong.DongExploreRate
 import com.swyp.runveal.result.TrackResultHolder
+import com.swyp.runveal.tabmypage.contract.MyEffect
 import com.swyp.runveal.tabmypage.contract.MyIntent
 import com.swyp.runveal.tabmypage.contract.MyState
 import com.swyp.runveal.ui.mvi.MviViewModel
@@ -18,12 +22,16 @@ import kotlinx.coroutines.withContext
  * 마이페이지. 위치 권한은 Compose 상태(`rememberLocationPermissionState`)를 화면이 직접 읽으므로
  * 여기로 오지 않는다 — 나머지 항목은 연결할 기능이 생기면 여기서 처리한다(각 intent의 TODO 참고).
  */
-class MyViewModel : MviViewModel<MyIntent, MyState, Nothing>(
+class MyViewModel : MviViewModel<MyIntent, MyState, MyEffect>(
     initialState = MyState(),
 ) {
     private val trackLocalStore = TrackLocalStore(RunvealDatabaseProvider.database, FileStore())
+    private val getNickname = GetNicknameUseCase(AuthProvider.repository)
+    private val logout = LogoutUseCase(AuthProvider.repository)
 
     init {
+        viewModelScope.launch { loadNickname() }
+
         // 러닝이 끝나 매칭까지 완료되면 TrackResultHolder가 새 값을 내보낸다 — 그때마다 다시 집계해
         // 탭을 떠났다 돌아오지 않아도 숫자가 맞춰진다(HomeScreen이 "가본 길"을 갱신하는 방식과 같다).
         viewModelScope.launch {
@@ -33,22 +41,53 @@ class MyViewModel : MviViewModel<MyIntent, MyState, Nothing>(
 
     override suspend fun handleIntent(intent: MyIntent) {
         when (intent) {
-            // 아래 다섯은 아직 붙일 기능이 없어 전부 "준비 중" 안내만 띄운다. 각 TODO가 풀리는 대로
+            // 아래 넷은 아직 붙일 기능이 없어 전부 "준비 중" 안내만 띄운다. 각 TODO가 풀리는 대로
             // 하나씩 실제 동작으로 바꾼다.
             //  - TODO: 닉네임 변경 화면으로 이동 — 회원 정보 기능이 붙은 뒤.
             //  - TODO: Health Connect 기록 가져오기 — 가져오기 기능이 붙은 뒤.
             //  - TODO: 약관 및 정책 보기 — 약관 목록 API가 붙은 뒤.
-            //  - TODO: 로그아웃 — auth가 붙은 뒤.
             //  - TODO: 회원 탈퇴 — 회원 API가 붙은 뒤(되돌릴 수 없으니 확인 다이얼로그 필요).
             MyIntent.NicknameChangeClicked,
             MyIntent.ImportRecordsClicked,
             MyIntent.TermsClicked,
-            MyIntent.LogoutClicked,
             MyIntent.WithdrawClicked,
             -> setState { copy(showNotReadyToast = true) }
 
+            // 로그아웃은 되돌리려면 다시 로그인해야 해서 한 번 더 묻는다.
+            MyIntent.LogoutClicked -> setState { copy(showLogoutDialog = true) }
+            MyIntent.LogoutDismissed -> setState { copy(showLogoutDialog = false) }
+            MyIntent.LogoutConfirmed -> logout()
+
             MyIntent.ToastShown -> setState { copy(showNotReadyToast = false) }
         }
+    }
+
+    /**
+     * 로그아웃. [com.swyp.runveal.auth.repository.AuthRepository.logout]이 소셜 SDK 로그아웃
+     * (카카오 `logout`, 구글 `clearCredentialState`)과 로컬 토큰 삭제를 함께 처리한다. 둘 중 하나가
+     * 실패해도 나머지는 진행되고(각각 runCatching), 어느 쪽이든 로그인 화면으로 돌려보낸다 —
+     * 로컬 토큰이 남은 채 머물면 로그아웃한 것처럼 보이는데 실제로는 로그인 상태가 된다.
+     */
+    private suspend fun logout() {
+        if (currentState.isLoggingOut) return
+        setState { copy(showLogoutDialog = false, isLoggingOut = true) }
+
+        withContext(Dispatchers.IO) { runCatching { logout.invoke() } }
+        // 스플래시·홈이 보는 전역 상태를 바로 확정한다 — 이동 후에 바꾸면 그 사이 프레임에서
+        // 아직 로그인 상태로 보인다.
+        AuthProvider.session.markLoggedOut()
+
+        setState { copy(isLoggingOut = false) }
+        sendEffect(MyEffect.LoggedOut)
+    }
+
+    /**
+     * 가입 때 정한 닉네임. 아직 가입을 안 끝냈으면 null이라 상태는 빈 문자열로 두고, 화면이
+     * 자리표시자를 대신 보여준다.
+     */
+    private suspend fun loadNickname() = withContext(Dispatchers.IO) {
+        val nickname = runCatching { getNickname() }.getOrNull().orEmpty()
+        setState { copy(nickname = nickname) }
     }
 
     /**
