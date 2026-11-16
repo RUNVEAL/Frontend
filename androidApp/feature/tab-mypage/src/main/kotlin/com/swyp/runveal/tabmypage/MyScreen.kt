@@ -20,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -35,12 +36,14 @@ import com.swyp.runveal.designsystem.component.list.RunvealListItem
 import com.swyp.runveal.designsystem.component.list.RunvealListItemTrailing
 import com.swyp.runveal.designsystem.component.list.RunvealSectionHeader
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLarge
+import com.swyp.runveal.designsystem.component.overlay.RunvealToast
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.tabmypage.R
 import com.swyp.runveal.permission.openAppSettings
 import com.swyp.runveal.permission.rememberLocationPermissionState
 import com.swyp.runveal.tabmypage.component.ProfileSummaryCard
 import com.swyp.runveal.tabmypage.contract.MyIntent
+import kotlinx.coroutines.delay
 
 /** `mypage_bg.png`의 원본 크기(2062x2032px, xxxhdpi 4배). 화면 너비(360dp)보다 넓은 건 의도 —
  * 양옆으로 번져 나가는 배경이라 가운데 정렬로 잘라 쓴다(ResultScreen의 result_glow와 같은 방식). */
@@ -58,6 +61,9 @@ private val MYPAGE_BG_HEIGHT = 508.dp
  * 닉네임이 두 줄이 되면 카드가 커져 조금 어긋나는데, 가장자리가 흐려지는 이미지라 티가 나지 않는다.
  */
 private val MYPAGE_BG_VISIBLE_HEIGHT = 84.dp + 144.dp + 32.dp
+
+/** 안내 토스트 노출 시간. */
+private const val TOAST_DURATION_MILLIS = 3000L
 
 @Composable
 fun MyScreen(
@@ -78,6 +84,13 @@ fun MyScreen(
         } else {
             locationPermissionState.request()
         }
+    }
+
+    // 토스트는 3초만 띄운다 — 사라지는 타이머는 띄우는 쪽이 맡는다(RunvealToast 주석, HomeScreen과 같은 방식).
+    LaunchedEffect(state.showNotReadyToast) {
+        if (!state.showNotReadyToast) return@LaunchedEffect
+        delay(TOAST_DURATION_MILLIS)
+        viewModel.onIntent(MyIntent.ToastShown)
     }
 
     Box(
@@ -139,6 +152,16 @@ fun MyScreen(
                     AccountSection(onIntent = viewModel::onIntent)
                 }
             }
+        }
+
+        if (state.showNotReadyToast) {
+            RunvealToast(
+                message = stringResource(R.string.my_not_ready_toast),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space16),
+            )
         }
     }
 }

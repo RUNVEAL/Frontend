@@ -21,4 +21,6 @@
     <string name="my_section_account">계정</string>
     <string name="my_menu_logout">로그아웃</string>
     <string name="my_menu_withdraw">회원탈퇴</string>
+
+    <string name="my_not_ready_toast">아직 준비 중인 기능이에요</string>
 </resources>
