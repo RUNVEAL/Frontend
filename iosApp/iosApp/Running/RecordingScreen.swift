@@ -14,12 +14,10 @@ struct RecordingScreen: View {
 
     @StateObject private var viewModel = RecordingViewModel()
     @State private var courseProgress: RecordingCourseProgress?
+    /// `.runvealMapDotMarkers`가 "내가 올린 마커만 치우기"를 판단하는 표식.
     @State private var courseMarkersOwner = UUID()
 
     private static let courseGuideTickerInterval: Duration = .seconds(1)
-    /// `RunvealRunPauseButton`의 실제 지름(80)과 맞춘다 — 일시정지 원형 버튼과 종료/재개 버튼 행의
-    /// 높이가 달라서, 고정 높이로 감싸지 않으면 상태가 바뀔 때마다 패널 전체 높이가 바뀐다.
-    private static let actionHeight: CGFloat = 80
 
     var body: some View {
         ZStack(alignment: .top) {

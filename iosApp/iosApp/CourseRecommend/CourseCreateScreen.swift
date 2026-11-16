@@ -13,7 +13,6 @@ struct CourseCreateScreen: View {
     /// 화면이 직접 들고 있다 — ViewModel 쪽은 현재 위치를 먼저 받아와야 해서 인텐트가 그만큼 늦게
     /// 도착하고, ViewModel 상태로만 띄우면 그 사이엔 아무 반응이 없어 보인다.
     @State private var isRecommending = false
-    @State private var pinMarkersOwner = UUID()
 
     private let currentLocation = RunvealCurrentLocation()
 

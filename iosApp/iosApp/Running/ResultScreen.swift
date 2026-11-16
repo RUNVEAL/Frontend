@@ -8,11 +8,8 @@ struct ResultScreen: View {
 
     @StateObject private var viewModel = ResultViewModel()
 
-    private static let mapCardHeight: CGFloat = 268
     private static let glowWidth: CGFloat = 480
     private static let glowHeight: CGFloat = 320
-    /// 디자인 값 40 — spacing 스케일에 없어 그대로 하드코딩.
-    private static let titleToExploreGap: CGFloat = 40
 
     var body: some View {
         let colors = RunvealTheme.colors
@@ -57,6 +54,7 @@ private struct ResultContent: View {
     let state: ResultReady
 
     private static let mapCardHeight: CGFloat = 268
+    /// 디자인 값 40 — spacing 스케일에 없어 그대로 하드코딩.
     private static let titleToExploreGap: CGFloat = 40
 
     var body: some View {
