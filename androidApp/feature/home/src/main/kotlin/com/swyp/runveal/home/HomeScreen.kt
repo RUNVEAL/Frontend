@@ -126,7 +126,8 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     // 약관 및 정책은 탭 안에서 들어가지만 그 자체로 전체 화면이라 탭바를 숨긴다 — 뒤로가기로
     // 목록·MY 탭으로 돌아온다.
     val isTermsFlow = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Terms>() == true ||
-        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.TermsDetail>() == true
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.TermsDetail>() == true ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.ImportRecords>() == true
     // 지도 위 흐름(코스 추천, 코스 추천 결과, 코스 상세, 러닝 기록, 러닝 결과)과 약관 흐름에
     // 들어가 있을 때만 탭바를 완전히 숨긴다.
     val showTabBar = !isCourseRecommendFlow &&

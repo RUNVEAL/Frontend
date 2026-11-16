@@ -5,6 +5,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
 import com.swyp.runveal.navigation.RunVealNavigator
 import com.swyp.runveal.navigation.RunVealRoute
+import com.swyp.runveal.tabmypage.ImportRecordsScreen
 import com.swyp.runveal.tabmypage.MyScreen
 import com.swyp.runveal.tabmypage.TermsDetailScreen
 import com.swyp.runveal.tabmypage.TermsPolicyScreen
@@ -19,6 +20,15 @@ fun NavGraphBuilder.myGraph(navigator: RunVealNavigator, onLoggedOut: () -> Unit
         MyScreen(
             onLoggedOut = onLoggedOut,
             onTermsClick = { navigator.navigate(RunVealRoute.HomeTab.Terms) },
+            onImportRecordsClick = { navigator.navigate(RunVealRoute.HomeTab.ImportRecords) },
+        )
+    }
+    composable<RunVealRoute.HomeTab.ImportRecords> {
+        ImportRecordsScreen(
+            onBackClick = { navigator.navigateUp() },
+            // TODO: HealthConnectImporter 실행 — 권한 요청 UI를 붙인 뒤 연결한다.
+            onImportClick = {},
+            onLaterClick = { navigator.navigateUp() },
         )
     }
     composable<RunVealRoute.HomeTab.Terms> {

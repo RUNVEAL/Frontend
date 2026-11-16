@@ -29,6 +29,15 @@
 
     <string name="my_not_ready_toast">아직 준비 중인 기능이에요</string>
 
+    <string name="import_records_title">Health Connect에서
+러닝 기록을 불러올 수 있어요</string>
+    <string name="import_records_description">불러온 길은 탐험 지도에 채워져요</string>
+    <string name="import_records_notice_what">가져오는 정보: 러닝 기록과 달린 경로</string>
+    <string name="import_records_notice_no_route">경로가 없는 기록은 지도에 표시되지 않아요</string>
+    <string name="import_records_notice_disconnect">연결은 설정에서 언제든 끊을 수 있어요</string>
+    <string name="import_records_start">Health Connect에서 불러오기</string>
+    <string name="import_records_later">나중에 할게요</string>
+
     <string name="terms_policy_title">약관 및 정책</string>
     <string name="terms_policy_service">서비스 이용약관</string>
     <string name="terms_policy_privacy">개인정보 처리방침</string>

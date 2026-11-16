@@ -73,6 +73,7 @@ private const val TOAST_DURATION_MILLIS = 3000L
 fun MyScreen(
     onLoggedOut: () -> Unit,
     onTermsClick: () -> Unit,
+    onImportRecordsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MyViewModel = viewModel(),
 ) {
@@ -160,6 +161,7 @@ fun MyScreen(
                         isLocationPermissionGranted = locationPermissionState.isGranted,
                         onLocationPermissionClick = onLocationPermissionClick,
                         onTermsClick = onTermsClick,
+                        onImportRecordsClick = onImportRecordsClick,
                         onIntent = viewModel::onIntent,
                     )
                     AccountSection(onIntent = viewModel::onIntent)
@@ -199,6 +201,7 @@ private fun SettingsSection(
     isLocationPermissionGranted: Boolean,
     onLocationPermissionClick: () -> Unit,
     onTermsClick: () -> Unit,
+    onImportRecordsClick: () -> Unit,
     onIntent: (MyIntent) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -210,7 +213,7 @@ private fun SettingsSection(
         )
         RunvealListItem(
             title = stringResource(R.string.my_menu_import_records),
-            onClick = { onIntent(MyIntent.ImportRecordsClicked) },
+            onClick = onImportRecordsClick,
             trailing = RunvealListItemTrailing.Chevron,
         )
         // 위치 권한만 chevron 대신 토글이라 RunvealListItem의 trailing으로 못 그린다 — 줄 전체와
