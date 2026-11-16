@@ -1,10 +1,12 @@
 package com.swyp.runveal.ui.network
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
@@ -12,8 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.swyp.runveal.devicestate.NetworkState
 import com.swyp.runveal.devicestate.rememberNetworkState
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.swyp.runveal.core.ui.R
 import com.swyp.runveal.designsystem.component.list.RunvealEmptyState
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBar
@@ -57,8 +61,15 @@ fun NetworkErrorScreen(
             description = stringResource(R.string.network_error_description),
             actionLabel = stringResource(R.string.network_error_retry),
             onActionClick = onRetryClick,
-            // TODO: 시안의 `Graphic/Error`(80dp) 에셋이 아직 없어서 그래픽 없이 둔다. 받으면
-            //  graphic = { Image(...) }로 넣으면 된다 — RunvealEmptyState가 80dp 자리를 이미 잡아 둔다.
+            // design/images/error.png(320x320px = 80dp)를 빌드가 drawable-xxxhdpi로 복사해 둔다.
+            // 자체 색을 가진 그래픽이라 Icon(tint)이 아니라 Image로 그린다.
+            graphic = {
+                Image(
+                    painter = painterResource(R.drawable.error),
+                    contentDescription = null,
+                    modifier = Modifier.size(80.dp),
+                )
+            },
             modifier = Modifier
                 .align(Alignment.Center)
                 .padding(horizontal = RunvealTheme.layout.marginScreen),
