@@ -22,9 +22,10 @@
 	<array>
 		<string>location</string>
 	</array>
-	<!-- 다른 앱에 기록된 러닝을 가져오는 데 쓴다(Android Health Connect와 같은 역할). -->
-	<key>NSHealthShareUsageDescription</key>
-	<string>다른 앱에 기록된 러닝을 가져와 탐험 지도에 반영하는 데 사용해요.</string>
+	<!-- HTTPS 외에 자체 암호화를 쓰지 않아 수출 규정 면제 대상이다. 이 키가 없으면
+	     업로드마다 App Store Connect가 수출 규정 질문을 띄워 자동 배포가 멈춘다. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<!-- 다크 모드 단일 테마 — 시스템 설정과 무관하게 항상 다크로 고정한다(Android와 같다). -->
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
