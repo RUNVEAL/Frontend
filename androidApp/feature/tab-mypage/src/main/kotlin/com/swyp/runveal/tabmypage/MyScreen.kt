@@ -72,6 +72,7 @@ private const val TOAST_DURATION_MILLIS = 3000L
 @Composable
 fun MyScreen(
     onLoggedOut: () -> Unit,
+    onTermsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MyViewModel = viewModel(),
 ) {
@@ -158,6 +159,7 @@ fun MyScreen(
                     SettingsSection(
                         isLocationPermissionGranted = locationPermissionState.isGranted,
                         onLocationPermissionClick = onLocationPermissionClick,
+                        onTermsClick = onTermsClick,
                         onIntent = viewModel::onIntent,
                     )
                     AccountSection(onIntent = viewModel::onIntent)
@@ -196,6 +198,7 @@ fun MyScreen(
 private fun SettingsSection(
     isLocationPermissionGranted: Boolean,
     onLocationPermissionClick: () -> Unit,
+    onTermsClick: () -> Unit,
     onIntent: (MyIntent) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -238,7 +241,7 @@ private fun SettingsSection(
         }
         RunvealListItem(
             title = stringResource(R.string.my_menu_terms),
-            onClick = { onIntent(MyIntent.TermsClicked) },
+            onClick = onTermsClick,
             trailing = RunvealListItemTrailing.Chevron,
         )
     }

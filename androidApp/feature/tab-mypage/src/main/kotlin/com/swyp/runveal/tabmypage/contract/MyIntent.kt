@@ -5,7 +5,6 @@ import com.swyp.runveal.ui.mvi.UiIntent
 sealed interface MyIntent : UiIntent {
     data object NicknameChangeClicked : MyIntent
     data object ImportRecordsClicked : MyIntent
-    data object TermsClicked : MyIntent
     /** 로그아웃 항목 탭 — 바로 실행하지 않고 확인 다이얼로그를 띄운다. */
     data object LogoutClicked : MyIntent
     data object LogoutConfirmed : MyIntent

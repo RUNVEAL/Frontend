@@ -41,15 +41,13 @@ class MyViewModel : MviViewModel<MyIntent, MyState, MyEffect>(
 
     override suspend fun handleIntent(intent: MyIntent) {
         when (intent) {
-            // 아래 넷은 아직 붙일 기능이 없어 전부 "준비 중" 안내만 띄운다. 각 TODO가 풀리는 대로
+            // 아래 셋은 아직 붙일 기능이 없어 전부 "준비 중" 안내만 띄운다. 각 TODO가 풀리는 대로
             // 하나씩 실제 동작으로 바꾼다.
             //  - TODO: 닉네임 변경 화면으로 이동 — 회원 정보 기능이 붙은 뒤.
             //  - TODO: Health Connect 기록 가져오기 — 가져오기 기능이 붙은 뒤.
-            //  - TODO: 약관 및 정책 보기 — 약관 목록 API가 붙은 뒤.
             //  - TODO: 회원 탈퇴 — 회원 API가 붙은 뒤(되돌릴 수 없으니 확인 다이얼로그 필요).
             MyIntent.NicknameChangeClicked,
             MyIntent.ImportRecordsClicked,
-            MyIntent.TermsClicked,
             MyIntent.WithdrawClicked,
             -> setState { copy(showNotReadyToast = true) }
 

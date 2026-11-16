@@ -28,4 +28,11 @@
     <string name="my_logout_dialog_cancel">취소</string>
 
     <string name="my_not_ready_toast">아직 준비 중인 기능이에요</string>
+
+    <string name="terms_policy_title">약관 및 정책</string>
+    <string name="terms_policy_service">서비스 이용약관</string>
+    <string name="terms_policy_privacy">개인정보 처리방침</string>
+    <string name="terms_policy_location">위치기반서비스 이용약관</string>
+    <string name="terms_policy_open_source">오픈소스 라이선스</string>
+    <string name="terms_policy_app_version">앱 버전 정보</string>
 </resources>
