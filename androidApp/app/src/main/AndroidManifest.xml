@@ -30,6 +30,27 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+          카카오 계정 로그인(웹)이 끝나고 커스텀 스킴으로 돌아올 때 인증 코드를 받는 SDK 액티비티.
+          카카오 SDK가 매니페스트에 넣어 주지 않아서 앱이 직접 선언해야 한다 — 없으면 카카오톡이
+          안 깔린 기기에서 로그인이 돌아올 곳을 못 찾아 그대로 끝난다. 스킴의 앱 키는
+          build.gradle.kts의 manifestPlaceholders가 local.properties에서 채운다.
+        -->
+        <activity
+            android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="oauth"
+                    android:scheme="kakao${kakaoNativeAppKey}" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>
