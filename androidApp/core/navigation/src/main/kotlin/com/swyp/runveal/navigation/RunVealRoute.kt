@@ -68,5 +68,14 @@ sealed interface RunVealRoute : Route {
 
         @Serializable
         data object My : HomeTab
+
+        /** MY 탭에서 들어가는 약관 및 정책 목록. 탭바를 숨기고 전체 화면으로 띄운다. */
+        @Serializable
+        data object Terms : HomeTab
+
+        /** 약관 한 건의 본문. [item]은 어떤 약관인지(`TermsPolicyItem`의 이름) — 상단 제목과 본문을
+         * 고르는 데 쓴다. 문서 자체를 라우트로 넘기지 않는 건 본문이 길고 서버에서 받아올 값이라서다. */
+        @Serializable
+        data class TermsDetail(val item: String) : HomeTab
     }
 }

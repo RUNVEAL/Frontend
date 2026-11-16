@@ -1,5 +1,6 @@
 package com.swyp.runveal.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -96,7 +97,7 @@ private val LOCATION_BANNER_EXTRA_INSET = 56.dp
  * 코스 추천)은 전부 이 아래 단일 NavHost로 조립한다. 탭바 노출 규칙도 여기 한 곳에만 둔다.
  */
 @Composable
-internal fun HomeScreen(modifier: Modifier = Modifier) {
+internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) {
     val tabNavigator = rememberRunVealNavigator()
     val mapState = rememberMapState()
     val locationPermissionState = rememberLocationPermissionState()
@@ -122,10 +123,24 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
     val isCourseRecommendFlow = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() == true ||
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommendResult>() == true ||
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseDetail>() == true
-    // 지도 위 흐름(코스 추천, 코스 추천 결과, 코스 상세, 러닝 기록, 러닝 결과)에 들어가 있을 때만 탭바를 완전히 숨긴다.
+    // 약관 및 정책은 탭 안에서 들어가지만 그 자체로 전체 화면이라 탭바를 숨긴다 — 뒤로가기로
+    // 목록·MY 탭으로 돌아온다.
+    val isTermsFlow = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Terms>() == true ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.TermsDetail>() == true
+    // 지도 위 흐름(코스 추천, 코스 추천 결과, 코스 상세, 러닝 기록, 러닝 결과)과 약관 흐름에
+    // 들어가 있을 때만 탭바를 완전히 숨긴다.
     val showTabBar = !isCourseRecommendFlow &&
+        !isTermsFlow &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() != true &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Result>() != true
+    // 지도가 보여야 하는 목적지인지. 지도는 항상 그려 두고(끄면 MapLibre가 매번 스타일을 다시
+    // 로드한다) 지도를 쓰지 않는 화면에서만 위를 덮는다 — 그래야 화면 전환 중 양쪽이 반투명해지는
+    // 구간에 뒤의 지도가 비치지 않는다. currentDestination이 아직 null인 첫 프레임은 시작 목적지가
+    // HomeMap이라 덮지 않는다.
+    val isMapDestination = currentDestination == null ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.HomeMap>() == true ||
+        isCourseRecommendFlow ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() == true
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
 
     // 너무 짧아 저장하지 않은 러닝처럼, 화면 전환만으로는 이유를 알 수 없는 경우에만 띄우는 안내.
@@ -163,6 +178,10 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                 hideRegionOverlays = isCourseRecommendFlow,
                 modifier = Modifier.fillMaxSize(),
             )
+
+            if (!isMapDestination) {
+                Box(modifier = Modifier.fillMaxSize().background(RunvealTheme.colors.bg.canvas))
+            }
 
             NavHost(
                 navController = tabNavigator.navController,
@@ -211,7 +230,7 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                 }
                 courseGraph(tabNavigator)
                 recordGraph(tabNavigator)
-                myGraph(tabNavigator)
+                myGraph(tabNavigator, onLoggedOut = onLoggedOut)
             }
 
             toastMessage?.let { message ->

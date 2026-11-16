@@ -1,0 +1,87 @@
+package com.swyp.runveal.tabmypage
+
+import android.content.Context
+import android.content.pm.PackageManager
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.swyp.runveal.designsystem.component.list.RunvealListItem
+import com.swyp.runveal.designsystem.component.list.RunvealListItemTrailing
+import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBar
+import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
+import com.swyp.runveal.designsystem.theme.RunvealTheme
+import com.swyp.runveal.feature.tabmypage.R
+import com.swyp.runveal.tabmypage.contract.TermsPolicyItem
+
+/**
+ * 약관 및 정책 목록. 문서는 아직 열 수 없어서 눌러도 안내 토스트만 띄운다 — 약관 목록 API
+ * (`docs/api/API.md` §3.8)가 붙으면 받아 온 URL을 여는 자리다.
+ *
+ * 상태랄 게 앱 버전 하나뿐이고 그마저도 기기에서 바로 읽는 값이라 ViewModel을 두지 않았다.
+ */
+@Composable
+internal fun TermsPolicyScreen(
+    onBackClick: () -> Unit,
+    onItemClick: (TermsPolicyItem) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val versionName = remember(context) { context.appVersionName() }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(RunvealTheme.colors.bg.canvas)
+            .windowInsetsPadding(WindowInsets.statusBars),
+    ) {
+        RunvealTopAppBar(
+            leading = RunvealTopAppBarLeading.Back,
+            onLeadingClick = onBackClick,
+            title = stringResource(R.string.terms_policy_title),
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = RunvealTheme.layout.marginScreen)
+                .padding(top = RunvealTheme.spacing.space24),
+        ) {
+            TermsPolicyItem.entries.forEach { item ->
+                RunvealListItem(
+                    title = stringResource(item.labelRes),
+                    onClick = { onItemClick(item) },
+                    trailing = RunvealListItemTrailing.Chevron,
+                )
+            }
+
+            // 앱 버전은 눌러서 여는 줄이 아니라 값을 보여주는 줄이다 — chevron 대신 값을 오른쪽에
+            // 둔다. RunvealListItem의 TextButton 자리를 쓰되 누르면 아무 일도 하지 않는다.
+            RunvealListItem(
+                title = stringResource(R.string.terms_policy_app_version),
+                onClick = {},
+                trailing = RunvealListItemTrailing.TextButton,
+                trailingButtonLabel = versionName,
+            )
+        }
+    }
+}
+
+/**
+ * 설치된 앱의 버전. `BuildConfig`는 모듈마다 따로 생성돼서 라이브러리 모듈에서는 앱 버전을 알 수
+ * 없다 — PackageManager로 실제 설치본의 값을 읽는다.
+ */
+private fun Context.appVersionName(): String =
+    runCatching { packageManager.getPackageInfo(packageName, 0).versionName }
+        .getOrNull()
+        ?.let { "v$it" }
+        .orEmpty()
