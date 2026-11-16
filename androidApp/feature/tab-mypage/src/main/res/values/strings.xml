@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="my_title">MY</string>
+
+    <!-- TODO: 회원 정보(auth)와 연결되면 제거한다. 실제 닉네임이 들어오면 이 값은 안 쓰인다. -->
+    <string name="my_nickname_placeholder">러너</string>
+
+    <string name="my_stat_explored_dong_label">탐험한 동</string>
+    <string name="my_stat_explored_dong_unit">개</string>
+    <string name="my_stat_total_distance_label">누적 거리</string>
+    <string name="my_stat_total_distance_unit">km</string>
+
+    <string name="my_section_settings">설정</string>
+    <string name="my_menu_change_nickname">닉네임 변경</string>
+    <string name="my_menu_import_records">기록 불러오기</string>
+    <string name="my_menu_location_permission">위치 권한 설정</string>
+    <string name="my_menu_location_permission_granted">허용됨</string>
+    <string name="my_menu_location_permission_denied">허용 안 됨</string>
+    <string name="my_menu_terms">약관 및 정책</string>
+
+    <string name="my_section_account">계정</string>
+    <string name="my_menu_logout">로그아웃</string>
+    <string name="my_menu_withdraw">회원탈퇴</string>
+</resources>
