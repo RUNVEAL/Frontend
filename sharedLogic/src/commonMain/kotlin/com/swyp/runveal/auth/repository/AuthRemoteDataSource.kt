@@ -30,5 +30,14 @@ interface AuthRemoteDataSource {
     /** 가입 절차를 이미 끝냈는지. 토큰은 있는데 이게 false면 가입 도중에 앱이 끊긴 상태다. */
     suspend fun isSignUpCompleted(): Boolean
 
+    /**
+     * 가입 때 정한 닉네임. 아직 가입을 안 끝냈으면 null.
+     *
+     * TODO(서버 인증) 지금은 [completeSignUp]이 로컬에 적어 둔 값을 그대로 읽는다. 서버가 붙으면 회원 조회
+     * API가 따로 없으므로(API.md §3.8의 7개 목록에 없음) 로그인 응답이 준 닉네임을 캐시해 읽는
+     * 형태가 된다 — 읽는 쪽 코드는 그대로 두고 여기 구현만 바꾸면 된다.
+     */
+    suspend fun nickname(): String?
+
     suspend fun logout()
 }

@@ -86,6 +86,9 @@ internal fun TermsAgreementScreen(
                 modifier = Modifier.padding(top = RunvealTheme.spacing.space32),
                 verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
             ) {
+                // 전체 동의 박스는 화면 좌우 여백(16dp)에 바로 붙고, 그 안쪽 패딩이 12dp다.
+                // 아래 필수 약관 줄들은 배경이 없어서 그냥 두면 체크박스가 16dp에 붙어 전체 동의와
+                // 어긋난다 — 같은 12dp를 줘서 체크박스 x 위치를 전부 28dp로 맞춘다.
                 Box(
                     modifier = Modifier
                         .clip(RunvealTheme.shapes.radius16)
@@ -108,6 +111,7 @@ internal fun TermsAgreementScreen(
                         trailingButtonLabel = stringResource(R.string.terms_agreement_view_button),
                         // TODO: 약관 본문 보기 — 약관 목록 API(API.md §3.8)가 붙으면 받아 온 URL을 연다.
                         onTrailingButtonClick = {},
+                        modifier = Modifier.padding(horizontal = RunvealTheme.spacing.space12),
                     )
                 }
             }

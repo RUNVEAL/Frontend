@@ -16,6 +16,11 @@ class CompleteSignUpUseCase(private val repository: AuthRepository) {
     suspend operator fun invoke(nickname: String) = repository.completeSignUp(nickname)
 }
 
+/** 마이페이지 등에서 지금 로그인한 사람의 닉네임을 읽는다. 가입 전이면 null. */
+class GetNicknameUseCase(private val repository: AuthRepository) {
+    suspend operator fun invoke(): String? = repository.nickname()
+}
+
 class LogoutUseCase(private val repository: AuthRepository) {
     suspend operator fun invoke() = repository.logout()
 }

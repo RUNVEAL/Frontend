@@ -20,6 +20,8 @@ import com.swyp.runveal.auth.state.AuthViewModel
 object AuthProvider {
     val repository: AuthRepository by lazy {
         AuthRepositoryImpl(
+            // TODO(서버 인증) 서버 구현(Ktor 기반 `AuthRemoteDataSource`)이 생기면 이 한 줄만 바꾼다.
+            //  위쪽(AuthRepositoryImpl·화면)은 손대지 않아도 된다.
             remote = LocalAuthRemoteDataSource(),
             kakao = KakaoAuthService(),
             google = GoogleAuthService(),

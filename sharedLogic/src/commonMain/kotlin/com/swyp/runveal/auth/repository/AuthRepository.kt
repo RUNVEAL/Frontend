@@ -15,6 +15,9 @@ interface AuthRepository {
     /** 가입 절차를 이미 끝냈는지. 토큰은 있는데 이게 false면 가입 도중에 앱이 끊긴 상태다. */
     suspend fun isSignUpCompleted(): Boolean
 
+    /** 가입 때 정한 닉네임. 아직 가입을 안 끝냈으면 null. */
+    suspend fun nickname(): String?
+
     /** 로컬에 저장된 AccessToken을 그대로 읽기만 한다 (네트워크 호출 없음). */
     suspend fun getAccessToken(): String?
 
