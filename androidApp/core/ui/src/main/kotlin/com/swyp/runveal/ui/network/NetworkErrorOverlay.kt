@@ -1,4 +1,4 @@
-package com.swyp.runveal.devicestate
+package com.swyp.runveal.ui.network
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
@@ -8,6 +8,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.swyp.runveal.devicestate.NetworkState
+import com.swyp.runveal.devicestate.rememberNetworkState
 
 /**
  * 어느 화면에 있든 네트워크가 끊기면 그 위를 [NetworkErrorScreen]으로 덮는다. 화면마다 따로

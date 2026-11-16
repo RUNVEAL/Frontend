@@ -1,4 +1,4 @@
-package com.swyp.runveal.devicestate
+package com.swyp.runveal.ui.network
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.swyp.runveal.devicestate.NetworkState
+import com.swyp.runveal.devicestate.rememberNetworkState
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import com.swyp.runveal.core.devicestate.R
+import com.swyp.runveal.core.ui.R
 import com.swyp.runveal.designsystem.component.list.RunvealEmptyState
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLeading

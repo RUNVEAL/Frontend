@@ -7,7 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
 import com.swyp.runveal.designsystem.theme.RunvealTheme
-import com.swyp.runveal.devicestate.NetworkErrorOverlay
+import com.swyp.runveal.ui.network.NetworkErrorOverlay
 import com.swyp.runveal.home.navigation.homeGraph
 import com.swyp.runveal.navigation.RunVealNavigator
 import com.swyp.runveal.navigation.RunVealRoute
