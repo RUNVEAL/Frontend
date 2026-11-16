@@ -24,5 +24,11 @@ interface AuthRemoteDataSource {
     /** 로컬에 저장된 AccessToken을 그대로 읽기만 한다 (네트워크 호출 없음). */
     suspend fun getAccessToken(): String?
 
+    /** 약관 동의·닉네임까지 받아 회원가입을 마무리한다 (인증/회원 API의 "회원가입 완료", API.md §3.8). */
+    suspend fun completeSignUp(nickname: String)
+
+    /** 가입 절차를 이미 끝냈는지. 토큰은 있는데 이게 false면 가입 도중에 앱이 끊긴 상태다. */
+    suspend fun isSignUpCompleted(): Boolean
+
     suspend fun logout()
 }

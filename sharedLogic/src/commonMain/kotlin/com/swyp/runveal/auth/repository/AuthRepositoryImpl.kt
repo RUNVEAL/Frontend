@@ -1,5 +1,6 @@
 package com.swyp.runveal.auth.repository
 
+import com.swyp.runveal.auth.model.LoginResult
 import com.swyp.runveal.auth.model.SocialAuthResult
 import com.swyp.runveal.auth.model.SocialLoginType
 import com.swyp.runveal.auth.service.GoogleAuthService
@@ -25,18 +26,25 @@ class AuthRepositoryImpl(
     private val recoverMutex = Mutex()
     private var recovering: Deferred<String?>? = null
 
-    override suspend fun login(social: SocialLoginType): SocialAuthResult {
-        val signInResult = serviceFor(social).signIn()
-        if (signInResult !is SocialAuthResult.Success) return signInResult
+    override suspend fun login(social: SocialLoginType): LoginResult {
+        val socialToken = when (val signInResult = serviceFor(social).signIn()) {
+            is SocialAuthResult.Success -> signInResult.token
+            SocialAuthResult.Cancelled -> return LoginResult.Cancelled
+            is SocialAuthResult.Failure -> return LoginResult.Failure(signInResult.debugMessage)
+        }
 
-        val login = runCatching { remote.login(signInResult.token, social) }
-            .getOrElse { return SocialAuthResult.Failure(it.message ?: "로그인 요청 실패") }
+        val login = runCatching { remote.login(socialToken, social) }
+            .getOrElse { return LoginResult.Failure(it.message ?: "로그인 요청 실패") }
         val accessToken = login.accessToken
-            ?: return SocialAuthResult.Failure("서버가 AccessToken을 내려주지 않음")
+            ?: return LoginResult.Failure("서버가 AccessToken을 내려주지 않음")
 
         remote.saveTokens(accessToken, login.refreshToken)
-        return SocialAuthResult.Success(accessToken)
+        return LoginResult.Success(isNewUser = login.isNewUser)
     }
+
+    override suspend fun completeSignUp(nickname: String) = remote.completeSignUp(nickname)
+
+    override suspend fun isSignUpCompleted(): Boolean = remote.isSignUpCompleted()
 
     override suspend fun logout() {
         val social = runCatching { remote.getSocialLoginType() }.getOrNull()
