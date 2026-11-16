@@ -19,5 +19,6 @@ apply(from = "gradle/runveal-tokens-swift.gradle.kts")
 apply(from = "gradle/runveal-icons-swift.gradle.kts")
 // design/images/* → iOS 번들 리소스 + RunvealImages.swift
 apply(from = "gradle/runveal-images-swift.gradle.kts")
-// 동/시군구/시도 경계 에셋 → iOS 번들 리소스 (+ 위 생성물을 묶은 generateRunvealIosResources)
-apply(from = "gradle/runveal-map-assets-ios.gradle.kts")
+// Android 모듈에 있는 공용 원본 에셋(경계 GeoJSON, 로딩 모션) → iOS 번들 리소스
+// (+ 위 생성물까지 묶은 generateRunvealIosResources)
+apply(from = "gradle/runveal-bundle-assets-ios.gradle.kts")

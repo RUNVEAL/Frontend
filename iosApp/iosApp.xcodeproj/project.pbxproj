@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A1C0DE000000000000000021 /* MapLibre in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE000000000000000011 /* MapLibre */; };
+		A1C0DE000000000000000022 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE000000000000000012 /* Lottie */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		88F9F68A6654612A031C497B /* Runveal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runveal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -41,6 +46,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A1C0DE000000000000000021 /* MapLibre in Frameworks */,
+				A1C0DE000000000000000022 /* Lottie in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -86,6 +93,8 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
+				A1C0DE000000000000000011 /* MapLibre */,
+				A1C0DE000000000000000012 /* Lottie */,
 			);
 			productName = iosApp;
 			productReference = 88F9F68A6654612A031C497B /* Runveal.app */;
@@ -115,6 +124,10 @@
 			);
 			mainGroup = 9C5BD4548748A870ECED943C;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A1C0DE000000000000000001 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */,
+				A1C0DE000000000000000002 /* XCRemoteSwiftPackageReference "lottie-ios" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A0B30ACB1FF18B38DCE63575 /* Products */;
 			projectDirPath = "";
@@ -388,6 +401,38 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A1C0DE000000000000000001 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/maplibre/maplibre-gl-native-distribution";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.0.0;
+			};
+		};
+		A1C0DE000000000000000002 /* XCRemoteSwiftPackageReference "lottie-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/airbnb/lottie-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.5.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A1C0DE000000000000000011 /* MapLibre */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE000000000000000001 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */;
+			productName = MapLibre;
+		};
+		A1C0DE000000000000000012 /* Lottie */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE000000000000000002 /* XCRemoteSwiftPackageReference "lottie-ios" */;
+			productName = Lottie;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BB0B32361F3BD455DFF09B33 /* Project object */;
 }
