@@ -1,3 +1,7 @@
+// 서명 팀 ID. 로컬에는 값을 두지 않고 CI가 주입한다 —
+// .github/workflows/build-ios.yml의 archive 잡이 IOS_TEAM_ID로
+// DEVELOPMENT_TEAM / TEAM_ID를 xcodebuild 인자로 넘긴다.
+// Mac에서 직접 실행할 때만 여기에 10자리 팀 ID를 채운다.
 TEAM_ID=
 
 PRODUCT_NAME=Runveal
