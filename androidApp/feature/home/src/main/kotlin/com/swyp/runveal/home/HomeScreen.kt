@@ -1,5 +1,6 @@
 package com.swyp.runveal.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -132,6 +133,14 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
         !isTermsFlow &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() != true &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Result>() != true
+    // 지도가 보여야 하는 목적지인지. 지도는 항상 그려 두고(끄면 MapLibre가 매번 스타일을 다시
+    // 로드한다) 지도를 쓰지 않는 화면에서만 위를 덮는다 — 그래야 화면 전환 중 양쪽이 반투명해지는
+    // 구간에 뒤의 지도가 비치지 않는다. currentDestination이 아직 null인 첫 프레임은 시작 목적지가
+    // HomeMap이라 덮지 않는다.
+    val isMapDestination = currentDestination == null ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.HomeMap>() == true ||
+        isCourseRecommendFlow ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() == true
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
 
     // 너무 짧아 저장하지 않은 러닝처럼, 화면 전환만으로는 이유를 알 수 없는 경우에만 띄우는 안내.
@@ -169,6 +178,10 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                 hideRegionOverlays = isCourseRecommendFlow,
                 modifier = Modifier.fillMaxSize(),
             )
+
+            if (!isMapDestination) {
+                Box(modifier = Modifier.fillMaxSize().background(RunvealTheme.colors.bg.canvas))
+            }
 
             NavHost(
                 navController = tabNavigator.navController,
