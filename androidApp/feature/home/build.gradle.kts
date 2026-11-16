@@ -1,5 +1,5 @@
 plugins {
-    id("runveal.android.library.compose")
+    id("runveal.android.feature")
 }
 
 android {
