@@ -39,7 +39,10 @@ class TrackLocalStore(
     private val json = Json
 
     /** 기록 종료 시 호출(§5): GPX 파일을 먼저 쓰고, 성공해야 `track` row를 insert한다 — 반대 순서면
-     * "DB엔 있는데 파일 없음" 상태가 더 자주 생긴다. */
+     * "DB엔 있는데 파일 없음" 상태가 더 자주 생긴다.
+     *
+     * [source]/[externalId]는 외부 기록을 가져올 때만 채운다(§3.7) — [externalId]에는 UNIQUE 제약이
+     * 걸려 있어서, 같은 외부 기록을 두 번 넣으려 하면 insert가 실패한다(중복 방지를 DB가 보장). */
     fun saveTrack(
         id: String,
         startedAtEpochMs: Long,
@@ -50,6 +53,8 @@ class TrackLocalStore(
         filteredGpx: String,
         rawGpx: String,
         nowEpochMs: Long,
+        source: TrackSource = TrackSource.LOCAL,
+        externalId: String? = null,
     ) {
         val filteredPath = "tracks/$id.gpx"
         val rawPath = "tracks/${id}_raw.gpx"
@@ -71,8 +76,17 @@ class TrackLocalStore(
             gpx_raw_path = rawPath,
             created_at_epoch_ms = nowEpochMs,
             updated_at_epoch_ms = nowEpochMs,
+            source = source.name,
+            external_id = externalId,
         )
     }
+
+    /** 이미 들여온 외부 기록 ID — 가져오기 시작 전에 한 번 읽어 건너뛸 세션을 걸러낸다. */
+    fun importedExternalIds(source: TrackSource): Set<String> =
+        database.trackQueries.selectExternalIdsBySource(source.name)
+            .executeAsList()
+            .mapNotNull { it }
+            .toSet()
 
     /** 매칭 완료 시 호출. 매칭된 경로는 `track_edge`에 그대로 저장(가본 길 렌더링용)하고, [segmentIds]
      * 중 [road_segment] 인덱스에 있는 것만 `run_segment`/`explored_segment`에 적립한다(인덱스에
