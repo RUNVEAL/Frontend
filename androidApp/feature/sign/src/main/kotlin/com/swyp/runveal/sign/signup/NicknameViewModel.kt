@@ -7,12 +7,14 @@ import com.swyp.runveal.sign.signup.contract.NICKNAME_MAX_LENGTH
 import com.swyp.runveal.sign.signup.contract.NicknameEffect
 import com.swyp.runveal.sign.signup.contract.NicknameIntent
 import com.swyp.runveal.sign.signup.contract.NicknameState
+import com.swyp.runveal.sign.signup.contract.suggestedNicknameOrEmpty
 import com.swyp.runveal.ui.mvi.MviViewModel
 
 private const val TAG = "SignUp"
 
 class NicknameViewModel : MviViewModel<NicknameIntent, NicknameState, NicknameEffect>(
-    initialState = NicknameState(),
+    // 로그인에서 받은 소셜 계정 이름을 미리 채워 둔다 — 못 받았거나 닉네임 규칙에 안 맞으면 공란.
+    initialState = NicknameState(nickname = suggestedNicknameOrEmpty(SuggestedNicknameHolder.value)),
 ) {
     private val completeSignUp = CompleteSignUpUseCase(AuthProvider.repository)
 

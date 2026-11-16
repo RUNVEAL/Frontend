@@ -11,7 +11,25 @@ import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 
 actual class KakaoAuthService actual constructor() : SocialAuthService {
-    actual override suspend fun signIn(): SocialAuthResult = suspendCancellableCoroutine { cont ->
+    actual override suspend fun signIn(): SocialAuthResult {
+        val result = kakaoLogin()
+        if (result !is SocialAuthResult.Success) return result
+        // 닉네임은 가입 화면 기본값으로만 쓰는 부가 정보다 — 조회가 실패해도 로그인은 성공시킨다.
+        return result.copy(displayName = fetchNicknameOrNull())
+    }
+
+    /**
+     * 카카오 계정에 설정된 닉네임. 콘솔에서 "닉네임" 동의 항목을 켜 두고 사용자가 동의했을 때만
+     * 값이 온다 — 거부했거나 조회가 실패하면 null이고, 그러면 가입 화면 닉네임은 공란으로 둔다.
+     */
+    private suspend fun fetchNicknameOrNull(): String? = suspendCancellableCoroutine { cont ->
+        UserApiClient.instance.me { user, error ->
+            val nickname = if (error == null) user?.kakaoAccount?.profile?.nickname else null
+            if (!cont.isCompleted) cont.resume(nickname)
+        }
+    }
+
+    private suspend fun kakaoLogin(): SocialAuthResult = suspendCancellableCoroutine { cont ->
         fun resumeWith(token: OAuthToken?, error: Throwable?) {
             if (cont.isCompleted) return
             when {

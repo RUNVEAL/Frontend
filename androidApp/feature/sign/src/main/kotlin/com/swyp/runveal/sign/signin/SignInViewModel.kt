@@ -8,6 +8,7 @@ import com.swyp.runveal.auth.usecase.LoginUseCase
 import com.swyp.runveal.sign.signin.contract.SignInEffect
 import com.swyp.runveal.sign.signin.contract.SignInIntent
 import com.swyp.runveal.sign.signin.contract.SignInState
+import com.swyp.runveal.sign.signup.SuggestedNicknameHolder
 import com.swyp.runveal.ui.mvi.MviViewModel
 
 private const val TAG = "SignIn"
@@ -35,6 +36,9 @@ class SignInViewModel : MviViewModel<SignInIntent, SignInState, SignInEffect>(
                 // 스플래시·홈이 보는 전역 상태를 먼저 확정한다 — 이동 후에 바꾸면 그 사이 프레임에서
                 // 아직 로그아웃으로 보인다.
                 AuthProvider.session.markLoggedIn()
+                // 가입 화면 닉네임 기본값으로 쓸 소셜 계정 이름. 항상 덮어쓴다 — 다른 계정으로
+                // 다시 로그인했을 때 옛 이름이 남으면 안 된다.
+                SuggestedNicknameHolder.publish(result.suggestedNickname)
                 setState { copy(loadingSocial = null) }
                 sendEffect(
                     if (result.isNewUser) SignInEffect.NavigateToSignUp else SignInEffect.NavigateToHome,

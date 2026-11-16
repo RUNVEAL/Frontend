@@ -27,11 +27,12 @@ class AuthRepositoryImpl(
     private var recovering: Deferred<String?>? = null
 
     override suspend fun login(social: SocialLoginType): LoginResult {
-        val socialToken = when (val signInResult = serviceFor(social).signIn()) {
-            is SocialAuthResult.Success -> signInResult.token
+        val signIn = when (val signInResult = serviceFor(social).signIn()) {
+            is SocialAuthResult.Success -> signInResult
             SocialAuthResult.Cancelled -> return LoginResult.Cancelled
             is SocialAuthResult.Failure -> return LoginResult.Failure(signInResult.debugMessage)
         }
+        val socialToken = signIn.token
 
         val login = runCatching { remote.login(socialToken, social) }
             .getOrElse { return LoginResult.Failure(it.message ?: "로그인 요청 실패") }
@@ -39,7 +40,7 @@ class AuthRepositoryImpl(
             ?: return LoginResult.Failure("서버가 AccessToken을 내려주지 않음")
 
         remote.saveTokens(accessToken, login.refreshToken)
-        return LoginResult.Success(isNewUser = login.isNewUser)
+        return LoginResult.Success(isNewUser = login.isNewUser, suggestedNickname = signIn.displayName)
     }
 
     override suspend fun completeSignUp(nickname: String) = remote.completeSignUp(nickname)
