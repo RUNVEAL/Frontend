@@ -71,7 +71,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2A7D31CC5E50DA68EBFC4D0A /* Build configuration list for PBXNativeTarget "iosApp" */;
 			buildPhases = (
-				6FDACDDF3F0EF193CA654288 /* Generate Runveal Design Tokens */,
+				6FDACDDF3F0EF193CA654288 /* Generate Runveal iOS Resources */,
 				AC05A22903859CD089FFD27C /* Compile Kotlin Framework */,
 				0D88F3CE80730C380C9C03C4 /* Sources */,
 				A613A73EBE640E87A88B335F /* Frameworks */,
@@ -136,7 +136,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		6FDACDDF3F0EF193CA654288 /* Generate Runveal Design Tokens */ = {
+		6FDACDDF3F0EF193CA654288 /* Generate Runveal iOS Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -146,14 +146,14 @@
 			);
 			inputPaths = (
 			);
-			name = "Generate Runveal Design Tokens";
+			name = "Generate Runveal iOS Resources";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle token generation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\ncd \"$SRCROOT/..\"\n./gradlew :generateRunvealTokensSwift\n";
+			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle iOS resource generation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\ncd \"$SRCROOT/..\"\n./gradlew :generateRunvealIosResources\n";
 		};
 		AC05A22903859CD089FFD27C /* Compile Kotlin Framework */ = {
 			isa = PBXShellScriptBuildPhase;
