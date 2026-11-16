@@ -37,10 +37,12 @@ dependencyResolutionManagement {
 
 include(":androidApp:app")
 include(":androidApp:core:designsystem")
+include(":androidApp:core:devicestate")
 include(":androidApp:core:map")
 include(":androidApp:core:navigation")
 include(":androidApp:core:permission")
 include(":androidApp:core:tracking")
+include(":androidApp:core:ui")
 include(":androidApp:core:ui-core")
 include(":androidApp:feature:course-recommend")
 include(":androidApp:feature:home")

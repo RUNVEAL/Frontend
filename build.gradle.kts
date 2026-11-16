@@ -12,5 +12,13 @@ plugins {
     alias(libs.plugins.googleServices) apply false
 }
 
-// design/runveal-tokens.json → Swift 디자인 토큰 자동 생성 (iOS). Kotlin 쪽은 androidApp/build.gradle.kts에서 생성.
+// iOS(iosApp) 빌드에 필요한 생성물. Kotlin/Android 쪽 같은 생성기는 각 모듈 build.gradle.kts에서 적용한다.
+// design/runveal-tokens.json → Swift 디자인 토큰
 apply(from = "gradle/runveal-tokens-swift.gradle.kts")
+// design/icons/*.svg → RunvealIcons.swift
+apply(from = "gradle/runveal-icons-swift.gradle.kts")
+// design/images/* → iOS 번들 리소스 + RunvealImages.swift
+apply(from = "gradle/runveal-images-swift.gradle.kts")
+// Android 모듈에 있는 공용 원본 에셋(경계 GeoJSON, 로딩 모션) → iOS 번들 리소스
+// (+ 위 생성물까지 묶은 generateRunvealIosResources)
+apply(from = "gradle/runveal-bundle-assets-ios.gradle.kts")
