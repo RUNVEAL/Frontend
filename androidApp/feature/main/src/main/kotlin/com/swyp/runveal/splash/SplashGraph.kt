@@ -94,6 +94,8 @@ private suspend fun resolveStartDestination(): RunVealRoute {
     if (AuthProvider.session.resolveLocalSession() != AuthState.LoggedIn) return RunVealRoute.Sign.SignIn
     if (AuthProvider.repository.isSignUpCompleted()) return RunVealRoute.Home.Main
 
+    // TODO(서버 인증) 이 "반쪽 세션" 처리는 가입 완료 여부를 로컬 플래그로만 알 수 있어서 생긴 것이다.
+    //  서버가 신규/기존과 가입 완료 상태를 알려주면 이 분기 자체가 필요 없어진다.
     // 토큰은 있는데 가입 절차(약관 동의·닉네임)를 안 끝낸 반쪽 세션 — 약관 동의 화면에서 앱을 껐을
     // 때다. 그대로 홈에 들여보내면 동의 없이 쓰게 되니 로그인부터 다시 받는다. 소셜 SDK가 계정을
     // 기억하고 있어서 보통 탭 한 번이면 끝나고, 그 로그인이 남은 토큰을 덮어쓴다.

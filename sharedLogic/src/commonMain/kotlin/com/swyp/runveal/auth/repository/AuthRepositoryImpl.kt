@@ -47,6 +47,8 @@ class AuthRepositoryImpl(
 
     override suspend fun isSignUpCompleted(): Boolean = remote.isSignUpCompleted()
 
+    override suspend fun nickname(): String? = remote.nickname()
+
     override suspend fun logout() {
         val social = runCatching { remote.getSocialLoginType() }.getOrNull()
         social?.let { runCatching { serviceFor(it).signOut() } }

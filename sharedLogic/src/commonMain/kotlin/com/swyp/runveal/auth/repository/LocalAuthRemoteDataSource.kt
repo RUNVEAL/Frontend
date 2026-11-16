@@ -6,6 +6,9 @@ import com.swyp.runveal.auth.storage.SecureTokenStore
 import com.swyp.runveal.auth.storage.StorageKey
 
 /**
+ * TODO(서버 인증) **이 파일은 서버 인증 API가 붙으면 통째로 지운다.** 같은 태그가 붙은 곳을 전부 찾아
+ * (`grep -rn "TODO(서버 인증)"`) 함께 정리해야 한다 — 로컬 저장으로 흉내 낸 세션/가입 상태가 여기저기 걸쳐 있다.
+ *
  * 서버 인증 API가 아직 없어서 쓰는 임시 [AuthRemoteDataSource]. 소셜 SDK가 준 토큰을 그대로 세션
  * 토큰으로 보고 [SecureTokenStore]에만 넣는다 — 서버 교환·재발급이 없으니 "로그인 여부"는 곧
  * "이 기기에 소셜 로그인 기록이 남아 있는지"다.
@@ -44,6 +47,8 @@ class LocalAuthRemoteDataSource(
 
     override suspend fun isSignUpCompleted(): Boolean =
         store.read(StorageKey.SIGN_UP_COMPLETED).toBoolean()
+
+    override suspend fun nickname(): String? = store.read(StorageKey.NICKNAME)
 
     override suspend fun reissueAccessToken(): String? = null
 

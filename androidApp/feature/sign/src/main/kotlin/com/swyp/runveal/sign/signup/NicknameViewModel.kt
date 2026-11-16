@@ -35,7 +35,7 @@ class NicknameViewModel : MviViewModel<NicknameIntent, NicknameState, NicknameEf
         if (!currentState.canSubmit) return
         setState { copy(isSubmitting = true, showError = false) }
 
-        // TODO: 닉네임 중복 확인(API.md §3.8)은 서버 인증 API가 붙은 뒤에 여기서 먼저 호출한다.
+        // TODO(서버 인증) 닉네임 중복 확인(API.md §3.8)을 여기서 먼저 호출한다.
         //  지금은 LocalAuthRemoteDataSource가 로컬에만 저장해서 중복을 알 방법이 없다.
         val result = runCatching { completeSignUp(nickname) }
         setState { copy(isSubmitting = false, showError = result.isFailure) }
