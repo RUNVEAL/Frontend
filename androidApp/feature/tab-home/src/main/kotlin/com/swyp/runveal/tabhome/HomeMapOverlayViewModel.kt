@@ -37,15 +37,9 @@ class HomeMapOverlayViewModel : MviViewModel<Nothing, HomeMapOverlayState, Nothi
 
             when (val result = dongApi.fetchDong(lat = location.lat, lon = location.lon)) {
                 is DongResult.Success -> {
-                    // 시도를 뺀 이름을 쓴다 — 한 줄짜리 자리라 "충청남도 천안시서북구 부성2동"은
-                    // 길어서 잘린다(DongResponse.shortName).
-                    setState {
-                        copy(
-                            dongName = result.dong.shortName,
-                            dongOnly = result.dong.dongOnly,
-                            dongCode = result.dong.code,
-                        )
-                    }
+                    // 행정동만 쓴다 — 지도 위 한 줄짜리 자리라 "충청남도 천안시서북구 부성2동"은
+                    // 길어서 잘리고, 줌인 헤더는 "내 동네"가 앞에 붙어 더 길어진다.
+                    setState { copy(dongName = result.dong.dongOnly, dongCode = result.dong.code) }
                     // 줌아웃 요약 카드는 다른 모듈(feature:home)이라 상태를 직접 못 본다 — 홀더로 넘긴다.
                     CurrentDongHolder.publish(result.dong)
                 }
