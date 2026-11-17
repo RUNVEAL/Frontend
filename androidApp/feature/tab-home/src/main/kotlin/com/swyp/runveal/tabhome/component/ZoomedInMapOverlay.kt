@@ -144,12 +144,6 @@ private fun ExploreSummaryCard(
         ) {
             Text("내 동네", style = RunvealTheme.typography.bodyLRegular, color = colors.text.secondary)
             Text(dongName, style = RunvealTheme.typography.heading3, color = colors.text.primary)
-            Icon(
-                imageVector = RunvealIcons.Chevron,
-                contentDescription = null,
-                tint = colors.icon.tertiary,
-                modifier = Modifier.size(14.dp),
-            )
         }
 
         Row(
