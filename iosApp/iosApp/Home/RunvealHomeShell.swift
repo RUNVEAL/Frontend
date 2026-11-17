@@ -121,7 +121,10 @@ struct RunvealHomeShell: View {
         case .record:
             RecordScreen()
         case .my:
-            MyScreen(onTermsItemClick: { item in navigator.push(.termsDetail(item: item)) })
+            MyScreen(
+                permissionState: permissionState,
+                onTermsItemClick: { item in navigator.push(.termsDetail(item: item)) }
+            )
         }
     }
 
