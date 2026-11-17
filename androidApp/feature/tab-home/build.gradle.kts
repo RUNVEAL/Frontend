@@ -17,6 +17,7 @@ android {
 
 dependencies {
     implementation(project(":androidApp:core:designsystem"))
+    implementation(project(":androidApp:core:devicestate"))
     implementation(project(":androidApp:core:map"))
     implementation(project(":androidApp:core:navigation"))
     implementation(project(":sharedLogic"))
