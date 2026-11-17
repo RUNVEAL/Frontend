@@ -17,6 +17,9 @@ android {
 
 dependencies {
     implementation(project(":androidApp:core:designsystem"))
+    implementation(project(":androidApp:core:health"))
+    // 결과 화면의 경로 지도 — CourseSnapshotImage
+    implementation(project(":androidApp:core:map"))
     implementation(project(":androidApp:core:navigation"))
     implementation(project(":androidApp:core:permission"))
     implementation(project(":sharedLogic"))

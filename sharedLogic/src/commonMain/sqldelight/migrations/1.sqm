@@ -1,0 +1,19 @@
+-- 스키마 v1 → v2. 이 프로젝트의 첫 마이그레이션이다.
+--
+-- v1까지는 마이그레이션 파일이 없어서, 스키마가 바뀌면 기존 설치 기기에서 앱이 시작과 동시에
+-- 죽었다(커밋 3446681 — 자동 백업으로 복원된 옛 DB가 신규 스키마로 못 올라가 `no such table`).
+-- 그래서 Health Connect 가져오기에 필요한 컬럼을 추가하면서 마이그레이션 체계를 같이 들인다.
+-- 앞으로 .sq의 CREATE 문을 바꿀 때는 반드시 여기(또는 다음 번호 파일)에 같은 변경을 추가해야 한다.
+
+-- 외부 기록 출처/원본 ID (docs/api/API.md §4 runs). 기존 러닝은 전부 앱에서 직접 기록한 것이라
+-- DEFAULT 'LOCAL' + external_id NULL로 채워진다.
+ALTER TABLE track ADD COLUMN source TEXT NOT NULL DEFAULT 'LOCAL';
+ALTER TABLE track ADD COLUMN external_id TEXT;
+
+CREATE UNIQUE INDEX track_external_id_idx ON track(external_id);
+
+-- 가져오기 재개 지점 등을 담는 키-값 저장소.
+CREATE TABLE app_setting (
+    key   TEXT PRIMARY KEY NOT NULL,
+    value TEXT NOT NULL
+);

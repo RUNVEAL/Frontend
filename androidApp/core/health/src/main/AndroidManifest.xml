@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Health Connect 읽기 권한 선언은 core:permission 매니페스트에 있다 — 앱이 요구하는 권한은
+      그 모듈에 모아 둔다. 이 모듈은 권한을 "쓰는" 쪽이다.
+    -->
+
+    <!--
+      Android 13 이하에서는 Health Connect가 별도 앱(APK)이라, 설치 여부를 확인하려면 패키지
+      가시성 선언이 필요하다. 없으면 getSdkStatus()가 설치돼 있어도 SDK_UNAVAILABLE로 보인다.
+      Android 14+는 OS에 포함돼 이 선언과 무관하게 동작한다.
+    -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+    </queries>
+
+</manifest>

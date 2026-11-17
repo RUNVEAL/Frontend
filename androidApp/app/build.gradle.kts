@@ -31,6 +31,7 @@ if (file("google-services.json").exists()) {
 dependencies {
     implementation(project(":androidApp:feature:main"))
     implementation(project(":androidApp:core:devicestate"))
+    implementation(project(":androidApp:core:health"))
     implementation(project(":androidApp:core:permission"))
     implementation(project(":androidApp:core:tracking"))
 

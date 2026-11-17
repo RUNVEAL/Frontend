@@ -1,0 +1,17 @@
+-- 앱 설정·진행 상태 키-값 저장(docs/api/API.md §4 settings — "불러오기 재개 지점" 등). 타입마다
+-- 컬럼을 두는 대신 문자열 한 칸으로 두고 호출부가 파싱한다 — 항목이 적고 종류가 계속 바뀐다.
+CREATE TABLE app_setting (
+    key   TEXT PRIMARY KEY NOT NULL,
+    value TEXT NOT NULL
+);
+
+selectSetting:
+SELECT value FROM app_setting WHERE key = ?;
+
+-- `ON CONFLICT DO UPDATE`(SQLite 3.24+)는 이 프로젝트 다이얼렉트(3.18)에도, minSdk 28 기기의
+-- SQLite(3.22)에도 없다. 참조하는 테이블이 없는 키-값 표라 REPLACE로 지우고 다시 넣어도 문제없다.
+upsertSetting:
+INSERT OR REPLACE INTO app_setting (key, value) VALUES (?, ?);
+
+deleteSetting:
+DELETE FROM app_setting WHERE key = ?;
