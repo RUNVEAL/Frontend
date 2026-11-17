@@ -25,8 +25,20 @@ on:
           - both         # + 둘 다 업로드
         default: compile
 
-  push:
-    branches: [ feature/ios ]
+  # iOS가 깨지는 걸 머지 전에 잡는다. macOS 러너는 분당 10배로 과금되므로
+  # **dev 푸시마다가 아니라 PR에서, iOS에 영향 있는 경로가 바뀔 때만** 돌린다
+  # (dev 푸시는 PR 머지로 들어오니 PR에서 이미 한 번 돈 셈이다).
+  pull_request:
+    branches: [ dev ]
+    paths:
+      - 'iosApp/**'
+      - 'sharedLogic/**'
+      - 'gradle/runveal-tokens-swift.gradle.kts'
+      - 'gradle/runveal-icons-swift.gradle.kts'
+      - 'gradle/runveal-images-swift.gradle.kts'
+      - 'gradle/runveal-bundle-assets-ios.gradle.kts'
+      - 'design/**'
+      - '.github/workflows/build-ios.yml'
 
 concurrency:
   group: build-ios-${{ github.ref }}
@@ -36,7 +48,7 @@ jobs:
   # ──────────────────── Swift 컴파일 검사 ────────────────────
   compile:
     name: Swift 컴파일 검사 (시뮬레이터 · 서명 없음)
-    if: ${{ github.event_name == 'push' || inputs.mode == 'compile' }}
+    if: ${{ github.event_name == 'pull_request' || inputs.mode == 'compile' }}
     # macos-15는 Apple Silicon이다. KMP 타깃이 iosArm64 + iosSimulatorArm64뿐이라
     # Intel 러너(macos-13)에서는 시뮬레이터용 프레임워크가 만들어지지 않는다.
     runs-on: macos-15
