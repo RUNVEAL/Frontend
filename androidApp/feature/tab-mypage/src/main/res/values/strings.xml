@@ -65,4 +65,12 @@
     <string name="terms_policy_location">위치기반서비스 이용약관</string>
     <string name="terms_policy_open_source">오픈소스 라이선스</string>
     <string name="terms_policy_app_version">앱 버전 정보</string>
+
+    <!-- 오픈소스 라이선스 화면 -->
+    <string name="oss_map_section">지도</string>
+    <string name="oss_map_data">지도 데이터 © OpenStreetMap contributors</string>
+    <string name="oss_map_data_license">ODbL 1.0</string>
+    <string name="oss_map_tiles">지도 타일 OpenFreeMap · OpenMapTiles</string>
+    <string name="oss_map_tiles_license">BSD 3-Clause</string>
+    <string name="oss_library_section">라이브러리</string>
 </resources>
