@@ -88,8 +88,9 @@ internal fun TermsDetailScreen(
  * 로드가 끝나기 전까지 캔버스 색으로 덮인 채 로딩 모션만 보인다. 배경색을 지정하지 않으면 로드
  * 직전에 흰 화면이 한 번 번쩍인다 — 앱이 다크 단일 테마라 특히 눈에 띈다.
  *
- * TODO: 원문 HTML이 밝은 배경이라 다크 모드인 앱 안에서 이 화면만 희게 보인다. 원문에
- *  `prefers-color-scheme`을 넣거나(권장), 안 되면 `androidx.webkit`의 알고리즘 다크닝을 켠다.
+ * 원문 HTML이 이미 다크 테마라 앱 안에서 겉돌지 않는다(실기기 확인). 원문을 밝은 배경으로 바꾸면
+ * 이 화면만 희게 뜨므로, 그때는 원문에 `prefers-color-scheme`을 넣는 쪽이 낫다 — 앱에서
+ * 강제 다크닝(`androidx.webkit`)을 걸면 글자가 뭉개진다.
  */
 @Composable
 private fun TermsWebView(url: String, modifier: Modifier = Modifier) {
