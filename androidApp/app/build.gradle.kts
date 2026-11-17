@@ -46,7 +46,8 @@ android {
         applicationId = "com.swyp.runveal"
         // CI가 실행 번호를 넘겨 자동으로 올린다(`-PversionCode=123`). 로컬 빌드는 1 고정.
         versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
-        versionName = providers.gradleProperty("versionName").orNull ?: "1.0"
+        // 마이페이지 "앱 버전 정보"에 그대로 보이는 값이라 semver 세 자리로 둔다(v1.0.0).
+        versionName = providers.gradleProperty("versionName").orNull ?: "1.0.0"
 
         // 카카오 계정 로그인(카카오톡 미설치·로그인 실패 시 쓰는 웹 로그인)이 돌아올 주소
         // `kakao{NATIVE_APP_KEY}://oauth`를 AndroidManifest의 AuthCodeHandlerActivity에 꽂아 준다.
