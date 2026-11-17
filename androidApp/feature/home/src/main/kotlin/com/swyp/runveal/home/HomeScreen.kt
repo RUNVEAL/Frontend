@@ -57,6 +57,7 @@ import com.swyp.runveal.designsystem.component.overlay.RunvealToast
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.map.MapConfig
 import com.swyp.runveal.navigation.RunVealRoute
+import com.swyp.runveal.network.dong.CurrentDongHolder
 import com.swyp.runveal.navigation.rememberRunVealNavigator
 import com.swyp.runveal.feature.home.R
 import com.swyp.runveal.map.LatLon
@@ -155,6 +156,9 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
         delay(TOAST_DURATION_MS)
         toastMessage = null
     }
+
+    // 지금 서 있는 동 — 조회는 홈 지도 오버레이가 하고(tab-home), 여기선 그 결과만 본다.
+    val currentDong by CurrentDongHolder.state.collectAsStateWithLifecycle()
 
     val onSelectTab: (Int) -> Unit = { index ->
         val route: RunVealRoute.HomeTab = when (index) {
@@ -294,12 +298,16 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                         RunvealHomeBottomPanel(
                             banner = locationOffBanner,
                             summary = {
-                                // TODO: 러닝 기록 연동 추가 예정
+                                // TODO: 탐험률(ratePercent) 연동 추가 예정 — currentDong.code로 찾는다.
+                                // 동 이름 옆에 "내 동네" 꼬리표가 붙으므로 이름은 행정동만 쓴다.
+                                // 아직 못 받았으면(위치 권한 없음·서비스 지역 밖) 꼬리표 없이
+                                // "내 동네"만 — 꼬리표까지 붙이면 "내 동네 내 동네"가 된다.
                                 RunvealSummaryCard(
-                                    dongName = "내 동네",
+                                    dongName = currentDong?.dongOnly
+                                        ?: stringResource(R.string.home_summary_my_dong),
                                     ratePercent = 0,
                                     onClick = {},
-                                    isMine = true
+                                    isMine = currentDong != null,
                                 )
                             },
                             tabBar = {

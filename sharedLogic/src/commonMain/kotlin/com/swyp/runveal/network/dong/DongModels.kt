@@ -32,6 +32,15 @@ data class DongResponse(
             val parts = name.split(" ").filter { it.isNotBlank() }
             return if (parts.size >= 3) parts.drop(1).joinToString(" ") else name
         }
+
+    /**
+     * 행정동만 — 예: "충청남도 천안시서북구 부성1동" → "부성1동".
+     *
+     * 홈 요약 카드처럼 "내 동네" 꼬리표가 바로 뒤에 붙는 자리에 쓴다. 거기선 어느 구인지까지
+     * 적을 자리도 없고, 내 동네라는 게 이미 드러나서 동 이름만으로 충분하다.
+     */
+    val dongOnly: String
+        get() = name.split(" ").lastOrNull { it.isNotBlank() } ?: name
 }
 
 /** `GET /api/v1/dong` 결과. 실패를 예외로 던지지 않고 타입으로 나눠, 호출부가 "서비스 지역 밖"과
