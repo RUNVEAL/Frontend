@@ -28,6 +28,11 @@ data class DongOverlayBundle(
      * 여기서 꺼내 쓰므로, 카드 숫자와 지도 밝기가 어긋날 수 없다. 0%인 동은 들어 있지 않다
      * ([DongExploreRate.percents]) — 없으면 0으로 읽으면 된다. */
     val dongPercents: Map<String, Int>,
+    /** 동별 "가본 길" 길이(m)와 전체 도로 길이(m) — [dongPercents]의 분자·분모 그대로다. 줌인 헤더의
+     * "누적 N km / 전체 N km"가 퍼센트와 어긋나지 않게 같은 값을 쓴다. 분모는 서버 `index.json` →
+     * 로컬 구간 인덱스 → 번들 추정치 순으로 정해진다. */
+    val walkedLengthsByDong: Map<String, Double>,
+    val totalLengthsByDong: Map<String, Double>,
     val builtForTrackId: String?,
     /** 이 오버레이를 만든 경계 데이터의 출처 — `"asset"` 또는 `"server:<지도 버전>"`. 빛 이미지
      * 디스크 캐시 키에 들어가서, 서버가 경계를 고쳐 새 버전으로 배포하면 옛 경계로 만들어 둔
@@ -81,6 +86,8 @@ suspend fun loadDongOverlayBundle(context: Context, builtForTrackId: String?): D
             sigunguOverlay = repository.buildSigunguOverlay(dongPercents),
             sidoOverlay = repository.buildSidoOverlay(dongPercents),
             dongPercents = dongPercents,
+            walkedLengthsByDong = walkedLengths,
+            totalLengthsByDong = totalLengths,
             builtForTrackId = builtForTrackId,
             boundarySourceKey = server?.let { "server:${it.mapVersion}" } ?: "asset",
         )
