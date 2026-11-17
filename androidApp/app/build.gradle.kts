@@ -30,6 +30,8 @@ if (file("google-services.json").exists()) {
 
 dependencies {
     implementation(project(":androidApp:feature:main"))
+    implementation(project(":androidApp:core:devicestate"))
+    implementation(project(":androidApp:core:health"))
     implementation(project(":androidApp:core:permission"))
     implementation(project(":androidApp:core:tracking"))
 
@@ -45,6 +47,12 @@ android {
         // CI가 실행 번호를 넘겨 자동으로 올린다(`-PversionCode=123`). 로컬 빌드는 1 고정.
         versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
         versionName = providers.gradleProperty("versionName").orNull ?: "1.0"
+
+        // 카카오 계정 로그인(카카오톡 미설치·로그인 실패 시 쓰는 웹 로그인)이 돌아올 주소
+        // `kakao{NATIVE_APP_KEY}://oauth`를 AndroidManifest의 AuthCodeHandlerActivity에 꽂아 준다.
+        // 키가 없으면 빈 문자열이라 스킴이 `kakao://oauth`가 되지만, 그 상태에선 애초에
+        // KakaoSdk.init도 건너뛰어서(initAuthPlatform) 카카오 로그인 자체를 못 쓴다.
+        manifestPlaceholders["kakaoNativeAppKey"] = buildSecret("KAKAO_NATIVE_APP_KEY") ?: ""
     }
 
     /*

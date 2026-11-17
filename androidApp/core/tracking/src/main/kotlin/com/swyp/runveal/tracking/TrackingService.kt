@@ -22,11 +22,11 @@ import com.swyp.runveal.core.tracking.R
 import com.swyp.runveal.data.local.RunvealDatabaseProvider
 import com.swyp.runveal.data.local.FileStore
 import com.swyp.runveal.data.local.TrackLocalStore
-import com.swyp.runveal.dong.DongExploreRate
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.match.ChunkedMatcher
 import com.swyp.runveal.match.MatchedPathFilter
+import com.swyp.runveal.match.ServerRoadMatcher
 import com.swyp.runveal.network.match.MatchPurpose
 import com.swyp.runveal.network.meta.MetaApi
 import com.swyp.runveal.network.meta.MetaHolder
@@ -34,6 +34,7 @@ import com.swyp.runveal.recording.RecordingState
 import com.swyp.runveal.recording.TrackPoint
 import com.swyp.runveal.recording.TrackRecorder
 import com.swyp.runveal.result.DongRateChange
+import com.swyp.runveal.result.DongRateChanges
 import com.swyp.runveal.result.LiveMatchHolder
 import com.swyp.runveal.result.LiveNewRoadHolder
 import com.swyp.runveal.result.TrackResult
@@ -315,31 +316,26 @@ class TrackingService : Service() {
         )
     }
 
-    /** 이번 트랙이 닿은 동만 — 전체 길이가 없거나(road_segment 인덱스에 없는 동) 이름을 못 찾으면 그
-     * 동은 뺀다. */
+    /** 이번 트랙이 닿은 동만 — 거르는 규칙과 계산은 [DongRateChanges]에 있다(기록 불러오기 결과와
+     * 같은 숫자를 보여 줘야 해서 공용). */
     private fun buildDongStats(
         touchedAdmCodes: Set<String>,
         beforeWalked: Map<String, Double>,
         afterWalked: Map<String, Double>,
     ): List<DongRateChange> {
         if (touchedAdmCodes.isEmpty()) return emptyList()
-        val totalLengths = trackLocalStore?.totalLengthByDong() ?: emptyMap()
         // 동 이름은 계층 파일(150KB)에서 꺼낸다 — 예전엔 이름 하나 때문에 4.3MB 경계 geoJSON을
         // 통째로 파싱했다. 계층 파일도 서버 코드 체계로 만들어서 `adm_cd2`가 그대로 맞는다.
         val hierarchy = DongAssetRepository(this).loadRegionHierarchy()
-        val namesByCode = hierarchy.sido
-            .flatMap { sido -> sido.sigungu.flatMap { it.dongs } }
-            .associate { it.code to it.name }
-        return touchedAdmCodes.mapNotNull { admCd2 ->
-            val total = totalLengths[admCd2]?.takeIf { it > 0.0 } ?: return@mapNotNull null
-            val name = namesByCode[admCd2] ?: return@mapNotNull null
-            DongRateChange(
-                admCd2 = admCd2,
-                name = name,
-                beforePercent = DongExploreRate.percentOf(beforeWalked[admCd2] ?: 0.0, total),
-                afterPercent = DongExploreRate.percentOf(afterWalked[admCd2] ?: 0.0, total),
-            )
-        }
+        return DongRateChanges.build(
+            touchedAdmCodes = touchedAdmCodes,
+            beforeWalked = beforeWalked,
+            afterWalked = afterWalked,
+            totalLengths = trackLocalStore?.totalLengthByDong() ?: emptyMap(),
+            namesByCode = hierarchy.sido
+                .flatMap { sido -> sido.sigungu.flatMap { it.dongs } }
+                .associate { it.code to it.name },
+        )
     }
 
     /** 앱 실행 시 스플래시가 받아 둔 버전([MetaHolder])이 있으면 그대로 쓰고, 없으면(스플래시 호출

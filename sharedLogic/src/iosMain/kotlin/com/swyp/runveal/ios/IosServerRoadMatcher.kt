@@ -1,4 +1,4 @@
-package com.swyp.runveal.tracking
+package com.swyp.runveal.ios
 
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.match.MatchResult
@@ -8,15 +8,16 @@ import com.swyp.runveal.network.match.MatchPurpose
 import com.swyp.runveal.network.match.MatchRequest
 
 /**
- * 실서버 `POST /api/v1/match`(`docs/api/API.md` §3.6/§3.7)로 도로매칭한다. [ChunkedMatcher]가 그대로
- * 2,000점 단위로 쪼개서 호출하므로 `/meta`의 `limits.match.maxPoints` 제한도 그대로 지켜진다.
+ * 실서버 `POST /api/v1/match`(`docs/api/API.md` §3.6/§3.7)로 도로매칭한다 —
+ * Android `core:tracking`의 `ServerRoadMatcher`와 같은 구현.
  *
- * 서버가 주는 `segmentIds`를 그대로 [MatchResult.segmentIds]로 넘긴다 — "가본 길" 인정은 이제 이
- * ID 기준([com.swyp.runveal.dong.RoadSegment]/`explored_segment`)이라 로컬에서 별도로 edge를
- * 만들어 둘 필요가 없다. `sigunguCodes`도 같이 넘겨서, 로컬 구간 인덱스를 전국이 아니라 이번에
- * 달린 구만 골라 들여오는 데 쓴다. `dongBySegment`는 그 인덱스로 직접 계산하므로 아직 안 쓴다.
+ * `ChunkedMatcher`가 2,000점 단위로 쪼개서 호출하므로 `/meta`의 `limits.match.maxPoints` 제한도
+ * 그대로 지켜진다.
+ *
+ * TODO: Android 쪽 같은 클래스가 `core:tracking`(Android 전용 모듈)에 있어서 두 벌이 됐다.
+ *  commonMain으로 올리면 한 벌로 합칠 수 있다 — 의존하는 건 전부 commonMain 타입뿐이다.
  */
-class ServerRoadMatcher(
+internal class IosServerRoadMatcher(
     private val mapVersion: String,
     private val purpose: MatchPurpose,
     private val matchApi: MatchApi = MatchApi(),

@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  TestFlight·App Store용 export 옵션 (`xcodebuild -exportArchive`).
+	  Firebase App Distribution용은 ExportOptions-AdHoc.plist — 같은 아카이브에서 두 번 export한다.
+
+	  teamID와 provisioningProfiles 값은 비워 둔다 — 워크플로우가 시크릿과 설치한 프로파일에서
+	  읽어 PlistBuddy로 채운다(.github/workflows/build-ios.yml). plist는 $(VAR) 치환을 하지 않는다.
+	-->
+	<key>method</key>
+	<string>app-store-connect</string>
+
+	<key>destination</key>
+	<string>export</string>
+
+	<!--
+	  수동 서명. CI 러너는 매번 새로 만들어져 키체인이 비어 있고, 배포 인증서의 개인키는 발급한
+	  머신을 벗어나지 못한다 — 자동 서명(-allowProvisioningUpdates)으로 두면 실행마다 새 배포
+	  인증서를 발급해 팀 인증서 개수 제한에 금방 걸린다. 그래서 .p12를 import해 쓴다.
+	-->
+	<key>signingStyle</key>
+	<string>manual</string>
+
+	<key>signingCertificate</key>
+	<string>Apple Distribution</string>
+
+	<key>teamID</key>
+	<string></string>
+
+	<!-- 키는 번들 ID다 — Config.xcconfig의 PRODUCT_BUNDLE_IDENTIFIER와 같아야 한다. -->
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>com.swyp.runveal</key>
+		<string></string>
+	</dict>
+
+	<!-- 크래시 심볼화를 위해 dSYM을 함께 올린다. -->
+	<key>uploadSymbols</key>
+	<true/>
+
+	<key>stripSwiftSymbols</key>
+	<true/>
+</dict>
+</plist>

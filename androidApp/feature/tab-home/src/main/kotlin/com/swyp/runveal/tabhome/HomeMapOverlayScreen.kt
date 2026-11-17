@@ -36,9 +36,12 @@ internal fun HomeMapOverlayScreen(
     }
 
     if (!isZoomedIn) {
+        // TODO: 현재 위치의 동 이름을 서버 API로 받아서 넣는다. 로컬에도 판정 수단은 있지만
+        //  (DongOverlayHolder의 경계 polygon + DongCoverageCalculator.findDong) 서버에서
+        //  받기로 결정했다 — 동 이름/코드 체계를 서버 한 곳에서만 관리하기 위해서다.
         HomeMapOverlay(locationName = "현재 위치", modifier = modifier.fillMaxSize())
     } else {
-        // TODO: 동 상세 진입, 실제 탐험률/거리 연동 추가 예정
+        // TODO: 동 상세 진입, 실제 탐험률/거리 연동 추가 예정. dongName도 위와 같은 서버 API로 받는다.
         ZoomedInMapOverlay(
             dongName = "성수동",
             ratePercent = 0,

@@ -29,6 +29,59 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!--
+              Health Connect 권한 근거 화면(Android 13 이하 — Health Connect가 별도 앱인 경우).
+              권한 화면의 "앱이 이 데이터를 요청하는 이유"를 눌렀을 때 열린다. 선언하지 않으면
+              Health Connect가 권한 요청을 거부하거나 근거 없는 앱으로 취급한다.
+            -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          같은 근거 화면의 Android 14+ 경로. 14부터 Health Connect가 OS에 포함되면서 권한 사용
+          근거를 표준 VIEW_PERMISSION_USAGE 인텐트로 묻는다 — 위 intent-filter만으로는 안 열려서
+          같은 MainActivity를 가리키는 alias를 하나 더 둔다.
+
+          android:permission으로 시스템(권한 관리자)만 열 수 있게 막는다. exported=true지만 이
+          권한을 가진 건 OS뿐이라 다른 앱은 띄울 수 없다.
+
+          TODO: 지금은 앱 첫 화면이 열린다. 개인정보 처리방침(마이페이지 → 약관 및 정책)으로
+           바로 들어가게 딥링크를 붙이는 게 맞다 — 약관 본문을 서버에서 받아오는 작업과 함께 한다.
+        -->
+        <activity-alias
+            android:name=".ViewPermissionUsageActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
+        <!--
+          카카오 계정 로그인(웹)이 끝나고 커스텀 스킴으로 돌아올 때 인증 코드를 받는 SDK 액티비티.
+          카카오 SDK가 매니페스트에 넣어 주지 않아서 앱이 직접 선언해야 한다 — 없으면 카카오톡이
+          안 깔린 기기에서 로그인이 돌아올 곳을 못 찾아 그대로 끝난다. 스킴의 앱 키는
+          build.gradle.kts의 manifestPlaceholders가 local.properties에서 채운다.
+        -->
+        <activity
+            android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="oauth"
+                    android:scheme="kakao${kakaoNativeAppKey}" />
+            </intent-filter>
         </activity>
     </application>
 
