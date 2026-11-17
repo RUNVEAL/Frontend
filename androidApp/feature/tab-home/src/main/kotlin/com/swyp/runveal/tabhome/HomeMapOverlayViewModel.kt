@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.swyp.runveal.devicestate.currentLocationOrNull
+import com.swyp.runveal.network.dong.CurrentDongHolder
 import com.swyp.runveal.network.dong.DongApi
 import com.swyp.runveal.network.dong.DongResult
 import com.swyp.runveal.tabhome.contract.HomeMapOverlayState
@@ -35,10 +36,13 @@ class HomeMapOverlayViewModel : MviViewModel<Nothing, HomeMapOverlayState, Nothi
             }
 
             when (val result = dongApi.fetchDong(lat = location.lat, lon = location.lon)) {
-                is DongResult.Success ->
+                is DongResult.Success -> {
                     // 시도를 뺀 이름을 쓴다 — 한 줄짜리 자리라 "충청남도 천안시서북구 부성2동"은
                     // 길어서 잘린다(DongResponse.shortName).
                     setState { copy(dongName = result.dong.shortName, dongCode = result.dong.code) }
+                    // 줌아웃 요약 카드는 다른 모듈(feature:home)이라 상태를 직접 못 본다 — 홀더로 넘긴다.
+                    CurrentDongHolder.publish(result.dong)
+                }
 
                 DongResult.OutOfServiceArea -> Log.i(TAG, "서비스 지역 밖 — 동 이름 없이 둔다")
 

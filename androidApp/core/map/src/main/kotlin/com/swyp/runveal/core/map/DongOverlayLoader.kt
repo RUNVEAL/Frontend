@@ -24,6 +24,10 @@ data class DongOverlayBundle(
     val glowPolygonParts: Map<String, List<DongPolygonPart>>,
     val sigunguOverlay: SigunguOverlayGeoJson,
     val sidoOverlay: SidoOverlayGeoJson,
+    /** 동별 탐험률(%) — 지도 빛 단계를 정하는 값 그대로다. 홈 요약 카드가 "내 동네" 퍼센트를
+     * 여기서 꺼내 쓰므로, 카드 숫자와 지도 밝기가 어긋날 수 없다. 0%인 동은 들어 있지 않다
+     * ([DongExploreRate.percents]) — 없으면 0으로 읽으면 된다. */
+    val dongPercents: Map<String, Int>,
     val builtForTrackId: String?,
     /** 이 오버레이를 만든 경계 데이터의 출처 — `"asset"` 또는 `"server:<지도 버전>"`. 빛 이미지
      * 디스크 캐시 키에 들어가서, 서버가 경계를 고쳐 새 버전으로 배포하면 옛 경계로 만들어 둔
@@ -76,6 +80,7 @@ suspend fun loadDongOverlayBundle(context: Context, builtForTrackId: String?): D
             glowPolygonParts = dong.polygonPartsByAdmCd2,
             sigunguOverlay = repository.buildSigunguOverlay(dongPercents),
             sidoOverlay = repository.buildSidoOverlay(dongPercents),
+            dongPercents = dongPercents,
             builtForTrackId = builtForTrackId,
             boundarySourceKey = server?.let { "server:${it.mapVersion}" } ?: "asset",
         )
