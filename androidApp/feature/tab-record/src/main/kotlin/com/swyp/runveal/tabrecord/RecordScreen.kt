@@ -21,16 +21,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.swyp.runveal.designsystem.component.list.RunvealEmptyState
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLarge
+import com.swyp.runveal.designsystem.component.overlay.RunvealDialog
+import com.swyp.runveal.designsystem.component.overlay.RunvealDialogType
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.tabrecord.R
 import com.swyp.runveal.tabrecord.component.MonthlyRunningSummary
 import com.swyp.runveal.tabrecord.component.RecordListItem
+import com.swyp.runveal.tabrecord.contract.RecordIntent
 import com.swyp.runveal.tabrecord.contract.RecordItem
 import com.swyp.runveal.tabrecord.contract.RecordState
 
@@ -41,11 +46,15 @@ fun RecordScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    RecordScreen(state = state, modifier = modifier)
+    RecordScreen(state = state, onIntent = viewModel::onIntent, modifier = modifier)
 }
 
 @Composable
-private fun RecordScreen(state: RecordState, modifier: Modifier = Modifier) {
+private fun RecordScreen(
+    state: RecordState,
+    onIntent: (RecordIntent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val colors = RunvealTheme.colors
 
     Box(modifier = modifier.fillMaxSize().background(colors.bg.canvas)) {
@@ -100,6 +109,7 @@ private fun RecordScreen(state: RecordState, modifier: Modifier = Modifier) {
                             durationLabel = record.durationLabel,
                             paceLabel = record.paceLabel,
                             thumbnailRequest = record.thumbnailRequest,
+                            onLongClick = { onIntent(RecordIntent.DeleteRequested(record.trackId)) },
                         )
                     }
                 }
@@ -121,6 +131,23 @@ private fun RecordScreen(state: RecordState, modifier: Modifier = Modifier) {
                 )
             }
         }
+
+        // RunvealDialog는 내용만 그리는 컴포넌트라(그 KDoc 참고) Compose의 Dialog로 감싼다 —
+        // 바깥을 누르거나 뒤로가기로 닫히는 동작을 거기서 얻는다(마이페이지 로그아웃과 같은 방식).
+        if (state.deleteTargetTrackId != null) {
+            Dialog(onDismissRequest = { onIntent(RecordIntent.DeleteDismissed) }) {
+                RunvealDialog(
+                    title = stringResource(R.string.record_delete_dialog_title),
+                    description = stringResource(R.string.record_delete_dialog_description),
+                    confirmLabel = stringResource(R.string.record_delete_dialog_confirm),
+                    cancelLabel = stringResource(R.string.record_delete_dialog_cancel),
+                    onConfirm = { onIntent(RecordIntent.DeleteConfirmed) },
+                    onCancel = { onIntent(RecordIntent.DeleteDismissed) },
+                    // 되돌릴 수 없는 동작이라 확인 버튼을 빨갛게 둔다.
+                    type = RunvealDialogType.Destructive,
+                )
+            }
+        }
     }
 }
 
@@ -129,6 +156,7 @@ private fun RecordScreen(state: RecordState, modifier: Modifier = Modifier) {
 private fun RecordScreenPreview() {
     RunvealTheme {
         RecordScreen(
+            onIntent = {},
             state = RecordState(
                 monthLabel = "2026년 11월",
                 runCountLabel = "8회",
