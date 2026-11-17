@@ -58,7 +58,10 @@ mapshaper simp.geojson -dissolve sido copy-fields=sidonm        -rename-fields a
 ## 라이선스 / 출처 표기
 
 - vuski/admdongkor: 원본 통계청 SGIS 경계 가공, CC BY 4.0. 재배포 시 SGIS + 저장소 출처 표기 필요.
-- 지도에는 OpenStreetMap, 통계청 SGIS, vuski/admdongkor 출처를 표기한다.
+- 출처 표기는 **마이페이지 → 약관 및 정책 → 오픈소스 라이선스** 한 곳에 모았다. 지도 화면에는
+  띄우지 않는다 — MapLibre 기본 저작자 표시도 꺼 둔 상태다(`docs/map-stack/README.md` §4).
+- 2026-11 이후 앱 번들에는 vuski 데이터가 들어가지 않는다(동 경계는 서버 `index.geojson`,
+  시군구·시도·계층은 그 경계에서 생성). 그래도 화면에 그리는 건 앱이라 출처는 그대로 적어 둔다.
 - southkorea/southkorea-maps(이전 시군구·시도), 국토교통부(이전 법정동)는 더 이상 쓰지 않는다.
 
 ## 갱신하려면
