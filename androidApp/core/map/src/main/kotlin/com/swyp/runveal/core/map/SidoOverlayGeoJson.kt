@@ -4,4 +4,8 @@ package com.swyp.runveal.core.map
 data class SidoOverlayGeoJson(
     val lineGeoJson: String,
     val labelGeoJson: String,
-)
+) {
+    companion object {
+        val EMPTY = SidoOverlayGeoJson(EMPTY_FEATURE_COLLECTION, EMPTY_FEATURE_COLLECTION)
+    }
+}

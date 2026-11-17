@@ -15,13 +15,12 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.swyp.runveal.core.map.DongAssetRepository
 import com.swyp.runveal.core.map.RoadSegmentIndexImporter
 import com.swyp.runveal.core.tracking.R
 import com.swyp.runveal.data.local.RunvealDatabaseProvider
 import com.swyp.runveal.data.local.FileStore
 import com.swyp.runveal.data.local.TrackLocalStore
-import com.swyp.runveal.dong.DongBoundary
-import com.swyp.runveal.dong.DongBoundaryParser
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.match.ChunkedMatcher
@@ -47,7 +46,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private const val DONG_BOUNDARY_ASSET_PATH = "dong/korea_dong.geojson"
 private const val MATCH_STATE_FAILED = "FAILED"
 
 /** 러닝 중 도로 매칭 재요청 간격 — `/meta`의 분당 30회 제한(§5.6)에 여유 있게 걸리고, §3.6.1의
@@ -235,7 +233,6 @@ class TrackingService : Service() {
             // 길이/동으로 못 바꿔서 이번 결과가 전부 집계에서 빠진다. 전국을 들여오면 896MB·400만
             // 구간이라 끝나지 않으므로 달린 구만 받는다(§3.6.2 sigunguCodes).
             RoadSegmentIndexImporter(this, store.database).importIfNeeded(result.sigunguCodes)
-            val boundaries = loadDongBoundaries()
             val beforeWalked = store.walkedLengthByDong()
             val summary = store.recordMatchResult(
                 trackId = finished.id,
@@ -244,7 +241,7 @@ class TrackingService : Service() {
                 nowEpochMs = System.currentTimeMillis(),
             )
             val afterWalked = store.walkedLengthByDong()
-            val dongStats = buildDongStats(summary.touchedDongAdmCodes, beforeWalked, afterWalked, boundaries)
+            val dongStats = buildDongStats(summary.touchedDongAdmCodes, beforeWalked, afterWalked)
             publishResult(
                 finished, distanceMeters, elapsedMs, summary.newRoadMeters, dongStats,
                 // 결과 카드도 기록 탭 썸네일과 같은 선을 그리도록 **매칭 경로**를 넘긴다. 원본 GPS를
@@ -297,25 +294,27 @@ class TrackingService : Service() {
         touchedAdmCodes: Set<String>,
         beforeWalked: Map<String, Double>,
         afterWalked: Map<String, Double>,
-        boundaries: List<DongBoundary>,
-    ): List<DongRateChange> = DongRateChanges.build(
-        touchedAdmCodes = touchedAdmCodes,
-        beforeWalked = beforeWalked,
-        afterWalked = afterWalked,
-        totalLengths = trackLocalStore?.totalLengthByDong() ?: emptyMap(),
-        namesByCode = boundaries.associate { it.admCd2 to it.name },
-    )
+    ): List<DongRateChange> {
+        if (touchedAdmCodes.isEmpty()) return emptyList()
+        // 동 이름은 계층 파일(150KB)에서 꺼낸다 — 예전엔 이름 하나 때문에 4.3MB 경계 geoJSON을
+        // 통째로 파싱했다. 계층 파일도 서버 코드 체계로 만들어서 `adm_cd2`가 그대로 맞는다.
+        val hierarchy = DongAssetRepository(this).loadRegionHierarchy()
+        return DongRateChanges.build(
+            touchedAdmCodes = touchedAdmCodes,
+            beforeWalked = beforeWalked,
+            afterWalked = afterWalked,
+            totalLengths = trackLocalStore?.totalLengthByDong() ?: emptyMap(),
+            namesByCode = hierarchy.sido
+                .flatMap { sido -> sido.sigungu.flatMap { it.dongs } }
+                .associate { it.code to it.name },
+        )
+    }
 
     /** 앱 실행 시 스플래시가 받아 둔 버전([MetaHolder])이 있으면 그대로 쓰고, 없으면(스플래시 호출
      * 실패·아직 전) 여기서 한 번 더 받는다 — `/match` 요청엔 `mapVersion`이 꼭 있어야 한다. */
     private suspend fun resolveMapVersion(): String =
         MetaHolder.state.value?.mapVersions?.current
             ?: MetaApi().fetchMeta().also { MetaHolder.publish(it) }.mapVersions.current
-
-    private fun loadDongBoundaries(): List<DongBoundary> {
-        val geoJson = assets.open(DONG_BOUNDARY_ASSET_PATH).bufferedReader().use { it.readText() }
-        return DongBoundaryParser.parse(geoJson)
-    }
 
     private fun buildGpx(points: List<TrackPoint>): String = buildString {
         append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
