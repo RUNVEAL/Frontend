@@ -20,20 +20,12 @@ enum RunvealBundleAsset {
         }
     }
 
-    /// 경계 GeoJSON 전국 동 — Android `dong/korea_dong.geojson`.
-    static let koreaDongGeoJson = Name("korea_dong", "geojson")
     /// 경계 GeoJSON 전국 시군구 — Android `dong/korea_sigungu.geojson`.
     static let koreaSigunguGeoJson = Name("korea_sigungu", "geojson")
     /// 경계 GeoJSON 전국 시도 — Android `dong/korea_sido.geojson`.
     static let koreaSidoGeoJson = Name("korea_sido", "geojson")
     /// 시도 → 시군구 → 행정동 계층 — Android `dong/korea_region_hierarchy.json`.
     static let koreaRegionHierarchy = Name("korea_region_hierarchy", "json")
-    /// 완주율 분모(동별 전체 도로 길이) 번들 추정치 — Android `dong/dong_lengths_estimated.json`.
-    ///
-    /// Android는 `dong/asan_dong_lengths.json`을 읽고 없으면 빈 값으로 떨어지는데, 실제 번들에
-    /// 들어 있는 파일은 이 이름이다. 서버 `index.json`을 받으면 그 값이 우선이라 분모가 없어도
-    /// 동작은 하고 완주율만 0%가 된다.
-    static let dongLengthsEstimated = Name("dong_lengths_estimated", "json")
     /// 공용 로딩 모션 — Android `res/raw/runveal_loading_common.json`.
     static let loadingMotion = Name("runveal_loading_common", "json")
 

@@ -46,8 +46,10 @@ final class ResultViewModel: MviViewModel<NoIntent, ResultScreenState, NoEffect>
             distanceLabel: RunFormat.kilometers(result.distanceMeters),
             elapsedLabel: RunFormat.elapsed(result.elapsedMs),
             paceLabel: RunFormat.pace(elapsedMs: result.elapsedMs, distanceMeters: result.distanceMeters),
-            mapSnapshotRequest: IosSnapshot.shared.request(
-                points: result.routePoints,
+            // 매칭 경로는 GPS와 동떨어진 부분을 잘라낸 조각 목록이라 조각 그대로 넘긴다 —
+            // 이어 붙이면 잘라낸 구간이 직선으로 되살아난다.
+            mapSnapshotRequest: IosSnapshot.shared.requestForPaths(
+                paths: result.routePaths,
                 ownerId: result.trackId,
                 variant: .resultCard,
                 newRoadPaths: result.newRoadPaths

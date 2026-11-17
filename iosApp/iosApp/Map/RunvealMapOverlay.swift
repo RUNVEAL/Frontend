@@ -75,12 +75,13 @@ final class RunvealDongOverlayHolder: ObservableObject {
 /// 실제 계산은 전부 sharedLogic(`IosDongOverlayLoader`)이 한다.
 enum RunvealDongOverlayLoader {
     static func load(builtForTrackId: String?) async throws -> RunvealDongOverlayBundle {
+        // 동 경계와 완주율 분모는 번들이 아니라 서버 index.geojson/index.json에서 온다
+        // (IosServerDongData) — 번들 스냅샷은 서버와 행정동 코드 체계가 달라 완주율이 틀어진다.
+        // 시군구·시도 경계와 계층은 서버가 주지 않는 자료라 번들에 남아 있다.
         let assets = DongBundleAssets(
-            dongGeoJson: try RunvealBundleAsset.text(RunvealBundleAsset.koreaDongGeoJson),
             sigunguGeoJson: try RunvealBundleAsset.text(RunvealBundleAsset.koreaSigunguGeoJson),
             sidoGeoJson: try RunvealBundleAsset.text(RunvealBundleAsset.koreaSidoGeoJson),
-            regionHierarchyJson: try RunvealBundleAsset.text(RunvealBundleAsset.koreaRegionHierarchy),
-            dongLengthsJson: RunvealBundleAsset.textIfPresent(RunvealBundleAsset.dongLengthsEstimated)
+            regionHierarchyJson: try RunvealBundleAsset.text(RunvealBundleAsset.koreaRegionHierarchy)
         )
         let bundle = try await IosDongOverlayLoader.shared.load(assets: assets)
         return RunvealDongOverlayBundle(bundle: bundle, builtForTrackId: builtForTrackId)

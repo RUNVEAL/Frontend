@@ -48,7 +48,9 @@ object RunvealFlowWatchers {
     fun watchMeta(onEach: (MetaResponse?) -> Unit): FlowSubscription =
         MetaHolder.state.watch(onEach)
 
-    fun watchLiveMatch(onEach: (List<LatLon>?) -> Unit): FlowSubscription =
+    /** 매칭 선은 GPS와 동떨어진 부분을 잘라낸 **조각 목록**이다(`MatchedPathFilter`) — 하나로 이어
+     * 붙이면 잘라낸 구간이 직선으로 되살아나므로 조각 그대로 넘긴다. */
+    fun watchLiveMatch(onEach: (List<List<LatLon>>?) -> Unit): FlowSubscription =
         LiveMatchHolder.state.watch(onEach)
 
     fun watchLiveNewRoadMeters(onEach: (Double) -> Unit): FlowSubscription =

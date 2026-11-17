@@ -63,16 +63,18 @@ final class RunvealRunTracker: NSObject, ObservableObject, CLLocationManagerDele
         manager.startUpdatingLocation()
     }
 
-    /// 번들 경계 에셋이 필요해서 첫 시작 때 한 번 만든다 — 읽기에 실패하면 기록을 시작하지 않는다
-    /// (경계가 없으면 결과 화면의 동별 탐험률을 만들 수 없다).
+    /// 번들 계층 에셋이 필요해서 첫 시작 때 한 번 만든다 — 읽기에 실패하면 기록을 시작하지 않는다
+    /// (동 이름을 못 찾아 결과 화면의 동별 탐험률을 만들 수 없다).
+    ///
+    /// 동 경계(4.3MB)는 더 이상 필요 없다 — 이름은 계층 파일(150KB)에서 꺼내고, 적립에 쓰는 경계는
+    /// 서버에서 받는다(`IosServerDongData`).
     private func ensureSession() -> IosRunSession? {
         if let session { return session }
-        guard let dongGeoJson = try? RunvealBundleAsset.text(RunvealBundleAsset.koreaDongGeoJson),
-              let hierarchy = try? RunvealBundleAsset.text(RunvealBundleAsset.koreaRegionHierarchy) else {
-            assertionFailure("동 경계 에셋을 읽지 못했다 — generateRunvealIosResources가 돌았는지 확인한다.")
+        guard let hierarchy = try? RunvealBundleAsset.text(RunvealBundleAsset.koreaRegionHierarchy) else {
+            assertionFailure("계층 에셋을 읽지 못했다 — generateRunvealIosResources가 돌았는지 확인한다.")
             return nil
         }
-        let session = IosRunSession(dongBoundaryGeoJson: dongGeoJson, regionHierarchyJson: hierarchy)
+        let session = IosRunSession(regionHierarchyJson: hierarchy)
         self.session = session
         return session
     }

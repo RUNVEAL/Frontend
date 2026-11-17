@@ -7,20 +7,14 @@ import com.swyp.runveal.dong.DongCoverageCalculator
 import com.swyp.runveal.dong.RoadSegmentParser
 import com.swyp.runveal.dong.region.RegionHierarchyParser
 import com.swyp.runveal.map.LatLon
-import com.swyp.runveal.network.meta.MetaHolder
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.withTimeoutOrNull
-
-private const val META_WAIT_TIMEOUT_MS = 5_000L
-
 /**
  * 서버 지도 파일 `segments-{구코드}.geojson`(`docs/api/API.md` §3.1.2)을 로컬 `road_segment` 인덱스로
  * 들여온다 — Android `core:map`의 `RoadSegmentIndexImporter`와 같은 로직.
  *
- * `adm_cd2`는 서버 `index.geojson`이 아니라 번들 동 경계로 직접 계산한다 — 그래야 서버 동 데이터 연동
- * 여부와 무관하게 항상 동작한다. 구코드로 계층 정보에서 그 구에 속한 동만 먼저 추려서
- * point-in-polygon 대상을 줄인다.
+ * `adm_cd2`는 구간 중점을 **서버 동 경계**에 point-in-polygon해서 직접 계산한다. 번들 경계로 계산하면
+ * 서버와 행정동 코드 체계가 달라 완주율이 조용히 틀어지므로, 경계를 못 받으면 인덱스를 만들지 않고
+ * 다음 러닝에서 다시 시도한다([IosServerDongData]). 구코드로 계층 정보에서 그 구에 속한 동만 먼저
+ * 추려서 point-in-polygon 대상을 줄인다 — 계층 파일은 서버가 주지 않아 번들에 남아 있다.
  *
  * **전국이 아니라 "이번에 달린 구"만 들여온다.** 전국은 파일 255개 896MB에 구간 약 400만 개라,
  * 러닝이 끝날 때마다 받아 파싱하면 결과 화면이 무한 로딩에 빠진다. 구 하나는 2~3MB에 1만 구간
@@ -36,12 +30,10 @@ class IosRoadSegmentIndexImporter(
      * 인덱스에 넣는다. 전부 이미 있으면 즉시 `true`. 실패(오프라인, 서버에 그 구 파일이 없음 등)하면
      * `false` — 호출부는 그 러닝을 집계에서 빼고 넘어간다.
      *
-     * @param bundleDongGeoJson 번들 동 경계 원본(Swift가 번들에서 읽어 넘긴다).
-     * @param regionHierarchyJson 번들 계층 원본.
+     * @param regionHierarchyJson 번들 계층 원본(Swift가 번들에서 읽어 넘긴다).
      */
     suspend fun importIfNeeded(
         sigunguCodes: List<String>,
-        bundleDongGeoJson: String,
         regionHierarchyJson: String,
     ): Boolean {
         val missing = sigunguCodes.distinct().filter { guCode ->
@@ -49,19 +41,19 @@ class IosRoadSegmentIndexImporter(
         }
         if (missing.isEmpty()) return true
 
-        val meta = withTimeoutOrNull(META_WAIT_TIMEOUT_MS) {
-            MetaHolder.state.filterNotNull().first()
-        } ?: return false
+        // 동 경계를 못 받으면(오프라인 등) 인덱스를 만들지 않는다 — 번들로 대신 만들면 코드 체계가
+        // 섞여서 완주율이 조용히 틀어진다. 다음 러닝에서 다시 시도한다.
+        val server = IosServerDongData.fetch() ?: return false
 
         return try {
-            val boundariesByAdmCd2 = DongBoundaryParser.parse(bundleDongGeoJson).associateBy { it.admCd2 }
+            val boundariesByAdmCd2 = DongBoundaryParser.parse(server.boundaryGeoJson).associateBy { it.admCd2 }
             val dongCodesBySigungu = RegionHierarchyParser.parse(regionHierarchyJson).sido
                 .flatMap { it.sigungu }
                 .associate { sigungu -> sigungu.code to sigungu.dongs.map { it.code } }
 
             missing.forEach { guCode ->
                 val fileName = "segments-$guCode.geojson"
-                val files = serverMapStore.ensureDownloaded(meta.mapVersions.current, listOf(fileName))
+                val files = serverMapStore.ensureDownloaded(server.mapVersion, listOf(fileName))
                 val text = files[fileName] ?: return@forEach
                 val candidateBoundaries = dongCodesBySigungu[guCode]
                     ?.mapNotNull { boundariesByAdmCd2[it] }
