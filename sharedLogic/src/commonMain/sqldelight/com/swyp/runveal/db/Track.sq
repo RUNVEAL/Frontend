@@ -20,6 +20,11 @@ CREATE TABLE track (
     created_at_epoch_ms    INTEGER NOT NULL,
     updated_at_epoch_ms    INTEGER NOT NULL,
 
+    -- 사용자가 기록을 지운 시각. NULL이면 살아 있는 기록이다.
+    -- 행을 진짜로 지우지 않는 이유: run_segment·track_edge가 ON DELETE CASCADE로 매달려 있어서
+    -- 같이 날아가고, 그러면 그 러닝이 밝힌 길과 탐험률까지 사라진다. 기록은 목록에서만 감춘다.
+    deleted_at_epoch_ms    INTEGER,
+
     -- 이 기록이 어디서 왔는지(docs/api/API.md §4 runs "출처, 외부 기록 ID").
     source                 TEXT NOT NULL DEFAULT 'LOCAL', -- LOCAL | HEALTH_CONNECT
     -- 외부 기록의 원본 ID(Health Connect는 세션 UID). 같은 기록을 두 번 들여오지 않으려고 쓴다.
@@ -33,8 +38,10 @@ CREATE INDEX track_started_at_idx ON track(started_at_epoch_ms DESC);
 -- 되지 않는다. SQLite UNIQUE는 NULL을 서로 다른 값으로 보므로 직접 기록한 러닝(NULL)은 제약을 안 받는다.
 CREATE UNIQUE INDEX track_external_id_idx ON track(external_id);
 
+-- 아래 목록·합계 쿼리는 지운 기록을 뺀다. 반대로 지도 렌더링(track_edge)과 적립 재생
+-- (run_segment)은 **일부러 안 거른다** — 지운 기록이 밝힌 길은 그대로 남아야 한다.
 selectAllOrderByStartedDesc:
-SELECT * FROM track ORDER BY started_at_epoch_ms DESC;
+SELECT * FROM track WHERE deleted_at_epoch_ms IS NULL ORDER BY started_at_epoch_ms DESC;
 
 selectById:
 SELECT * FROM track WHERE id = ?;
@@ -49,6 +56,7 @@ INSERT INTO track (
 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 -- 이미 들여온 외부 기록 ID — 가져오기 전에 한 번에 읽어서 건너뛸 세션을 걸러낸다.
+-- **지운 기록도 포함한다** — 지웠다고 해서 같은 세션을 다시 가져오면 안 된다.
 selectExternalIdsBySource:
 SELECT external_id FROM track WHERE source = ? AND external_id IS NOT NULL;
 
@@ -63,13 +71,15 @@ UPDATE track SET place_name = ?, place_lookup_attempted = 1, updated_at_epoch_ms
 -- 누적 거리(마이페이지) — 행을 전부 읽어 더하는 대신 DB가 집계한다. 기록이 하나도 없으면
 -- SUM이 NULL이라 호출부가 0으로 읽는다.
 totalDistanceMeters:
-SELECT SUM(distance_meters) AS total_meters FROM track;
+SELECT SUM(distance_meters) AS total_meters FROM track WHERE deleted_at_epoch_ms IS NULL;
 
-deleteTrack:
-DELETE FROM track WHERE id = ?;
+-- 지운 것으로 표시만 한다(위 컬럼 주석 참고). 행과 매달린 적립·경로는 그대로 남는다.
+softDeleteTrack:
+UPDATE track SET deleted_at_epoch_ms = ?, updated_at_epoch_ms = ? WHERE id = ?;
 
 -- 기록 탭(한 달) 목록 — `[fromEpochMs, toEpochMs)` 반열린 구간이라 달 경계에서 겹치지 않는다.
 selectStartedBetweenDesc:
 SELECT * FROM track
-WHERE started_at_epoch_ms >= :fromEpochMs AND started_at_epoch_ms < :toEpochMs
+WHERE deleted_at_epoch_ms IS NULL
+  AND started_at_epoch_ms >= :fromEpochMs AND started_at_epoch_ms < :toEpochMs
 ORDER BY started_at_epoch_ms DESC;

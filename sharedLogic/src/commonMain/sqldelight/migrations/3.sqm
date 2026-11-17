@@ -1,0 +1,6 @@
+-- v3 → v4: 기록 삭제를 **소프트 삭제**로 바꾼다.
+--
+-- 기록을 지워도 그 러닝이 밝힌 길은 지도에 남아야 한다. 그런데 run_segment·track_edge가 track에
+-- ON DELETE CASCADE로 매달려 있어서, 행을 지우면 적립(탐험률)과 "가본 길" 선이 같이 사라졌다.
+-- 그래서 행을 지우는 대신 지운 시각만 적고, 기록 목록 쿼리에서만 걸러낸다.
+ALTER TABLE track ADD COLUMN deleted_at_epoch_ms INTEGER;

@@ -67,7 +67,7 @@ class RecordViewModel(
     private suspend fun deleteTarget() {
         val trackId = currentState.deleteTargetTrackId ?: return
         setState { copy(deleteTargetTrackId = null) }
-        withContext(Dispatchers.IO) { store.deleteTrack(trackId) }
+        withContext(Dispatchers.IO) { store.deleteTrack(trackId, System.currentTimeMillis()) }
         loadThisMonth()
     }
 
