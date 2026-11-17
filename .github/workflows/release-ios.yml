@@ -1,0 +1,222 @@
+name: release-ios
+
+# App Store Connect(TestFlight) 배포용 iOS 워크플로우.
+# QA 배포(Firebase App Distribution)와 Swift 컴파일 검사는 build-ios.yml에 있다.
+#
+#   archive     — 아카이브 → App Store IPA를 아티팩트로만 남긴다(업로드 없음). 서명 시험용.
+#   testflight  — + App Store Connect 업로드. 처리가 끝나면 TestFlight에 뜬다.
+#
+# **수동 실행만 한다.** 스토어 업로드는 되돌릴 수 없고 빌드 번호를 태우므로, 푸시나 PR로
+# 자동 실행되지 않게 일부러 트리거를 workflow_dispatch 하나만 둔다.
+#
+# **App Store 프로파일을 쓴다.** 이 프로파일로 만든 IPA는 기기에 바로 설치할 수 없다 —
+# 테스터에게 직접 내려주는 건 build-ios.yml의 Ad Hoc IPA다.
+#
+# 서명 단계가 build-ios.yml과 겹치지만 composite action으로 묶지 않았다 — 두 파일 모두
+# 위에서 아래로 읽어 바로 디버깅할 수 있는 쪽이 낫다고 봤다. 인증서 절차를 바꿀 땐 두 곳을 같이 고친다.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '어디까지 할지'
+        type: choice
+        options:
+          - archive      # 아카이브, App Store IPA를 아티팩트로만
+          - testflight   # + App Store Connect 업로드
+        default: archive
+
+concurrency:
+  # QA 빌드와 섞이지 않게 그룹을 따로 둔다. 진행 중인 업로드를 취소하면 빌드 번호만 태우므로
+  # cancel-in-progress는 켜지 않는다.
+  group: release-ios-${{ github.ref }}
+
+jobs:
+  release:
+    name: 아카이브 · App Store IPA · TestFlight
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      BUNDLE_ID: com.swyp.runveal
+      NETWORK_BASE_URL: ${{ secrets.NETWORK_BASE_URL || vars.NETWORK_BASE_URL }}
+      # 식별자라 비밀이 아니다 — Variables에 둬도 된다.
+      IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID || vars.IOS_TEAM_ID }}
+      APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID || vars.APPSTORE_KEY_ID }}
+      APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID || vars.APPSTORE_ISSUER_ID }}
+      # 아래는 Secrets 전용.
+      APPSTORE_PRIVATE_KEY_BASE64: ${{ secrets.APPSTORE_PRIVATE_KEY_BASE64 }}
+      IOS_DIST_CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+      IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+      IOS_PROVISIONING_PROFILE_APPSTORE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_APPSTORE_BASE64 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Xcode Run Script가 ./gradlew를 부른다. sharedLogic은 JDK 21을 쓴다(Android 잡의 17이 아니다).
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Xcode 선택
+        run: |
+          # 프로젝트가 objectVersion 77 + File System Synchronized Group을 써서 16.2 이상이 필요하다.
+          XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n1 || true)
+          if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE"; fi
+          xcodebuild -version
+
+      - name: 설정값 확인
+        # 스토어에 올라갈 빌드는 값이 하나라도 비면 만들지 않는다 — 서버 주소 없는 IPA가
+        # TestFlight에 올라가면 빌드 번호만 태우고 다시 올려야 한다.
+        run: |
+          required="NETWORK_BASE_URL IOS_TEAM_ID IOS_DIST_CERT_P12_BASE64 IOS_DIST_CERT_PASSWORD
+                    IOS_PROVISIONING_PROFILE_APPSTORE_BASE64"
+          case "${{ inputs.mode }}" in
+            testflight) required="$required APPSTORE_KEY_ID APPSTORE_ISSUER_ID APPSTORE_PRIVATE_KEY_BASE64" ;;
+          esac
+
+          missing=""
+          for name in $required; do
+            if [ -z "${!name}" ]; then missing="$missing $name"; else echo "$name: 설정됨"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::다음 값이 비어 있습니다 —$missing (Actions Secrets 또는 Variables에 추가하세요)"
+            exit 1
+          fi
+
+      - name: 서명 키체인 구성
+        run: |
+          # 러너 전용 임시 키체인. 비밀번호는 매 실행 무작위로 만들어 쓰고 버린다 — 시크릿이 아니다.
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 24)
+          echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          # 잡이 끝나기 전에 잠기지 않게 자동 잠금을 끈다.
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+
+          echo "$IOS_DIST_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          security import "$RUNNER_TEMP/dist.p12" \
+            -P "$IOS_DIST_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          rm -f "$RUNNER_TEMP/dist.p12"
+
+          # codesign이 키체인 접근 때 UI 프롬프트를 띄우지 않게 한다(헤드리스 러너).
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          # 검색 목록에 넣어야 xcodebuild가 이 키체인을 본다.
+          security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
+
+          echo "--- 설치된 서명 아이덴티티 ---"
+          security find-identity -v -p codesigning "$KEYCHAIN"
+
+      - name: 프로비저닝 프로파일 설치 (App Store)
+        run: |
+          # Xcode 16은 프로파일을 ~/Library/Developer/Xcode/UserData/Provisioning Profiles 에서 찾고,
+          # 그 이전 버전은 ~/Library/MobileDevice/Provisioning Profiles 를 본다 — 둘 다 넣는다.
+          OLD="$HOME/Library/MobileDevice/Provisioning Profiles"
+          NEW="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+          mkdir -p "$OLD" "$NEW"
+
+          FILE="$RUNNER_TEMP/appstore.mobileprovision"
+          echo "$IOS_PROVISIONING_PROFILE_APPSTORE_BASE64" | base64 --decode > "$FILE"
+
+          # 프로파일의 UUID를 꺼내 export 옵션에 넣는다 — 이름보다 모호하지 않다.
+          PLIST="$RUNNER_TEMP/appstore.plist"
+          security cms -D -i "$FILE" > "$PLIST"
+          UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" "$PLIST")
+          NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" "$PLIST")
+          echo "appstore: $NAME ($UUID)"
+
+          cp "$FILE" "$OLD/$UUID.mobileprovision"
+          cp "$FILE" "$NEW/$UUID.mobileprovision"
+          echo "PROFILE_UUID_APPSTORE=$UUID" >> "$GITHUB_ENV"
+
+      - name: SPM 캐시
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/org.swift.swiftpm
+          key: spm-${{ runner.os }}-${{ hashFiles('iosApp/iosApp.xcodeproj/project.pbxproj') }}
+          restore-keys: spm-${{ runner.os }}-
+
+      - name: 아카이브
+        run: |
+          # 빌드 번호(CURRENT_PROJECT_VERSION)를 run_number로 주입 — Android versionCode와 같은 패턴.
+          # **TestFlight는 같은 빌드 번호 재업로드를 거부**하므로 매 실행 증가가 필수다.
+          # build-ios.yml과 run_number가 따로 올라가지만, 스토어에 올라가는 건 이 워크플로우뿐이라
+          # 충돌하지 않는다.
+          #
+          # TEAM_ID는 Config.xcconfig가 DEVELOPMENT_TEAM에 쓰는 값이라 둘 다 넘긴다
+          # (로컬 xcconfig는 비어 있고 CI가 채우는 구조).
+          xcodebuild archive \
+            -project iosApp/iosApp.xcodeproj \
+            -scheme iosApp \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Runveal.xcarchive" \
+            -derivedDataPath "$RUNNER_TEMP/dd" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID_APPSTORE" \
+            DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
+            TEAM_ID="$IOS_TEAM_ID" \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }}
+
+      - name: export 옵션 채우기
+        run: |
+          # plist는 $(VAR) 치환을 하지 않아서 값으로 직접 써 넣어야 한다.
+          /usr/libexec/PlistBuddy -c "Set :teamID $IOS_TEAM_ID" iosApp/ExportOptions-AppStore.plist
+          /usr/libexec/PlistBuddy -c "Set :provisioningProfiles:$BUNDLE_ID $PROFILE_UUID_APPSTORE" iosApp/ExportOptions-AppStore.plist
+
+      - name: IPA 추출 (App Store)
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Runveal.xcarchive" \
+            -exportOptionsPlist iosApp/ExportOptions-AppStore.plist \
+            -exportPath "$RUNNER_TEMP/export-appstore"
+          ls -lh "$RUNNER_TEMP/export-appstore"
+
+      - name: IPA 아티팩트 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: runveal-ios-appstore-build${{ github.run_number }}
+          path: ${{ runner.temp }}/export-appstore/*.ipa
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: TestFlight 업로드
+        if: ${{ inputs.mode == 'testflight' }}
+        run: |
+          mkdir -p "$HOME/private_keys"
+          echo "$APPSTORE_PRIVATE_KEY_BASE64" | base64 --decode > "$HOME/private_keys/AuthKey_$APPSTORE_KEY_ID.p8"
+          chmod 600 "$HOME/private_keys/AuthKey_$APPSTORE_KEY_ID.p8"
+
+          IPA=$(ls "$RUNNER_TEMP"/export-appstore/*.ipa | head -n1)
+          # --apiKey는 ~/private_keys/AuthKey_<KEY_ID>.p8을 알아서 찾는다.
+          xcrun altool --upload-app -f "$IPA" -t ios \
+            --apiKey "$APPSTORE_KEY_ID" \
+            --apiIssuer "$APPSTORE_ISSUER_ID"
+
+      - name: 키체인·프로파일·API 키 정리
+        if: always()
+        run: |
+          security delete-keychain "$KEYCHAIN" 2>/dev/null || true
+          rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision || true
+          rm -f "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/"*.mobileprovision || true
+          rm -rf "$HOME/private_keys" || true
+
+      - name: 요약
+        if: always()
+        run: |
+          {
+            echo "### iOS 스토어 빌드 ${{ github.run_number }}"
+            echo ""
+            echo "- 모드: \`${{ inputs.mode }}\`"
+            echo "- 배포: App Store Connect / TestFlight"
+            echo "- 빌드 번호: \`${{ github.run_number }}\`"
+            echo "- 커밋: \`${{ github.sha }}\`"
+            if [ "${{ inputs.mode }}" = "testflight" ]; then
+              echo ""
+              echo "업로드 후 Apple이 처리를 마쳐야 TestFlight에 보입니다(보통 수 분~수십 분)."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

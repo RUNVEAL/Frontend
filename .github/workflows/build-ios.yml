@@ -1,15 +1,23 @@
 name: build-ios
 
+# QA 배포용 iOS 워크플로우 — **Firebase App Distribution까지만** 한다.
+# App Store/TestFlight 업로드는 release-ios.yml로 분리했다(실수로 스토어에 올라가지 않게).
+#
 # 로컬에 Mac이 없어서 **이 워크플로우가 iOS의 유일한 컴파일러**다 — Swift 오류를 여기서 잡는다.
 # Android는 build-debug.yml(ubuntu)에서 따로 돌린다.
 #
 #   compile  — 서명 없이 시뮬레이터로 빌드. 설정값이 없어도 돌고, Swift 오류만 빠르게 본다.
-#   archive  — 아카이브 1회 → export 2회(App Store / Ad Hoc) → IPA 2개.
-#              TestFlight와 Firebase App Distribution은 프로파일 종류가 달라서
-#              (App Store용 IPA는 기기에 바로 설치할 수 없다) IPA를 따로 만들어야 한다.
+#   archive  — 아카이브 → Ad Hoc IPA를 아티팩트로만 남긴다(업로드 없음). 서명 시험용.
+#   firebase — + Firebase App Distribution 업로드.
+#
+# **Ad Hoc 프로파일을 쓴다.** App Store 프로파일로 만든 IPA는 기기에 바로 설치할 수 없고,
+# Firebase는 Apple을 거치지 않고 IPA를 직접 내려주므로 테스터 기기 UDID가 등록된 Ad Hoc이 필요하다.
 #
 # 설정값은 로컬 파일에 두지 않고 전부 이 워크플로우가 주입한다. 비밀이 아닌 값은
 # Secrets·Variables 어느 쪽에 넣어도 받는다(`secrets.X || vars.X`).
+#
+# 서명 단계가 release-ios.yml과 겹치지만 composite action으로 묶지 않았다 — 두 파일 모두
+# 위에서 아래로 읽어 바로 디버깅할 수 있는 쪽이 낫다고 봤다. 인증서 절차를 바꿀 땐 두 곳을 같이 고친다.
 
 on:
   workflow_dispatch:
@@ -19,10 +27,8 @@ on:
         type: choice
         options:
           - compile      # Swift 컴파일 검사만
-          - archive      # + 아카이브, IPA 2개를 아티팩트로만
-          - testflight   # + TestFlight 업로드
+          - archive      # + 아카이브, Ad Hoc IPA를 아티팩트로만
           - firebase     # + Firebase App Distribution 업로드
-          - both         # + 둘 다 업로드
         default: compile
 
   # iOS가 깨지는 걸 머지 전에 잡는다. macOS 러너는 분당 10배로 과금되므로
@@ -108,9 +114,9 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO
 
-  # ──────────────────── 아카이브 → IPA 2개 → 배포 ────────────────────
-  archive:
-    name: 아카이브 · IPA · 배포
+  # ──────────────────── 아카이브 → Ad Hoc IPA → Firebase ────────────────────
+  distribute:
+    name: 아카이브 · Ad Hoc IPA · Firebase 배포
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode != 'compile' }}
     runs-on: macos-15
     timeout-minutes: 120
@@ -119,14 +125,10 @@ jobs:
       NETWORK_BASE_URL: ${{ secrets.NETWORK_BASE_URL || vars.NETWORK_BASE_URL }}
       # 식별자라 비밀이 아니다 — Variables에 둬도 된다.
       IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID || vars.IOS_TEAM_ID }}
-      APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID || vars.APPSTORE_KEY_ID }}
-      APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID || vars.APPSTORE_ISSUER_ID }}
       FIREBASE_APP_ID_IOS: ${{ secrets.FIREBASE_APP_ID_IOS || vars.FIREBASE_APP_ID_IOS }}
       # 아래는 Secrets 전용.
-      APPSTORE_PRIVATE_KEY_BASE64: ${{ secrets.APPSTORE_PRIVATE_KEY_BASE64 }}
       IOS_DIST_CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
       IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
-      IOS_PROVISIONING_PROFILE_APPSTORE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_APPSTORE_BASE64 }}
       IOS_PROVISIONING_PROFILE_ADHOC_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_ADHOC_BASE64 }}
       FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
     steps:
@@ -148,15 +150,11 @@ jobs:
       - name: 설정값 확인
         # 배포본은 값이 하나라도 비면 만들지 않는다 — 서버 주소 없는 IPA, 서명 못 한 IPA를
         # 아티팩트로 남기면 나중에 어느 빌드가 쓸 수 있는 건지 구분이 안 된다.
-        # 업로드 대상에 따라 필요한 값만 검사한다.
         run: |
           required="NETWORK_BASE_URL IOS_TEAM_ID IOS_DIST_CERT_P12_BASE64 IOS_DIST_CERT_PASSWORD
-                    IOS_PROVISIONING_PROFILE_APPSTORE_BASE64 IOS_PROVISIONING_PROFILE_ADHOC_BASE64"
+                    IOS_PROVISIONING_PROFILE_ADHOC_BASE64"
           case "${{ inputs.mode }}" in
-            testflight|both) required="$required APPSTORE_KEY_ID APPSTORE_ISSUER_ID APPSTORE_PRIVATE_KEY_BASE64" ;;
-          esac
-          case "${{ inputs.mode }}" in
-            firebase|both) required="$required FIREBASE_APP_ID_IOS FIREBASE_SERVICE_ACCOUNT" ;;
+            firebase) required="$required FIREBASE_APP_ID_IOS FIREBASE_SERVICE_ACCOUNT" ;;
           esac
 
           missing=""
@@ -193,7 +191,7 @@ jobs:
           echo "--- 설치된 서명 아이덴티티 ---"
           security find-identity -v -p codesigning "$KEYCHAIN"
 
-      - name: 프로비저닝 프로파일 설치
+      - name: 프로비저닝 프로파일 설치 (Ad Hoc)
         run: |
           # Xcode 16은 프로파일을 ~/Library/Developer/Xcode/UserData/Provisioning Profiles 에서 찾고,
           # 그 이전 버전은 ~/Library/MobileDevice/Provisioning Profiles 를 본다 — 둘 다 넣는다.
@@ -201,27 +199,19 @@ jobs:
           NEW="$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
           mkdir -p "$OLD" "$NEW"
 
-          install_profile() {
-            local b64="$1" name="$2" out_var="$3"
-            local file="$RUNNER_TEMP/$name.mobileprovision"
-            echo "$b64" | base64 --decode > "$file"
+          FILE="$RUNNER_TEMP/adhoc.mobileprovision"
+          echo "$IOS_PROVISIONING_PROFILE_ADHOC_BASE64" | base64 --decode > "$FILE"
 
-            # 프로파일의 UUID를 꺼내 export 옵션에 넣는다 — 이름보다 모호하지 않다.
-            local plist="$RUNNER_TEMP/$name.plist"
-            security cms -D -i "$file" > "$plist"
-            local uuid
-            uuid=$(/usr/libexec/PlistBuddy -c "Print :UUID" "$plist")
-            local profile_name
-            profile_name=$(/usr/libexec/PlistBuddy -c "Print :Name" "$plist")
-            echo "$name: $profile_name ($uuid)"
+          # 프로파일의 UUID를 꺼내 export 옵션에 넣는다 — 이름보다 모호하지 않다.
+          PLIST="$RUNNER_TEMP/adhoc.plist"
+          security cms -D -i "$FILE" > "$PLIST"
+          UUID=$(/usr/libexec/PlistBuddy -c "Print :UUID" "$PLIST")
+          NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" "$PLIST")
+          echo "adhoc: $NAME ($UUID)"
 
-            cp "$file" "$OLD/$uuid.mobileprovision"
-            cp "$file" "$NEW/$uuid.mobileprovision"
-            echo "$out_var=$uuid" >> "$GITHUB_ENV"
-          }
-
-          install_profile "$IOS_PROVISIONING_PROFILE_APPSTORE_BASE64" appstore PROFILE_UUID_APPSTORE
-          install_profile "$IOS_PROVISIONING_PROFILE_ADHOC_BASE64"   adhoc    PROFILE_UUID_ADHOC
+          cp "$FILE" "$OLD/$UUID.mobileprovision"
+          cp "$FILE" "$NEW/$UUID.mobileprovision"
+          echo "PROFILE_UUID_ADHOC=$UUID" >> "$GITHUB_ENV"
 
       - name: SPM 캐시
         uses: actions/cache@v4
@@ -233,11 +223,8 @@ jobs:
       - name: 아카이브
         run: |
           # 빌드 번호(CURRENT_PROJECT_VERSION)를 run_number로 주입 — Android versionCode와 같은 패턴.
-          # TestFlight는 같은 빌드 번호 재업로드를 거부하므로 매 실행 증가가 필수다.
           # TEAM_ID는 Config.xcconfig가 DEVELOPMENT_TEAM에 쓰는 값이라 둘 다 넘긴다
           # (로컬 xcconfig는 비어 있고 CI가 채우는 구조).
-          #
-          # 아카이브는 App Store 프로파일로 한 번만 한다 — export 단계에서 각 프로파일로 다시 서명된다.
           xcodebuild archive \
             -project iosApp/iosApp.xcodeproj \
             -scheme iosApp \
@@ -247,7 +234,7 @@ jobs:
             -derivedDataPath "$RUNNER_TEMP/dd" \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID_APPSTORE" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID_ADHOC" \
             DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
             TEAM_ID="$IOS_TEAM_ID" \
             CURRENT_PROJECT_VERSION=${{ github.run_number }}
@@ -255,25 +242,11 @@ jobs:
       - name: export 옵션 채우기
         run: |
           # plist는 $(VAR) 치환을 하지 않아서 값으로 직접 써 넣어야 한다.
-          set_opts() {
-            local file="$1" uuid="$2"
-            /usr/libexec/PlistBuddy -c "Set :teamID $IOS_TEAM_ID" "$file"
-            /usr/libexec/PlistBuddy -c "Set :provisioningProfiles:$BUNDLE_ID $uuid" "$file"
-          }
-          set_opts iosApp/ExportOptions-AppStore.plist "$PROFILE_UUID_APPSTORE"
-          set_opts iosApp/ExportOptions-AdHoc.plist   "$PROFILE_UUID_ADHOC"
+          /usr/libexec/PlistBuddy -c "Set :teamID $IOS_TEAM_ID" iosApp/ExportOptions-AdHoc.plist
+          /usr/libexec/PlistBuddy -c "Set :provisioningProfiles:$BUNDLE_ID $PROFILE_UUID_ADHOC" iosApp/ExportOptions-AdHoc.plist
 
-      - name: IPA 추출 — App Store (TestFlight용)
+      - name: IPA 추출 (Ad Hoc)
         run: |
-          xcodebuild -exportArchive \
-            -archivePath "$RUNNER_TEMP/Runveal.xcarchive" \
-            -exportOptionsPlist iosApp/ExportOptions-AppStore.plist \
-            -exportPath "$RUNNER_TEMP/export-appstore"
-          ls -lh "$RUNNER_TEMP/export-appstore"
-
-      - name: IPA 추출 — Ad Hoc (Firebase용)
-        run: |
-          # App Store 프로파일로 만든 IPA는 기기에 바로 설치할 수 없어서 따로 뽑는다.
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/Runveal.xcarchive" \
             -exportOptionsPlist iosApp/ExportOptions-AdHoc.plist \
@@ -283,28 +256,13 @@ jobs:
       - name: IPA 아티팩트 업로드
         uses: actions/upload-artifact@v4
         with:
-          name: runveal-ios-build${{ github.run_number }}
-          path: |
-            ${{ runner.temp }}/export-appstore/*.ipa
-            ${{ runner.temp }}/export-adhoc/*.ipa
+          name: runveal-ios-adhoc-build${{ github.run_number }}
+          path: ${{ runner.temp }}/export-adhoc/*.ipa
           if-no-files-found: error
           retention-days: 30
 
-      - name: TestFlight 업로드
-        if: ${{ inputs.mode == 'testflight' || inputs.mode == 'both' }}
-        run: |
-          mkdir -p "$HOME/private_keys"
-          echo "$APPSTORE_PRIVATE_KEY_BASE64" | base64 --decode > "$HOME/private_keys/AuthKey_$APPSTORE_KEY_ID.p8"
-          chmod 600 "$HOME/private_keys/AuthKey_$APPSTORE_KEY_ID.p8"
-
-          IPA=$(ls "$RUNNER_TEMP"/export-appstore/*.ipa | head -n1)
-          # --apiKey는 ~/private_keys/AuthKey_<KEY_ID>.p8을 알아서 찾는다.
-          xcrun altool --upload-app -f "$IPA" -t ios \
-            --apiKey "$APPSTORE_KEY_ID" \
-            --apiIssuer "$APPSTORE_ISSUER_ID"
-
       - name: Firebase App Distribution 업로드
-        if: ${{ inputs.mode == 'firebase' || inputs.mode == 'both' }}
+        if: ${{ inputs.mode == 'firebase' }}
         run: |
           # Android 잡과 같은 CLI·같은 서비스 계정 시크릿을 쓴다. iOS 앱이 Firebase SDK를 쓰지
           # 않으므로 GoogleService-Info.plist는 필요 없다 — 업로드는 앱 ID와 자격증명만 본다.
@@ -324,15 +282,15 @@ jobs:
           security delete-keychain "$KEYCHAIN" 2>/dev/null || true
           rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision || true
           rm -f "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/"*.mobileprovision || true
-          rm -rf "$HOME/private_keys" || true
 
       - name: 요약
         if: always()
         run: |
           {
-            echo "### iOS 빌드 ${{ github.run_number }}"
+            echo "### iOS QA 빌드 ${{ github.run_number }}"
             echo ""
             echo "- 모드: \`${{ inputs.mode }}\`"
+            echo "- 배포: Firebase App Distribution (Ad Hoc)"
             echo "- 빌드 번호: \`${{ github.run_number }}\`"
             echo "- 커밋: \`${{ github.sha }}\`"
           } >> "$GITHUB_STEP_SUMMARY"
