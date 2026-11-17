@@ -4,11 +4,11 @@ import SwiftUI
  약관 한 건의 본문 — Android `TermsDetailScreen`과 같다. 상단 제목은 목록에서 누른 약관 이름을
  그대로 쓴다.
 
- 오픈소스 라이선스만 앱이 직접 들고 있다 — 서버에서 받아올 성질이 아니라 빌드에 들어간 의존성에서
- 나오는 값이기 때문이다.
-
- TODO: 나머지 약관 본문은 비워 뒀다 — 약관 목록 API(`docs/api/API.md` §3.8)가 붙으면 받아 온 내용을
-  여기 채운다. 본문이 길어질 것을 전제로 스크롤은 미리 걸어 뒀다.
+ 본문은 두 가지다:
+ - **웹에 올려 둔 약관**(``TermsPolicyItem/url``) — 웹뷰로 띄운다. 문구가 바뀌어도 앱을 다시
+   배포하지 않아도 되고, 두 플랫폼이 같은 원문을 본다(`TermsDocument`).
+ - **오픈소스 라이선스** — 앱이 직접 그린다. 서버에서 받아올 성질이 아니라 빌드에 들어간
+   의존성에서 나오는 값이기 때문이다.
  */
 struct TermsDetailScreen: View {
     let item: TermsPolicyItem
@@ -23,19 +23,16 @@ struct TermsDetailScreen: View {
             VStack(spacing: 0) {
                 RunvealTopAppBar(leading: .back, title: item.label, onLeadingClick: onBack)
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        switch item {
-                        case .openSource:
-                            OpenSourceLicenseContent()
-                        case .service, .privacy:
-                            // 본문 자리 — 위 TODO 참고.
-                            EmptyView()
-                        }
+                if let url = item.url {
+                    // 웹뷰는 스스로 스크롤하므로 ScrollView로 감싸지 않는다 — 감싸면 높이 제약이
+                    // 없어져 페이지 전체가 펼쳐지고 스크롤이 두 겹이 된다.
+                    RunvealWebView(url: url)
+                } else {
+                    ScrollView {
+                        OpenSourceLicenseContent()
+                            .padding(.horizontal, RunvealLayout.marginScreen)
+                            .padding(.top, RunvealSpacing.space24)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, RunvealLayout.marginScreen)
-                    .padding(.top, RunvealSpacing.space24)
                 }
             }
         }

@@ -14,10 +14,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.viewinterop.AndroidView
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.compose.foundation.layout.Box
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
+import com.swyp.runveal.designsystem.component.overlay.RunvealLoading
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.tabmypage.R
 import com.swyp.runveal.tabmypage.contract.OPEN_SOURCE_LICENSES
@@ -26,11 +37,11 @@ import com.swyp.runveal.tabmypage.contract.TermsPolicyItem
 /**
  * 약관 한 건의 본문. 상단 제목은 목록에서 누른 약관 이름([TermsPolicyItem])을 그대로 쓴다.
  *
- * 오픈소스 라이선스만 앱이 직접 들고 있다 — 서버에서 받아올 성질이 아니라 빌드에 들어간
- * 의존성에서 나오는 값이기 때문이다.
- *
- * TODO: 나머지 약관 본문은 비워 뒀다 — 약관 목록 API(`docs/api/API.md` §3.8)가 붙으면 받아 온
- *  내용을 여기 채운다. 본문이 길어질 것을 전제로 스크롤은 미리 걸어 뒀다.
+ * 본문은 두 가지다:
+ * - **웹에 올려 둔 약관**([TermsPolicyItem.url]) — 웹뷰로 띄운다. 문구가 바뀌어도 앱을 다시
+ *   배포하지 않아도 되고, 두 플랫폼이 같은 원문을 본다([com.swyp.runveal.terms.TermsDocument]).
+ * - **오픈소스 라이선스** — 앱이 직접 그린다. 서버에서 받아올 성질이 아니라 빌드에 들어간
+ *   의존성에서 나오는 값이기 때문이다.
  */
 @Composable
 internal fun TermsDetailScreen(
@@ -50,18 +61,59 @@ internal fun TermsDetailScreen(
             title = stringResource(item.labelRes),
         )
 
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = RunvealTheme.layout.marginScreen)
-                .padding(top = RunvealTheme.spacing.space24),
-        ) {
-            when (item) {
-                TermsPolicyItem.OpenSource -> OpenSourceLicenseContent()
-                // 나머지는 본문 자리 — 위 TODO 참고.
-                else -> Unit
+        val url = item.url
+        if (url != null) {
+            // 웹뷰는 스스로 스크롤하므로 verticalScroll로 감싸지 않는다 — 감싸면 높이 제약이 없어져
+            // 페이지 전체가 펼쳐지고 스크롤이 두 겹이 된다.
+            TermsWebView(url = url, modifier = Modifier.fillMaxSize())
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = RunvealTheme.layout.marginScreen)
+                    .padding(top = RunvealTheme.spacing.space24),
+            ) {
+                OpenSourceLicenseContent()
             }
+        }
+    }
+}
+
+/**
+ * 약관 원문을 띄우는 웹뷰.
+ *
+ * 자바스크립트는 켜지 않는다(WebView 기본값) — 정적 HTML이라 필요 없고, 꺼 두는 쪽이 안전하다.
+ *
+ * 로드가 끝나기 전까지 캔버스 색으로 덮인 채 로딩 모션만 보인다. 배경색을 지정하지 않으면 로드
+ * 직전에 흰 화면이 한 번 번쩍인다 — 앱이 다크 단일 테마라 특히 눈에 띈다.
+ *
+ * TODO: 원문 HTML이 밝은 배경이라 다크 모드인 앱 안에서 이 화면만 희게 보인다. 원문에
+ *  `prefers-color-scheme`을 넣거나(권장), 안 되면 `androidx.webkit`의 알고리즘 다크닝을 켠다.
+ */
+@Composable
+private fun TermsWebView(url: String, modifier: Modifier = Modifier) {
+    var isLoading by remember(url) { mutableStateOf(true) }
+    val backgroundColor = RunvealTheme.colors.bg.canvas.toArgb()
+
+    Box(modifier = modifier) {
+        AndroidView(
+            factory = { context ->
+                WebView(context).apply {
+                    setBackgroundColor(backgroundColor)
+                    webViewClient = object : WebViewClient() {
+                        override fun onPageFinished(view: WebView?, finishedUrl: String?) {
+                            isLoading = false
+                        }
+                    }
+                    loadUrl(url)
+                }
+            },
+            modifier = Modifier.fillMaxSize(),
+        )
+
+        if (isLoading) {
+            RunvealLoading(modifier = Modifier.align(Alignment.Center))
         }
     }
 }
