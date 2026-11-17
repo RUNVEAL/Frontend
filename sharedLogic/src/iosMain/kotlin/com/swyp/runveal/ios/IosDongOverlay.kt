@@ -37,10 +37,36 @@ data class DongOverlayGeoJsonBundle(
      * Android는 fill GeoJSON을 다시 파싱해서 뽑지만(4MB짜리 재파싱이 팬·줌 버벅임의 원인이었다),
      * 여기서는 만들 때 이미 아는 값이라 그대로 같이 돌려준다. */
     val dongLevelByAdmCd2: Map<String, Int>,
-    /** 이 오버레이를 만든 경계 데이터의 출처 — `"asset"` 또는 `"server:<지도 버전>"`.
-     * 빛 이미지 디스크 캐시 키에 들어간다. */
+    /** 이 오버레이를 만든 경계 데이터의 출처 — `"server:<지도 버전>"`(경계를 못 받았으면 `"none"`).
+     * 빛 이미지 디스크 캐시 키에 들어가서, 서버가 경계를 고쳐 새 버전으로 배포하면 옛 경계로
+     * 만들어 둔 빛 이미지가 자동으로 버려진다(안 그러면 새 테두리와 어긋난 채로 남는다). */
     val boundarySourceKey: String,
-)
+) {
+    companion object {
+        /**
+         * 서버 동 경계를 못 받았을 때 — 동/시군구/시도 레이어를 비워 둔다. 지도는 그대로 뜨고 경계만
+         * 안 보인다. 다음에 다시 만들 때 서버가 살아 있으면 정상으로 채워진다.
+         *
+         * 탐험률도 같이 비운다 — 분자·분모는 로컬에도 있지만, 서버와 코드 체계가 어긋난 채로 숫자만
+         * 띄우면 지도는 안 빛나는데 카드만 8%라고 하는 상태가 된다.
+         */
+        fun empty(): DongOverlayGeoJsonBundle {
+            val emptyCollection = IosDongOverlayBuilder.emptyFeatureCollection()
+            return DongOverlayGeoJsonBundle(
+                dongFillGeoJson = emptyCollection,
+                dongLineGeoJson = emptyCollection,
+                dongLabelGeoJson = emptyCollection,
+                sigunguLineGeoJson = emptyCollection,
+                sigunguLabelGeoJson = emptyCollection,
+                sidoLineGeoJson = emptyCollection,
+                sidoLabelGeoJson = emptyCollection,
+                dongPolygonPartsByAdmCd2 = emptyMap(),
+                dongLevelByAdmCd2 = emptyMap(),
+                boundarySourceKey = "none",
+            )
+        }
+    }
+}
 
 /**
  * iOS 홈 지도의 동/시군구/시도 오버레이 GeoJSON을 만든다 — Android `core:map`의

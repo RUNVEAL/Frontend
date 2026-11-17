@@ -1,6 +1,7 @@
 package com.swyp.runveal.ios
 
 import com.swyp.runveal.data.local.RunvealDatabaseProvider
+import com.swyp.runveal.dong.SegmentCoverageMatcher
 import com.swyp.runveal.dong.NewRoadEstimator
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.map.snapshot.SnapshotRequest
@@ -60,10 +61,17 @@ object IosCourseRecommend {
      * 지금까지 달려서 "가본 길"이 된 구간 ID — 서버가 코스별 `newRoadM`을 계산하려면 이걸 같이 보내야
      * 한다(§3.3.1 — 안 보내면 null로 온다). 가본 게 하나도 없으면 빈 배열을 보낸다.
      *
+     * **일부만 밟은 구간은 보내지 않는다**(`selectCoveredSegmentIds`) — 서버는 구간 단위로만 새 길을
+     * 계산해서, 10%만 달린 구간을 보내면 남은 90%가 새 길에서 빠진다. 기준은 manifest
+     * `segmentCoverage`와 같은 비율이다.
+     *
      * [maxCount]를 넘기면 413 `TOO_MANY_SEGMENTS`라 앞에서부터 잘라서 보낸다.
      */
     private fun exploredSegmentIds(maxCount: Int): List<Long> =
-        database.exploredSegmentQueries.selectAllSegmentIds().executeAsList().take(maxCount)
+        database.exploredSegmentQueries
+            .selectCoveredSegmentIds(SegmentCoverageMatcher.DEFAULT_SEGMENT_COVERAGE)
+            .executeAsList()
+            .take(maxCount)
 
     /** 서버가 `newRoadM`을 줬으면 그대로 쓰고, 안 줬으면 로컬 `explored_segment`로 추정한다. */
     fun newRoadMeters(route: RouteDto): Double =

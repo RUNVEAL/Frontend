@@ -4,6 +4,7 @@ import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.map.snapshot.GeoBounds
 import com.swyp.runveal.map.snapshot.SnapshotRequest
 import com.swyp.runveal.map.snapshot.SnapshotVariant
+import com.swyp.runveal.map.snapshot.toMultiPathSnapshotRequest
 import com.swyp.runveal.map.snapshot.toSnapshotRequest
 import com.swyp.runveal.map.snapshot.zoomToFit
 
@@ -31,6 +32,19 @@ object IosSnapshot {
         variant: SnapshotVariant,
         newRoadPaths: List<List<LatLon>>? = null,
     ): SnapshotRequest? = points.toSnapshotRequest(ownerId, variant, newRoadPaths)
+
+    /**
+     * 조각으로 나뉜 경로용 — 러닝 결과가 쓴다.
+     *
+     * 매칭 경로는 GPS와 동떨어진 부분을 잘라낸 **조각 목록**이라(`MatchedPathFilter`) 하나로 이어
+     * 붙이면 잘라낸 구간이 직선으로 되살아난다. 점이 2개 이상인 조각이 하나도 없으면 null.
+     */
+    fun requestForPaths(
+        paths: List<List<LatLon>>,
+        ownerId: String,
+        variant: SnapshotVariant,
+        newRoadPaths: List<List<LatLon>>? = null,
+    ): SnapshotRequest? = paths.toMultiPathSnapshotRequest(ownerId, variant, newRoadPaths)
 
     /** [bounds]를 (widthPx x heightPx) 뷰포트에 맞춰 보여줄 때 필요한 줌 레벨. */
     fun zoomToFit(bounds: GeoBounds, widthPx: Int, heightPx: Int): Double =

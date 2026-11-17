@@ -3,18 +3,19 @@ package com.swyp.runveal.ios
 import com.swyp.runveal.data.local.FileStore
 import com.swyp.runveal.data.local.RunvealDatabaseProvider
 import com.swyp.runveal.data.local.TrackLocalStore
-import com.swyp.runveal.dong.DongBoundary
-import com.swyp.runveal.dong.DongBoundaryParser
-import com.swyp.runveal.dong.DongExploreRate
+import com.swyp.runveal.dong.region.RegionHierarchyParser
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.match.ChunkedMatcher
+import com.swyp.runveal.match.MatchedPathFilter
+import com.swyp.runveal.match.ServerRoadMatcher
 import com.swyp.runveal.network.match.MatchPurpose
 import com.swyp.runveal.network.meta.MetaApi
 import com.swyp.runveal.network.meta.MetaHolder
 import com.swyp.runveal.recording.TrackPoint
 import com.swyp.runveal.recording.TrackRecorder
 import com.swyp.runveal.result.DongRateChange
+import com.swyp.runveal.result.DongRateChanges
 import com.swyp.runveal.result.LiveMatchHolder
 import com.swyp.runveal.result.LiveNewRoadHolder
 import com.swyp.runveal.result.TrackResult
@@ -49,9 +50,13 @@ private const val MATCH_STATE_FAILED = "FAILED"
  * 알림 관련 코드가 없는 게 그 차이다.
  */
 class IosRunSession(
-    /** 번들 동 경계 원본 — 결과 화면의 동별 탐험률 변화에 쓸 동 이름을 찾는다. */
-    private val dongBoundaryGeoJson: String,
-    /** 번들 계층 원본 — 달린 구의 구간 인덱스를 들여올 때 쓴다. */
+    /**
+     * 번들 계층 원본(150KB) — 달린 구의 구간 인덱스를 들여올 때, 그리고 결과 화면의 동별 탐험률
+     * 변화에 쓸 **동 이름**을 찾을 때 쓴다.
+     *
+     * 예전엔 이름 하나 때문에 4.3MB 동 경계 geoJSON을 통째로 파싱했다. 계층 파일도 서버
+     * `index.geojson`에서 생성해서 `adm_cd2`가 그대로 맞는다.
+     */
     private val regionHierarchyJson: String,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -139,8 +144,12 @@ class IosRunSession(
                 val points = RunvealRecorder.currentFilteredPath()
                 if (points.size < 2) continue
                 try {
-                    val matcher = IosServerRoadMatcher(resolveMapVersion(), MatchPurpose.LIVE)
-                    LiveMatchHolder.publish(ChunkedMatcher.matchInChunks(matcher, points).path)
+                    val matcher = ServerRoadMatcher(resolveMapVersion(), MatchPurpose.LIVE)
+                    val result = ChunkedMatcher.matchInChunks(matcher, points)
+                    // 서버가 도로 데이터 없는 구간을 도로망으로 메워서 주기 때문에, 원본 GPS와
+                    // 동떨어진 부분은 잘라내고 조각으로 나눈다 — 안 거르면 안 지난 길이 지도에
+                    // 그려진다.
+                    LiveMatchHolder.publish(MatchedPathFilter.keepNearRecordedPoints(result.path, points))
                 } catch (_: Exception) {
                     // 다음 주기에 다시 시도한다.
                 }
@@ -181,28 +190,44 @@ class IosRunSession(
         val elapsedMs = finished.finishedAtEpochMs - finished.startedAtEpochMs
 
         if (points.size < 2) {
-            publishResult(trackId, finished, distanceMeters, elapsedMs, 0.0, emptyList(), points, emptyList())
+            publishResult(trackId, finished, distanceMeters, elapsedMs, 0.0, emptyList(), listOf(points), emptyList())
             return
         }
 
         try {
-            val matcher = IosServerRoadMatcher(resolveMapVersion(), MatchPurpose.LIVE)
+            val matcher = ServerRoadMatcher(resolveMapVersion(), MatchPurpose.LIVE)
             val result = ChunkedMatcher.matchInChunks(matcher, points)
 
             // 이번에 달린 구의 road_segment 인덱스가 없으면 여기서 들여온다 — 없으면 segmentId를
-            // 길이/동으로 못 바꿔서 이번 결과가 전부 집계에서 빠진다.
+            // 길이/동으로 못 바꿔서 이번 결과가 전부 집계에서 빠진다. 전국을 들여오면 896MB·400만
+            // 구간이라 끝나지 않으므로 달린 구만 받는다(§3.6.2 sigunguCodes).
             IosRoadSegmentIndexImporter().importIfNeeded(
                 sigunguCodes = result.sigunguCodes,
-                bundleDongGeoJson = dongBoundaryGeoJson,
                 regionHierarchyJson = regionHierarchyJson,
             )
 
-            val boundaries = DongBoundaryParser.parse(dongBoundaryGeoJson)
             val beforeWalked = trackLocalStore.walkedLengthByDong()
+
+            // 서버 매칭 결과를 두 군데서 거른다 — 안 거르면 안 지난 길이 "가본 길"로 그려지고
+            // 동 탐험률도 부풀려진다(서버가 도로 데이터 없는 구간을 도로망으로 메워서 주기 때문).
+            //  - 경로: 실제 GPS와 동떨어진 부분을 잘라내고 조각으로 나눈다.
+            //  - 구간: 로컬 구간 인덱스의 도로선과 대조해 GPS가 진짜 지나간 것만 적립한다.
+            val matchedPaths = MatchedPathFilter.keepNearRecordedPoints(result.path, points)
+            val runPaths = matchedPaths.ifEmpty { listOf(points) }
+            // 구간 전체가 아니라 그 구간에서 **지나간 부분만** 적립한다.
+            val coverages = trackLocalStore.coverageOnPaths(runPaths)
+
+            // "새로 탐험한 길"은 러닝 중 배지·금색 선과 **같은 기준**으로 센다 — 달린 선에서 아직 안
+            // 가본 도로 위를 지난 부분의 길이다. 적립(구간 단위)으로 세면 러닝 중엔 0.38km였는데 결과는
+            // 0km로 나오는 일이 생긴다: 그 구간이 로컬 인덱스에 없거나 이미 적립돼 있으면 0이 되기 때문.
+            // 적립보다 **먼저** 분류해야 이번 러닝으로 막 적립될 구간이 "가본 길"로 바뀌기 전 상태를 본다.
+            val classifier = IosLiveRoadClassifier().also { it.refreshExploredSegments() }
+            val classified = classifier.classifyPaths(runPaths)
+
             val summary = trackLocalStore.recordMatchResult(
                 trackId = trackId,
-                matchedPath = result.path,
-                segmentIds = result.segmentIds,
+                matchedPaths = matchedPaths,
+                coverages = coverages,
                 nowEpochMs = nowEpochMillis(),
             )
             val afterWalked = trackLocalStore.walkedLengthByDong()
@@ -212,12 +237,14 @@ class IosRunSession(
                 finished = finished,
                 distanceMeters = distanceMeters,
                 elapsedMs = elapsedMs,
-                newRoadMeters = summary.newRoadMeters,
-                dongStats = buildDongStats(summary.touchedDongAdmCodes, beforeWalked, afterWalked, boundaries),
-                // 결과 카드도 기록 탭 썸네일과 같은 선을 그리도록 **매칭 경로**를 넘긴다. 매칭이 점
-                // 2개도 못 돌려주면 원본 GPS로 떨어진다.
-                routePoints = result.path.takeIf { it.size >= 2 } ?: points,
-                newRoadPaths = summary.newRoadPaths,
+                newRoadMeters = classified.newRoadMeters,
+                dongStats = buildDongStats(summary.touchedDongAdmCodes, beforeWalked, afterWalked),
+                // 결과 카드도 지도의 가본 길·러닝 중 선과 **같은** 경로를 쓴다 — 서버가 메워 준 부분을
+                // 결과 카드만 그대로 그리면 러닝 중 보던 선과 전혀 다른 길이 나온다. 조각 그대로
+                // 넘긴다(이어 붙이면 잘라낸 구간이 직선으로 되살아난다).
+                routePaths = runPaths,
+                // 금색 덧그림도 구간 전체가 아니라 **실제로 지난 부분**이다 — 러닝 중 금색 선과 같다.
+                newRoadPaths = classified.newRuns,
             )
         } catch (_: Exception) {
             trackLocalStore.database.trackQueries.updateMatchState(
@@ -227,7 +254,7 @@ class IosRunSession(
                 updated_at_epoch_ms = nowEpochMillis(),
                 id = trackId,
             )
-            publishResult(trackId, finished, distanceMeters, elapsedMs, 0.0, emptyList(), points, emptyList())
+            publishResult(trackId, finished, distanceMeters, elapsedMs, 0.0, emptyList(), listOf(points), emptyList())
         }
     }
 
@@ -238,7 +265,7 @@ class IosRunSession(
         elapsedMs: Long,
         newRoadMeters: Double,
         dongStats: List<DongRateChange>,
-        routePoints: List<LatLon>,
+        routePaths: List<List<LatLon>>,
         newRoadPaths: List<List<LatLon>>,
     ) {
         TrackResultHolder.publish(
@@ -249,32 +276,32 @@ class IosRunSession(
                 elapsedMs = elapsedMs,
                 newRoadMeters = newRoadMeters,
                 dongStats = dongStats,
-                routePoints = routePoints,
+                routePaths = routePaths,
                 newRoadPaths = newRoadPaths,
             ),
         )
     }
 
-    /** 이번 트랙이 닿은 동만 — 전체 길이가 없거나 이름을 못 찾으면 그 동은 뺀다. */
+    /** 이번 트랙이 닿은 동만 — 거르는 규칙과 계산은 [DongRateChanges]에 있다(기록 불러오기 결과와
+     * 같은 숫자를 보여 줘야 해서 공용). */
     private fun buildDongStats(
         touchedAdmCodes: Set<String>,
         beforeWalked: Map<String, Double>,
         afterWalked: Map<String, Double>,
-        boundaries: List<DongBoundary>,
     ): List<DongRateChange> {
         if (touchedAdmCodes.isEmpty()) return emptyList()
-        val totalLengths = trackLocalStore.totalLengthByDong()
-        val namesByCode = boundaries.associate { it.admCd2 to it.name }
-        return touchedAdmCodes.mapNotNull { admCd2 ->
-            val total = totalLengths[admCd2]?.takeIf { it > 0.0 } ?: return@mapNotNull null
-            val name = namesByCode[admCd2] ?: return@mapNotNull null
-            DongRateChange(
-                admCd2 = admCd2,
-                name = name,
-                beforePercent = DongExploreRate.percentOf(beforeWalked[admCd2] ?: 0.0, total),
-                afterPercent = DongExploreRate.percentOf(afterWalked[admCd2] ?: 0.0, total),
-            )
-        }
+        // 동 이름은 계층 파일(150KB)에서 꺼낸다 — 예전엔 이름 하나 때문에 4.3MB 경계 geoJSON을
+        // 통째로 파싱했다. 계층 파일도 서버 코드 체계로 만들어서 `adm_cd2`가 그대로 맞는다.
+        val hierarchy = RegionHierarchyParser.parse(regionHierarchyJson)
+        return DongRateChanges.build(
+            touchedAdmCodes = touchedAdmCodes,
+            beforeWalked = beforeWalked,
+            afterWalked = afterWalked,
+            totalLengths = trackLocalStore.totalLengthByDong(),
+            namesByCode = hierarchy.sido
+                .flatMap { sido -> sido.sigungu.flatMap { it.dongs } }
+                .associate { it.code to it.name },
+        )
     }
 
     /** 앱 실행 시 스플래시가 받아 둔 버전([MetaHolder])이 있으면 그대로 쓰고, 없으면 여기서 한 번 더

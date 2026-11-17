@@ -81,6 +81,11 @@ final class HomeMapDataModel: ObservableObject {
         layers[RunvealMapConfig.sourceVisitedRoad] = IosHomeMapData.shared.emptyGeoJson
         liveRunTask?.cancel()
         liveRunTask = Task { [weak self] in
+            // 직전 러닝에서 적립된 구간까지 반영해 "이미 가본 길"을 다시 읽는다 — 안 그러면 앱을
+            // 켠 채 두 번째로 달릴 때 방금 달린 길이 또 처음 가는 길(금색)로 보인다.
+            await Task.detached(priority: .userInitiated) {
+                IosHomeMapData.shared.refreshExploredSegments()
+            }.value
             while !Task.isCancelled {
                 let result = await Task.detached(priority: .userInitiated) {
                     IosHomeMapData.shared.classifyLiveRun()
