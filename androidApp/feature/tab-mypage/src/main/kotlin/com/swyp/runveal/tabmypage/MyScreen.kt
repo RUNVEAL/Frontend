@@ -58,7 +58,10 @@ private val MYPAGE_BG_HEIGHT = 508.dp
 
 /**
  * 배경이 "설정" 섹션 바로 위에서 끝나도록 **내용 시작점 기준**으로 잡은 높이. 상단 앱바(84, 고정)
- * + 프로필 카드(패딩 20 + 닉네임 32 + 간격 24 + Stat 48 + 패딩 20 = 144) + 섹션 간격(32)이다.
+ * + 프로필 카드(패딩 20 + Stat 48 + 패딩 20 = 88) + 섹션 간격(32)이다.
+ *
+ * TODO(로그인 도입): 닉네임 줄(32)과 그 아래 간격(24)을 되살리면 카드가 144로 늘어난다 —
+ *  이 값도 88 → 144로 되돌려야 배경이 "설정" 바로 위에서 끝난다.
  *
  * statusBar 높이는 기기마다 달라서 화면 맨 위 기준으로 잡으면 기기마다 끝나는 위치가 달라진다 —
  * 그래서 이미지에도 내용과 같은 statusBar 인셋을 주고 거기서부터 거리를 센다(인셋은 레이아웃만
@@ -66,7 +69,7 @@ private val MYPAGE_BG_HEIGHT = 508.dp
  *
  * 닉네임이 두 줄이 되면 카드가 커져 조금 어긋나는데, 가장자리가 흐려지는 이미지라 티가 나지 않는다.
  */
-private val MYPAGE_BG_VISIBLE_HEIGHT = 84.dp + 144.dp + 32.dp
+private val MYPAGE_BG_VISIBLE_HEIGHT = 84.dp + 88.dp + 32.dp
 
 /** 안내 토스트 노출 시간. */
 private const val TOAST_DURATION_MILLIS = 3000L
@@ -160,8 +163,10 @@ fun MyScreen(
                 verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space32),
             ) {
                 ProfileSummaryCard(
-                    // 회원 정보와 연결 전이라 비어 있다 — 그동안은 자리표시자를 보여준다.
-                    nickname = state.nickname.ifEmpty { stringResource(R.string.my_nickname_placeholder) },
+                    // TODO(로그인 도입): 로그인 없이 나가는 1차 출시라 보여 줄 이름이 없다 —
+                    //  닉네임 줄을 통째로 비운다. 로그인을 켤 때 아래 줄을 되살린다.
+                    //  nickname = state.nickname.ifEmpty { stringResource(R.string.my_nickname_placeholder) },
+                    nickname = null,
                     exploredDongCount = state.exploredDongCount,
                     totalDistanceLabel = state.totalDistanceLabel,
                 )
@@ -219,11 +224,12 @@ private fun SettingsSection(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         RunvealSectionHeader(title = stringResource(R.string.my_section_settings))
-        RunvealListItem(
-            title = stringResource(R.string.my_menu_change_nickname),
-            onClick = { onIntent(MyIntent.NicknameChangeClicked) },
-            trailing = RunvealListItemTrailing.Chevron,
-        )
+        // TODO(로그인 도입): 로그인이 없으면 바꿀 닉네임 자체가 없어 숨긴다. 켤 때 되살린다.
+        // RunvealListItem(
+        //     title = stringResource(R.string.my_menu_change_nickname),
+        //     onClick = { onIntent(MyIntent.NicknameChangeClicked) },
+        //     trailing = RunvealListItemTrailing.Chevron,
+        // )
         RunvealListItem(
             title = stringResource(R.string.my_menu_import_records),
             onClick = onImportRecordsClick,

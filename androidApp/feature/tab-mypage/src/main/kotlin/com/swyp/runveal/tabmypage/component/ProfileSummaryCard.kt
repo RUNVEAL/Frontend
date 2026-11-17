@@ -22,10 +22,13 @@ import com.swyp.runveal.feature.tabmypage.R
  *
  * "탐험한 동"만 숫자를 금색으로 강조한다(`accent`) — 이 앱이 채워 가는 핵심 지표라 누적 거리와
  * 무게를 다르게 둔 시안 의도다.
+ *
+ * @param nickname null이면 닉네임 줄을 **그리지 않는다**(빈 줄로 자리를 차지하지도 않는다).
+ *  로그인 없이 나가는 1차 출시에서 쓰는 모양이다 — 보여 줄 이름 자체가 없다.
  */
 @Composable
 internal fun ProfileSummaryCard(
-    nickname: String,
+    nickname: String?,
     exploredDongCount: Int,
     totalDistanceLabel: String,
     modifier: Modifier = Modifier,
@@ -37,11 +40,13 @@ internal fun ProfileSummaryCard(
             .padding(RunvealTheme.layout.marginCardPadding),
         verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space24),
     ) {
-        Text(
-            text = nickname,
-            style = RunvealTheme.typography.heading2,
-            color = RunvealTheme.colors.text.primary,
-        )
+        if (nickname != null) {
+            Text(
+                text = nickname,
+                style = RunvealTheme.typography.heading2,
+                color = RunvealTheme.colors.text.primary,
+            )
+        }
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space16),
