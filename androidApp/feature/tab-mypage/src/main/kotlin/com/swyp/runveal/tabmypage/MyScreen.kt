@@ -42,10 +42,12 @@ import com.swyp.runveal.designsystem.component.overlay.RunvealToast
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.feature.tabmypage.R
 import com.swyp.runveal.permission.openAppSettings
+import com.swyp.runveal.permission.rememberHealthConnectPermissionGate
 import com.swyp.runveal.permission.rememberLocationPermissionState
 import com.swyp.runveal.tabmypage.component.ProfileSummaryCard
 import com.swyp.runveal.tabmypage.contract.MyEffect
 import com.swyp.runveal.tabmypage.contract.MyIntent
+import com.swyp.runveal.tabmypage.contract.MyToast
 import com.swyp.runveal.ui.mvi.CollectEffect
 import kotlinx.coroutines.delay
 
@@ -99,9 +101,17 @@ fun MyScreen(
         }
     }
 
+    // Health Connect로 가는 입구마다 권한을 확인한다 — 여기서 받아 두면 안내 화면의 불러오기
+    // 버튼에서 다시 묻지 않고 바로 넘어간다(안 받으면 그 버튼이 한 번 더 요청한다).
+    val onImportRecordsItemClick = rememberHealthConnectPermissionGate(
+        onGranted = onImportRecordsClick,
+        onUnavailable = { viewModel.onIntent(MyIntent.ToastRequested(MyToast.HEALTH_CONNECT_UNAVAILABLE)) },
+        onDenied = { viewModel.onIntent(MyIntent.ToastRequested(MyToast.HEALTH_CONNECT_PERMISSION_DENIED)) },
+    )
+
     // 토스트는 3초만 띄운다 — 사라지는 타이머는 띄우는 쪽이 맡는다(RunvealToast 주석, HomeScreen과 같은 방식).
-    LaunchedEffect(state.showNotReadyToast) {
-        if (!state.showNotReadyToast) return@LaunchedEffect
+    LaunchedEffect(state.toast) {
+        if (state.toast == null) return@LaunchedEffect
         delay(TOAST_DURATION_MILLIS)
         viewModel.onIntent(MyIntent.ToastShown)
     }
@@ -161,7 +171,7 @@ fun MyScreen(
                         isLocationPermissionGranted = locationPermissionState.isGranted,
                         onLocationPermissionClick = onLocationPermissionClick,
                         onTermsClick = onTermsClick,
-                        onImportRecordsClick = onImportRecordsClick,
+                        onImportRecordsClick = onImportRecordsItemClick,
                         onIntent = viewModel::onIntent,
                     )
                     AccountSection(onIntent = viewModel::onIntent)
@@ -184,9 +194,9 @@ fun MyScreen(
             }
         }
 
-        if (state.showNotReadyToast) {
+        state.toast?.let { toast ->
             RunvealToast(
-                message = stringResource(R.string.my_not_ready_toast),
+                message = stringResource(toast.messageRes),
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .windowInsetsPadding(WindowInsets.statusBars)
@@ -276,3 +286,11 @@ private fun AccountSection(onIntent: (MyIntent) -> Unit) {
         )
     }
 }
+
+/** 토스트 종류별 문구. 상태는 "무엇을 알릴지"만 들고 있고, 문구 선택은 화면 몫이다. */
+private val MyToast.messageRes: Int
+    get() = when (this) {
+        MyToast.NOT_READY -> R.string.my_not_ready_toast
+        MyToast.HEALTH_CONNECT_UNAVAILABLE -> R.string.import_records_unavailable
+        MyToast.HEALTH_CONNECT_PERMISSION_DENIED -> R.string.import_records_permission_denied
+    }

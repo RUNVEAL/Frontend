@@ -73,19 +73,11 @@ class HealthConnectImporter(
     private val store: TrackLocalStore = TrackLocalStore(RunvealDatabaseProvider.database, FileStore()),
 ) {
     private val checkpoints = ImportCheckpointStore(RunvealDatabaseProvider.database)
+    private val availability = HealthConnectAvailability(context, source)
 
-    /** 가져오기를 시작할 수 있는 상태인지. 화면이 권한 요청 UI를 띄울지 판단하는 데도 쓴다. */
-    suspend fun unavailableReason(): ImportUnavailableReason? {
-        if (!source.isAvailable) return ImportUnavailableReason.PROVIDER_NOT_AVAILABLE
-        val granted = source.grantedPermissions()
-        if (!granted.containsAll(HealthConnectPermissions.session)) {
-            return ImportUnavailableReason.PERMISSION_DENIED
-        }
-        if (HealthConnectPermissions.READ_EXERCISE_ROUTES !in granted) {
-            return ImportUnavailableReason.ROUTE_PERMISSION_DENIED
-        }
-        return null
-    }
+    /** 가져오기를 시작할 수 있는 상태인지 — 판단은 권한 요청 UI와 공용인
+     * [HealthConnectAvailability]에 있다. */
+    suspend fun unavailableReason(): ImportUnavailableReason? = availability.unavailableReason()
 
     /**
      * 재개 지점 이후에 끝난 달리기 세션을 가져온다. 이미 들여온 것은 건너뛰고, 경로가 없거나

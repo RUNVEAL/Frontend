@@ -14,6 +14,7 @@ import com.swyp.runveal.result.TrackResultHolder
 import com.swyp.runveal.tabmypage.contract.MyEffect
 import com.swyp.runveal.tabmypage.contract.MyIntent
 import com.swyp.runveal.tabmypage.contract.MyState
+import com.swyp.runveal.tabmypage.contract.MyToast
 import com.swyp.runveal.ui.mvi.MviViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -58,14 +59,15 @@ class MyViewModel : MviViewModel<MyIntent, MyState, MyEffect>(
             //  - TODO: 회원 탈퇴 — 회원 API가 붙은 뒤(되돌릴 수 없으니 확인 다이얼로그 필요).
             MyIntent.NicknameChangeClicked,
             MyIntent.WithdrawClicked,
-            -> setState { copy(showNotReadyToast = true) }
+            -> setState { copy(toast = MyToast.NOT_READY) }
 
             // 로그아웃은 되돌리려면 다시 로그인해야 해서 한 번 더 묻는다.
             MyIntent.LogoutClicked -> setState { copy(showLogoutDialog = true) }
             MyIntent.LogoutDismissed -> setState { copy(showLogoutDialog = false) }
             MyIntent.LogoutConfirmed -> logout()
 
-            MyIntent.ToastShown -> setState { copy(showNotReadyToast = false) }
+            is MyIntent.ToastRequested -> setState { copy(toast = intent.toast) }
+            MyIntent.ToastShown -> setState { copy(toast = null) }
         }
     }
 

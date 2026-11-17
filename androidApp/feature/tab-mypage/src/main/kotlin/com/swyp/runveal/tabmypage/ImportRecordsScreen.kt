@@ -1,6 +1,5 @@
 package com.swyp.runveal.tabmypage
 
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -24,7 +23,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,7 +31,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.health.connect.client.PermissionController
 import com.swyp.runveal.designsystem.RunvealIcons
 import com.swyp.runveal.designsystem.component.button.RunvealButtonGroup
 import com.swyp.runveal.designsystem.component.button.RunvealButtonGroupPrimaryText
@@ -41,12 +38,9 @@ import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.swyp.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
 import com.swyp.runveal.designsystem.component.overlay.RunvealToast
 import com.swyp.runveal.designsystem.theme.RunvealTheme
-import com.swyp.runveal.external.ImportUnavailableReason
 import com.swyp.runveal.feature.tabmypage.R
-import com.swyp.runveal.health.HealthConnectImporter
-import com.swyp.runveal.health.HealthConnectPermissions
+import com.swyp.runveal.permission.rememberHealthConnectPermissionGate
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /** `health.png`의 원본 크기(240x240px, xxxhdpi 4배). */
 private val HEALTH_LOGO_SIZE = 60.dp
@@ -69,43 +63,17 @@ internal fun ImportRecordsScreen(
     onLaterClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    // 권한 확인에만 쓰는 인스턴스 — 가져오기는 진행 화면의 ViewModel이 제 것으로 돌린다.
-    val importer = remember(context) { HealthConnectImporter(context.applicationContext) }
     var toastMessageRes by remember { mutableStateOf<Int?>(null) }
 
-    // Health Connect 권한은 OS 다이얼로그가 아니라 Health Connect 앱 화면에서 사용자가 허용한다.
-    // 돌아온 결과를 직접 보지 않고 다시 확인하는 건, 필요한 권한이 세션·경로 두 묶음이고 "무엇이
-    // 모자라면 못 쓰는지" 판단이 importer에 이미 있어서다.
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = PermissionController.createRequestPermissionResultContract(),
-    ) {
-        scope.launch {
-            if (importer.unavailableReason() == null) {
-                onReadyToImport()
-            } else {
-                toastMessageRes = R.string.import_records_permission_denied
-            }
-        }
-    }
-
-    val onImportClick: () -> Unit = {
-        scope.launch {
-            when (importer.unavailableReason()) {
-                null -> onReadyToImport()
-                // 기기에 Health Connect가 없거나 업데이트가 필요한 경우 — 권한 요청을 띄울 수조차 없다.
-                // TODO: Play 스토어의 Health Connect 설치 화면으로 보낸다.
-                ImportUnavailableReason.PROVIDER_NOT_AVAILABLE ->
-                    toastMessageRes = R.string.import_records_unavailable
-
-                ImportUnavailableReason.PERMISSION_DENIED,
-                ImportUnavailableReason.ROUTE_PERMISSION_DENIED,
-                -> permissionLauncher.launch(HealthConnectPermissions.all)
-            }
-        }
-        Unit
-    }
+    // 권한은 Activity/런처에 묶여 있어 ViewModel이 아니라 화면이 직접 다룬다(MyScreen과 같은 방식).
+    // 마이페이지에서 이미 한 번 거쳤어도 여기서 다시 본다 — 그 사이 Health Connect 앱에서 권한을
+    // 끄고 돌아왔을 수 있다.
+    val onImportClick = rememberHealthConnectPermissionGate(
+        onGranted = onReadyToImport,
+        // TODO: Play 스토어의 Health Connect 설치 화면으로 보낸다.
+        onUnavailable = { toastMessageRes = R.string.import_records_unavailable },
+        onDenied = { toastMessageRes = R.string.import_records_permission_denied },
+    )
 
     // 토스트는 3초만 띄운다 — 사라지는 타이머는 띄우는 쪽이 맡는다(RunvealToast 주석).
     LaunchedEffect(toastMessageRes) {

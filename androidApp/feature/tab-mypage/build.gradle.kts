@@ -26,8 +26,4 @@ dependencies {
 
     implementation(libs.androidx.navigation.compose)
     implementation(libs.compose.material3)
-    // Health Connect 권한은 OS 다이얼로그가 아니라 Health Connect 앱 화면에서 받는다 —
-    // 그 요청 계약(PermissionController.createRequestPermissionResultContract)을 화면이 직접 띄운다.
-    implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.health.connect.client)
 }

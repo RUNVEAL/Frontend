@@ -20,12 +20,29 @@ object HealthConnectPermissions {
     /** `androidx.health.connect.client`가 상수로 노출하지 않는 복수형 경로 권한. */
     const val READ_EXERCISE_ROUTES = "android.permission.health.READ_EXERCISE_ROUTES"
 
-    /** 운동 세션과 거리. 경로 없이도 세션 목록을 훑는 데는 이것만 있으면 된다. */
+    /**
+     * 운동 세션과 거리. 경로 없이도 세션 목록을 훑는 데는 이것만 있으면 된다 — **없으면 아무것도
+     * 못 하는 최소 묶음**이라, 가져오기를 막을지 판단하는 기준도 이 집합이다
+     * ([HealthConnectAvailability]).
+     */
     val session: Set<String> = setOf(
         HealthPermission.getReadPermission(ExerciseSessionRecord::class),
         HealthPermission.getReadPermission(DistanceRecord::class),
     )
 
-    /** 가져오기가 실제로 동작하려면 필요한 전부(세션 + 모든 경로). */
-    val all: Set<String> = session + READ_EXERCISE_ROUTES
+    /**
+     * 30일보다 오래된 기록까지 읽는 권한. 이게 없으면 읽기 권한을 줘도 **지난 30일치만** 올라와서
+     * (권한 화면이 그렇게 안내한다) 첫 연동에서 90일을 훑는 게 의미가 없어진다.
+     *
+     * 경로와 달리 제한 데이터가 아니라 승인 없이 받을 수 있다. 다만 Health Connect가 오래된
+     * 버전이면 이 권한을 모르고 넘어가므로, 못 받아도 가져오기 자체는 되게 둔다(범위만 좁아진다).
+     */
+    val READ_HEALTH_DATA_HISTORY: String = HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY
+
+    /**
+     * 권한 화면에서 한 번에 요청하는 전부. [session]에 더해 **받으면 좋은** 둘을 같이 묻는다 —
+     * 경로([READ_EXERCISE_ROUTES])와 과거 기록([READ_HEALTH_DATA_HISTORY])은 못 받아도 가져오기를
+     * 막지 않는다. 각각 "경로 없는 기록은 건너뜀", "30일치만"으로 범위가 줄 뿐이다.
+     */
+    val all: Set<String> = session + READ_EXERCISE_ROUTES + READ_HEALTH_DATA_HISTORY
 }

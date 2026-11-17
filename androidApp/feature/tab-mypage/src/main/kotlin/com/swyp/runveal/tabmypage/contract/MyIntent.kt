@@ -10,6 +10,9 @@ sealed interface MyIntent : UiIntent {
     data object LogoutDismissed : MyIntent
     data object WithdrawClicked : MyIntent
 
+    /** 화면이 직접 다루는 일(권한 등)의 결과를 안내 토스트로 띄울 때. */
+    data class ToastRequested(val toast: MyToast) : MyIntent
+
     /** 안내 토스트가 노출을 마쳤을 때 — 다시 안 뜨게 상태에서 내린다. */
     data object ToastShown : MyIntent
 }
