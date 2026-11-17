@@ -121,7 +121,7 @@ struct RunvealHomeShell: View {
         case .record:
             RecordScreen()
         case .my:
-            MyScreen()
+            MyScreen(onTermsItemClick: { item in navigator.push(.termsDetail(item: item)) })
         }
     }
 
@@ -163,6 +163,8 @@ struct RunvealHomeShell: View {
             )
         case .result:
             ResultScreen(onClose: { navigator.popToTab() })
+        case .termsDetail(let item):
+            TermsDetailScreen(item: item, onBack: { navigator.pop() })
         }
     }
 
