@@ -12,8 +12,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private const val BOUNDARY_ASSET_PATH = "dong/korea_dong.geojson"
-
 /**
  * 동 하나·단계 하나의 빛 이미지를 메모리 → 디스크 → (없으면) 생성 큐 순서로 구해준다(문서 4장). 화면에
  * 보이는 동 중 **단계 ≥ 1인 동만** [request]를 부르는 건 호출 쪽 책임 — 0단계는 빛이 없다.
@@ -100,7 +98,7 @@ internal class DongGlowProvider(
         if (cacheDirSourceKey == boundarySourceKey) cacheDir?.let { return it }
         if (cacheDirSourceKey != null) memoryCache.clear()
         return withContext(Dispatchers.IO) {
-            val key = DongGlowCacheKey.compute(context, BOUNDARY_ASSET_PATH, boundarySourceKey)
+            val key = DongGlowCacheKey.compute(boundarySourceKey)
             DongGlowDiskCache.ensureCacheDir(context, key)
         }.also {
             cacheDir = it

@@ -4,4 +4,8 @@ package com.swyp.runveal.core.map
 data class SigunguOverlayGeoJson(
     val lineGeoJson: String,
     val labelGeoJson: String,
-)
+) {
+    companion object {
+        val EMPTY = SigunguOverlayGeoJson(EMPTY_FEATURE_COLLECTION, EMPTY_FEATURE_COLLECTION)
+    }
+}
