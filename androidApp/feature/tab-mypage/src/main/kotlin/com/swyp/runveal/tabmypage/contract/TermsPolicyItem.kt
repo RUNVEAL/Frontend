@@ -9,6 +9,10 @@ import com.swyp.runveal.feature.tabmypage.R
 enum class TermsPolicyItem(val labelRes: Int) {
     Service(R.string.terms_policy_service),
     Privacy(R.string.terms_policy_privacy),
-    Location(R.string.terms_policy_location),
+
+    // 위치기반서비스 이용약관(terms_policy_location)은 마이페이지 구성에서 빠졌다. 다시 넣기로
+    // 하면 이 줄만 되살리면 된다 — 문자열은 그대로 두었다.
+    // Location(R.string.terms_policy_location),
+
     OpenSource(R.string.terms_policy_open_source),
 }

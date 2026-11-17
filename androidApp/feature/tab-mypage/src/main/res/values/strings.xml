@@ -2,8 +2,9 @@
 <resources>
     <string name="my_title">MY</string>
 
-    <!-- TODO: 회원 정보(auth)와 연결되면 제거한다. 실제 닉네임이 들어오면 이 값은 안 쓰인다. -->
-    <string name="my_nickname_placeholder">러너</string>
+    <!-- 로그인 없이 쓰는 1차 출시에서는 늘 이 값이 보인다. 로그인·회원 정보가 붙어 실제 닉네임이
+         들어오면 이 값은 안 쓰인다. -->
+    <string name="my_nickname_placeholder">-</string>
 
     <string name="my_stat_explored_dong_label">탐험한 동</string>
     <string name="my_stat_explored_dong_unit">개</string>

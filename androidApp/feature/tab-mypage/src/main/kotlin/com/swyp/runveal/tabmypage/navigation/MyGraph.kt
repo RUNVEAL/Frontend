@@ -27,7 +27,10 @@ fun NavGraphBuilder.myGraph(
     composable<RunVealRoute.HomeTab.My> {
         MyScreen(
             onLoggedOut = onLoggedOut,
-            onTermsClick = { navigator.navigate(RunVealRoute.HomeTab.Terms) },
+            // 약관 목록은 마이페이지 안에 펼쳐 둬서 중간 화면 없이 바로 본문으로 간다.
+            onTermsItemClick = { item ->
+                navigator.navigate(RunVealRoute.HomeTab.TermsDetail(item.name))
+            },
             onImportRecordsClick = { navigator.navigate(RunVealRoute.HomeTab.ImportRecords) },
         )
     }
@@ -69,6 +72,8 @@ fun NavGraphBuilder.myGraph(
             onGoHomeClick = onGoHomeClick,
         )
     }
+    // TODO(로그인 도입): 지금은 아무도 이 목적지로 가지 않는다 — 약관을 마이페이지 안에 펼쳐 둬서
+    //  목록 화면이 필요 없어졌다. 마이페이지가 원래 구성으로 돌아갈 때 다시 쓸지 정한다.
     composable<RunVealRoute.HomeTab.Terms> {
         TermsPolicyScreen(
             onBackClick = { navigator.navigateUp() },

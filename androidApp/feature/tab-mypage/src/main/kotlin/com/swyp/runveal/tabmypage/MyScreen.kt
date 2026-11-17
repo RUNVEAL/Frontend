@@ -48,6 +48,7 @@ import com.swyp.runveal.tabmypage.component.ProfileSummaryCard
 import com.swyp.runveal.tabmypage.contract.MyEffect
 import com.swyp.runveal.tabmypage.contract.MyIntent
 import com.swyp.runveal.tabmypage.contract.MyToast
+import com.swyp.runveal.tabmypage.contract.TermsPolicyItem
 import com.swyp.runveal.ui.mvi.CollectEffect
 import kotlinx.coroutines.delay
 
@@ -58,7 +59,10 @@ private val MYPAGE_BG_HEIGHT = 508.dp
 
 /**
  * 배경이 "설정" 섹션 바로 위에서 끝나도록 **내용 시작점 기준**으로 잡은 높이. 상단 앱바(84, 고정)
- * + 프로필 카드(패딩 20 + 닉네임 32 + 간격 24 + Stat 48 + 패딩 20 = 144) + 섹션 간격(32)이다.
+ * + 프로필 카드(패딩 20 + Stat 48 + 패딩 20 = 88) + 섹션 간격(32)이다.
+ *
+ * TODO(로그인 도입): 닉네임 줄(32)과 그 아래 간격(24)을 되살리면 카드가 144로 늘어난다 —
+ *  이 값도 88 → 144로 되돌려야 배경이 "설정" 바로 위에서 끝난다.
  *
  * statusBar 높이는 기기마다 달라서 화면 맨 위 기준으로 잡으면 기기마다 끝나는 위치가 달라진다 —
  * 그래서 이미지에도 내용과 같은 statusBar 인셋을 주고 거기서부터 거리를 센다(인셋은 레이아웃만
@@ -66,7 +70,7 @@ private val MYPAGE_BG_HEIGHT = 508.dp
  *
  * 닉네임이 두 줄이 되면 카드가 커져 조금 어긋나는데, 가장자리가 흐려지는 이미지라 티가 나지 않는다.
  */
-private val MYPAGE_BG_VISIBLE_HEIGHT = 84.dp + 144.dp + 32.dp
+private val MYPAGE_BG_VISIBLE_HEIGHT = 84.dp + 88.dp + 32.dp
 
 /** 안내 토스트 노출 시간. */
 private const val TOAST_DURATION_MILLIS = 3000L
@@ -74,7 +78,7 @@ private const val TOAST_DURATION_MILLIS = 3000L
 @Composable
 fun MyScreen(
     onLoggedOut: () -> Unit,
-    onTermsClick: () -> Unit,
+    onTermsItemClick: (TermsPolicyItem) -> Unit,
     onImportRecordsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MyViewModel = viewModel(),
@@ -160,8 +164,10 @@ fun MyScreen(
                 verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space32),
             ) {
                 ProfileSummaryCard(
-                    // 회원 정보와 연결 전이라 비어 있다 — 그동안은 자리표시자를 보여준다.
-                    nickname = state.nickname.ifEmpty { stringResource(R.string.my_nickname_placeholder) },
+                    // TODO(로그인 도입): 로그인 없이 나가는 1차 출시라 보여 줄 이름이 없다 —
+                    //  닉네임 줄을 통째로 비운다. 로그인을 켤 때 아래 줄을 되살린다.
+                    //  nickname = state.nickname.ifEmpty { stringResource(R.string.my_nickname_placeholder) },
+                    nickname = null,
                     exploredDongCount = state.exploredDongCount,
                     totalDistanceLabel = state.totalDistanceLabel,
                 )
@@ -170,11 +176,14 @@ fun MyScreen(
                     SettingsSection(
                         isLocationPermissionGranted = locationPermissionState.isGranted,
                         onLocationPermissionClick = onLocationPermissionClick,
-                        onTermsClick = onTermsClick,
                         onImportRecordsClick = onImportRecordsItemClick,
                         onIntent = viewModel::onIntent,
                     )
-                    AccountSection(onIntent = viewModel::onIntent)
+                    TermsPolicySection(onItemClick = onTermsItemClick)
+                    // TODO(로그인 도입): 로그인 없이 나가는 1차 출시에서는 계정 섹션(로그아웃·회원
+                    //  탈퇴)을 숨긴다 — 로그인한 적이 없으니 할 수 있는 게 없다. 로그인을 켤 때
+                    //  이 줄을 되살리면 된다(AccountSection은 지우지 않고 그대로 뒀다).
+                    // AccountSection(onIntent = viewModel::onIntent)
                 }
             }
         }
@@ -210,17 +219,17 @@ fun MyScreen(
 private fun SettingsSection(
     isLocationPermissionGranted: Boolean,
     onLocationPermissionClick: () -> Unit,
-    onTermsClick: () -> Unit,
     onImportRecordsClick: () -> Unit,
     onIntent: (MyIntent) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         RunvealSectionHeader(title = stringResource(R.string.my_section_settings))
-        RunvealListItem(
-            title = stringResource(R.string.my_menu_change_nickname),
-            onClick = { onIntent(MyIntent.NicknameChangeClicked) },
-            trailing = RunvealListItemTrailing.Chevron,
-        )
+        // TODO(로그인 도입): 로그인이 없으면 바꿀 닉네임 자체가 없어 숨긴다. 켤 때 되살린다.
+        // RunvealListItem(
+        //     title = stringResource(R.string.my_menu_change_nickname),
+        //     onClick = { onIntent(MyIntent.NicknameChangeClicked) },
+        //     trailing = RunvealListItemTrailing.Chevron,
+        // )
         RunvealListItem(
             title = stringResource(R.string.my_menu_import_records),
             onClick = onImportRecordsClick,
@@ -252,14 +261,39 @@ private fun SettingsSection(
                     .padding(end = RunvealTheme.spacing.space12),
             )
         }
+    }
+}
+
+/**
+ * 약관 및 정책 — 마이페이지 안에 바로 펼친다(시안). 문서는 아직 열 수 없어서 눌러도 안내 토스트만
+ * 뜬다 — 약관 목록 API(`docs/api/API.md` §3.8)가 붙으면 받아 온 URL을 여는 자리다.
+ */
+@Composable
+private fun TermsPolicySection(onItemClick: (TermsPolicyItem) -> Unit) {
+    val context = LocalContext.current
+    val versionName = remember(context) { context.appVersionName() }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        RunvealSectionHeader(title = stringResource(R.string.terms_policy_title))
+        TermsPolicyItem.entries.forEach { item ->
+            RunvealListItem(
+                title = stringResource(item.labelRes),
+                onClick = { onItemClick(item) },
+                trailing = RunvealListItemTrailing.Chevron,
+            )
+        }
+        // 앱 버전은 눌러서 여는 줄이 아니라 값을 보여주는 줄이다 — chevron 대신 값을 오른쪽에 둔다.
         RunvealListItem(
-            title = stringResource(R.string.my_menu_terms),
-            onClick = onTermsClick,
-            trailing = RunvealListItemTrailing.Chevron,
+            title = stringResource(R.string.terms_policy_app_version),
+            onClick = {},
+            trailing = RunvealListItemTrailing.TextButton,
+            trailingButtonLabel = versionName,
         )
     }
 }
 
+/** 로그인 도입 전까지는 화면에 올리지 않는다 — 위 호출부의 TODO 참고. */
+@Suppress("unused")
 @Composable
 private fun AccountSection(onIntent: (MyIntent) -> Unit) {
     Column(modifier = Modifier.fillMaxWidth()) {

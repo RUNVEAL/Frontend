@@ -24,7 +24,14 @@ import com.swyp.runveal.feature.tabmypage.R
 import com.swyp.runveal.tabmypage.contract.TermsPolicyItem
 
 /**
- * 약관 및 정책 목록. 문서는 아직 열 수 없어서 눌러도 안내 토스트만 띄운다 — 약관 목록 API
+ * 약관 및 정책 목록(디자인 `WF_E2`).
+ *
+ * TODO(로그인 도입): **지금은 이 화면으로 가는 길이 없다.** 1차 출시 마이페이지는 약관을 목록
+ *  화면으로 빼지 않고 그 자리에 펼쳐 두기 때문이다(`MyScreen.TermsPolicySection`). 로그인과
+ *  함께 마이페이지가 원래 구성으로 돌아갈 때 이 화면을 다시 연결할지, 인라인 섹션으로 계속
+ *  갈지 정한다. 그때까지 지우지 않고 둔다 — 라우트(`RunVealRoute.HomeTab.Terms`)도 그대로다.
+ *
+ * 문서는 아직 열 수 없어서 눌러도 안내 토스트만 띄운다 — 약관 목록 API
  * (`docs/api/API.md` §3.8)가 붙으면 받아 온 URL을 여는 자리다.
  *
  * 상태랄 게 앱 버전 하나뿐이고 그마저도 기기에서 바로 읽는 값이라 ViewModel을 두지 않았다.
@@ -75,13 +82,3 @@ internal fun TermsPolicyScreen(
         }
     }
 }
-
-/**
- * 설치된 앱의 버전. `BuildConfig`는 모듈마다 따로 생성돼서 라이브러리 모듈에서는 앱 버전을 알 수
- * 없다 — PackageManager로 실제 설치본의 값을 읽는다.
- */
-private fun Context.appVersionName(): String =
-    runCatching { packageManager.getPackageInfo(packageName, 0).versionName }
-        .getOrNull()
-        ?.let { "v$it" }
-        .orEmpty()
