@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.swyp.runveal.feature.courserecommend"
+    namespace = "com.sloth.runveal.feature.courserecommend"
 }
 
 dependencies {

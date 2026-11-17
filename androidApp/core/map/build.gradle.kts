@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.swyp.runveal.core.map"
+    namespace = "com.sloth.runveal.core.map"
 }
 
 dependencies {

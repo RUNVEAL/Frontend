@@ -32,7 +32,7 @@
 	<!-- 키는 번들 ID다 — Config.xcconfig의 PRODUCT_BUNDLE_IDENTIFIER와 같아야 한다. -->
 	<key>provisioningProfiles</key>
 	<dict>
-		<key>com.swyp.runveal</key>
+		<key>com.sloth.runveal</key>
 		<string></string>
 	</dict>
 

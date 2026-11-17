@@ -21,5 +21,5 @@ android {
     sourceSets["main"].kotlin.srcDir(layout.buildDirectory.dir("generated/runvealIcons/kotlin").get())
     sourceSets["main"].res.srcDir(layout.buildDirectory.dir("generated/runvealIcons/res").get())
 
-    namespace = "com.swyp.runveal.designsystem"
+    namespace = "com.sloth.runveal.designsystem"
 }

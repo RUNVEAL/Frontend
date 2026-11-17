@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.swyp.runveal.feature.sign"
+    namespace = "com.sloth.runveal.feature.sign"
 }
 
 dependencies {

@@ -5,7 +5,7 @@
  * build/generated/runvealTokens/commonMain/kotlin 아래에 Kotlin 파일을 만든다.
  * JSON만 바꾸고 빌드하면 앱에 반영된다. 생성된 파일은 직접 수정하지 않는다.
  *
- * 생성 결과 (package com.swyp.runveal.designsystem)
+ * 생성 결과 (package com.sloth.runveal.designsystem)
  *  - RunvealPalette     ← primitive.color
  *  - RunvealSpacing     ← primitive.space
  *  - RunvealRadius      ← primitive.radius
@@ -194,7 +194,7 @@ class RunvealTokenGenerator(private val root: Map<String, Any?>, private val pkg
         |import androidx.compose.ui.unit.Dp
         |import androidx.compose.ui.unit.dp
         |import androidx.compose.ui.unit.sp
-        |import com.swyp.runveal.designsystem.theme.RunvealShadow
+        |import com.sloth.runveal.designsystem.theme.RunvealShadow
     """.trimMargin()
 
     private fun fileStart() = "$header@file:Suppress(\"unused\", \"RedundantVisibilityModifier\")\n\npackage $pkg\n\n$imports\n\n"
@@ -298,7 +298,7 @@ val generateRunvealTokens = tasks.register<GenerateRunvealTokensTask>("generateR
     group = "runveal"
     description = "design/runveal-tokens.json → Kotlin 디자인 토큰 생성"
     tokensFile.set(rootProject.layout.projectDirectory.file("design/runveal-tokens.json"))
-    packageName.set("com.swyp.runveal.designsystem")
+    packageName.set("com.sloth.runveal.designsystem")
     outputDir.set(layout.buildDirectory.dir("generated/runvealTokens/commonMain/kotlin"))
 }
 

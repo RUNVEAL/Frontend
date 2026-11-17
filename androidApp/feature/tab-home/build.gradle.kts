@@ -12,7 +12,7 @@ tasks.named("preBuild") {
 android {
     sourceSets["main"].res.srcDir(layout.buildDirectory.dir("generated/runvealImages/res").get())
 
-    namespace = "com.swyp.runveal.feature.tabhome"
+    namespace = "com.sloth.runveal.feature.tabhome"
 }
 
 dependencies {

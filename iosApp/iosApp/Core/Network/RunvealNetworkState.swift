@@ -19,7 +19,7 @@ final class RunvealNetworkState: ObservableObject {
     @Published private(set) var isConnected: Bool
 
     private let monitor = NWPathMonitor()
-    private let queue = DispatchQueue(label: "com.swyp.runveal.network-monitor")
+    private let queue = DispatchQueue(label: "com.sloth.runveal.network-monitor")
 
     init() {
         // 구독을 시작하기 전에 현재 값으로 한 번 채운다 — 첫 콜백이 올 때까지 기다리면 실행 직후

@@ -37,7 +37,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 120
     env:
-      BUNDLE_ID: com.swyp.runveal
+      BUNDLE_ID: com.sloth.runveal
       NETWORK_BASE_URL: ${{ secrets.NETWORK_BASE_URL || vars.NETWORK_BASE_URL }}
       # 식별자라 비밀이 아니다 — Variables에 둬도 된다.
       IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID || vars.IOS_TEAM_ID }}

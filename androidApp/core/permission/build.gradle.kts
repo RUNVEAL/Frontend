@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.swyp.runveal.core.permission"
+    namespace = "com.sloth.runveal.core.permission"
 }
 
 dependencies {

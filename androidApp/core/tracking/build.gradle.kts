@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.swyp.runveal.core.tracking"
+    namespace = "com.sloth.runveal.core.tracking"
 }
 
 dependencies {

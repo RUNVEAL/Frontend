@@ -40,7 +40,7 @@ plugins {
 sqldelight {
     databases {
         create("RunvealDatabase") {
-            packageName.set("com.swyp.runveal.db")
+            packageName.set("com.sloth.runveal.db")
         }
     }
 }
@@ -61,7 +61,7 @@ abstract class GenerateAuthConfigTask : DefaultTask() {
 
     @TaskAction
     fun generate() {
-        val pkgDir = outputDir.get().asFile.resolve("com/swyp/runveal/auth")
+        val pkgDir = outputDir.get().asFile.resolve("com/sloth/runveal/auth")
         pkgDir.mkdirs()
         pkgDir.resolve("AuthConfig.kt").writeText(fileContent.get())
     }
@@ -69,7 +69,7 @@ abstract class GenerateAuthConfigTask : DefaultTask() {
 
 val authConfigFileContent = """
     |// 자동 생성 파일 - 직접 수정하지 마세요. 원본: local.properties (sharedLogic/build.gradle.kts)
-    |package com.swyp.runveal.auth
+    |package com.sloth.runveal.auth
     |
     |/** local.properties에서 읽은 소셜 로그인/Firebase 설정값. 값은 로컬 전용이며 git에 커밋되지 않는다. */
     |object AuthConfig {
@@ -96,7 +96,7 @@ abstract class GenerateNetworkConfigTask : DefaultTask() {
 
     @TaskAction
     fun generate() {
-        val pkgDir = outputDir.get().asFile.resolve("com/swyp/runveal/network")
+        val pkgDir = outputDir.get().asFile.resolve("com/sloth/runveal/network")
         pkgDir.mkdirs()
         pkgDir.resolve("NetworkConfig.kt").writeText(fileContent.get())
     }
@@ -104,7 +104,7 @@ abstract class GenerateNetworkConfigTask : DefaultTask() {
 
 val networkConfigFileContent = """
     |// 자동 생성 파일 - 직접 수정하지 마세요. 원본: local.properties (sharedLogic/build.gradle.kts)
-    |package com.swyp.runveal.network
+    |package com.sloth.runveal.network
     |
     |/** local.properties의 network.baseUrl 값. 끝에 "/" 없는 형태로 넣는다 — 호출부가 "${'$'}BASE_URL/api/..."처럼 직접 이어 붙인다. */
     |object NetworkConfig {
@@ -122,7 +122,7 @@ val generateNetworkConfig = tasks.register<GenerateNetworkConfigTask>("generateN
 
 kotlin {
     android {
-       namespace = "com.swyp.runveal.sharedLogic"
+       namespace = "com.sloth.runveal.sharedLogic"
        androidResources {
            enable = true
        }

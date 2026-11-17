@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.swyp.runveal.core.navigation"
+    namespace = "com.sloth.runveal.core.navigation"
 }
 
 dependencies {

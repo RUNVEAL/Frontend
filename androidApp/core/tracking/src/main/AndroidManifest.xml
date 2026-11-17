@@ -7,7 +7,7 @@
 
     <application>
         <service
-            android:name="com.swyp.runveal.tracking.TrackingService"
+            android:name="com.sloth.runveal.tracking.TrackingService"
             android:exported="false"
             android:foregroundServiceType="location" />
     </application>

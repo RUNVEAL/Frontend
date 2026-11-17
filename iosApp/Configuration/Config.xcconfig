@@ -8,7 +8,7 @@ PRODUCT_NAME=Runveal
 // App Store Connect에 등록하는 고정 식별자 — Android applicationId와 같게 맞춘다.
 // KMP 템플릿은 로컬 개발 충돌을 피하려고 $(TEAM_ID)를 뒤에 붙여 두는데,
 // 그 상태로는 스토어에 앱을 등록할 수 없다(식별자가 머신마다 달라진다).
-PRODUCT_BUNDLE_IDENTIFIER=com.swyp.runveal
+PRODUCT_BUNDLE_IDENTIFIER=com.sloth.runveal
 
 CURRENT_PROJECT_VERSION=1
 MARKETING_VERSION=1.0

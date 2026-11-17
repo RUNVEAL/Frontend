@@ -1,0 +1,18 @@
+package com.sloth.runveal.tabhome.navigation
+
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.compose.composable
+import com.sloth.runveal.navigation.RunVealRoute
+import com.sloth.runveal.tabhome.HomeMapOverlayScreen
+
+fun NavGraphBuilder.homeMapOverlay(onCreateCourseClick: () -> Unit = {}, onRunStartClick: () -> Unit = {}) {
+    composable<RunVealRoute.HomeTab.HomeMap> {
+        HomeMapOverlayScreen(
+            modifier = Modifier.fillMaxSize(),
+            onCreateCourseClick = onCreateCourseClick,
+            onRunStartClick = onRunStartClick,
+        )
+    }
+}

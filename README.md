@@ -4,7 +4,7 @@ Compose, iOS는 SwiftUI)를 쓰고, `sharedLogic`만 두 플랫폼이 공유한�
 자동 생성한다 (Android는 `gradle/runveal-tokens.gradle.kts`, iOS는 `gradle/runveal-tokens-swift.gradle.kts`).
 
 * [/androidApp](./androidApp/src) is the Android app. UI는 Jetpack Compose로 작성하고,
-  [/androidApp/src/main/kotlin/com/swyp/runveal/designsystem](./androidApp/src/main/kotlin/com/swyp/runveal/designsystem)
+  [/androidApp/src/main/kotlin/com/sloth/runveal/designsystem](./androidApp/src/main/kotlin/com/sloth/runveal/designsystem)
   아래 디자인 시스템 코드(일부는 자동 생성)를 둔다.
 
 * [/iosApp](./iosApp/iosApp) contains an iOS application. UI는 순수 SwiftUI로 작성하고,

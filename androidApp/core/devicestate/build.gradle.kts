@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.swyp.runveal.core.devicestate"
+    namespace = "com.sloth.runveal.core.devicestate"
 }
 
 dependencies {

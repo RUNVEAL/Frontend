@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.swyp.runveal.core.health"
+    namespace = "com.sloth.runveal.core.health"
 }
 
 dependencies {

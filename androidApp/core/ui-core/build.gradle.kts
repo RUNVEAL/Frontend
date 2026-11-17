@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.swyp.runveal.core.uicore"
+    namespace = "com.sloth.runveal.core.uicore"
 }
 
 dependencies {

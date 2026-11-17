@@ -150,7 +150,7 @@ val generateRunvealIcons = tasks.register<GenerateRunvealIconsTask>("generateRun
     group = "runveal"
     description = "design/icons/*.svg -> Android Vector Drawable + RunvealIcons.kt"
     iconsDir.set(rootProject.layout.projectDirectory.dir("design/icons"))
-    packageName.set("com.swyp.runveal.designsystem")
+    packageName.set("com.sloth.runveal.designsystem")
     resOutputDir.set(layout.buildDirectory.dir("generated/runvealIcons/res"))
     kotlinOutputDir.set(layout.buildDirectory.dir("generated/runvealIcons/kotlin"))
 }

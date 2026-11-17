@@ -40,10 +40,10 @@ dependencies {
 }
 
 android {
-    namespace = "com.swyp.runveal"
+    namespace = "com.sloth.runveal"
 
     defaultConfig {
-        applicationId = "com.swyp.runveal"
+        applicationId = "com.sloth.runveal"
         // CI가 실행 번호를 넘겨 자동으로 올린다(`-PversionCode=123`). 로컬 빌드는 1 고정.
         versionCode = providers.gradleProperty("versionCode").orNull?.toInt() ?: 1
         // 마이페이지 "앱 버전 정보"에 그대로 보이는 값이라 semver 세 자리로 둔다(v1.0.0).

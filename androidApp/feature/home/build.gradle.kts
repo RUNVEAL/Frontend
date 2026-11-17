@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.swyp.runveal.feature.home"
+    namespace = "com.sloth.runveal.feature.home"
 }
 
 dependencies {
