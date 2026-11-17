@@ -14,9 +14,24 @@ data class DongResponse(
     val code: String,
     /** 시군구 코드 5자리. 구간 인덱스를 구 단위로 들여올 때 쓴다(`RoadSegmentIndexImporter`). */
     val gu: String,
-    /** 사람이 읽는 전체 이름 — 예: "서울특별시 종로구 사직동". */
+    /** 사람이 읽는 전체 이름 — 예: "서울특별시 종로구 사직동". 화면에는 [shortName]을 쓴다. */
     val name: String,
-)
+) {
+    /**
+     * 시도를 뺀 이름 — 예: "서울특별시 종로구 사직동" → "종로구 사직동".
+     *
+     * 지도 위 "현재 위치" 자리는 한 줄짜리라 시도까지 넣으면 길어서 잘린다. 지금 어디인지는
+     * 시군구부터면 충분히 알아본다.
+     *
+     * 세종특별자치시처럼 **시군구가 없는 곳**(토막 2개)은 그대로 둔다 — 앞을 떼면 "한솔동"만
+     * 남아 어느 시의 동인지 알 수 없다.
+     */
+    val shortName: String
+        get() {
+            val parts = name.split(" ").filter { it.isNotBlank() }
+            return if (parts.size >= 3) parts.drop(1).joinToString(" ") else name
+        }
+}
 
 /** `GET /api/v1/dong` 결과. 실패를 예외로 던지지 않고 타입으로 나눠, 호출부가 "서비스 지역 밖"과
  * 일시적 오류를 구분해 다르게 보여줄 수 있게 한다(`docs/api/API.md` §5.5). */
