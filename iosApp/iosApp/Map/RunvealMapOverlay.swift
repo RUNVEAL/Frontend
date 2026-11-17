@@ -25,6 +25,11 @@ struct RunvealDongOverlayBundle {
     let glowPolygonParts: [String: [DongPolygonPart]]
     /// 행정동 코드 → 단계(0~6). 빛 이미지를 올릴 동을 고르는 데 쓴다.
     let dongLevels: [String: Int]
+    /// 행정동 코드 → 탐험률(%). 줌인 헤더가 "내 동네 N%"를 여기서 꺼내 써서 지도 밝기와 어긋나지 않는다.
+    let dongPercents: [String: Int]
+    /// 위 퍼센트의 분자·분모(m) — 헤더의 "누적 N km / 전체 N km"가 같은 값을 쓴다.
+    let walkedLengthsByDong: [String: Double]
+    let totalLengthsByDong: [String: Double]
     /// `"asset"` 또는 `"server:<지도 버전>"`. 빛 이미지 캐시 키에 들어가, 서버가 경계를 고쳐
     /// 배포하면 옛 이미지를 쓰지 않는다.
     let boundarySourceKey: String
@@ -48,6 +53,9 @@ struct RunvealDongOverlayBundle {
         )
         glowPolygonParts = bundle.dongPolygonPartsByAdmCd2 as? [String: [DongPolygonPart]] ?? [:]
         dongLevels = (bundle.dongLevelByAdmCd2 as? [String: NSNumber] ?? [:]).mapValues { $0.intValue }
+        dongPercents = (bundle.dongPercents as? [String: NSNumber] ?? [:]).mapValues { $0.intValue }
+        walkedLengthsByDong = (bundle.walkedLengthsByDong as? [String: NSNumber] ?? [:]).mapValues { $0.doubleValue }
+        totalLengthsByDong = (bundle.totalLengthsByDong as? [String: NSNumber] ?? [:]).mapValues { $0.doubleValue }
         boundarySourceKey = bundle.boundarySourceKey
         self.builtForTrackId = builtForTrackId
     }
