@@ -47,6 +47,12 @@ data class DongOverlayBundle(
             glowPolygonParts = emptyMap(),
             sigunguOverlay = SigunguOverlayGeoJson.EMPTY,
             sidoOverlay = SidoOverlayGeoJson.EMPTY,
+            // 경계를 못 받았으면 탐험률도 비운다 — 홈 요약 카드·줌인 헤더는 0%로 보인다.
+            // 분자·분모는 로컬에도 있지만, 서버와 코드 체계가 어긋난 채로 숫자만 띄우면
+            // 지도는 안 빛나는데 카드만 8%라고 하는 상태가 된다.
+            dongPercents = emptyMap(),
+            walkedLengthsByDong = emptyMap(),
+            totalLengthsByDong = emptyMap(),
             builtForTrackId = builtForTrackId,
             boundarySourceKey = "none",
         )
