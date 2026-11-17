@@ -72,6 +72,8 @@ fun NavGraphBuilder.myGraph(
             onGoHomeClick = onGoHomeClick,
         )
     }
+    // TODO(로그인 도입): 지금은 아무도 이 목적지로 가지 않는다 — 약관을 마이페이지 안에 펼쳐 둬서
+    //  목록 화면이 필요 없어졌다. 마이페이지가 원래 구성으로 돌아갈 때 다시 쓸지 정한다.
     composable<RunVealRoute.HomeTab.Terms> {
         TermsPolicyScreen(
             onBackClick = { navigator.navigateUp() },

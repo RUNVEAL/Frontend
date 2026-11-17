@@ -10,9 +10,9 @@ enum class TermsPolicyItem(val labelRes: Int) {
     Service(R.string.terms_policy_service),
     Privacy(R.string.terms_policy_privacy),
 
-    // TODO: 위치기반서비스 이용약관(terms_policy_location)은 시안에서 빠져 있어 뺐다. 위치를
-    //  수집하는 앱이라 필요한 문서일 수 있으니, 넣기로 하면 이 줄만 되살리면 된다.
-    //  Location(R.string.terms_policy_location),
+    // 위치기반서비스 이용약관(terms_policy_location)은 마이페이지 구성에서 빠졌다. 다시 넣기로
+    // 하면 이 줄만 되살리면 된다 — 문자열은 그대로 두었다.
+    // Location(R.string.terms_policy_location),
 
     OpenSource(R.string.terms_policy_open_source),
 }
