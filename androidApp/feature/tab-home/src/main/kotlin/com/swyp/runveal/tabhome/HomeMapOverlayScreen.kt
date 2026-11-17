@@ -3,13 +3,19 @@ package com.swyp.runveal.tabhome
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.swyp.runveal.core.map.LocalMapState
 import com.swyp.runveal.map.MapConfig
+import com.swyp.runveal.feature.tabhome.R
 import com.swyp.runveal.tabhome.component.HomeMapOverlay
 import com.swyp.runveal.tabhome.component.TOGGLE_INDEX_UNEXPLORED
 import com.swyp.runveal.tabhome.component.ZoomedInMapOverlay
@@ -23,8 +29,15 @@ internal fun HomeMapOverlayScreen(
     modifier: Modifier = Modifier,
     onCreateCourseClick: () -> Unit = {},
     onRunStartClick: () -> Unit = {},
+    viewModel: HomeMapOverlayViewModel = viewModel(),
 ) {
     val mapState = LocalMapState.current
+    val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+
+    // 화면에 들어올 때 한 번만 조회한다 — 걸어 다니며 동이 바뀌는 것까지 따라가려면 위치 구독이
+    // 필요한데, 홈 라벨은 그만한 정확도가 필요 없다.
+    LaunchedEffect(Unit) { viewModel.loadCurrentDong(context) }
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
     var selectedToggleIndex by remember { mutableIntStateOf(0) }
 
@@ -35,15 +48,15 @@ internal fun HomeMapOverlayScreen(
         onDispose { mapState.unexploredRoadFocus = false }
     }
 
+    // 아직 못 받았으면(위치 권한 없음·서비스 지역 밖·일시 오류) 대체 문구를 쓴다.
+    val locationName = state.dongName ?: stringResource(R.string.home_map_current_location)
+
     if (!isZoomedIn) {
-        // TODO: 현재 위치의 동 이름을 서버 API로 받아서 넣는다. 로컬에도 판정 수단은 있지만
-        //  (DongOverlayHolder의 경계 polygon + DongCoverageCalculator.findDong) 서버에서
-        //  받기로 결정했다 — 동 이름/코드 체계를 서버 한 곳에서만 관리하기 위해서다.
-        HomeMapOverlay(locationName = "현재 위치", modifier = modifier.fillMaxSize())
+        HomeMapOverlay(locationName = locationName, modifier = modifier.fillMaxSize())
     } else {
-        // TODO: 동 상세 진입, 실제 탐험률/거리 연동 추가 예정. dongName도 위와 같은 서버 API로 받는다.
+        // TODO: 동 상세 진입, 실제 탐험률/거리 연동 추가 예정 — 분모·분자는 state.dongCode로 찾는다.
         ZoomedInMapOverlay(
-            dongName = "성수동",
+            dongName = locationName,
             ratePercent = 0,
             exploredKm = 0.0,
             totalKm = 0.0,
