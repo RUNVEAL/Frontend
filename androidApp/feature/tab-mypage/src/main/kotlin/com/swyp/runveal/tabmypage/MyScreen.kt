@@ -48,6 +48,7 @@ import com.swyp.runveal.tabmypage.component.ProfileSummaryCard
 import com.swyp.runveal.tabmypage.contract.MyEffect
 import com.swyp.runveal.tabmypage.contract.MyIntent
 import com.swyp.runveal.tabmypage.contract.MyToast
+import com.swyp.runveal.tabmypage.contract.TermsPolicyItem
 import com.swyp.runveal.ui.mvi.CollectEffect
 import kotlinx.coroutines.delay
 
@@ -77,7 +78,7 @@ private const val TOAST_DURATION_MILLIS = 3000L
 @Composable
 fun MyScreen(
     onLoggedOut: () -> Unit,
-    onTermsClick: () -> Unit,
+    onTermsItemClick: (TermsPolicyItem) -> Unit,
     onImportRecordsClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MyViewModel = viewModel(),
@@ -175,10 +176,10 @@ fun MyScreen(
                     SettingsSection(
                         isLocationPermissionGranted = locationPermissionState.isGranted,
                         onLocationPermissionClick = onLocationPermissionClick,
-                        onTermsClick = onTermsClick,
                         onImportRecordsClick = onImportRecordsItemClick,
                         onIntent = viewModel::onIntent,
                     )
+                    TermsPolicySection(onItemClick = onTermsItemClick)
                     // TODO(로그인 도입): 로그인 없이 나가는 1차 출시에서는 계정 섹션(로그아웃·회원
                     //  탈퇴)을 숨긴다 — 로그인한 적이 없으니 할 수 있는 게 없다. 로그인을 켤 때
                     //  이 줄을 되살리면 된다(AccountSection은 지우지 않고 그대로 뒀다).
@@ -218,7 +219,6 @@ fun MyScreen(
 private fun SettingsSection(
     isLocationPermissionGranted: Boolean,
     onLocationPermissionClick: () -> Unit,
-    onTermsClick: () -> Unit,
     onImportRecordsClick: () -> Unit,
     onIntent: (MyIntent) -> Unit,
 ) {
@@ -261,10 +261,33 @@ private fun SettingsSection(
                     .padding(end = RunvealTheme.spacing.space12),
             )
         }
+    }
+}
+
+/**
+ * 약관 및 정책 — 마이페이지 안에 바로 펼친다(시안). 문서는 아직 열 수 없어서 눌러도 안내 토스트만
+ * 뜬다 — 약관 목록 API(`docs/api/API.md` §3.8)가 붙으면 받아 온 URL을 여는 자리다.
+ */
+@Composable
+private fun TermsPolicySection(onItemClick: (TermsPolicyItem) -> Unit) {
+    val context = LocalContext.current
+    val versionName = remember(context) { context.appVersionName() }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        RunvealSectionHeader(title = stringResource(R.string.terms_policy_title))
+        TermsPolicyItem.entries.forEach { item ->
+            RunvealListItem(
+                title = stringResource(item.labelRes),
+                onClick = { onItemClick(item) },
+                trailing = RunvealListItemTrailing.Chevron,
+            )
+        }
+        // 앱 버전은 눌러서 여는 줄이 아니라 값을 보여주는 줄이다 — chevron 대신 값을 오른쪽에 둔다.
         RunvealListItem(
-            title = stringResource(R.string.my_menu_terms),
-            onClick = onTermsClick,
-            trailing = RunvealListItemTrailing.Chevron,
+            title = stringResource(R.string.terms_policy_app_version),
+            onClick = {},
+            trailing = RunvealListItemTrailing.TextButton,
+            trailingButtonLabel = versionName,
         )
     }
 }
