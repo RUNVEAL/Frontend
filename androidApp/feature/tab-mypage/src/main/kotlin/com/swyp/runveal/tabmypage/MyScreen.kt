@@ -174,7 +174,10 @@ fun MyScreen(
                         onImportRecordsClick = onImportRecordsItemClick,
                         onIntent = viewModel::onIntent,
                     )
-                    AccountSection(onIntent = viewModel::onIntent)
+                    // TODO(로그인 도입): 로그인 없이 나가는 1차 출시에서는 계정 섹션(로그아웃·회원
+                    //  탈퇴)을 숨긴다 — 로그인한 적이 없으니 할 수 있는 게 없다. 로그인을 켤 때
+                    //  이 줄을 되살리면 된다(AccountSection은 지우지 않고 그대로 뒀다).
+                    // AccountSection(onIntent = viewModel::onIntent)
                 }
             }
         }
@@ -260,6 +263,8 @@ private fun SettingsSection(
     }
 }
 
+/** 로그인 도입 전까지는 화면에 올리지 않는다 — 위 호출부의 TODO 참고. */
+@Suppress("unused")
 @Composable
 private fun AccountSection(onIntent: (MyIntent) -> Unit) {
     Column(modifier = Modifier.fillMaxWidth()) {
