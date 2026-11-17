@@ -49,6 +49,7 @@ internal fun HomeMapOverlayScreen(
         onDispose { mapState.unexploredRoadFocus = false }
     }
 
+    // 시군구 없이 행정동만 — 지도 위 한 줄짜리 자리라 짧은 쪽이 읽기 좋다.
     // 아직 못 받았으면(위치 권한 없음·서비스 지역 밖·일시 오류) 대체 문구를 쓴다.
     val locationName = state.dongName ?: stringResource(R.string.home_map_current_location)
 
@@ -65,9 +66,7 @@ internal fun HomeMapOverlayScreen(
     } else {
         // TODO: 동 상세 진입(onDongClick) 추가 예정.
         ZoomedInMapOverlay(
-            // "내 동네"가 바로 앞에 붙는 자리라 행정동만 쓴다 — 시군구까지 넣으면
-            // "내 동네 천안시서북구 부성1동"으로 길어진다.
-            dongName = state.dongOnly ?: locationName,
+            dongName = locationName,
             ratePercent = ratePercent,
             exploredKm = exploredKm,
             totalKm = totalKm,
