@@ -32,6 +32,7 @@ import com.sloth.runveal.designsystem.component.stat.RunvealProgressBar
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.external.ImportProgress
 import com.sloth.runveal.feature.tabmypage.R
+import com.sloth.runveal.permission.rememberExerciseRouteConsentRequester
 import com.sloth.runveal.tabmypage.contract.ImportRecordsProgressEffect
 import com.sloth.runveal.ui.mvi.CollectEffect
 
@@ -55,8 +56,14 @@ internal fun ImportRecordsProgressScreen(
     val context = LocalContext.current
     // HealthConnectImporter가 Context를 받아서 ViewModel에 넘겨야 한다 — 화면보다 오래 사는
     // 객체라 Activity가 아니라 application context를 준다.
+    // 다른 앱이 기록한 경로는 세션마다 동의를 받아야 읽을 수 있다 — 그 화면은 Activity에 묶여
+    // 있어서 ViewModel이 직접 못 띄운다. 화면이 들고 있다가 넘겨준다.
+    val routeConsent = rememberExerciseRouteConsentRequester()
     val viewModel: ImportRecordsProgressViewModel = viewModel {
-        ImportRecordsProgressViewModel(context.applicationContext)
+        ImportRecordsProgressViewModel(
+            context = context.applicationContext,
+            requestRouteConsent = routeConsent::request,
+        )
     }
     val state by viewModel.state.collectAsStateWithLifecycle()
 

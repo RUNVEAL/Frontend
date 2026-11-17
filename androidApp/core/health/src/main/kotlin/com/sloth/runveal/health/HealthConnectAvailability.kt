@@ -29,13 +29,11 @@ class HealthConnectAvailability(
         }
 
         // 경로 권한([HealthConnectPermissions.READ_EXERCISE_ROUTES])은 **막는 조건에서 뺀다.**
-        // 일반 권한 다이얼로그로 내려오지 않아서(AndroidX에도 읽기 상수가 없다) Google의 Health
-        // Connect 데이터 접근 승인 전에는 받을 방법이 없고, 여기서 막으면 사용자가 운동·거리를
-        // 다 허용해도 "권한이 필요해요"에서 더 못 나간다.
+        // 일반 권한 요청 화면으로는 받을 수 없는 권한이라(HealthConnectPermissions 주석 참고)
+        // 여기서 막으면 사용자가 운동·거리를 다 허용해도 "권한이 필요해요"에서 더 못 나간다.
         //
-        // 대신 경로는 세션마다 확인한다 — 읽을 수 없으면 `ExerciseRouteResult`가 ConsentRequired나
-        // NoData로 오고, 그 기록은 "경로가 없어 건너뜀"으로 집계된다(결과 화면의 "경로가 없는
-        // 기록 N개"가 그것이다). 승인을 받으면 같은 코드가 그대로 경로를 읽는다.
+        // 경로는 세션마다 따로 확인한다 — `ExerciseRouteResult`가 ConsentRequired면 그 세션에
+        // 대해 경로 동의 화면(`ExerciseRouteRequestContract`)을 띄워야 읽을 수 있다.
         return null
     }
 }
