@@ -65,7 +65,9 @@ internal fun HomeMapOverlayScreen(
     } else {
         // TODO: 동 상세 진입(onDongClick) 추가 예정.
         ZoomedInMapOverlay(
-            dongName = locationName,
+            // "내 동네"가 바로 앞에 붙는 자리라 행정동만 쓴다 — 시군구까지 넣으면
+            // "내 동네 천안시서북구 부성1동"으로 길어진다.
+            dongName = state.dongOnly ?: locationName,
             ratePercent = ratePercent,
             exploredKm = exploredKm,
             totalKm = totalKm,
