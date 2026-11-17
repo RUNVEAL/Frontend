@@ -43,6 +43,7 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
 import com.swyp.runveal.core.map.LocalMapState
+import com.swyp.runveal.devicestate.currentLocationOrNull
 import com.swyp.runveal.core.map.MapPin
 import com.swyp.runveal.core.map.rememberMapState
 import com.swyp.runveal.courserecommend.component.FilterBottomSheet
@@ -170,7 +171,7 @@ fun CourseCreateScreen(
                 onRecommendClick = {
                     isRecommending = true
                     coroutineScope.launch {
-                        viewModel.onIntent(CourseCreateIntent.RecommendClicked(fetchCurrentLocationOrNull(context)))
+                        viewModel.onIntent(CourseCreateIntent.RecommendClicked(context.currentLocationOrNull()))
                     }
                 },
                 selectedFilterCount = state.selectedFilters.size,
@@ -243,20 +244,6 @@ fun CourseCreateScreen(
 /** 출발지를 한 번도 안 골랐을 때 쓸 현재 위치 — [CurrentLocationLayer][com.swyp.runveal.core.map.internal.maplibre.CurrentLocationLayer]
  * 처럼 권한을 먼저 확인하고 없으면 조용히 null을 돌려준다(위치 서비스가 꺼져 있어도 못 받으면 null). */
 @SuppressLint("MissingPermission")
-private suspend fun fetchCurrentLocationOrNull(context: Context): LatLon? {
-    val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-    if (!granted) return null
-
-    val client = LocationServices.getFusedLocationProviderClient(context)
-    val cancellationTokenSource = CancellationTokenSource()
-    return suspendCancellableCoroutine { continuation ->
-        continuation.invokeOnCancellation { cancellationTokenSource.cancel() }
-        client.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, cancellationTokenSource.token)
-            .addOnSuccessListener { location -> continuation.resume(location?.let { LatLon(lat = it.latitude, lon = it.longitude) }) }
-            .addOnFailureListener { continuation.resume(null) }
-    }
-}
 
 @Preview
 @Composable

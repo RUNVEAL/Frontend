@@ -144,12 +144,6 @@ private fun ExploreSummaryCard(
         ) {
             Text("내 동네", style = RunvealTheme.typography.bodyLRegular, color = colors.text.secondary)
             Text(dongName, style = RunvealTheme.typography.heading3, color = colors.text.primary)
-            Icon(
-                imageVector = RunvealIcons.Chevron,
-                contentDescription = null,
-                tint = colors.icon.tertiary,
-                modifier = Modifier.size(14.dp),
-            )
         }
 
         Row(
@@ -179,7 +173,8 @@ private fun ExploreSummaryCard(
                 )
             }
             Text(
-                "누적 ${exploredKm}km\n전체 ${totalKm}km",
+                // 소수 한 자리까지만 — 미터 단위 원자료를 그대로 쓰면 "3.4821…km"가 된다.
+                "누적 %.1fkm\n전체 %.1fkm".format(exploredKm, totalKm),
                 style = RunvealTheme.typography.bodyMRegular,
                 color = colors.text.tertiary,
                 textAlign = TextAlign.End,

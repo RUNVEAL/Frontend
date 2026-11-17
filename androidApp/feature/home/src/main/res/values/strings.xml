@@ -5,4 +5,7 @@
     <string name="home_location_services_off_banner_message">위치 서비스가 꺼져 있어요</string>
     <string name="home_location_services_off_banner_action">위치 켜기</string>
     <string name="home_recording_discarded_toast">100m·1분을 넘겨야 기록으로 저장돼요</string>
+    <!-- 현재 동을 아직 못 받았을 때 요약 카드에 쓰는 이름. 받으면 실제 행정동 이름이 들어가고
+         "내 동네" 꼬리표가 옆에 붙는다. -->
+    <string name="home_summary_my_dong">내 동네</string>
 </resources>
