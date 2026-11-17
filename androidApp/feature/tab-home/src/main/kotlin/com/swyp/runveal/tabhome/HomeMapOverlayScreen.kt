@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.swyp.runveal.core.map.DongOverlayHolder
 import com.swyp.runveal.core.map.LocalMapState
 import com.swyp.runveal.map.MapConfig
 import com.swyp.runveal.feature.tabhome.R
@@ -51,15 +52,23 @@ internal fun HomeMapOverlayScreen(
     // 아직 못 받았으면(위치 권한 없음·서비스 지역 밖·일시 오류) 대체 문구를 쓴다.
     val locationName = state.dongName ?: stringResource(R.string.home_map_current_location)
 
+    // 탐험률·거리는 지도 빛을 정하는 값과 **같은 출처**를 쓴다 — 따로 세면 헤더엔 8%인데 지도는
+    // 다른 단계로 빛나는 식으로 어긋난다. 오버레이가 아직 안 만들어졌거나 0%면 0이다.
+    val overlayBundle by DongOverlayHolder.state.collectAsStateWithLifecycle()
+    val dongCode = state.dongCode
+    val ratePercent = dongCode?.let { overlayBundle?.dongPercents?.get(it) } ?: 0
+    val exploredKm = dongCode?.let { overlayBundle?.walkedLengthsByDong?.get(it) }?.div(1000.0) ?: 0.0
+    val totalKm = dongCode?.let { overlayBundle?.totalLengthsByDong?.get(it) }?.div(1000.0) ?: 0.0
+
     if (!isZoomedIn) {
         HomeMapOverlay(locationName = locationName, modifier = modifier.fillMaxSize())
     } else {
-        // TODO: 동 상세 진입, 실제 탐험률/거리 연동 추가 예정 — 분모·분자는 state.dongCode로 찾는다.
+        // TODO: 동 상세 진입(onDongClick) 추가 예정.
         ZoomedInMapOverlay(
             dongName = locationName,
-            ratePercent = 0,
-            exploredKm = 0.0,
-            totalKm = 0.0,
+            ratePercent = ratePercent,
+            exploredKm = exploredKm,
+            totalKm = totalKm,
             selectedToggleIndex = selectedToggleIndex,
             onToggleSelect = { selectedToggleIndex = it },
             onDongClick = {},
