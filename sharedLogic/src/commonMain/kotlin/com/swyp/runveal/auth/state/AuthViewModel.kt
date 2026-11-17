@@ -26,6 +26,22 @@ class AuthViewModel(private val repository: AuthRepository) {
         }
     }
 
+    /**
+     * TODO(서버 인증) 서버 세션 검증이 생기면 "로컬 토큰이 있다 = 로그인됨"이라는 전제를 다시 봐야 한다 —
+     * 지금은 만료를 알 방법이 없어 저장된 토큰을 영구 유효로 취급한다.
+     *
+     * 스플래시 라우팅 게이트용 — 로컬에 저장된 AccessToken만 보고 즉시 판정하고 그 값을 돌려준다.
+     * 네트워크도 소셜 SDK도 건드리지 않는다: [bootstrap]처럼 `recoverSession()`까지 가면 구글
+     * CredentialManager가 계정 선택 시트를 띄울 수 있어서, 스플래시에 로그인 UI가 끼어든다.
+     * 서버 세션 복구(토큰 재발급·무중단 재인증)는 [bootstrap]과 401 복구 경로가 맡는다.
+     */
+    suspend fun resolveLocalSession(): AuthState {
+        val token = repository.getAccessToken()
+        val resolved = if (token.isNullOrEmpty()) AuthState.LoggedOut else AuthState.LoggedIn
+        _state.value = resolved
+        return resolved
+    }
+
     /** 로그인/로그아웃 직후 상태를 동기적으로 확정한다 (비동기 재계산 X) — stale 상태로 인한
      * redirect 가드 오동작을 막기 위함. */
     fun markLoggedIn() {

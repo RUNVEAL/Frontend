@@ -1,5 +1,6 @@
 package com.swyp.runveal.home
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -51,6 +53,7 @@ import com.swyp.runveal.designsystem.component.card.RunvealSummaryCard
 import com.swyp.runveal.designsystem.component.navigation.RunvealTabBar
 import com.swyp.runveal.designsystem.component.navigation.RunvealTabBarContainer
 import com.swyp.runveal.designsystem.component.navigation.RunvealTabItemSpec
+import com.swyp.runveal.designsystem.component.overlay.RunvealToast
 import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.map.MapConfig
 import com.swyp.runveal.navigation.RunVealRoute
@@ -59,6 +62,7 @@ import com.swyp.runveal.feature.home.R
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.permission.LocationPermissionState
 import com.swyp.runveal.permission.RequireLocationPermission
+import com.swyp.runveal.devicestate.rememberLocationServicesState
 import com.swyp.runveal.permission.rememberLocationPermissionState
 import com.swyp.runveal.recording.RecordingState
 import com.swyp.runveal.recording.TrackRecorder
@@ -73,9 +77,13 @@ import com.swyp.runveal.tabmypage.navigation.myGraph
 import com.swyp.runveal.tabrecord.navigation.recordGraph
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 private val HOME_BOTTOM_PANEL_INNER_INSET = 6.dp
+
+/** 토스트가 떠 있는 시간 — 디자인시스템 토스트 주석의 "3초"를 그대로 따른다. */
+private const val TOAST_DURATION_MS = 3000L
 
 /**
  * 줌인 오버레이의 하단 액션 줄이 위치 안내 배너 때문에 더 높아진 패널과 안 겹치게 추가로 띄워야 하는
@@ -89,11 +97,13 @@ private val LOCATION_BANNER_EXTRA_INSET = 56.dp
  * 코스 추천)은 전부 이 아래 단일 NavHost로 조립한다. 탭바 노출 규칙도 여기 한 곳에만 둔다.
  */
 @Composable
-internal fun HomeScreen(modifier: Modifier = Modifier) {
+internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) {
     val tabNavigator = rememberRunVealNavigator()
     val mapState = rememberMapState()
     val locationPermissionState = rememberLocationPermissionState()
-    val isLocationBannerNeeded = !locationPermissionState.isGranted || !locationPermissionState.isLocationServicesEnabled
+    // 권한(앱)과 위치 서비스(기기)는 서로 다른 상태라 따로 본다 — 둘 중 하나만 꺼져 있어도 위치를 못 받는다.
+    val locationServicesState = rememberLocationServicesState()
+    val isLocationBannerNeeded = !locationPermissionState.isGranted || !locationServicesState.isEnabled
     val currentDestination by tabNavigator.navController.currentBackStackEntryAsState()
     val tabItems = listOf(
         RunvealTabItemSpec(RunvealIcons.Home, "홈"),
@@ -113,11 +123,38 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
     val isCourseRecommendFlow = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() == true ||
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommendResult>() == true ||
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseDetail>() == true
-    // 지도 위 흐름(코스 추천, 코스 추천 결과, 코스 상세, 러닝 기록, 러닝 결과)에 들어가 있을 때만 탭바를 완전히 숨긴다.
+    // 약관 및 정책은 탭 안에서 들어가지만 그 자체로 전체 화면이라 탭바를 숨긴다 — 뒤로가기로
+    // 목록·MY 탭으로 돌아온다.
+    val isTermsFlow = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Terms>() == true ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.TermsDetail>() == true ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.ImportRecords>() == true ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.ImportRecordsProgress>() == true ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.ImportRecordsResult>() == true
+    // 지도 위 흐름(코스 추천, 코스 추천 결과, 코스 상세, 러닝 기록, 러닝 결과)과 약관 흐름에
+    // 들어가 있을 때만 탭바를 완전히 숨긴다.
     val showTabBar = !isCourseRecommendFlow &&
+        !isTermsFlow &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() != true &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Result>() != true
+    // 지도가 보여야 하는 목적지인지. 지도는 항상 그려 두고(끄면 MapLibre가 매번 스타일을 다시
+    // 로드한다) 지도를 쓰지 않는 화면에서만 위를 덮는다 — 그래야 화면 전환 중 양쪽이 반투명해지는
+    // 구간에 뒤의 지도가 비치지 않는다. currentDestination이 아직 null인 첫 프레임은 시작 목적지가
+    // HomeMap이라 덮지 않는다.
+    val isMapDestination = currentDestination == null ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.HomeMap>() == true ||
+        isCourseRecommendFlow ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() == true
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
+
+    // 너무 짧아 저장하지 않은 러닝처럼, 화면 전환만으로는 이유를 알 수 없는 경우에만 띄우는 안내.
+    // 토스트 자체는 타이머를 모르는 순수 컴포넌트라 사라지는 건 여기서 재운다.
+    val discardedToastMessage = stringResource(R.string.home_recording_discarded_toast)
+    var toastMessage by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(toastMessage) {
+        if (toastMessage == null) return@LaunchedEffect
+        delay(TOAST_DURATION_MS)
+        toastMessage = null
+    }
 
     val onSelectTab: (Int) -> Unit = { index ->
         val route: RunVealRoute.HomeTab = when (index) {
@@ -144,6 +181,10 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                 hideRegionOverlays = isCourseRecommendFlow,
                 modifier = Modifier.fillMaxSize(),
             )
+
+            if (!isMapDestination) {
+                Box(modifier = Modifier.fillMaxSize().background(RunvealTheme.colors.bg.canvas))
+            }
 
             NavHost(
                 navController = tabNavigator.navController,
@@ -179,12 +220,40 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                                 popUpTo(RunVealRoute.HomeTab.Recording) { inclusive = true }
                             }
                         },
+                        // 저장하지 않은 러닝은 결과 화면이 없으니 홈 지도로 되돌리고, 왜 기록이 안
+                        // 남았는지 토스트로 알려준다.
+                        onDiscarded = {
+                            tabNavigator.navController.navigate(RunVealRoute.HomeTab.HomeMap) {
+                                popUpTo(RunVealRoute.HomeTab.Recording) { inclusive = true }
+                            }
+                            toastMessage = discardedToastMessage
+                        },
                     )
                     resultOverlay(onClose = tabNavigator::popBackStack)
                 }
                 courseGraph(tabNavigator)
                 recordGraph(tabNavigator)
-                myGraph(tabNavigator)
+                myGraph(
+                    tabNavigator,
+                    onLoggedOut = onLoggedOut,
+                    // 기록 불러오기 결과에서 나가는 두 길 — 둘 다 홈 탭으로 넘긴다. onSelectTab이
+                    // 시작 목적지까지 되감아서 결과 화면은 스택에서 빠진다.
+                    onCreateCourseClick = {
+                        onSelectTab(0)
+                        tabNavigator.navigate(RunVealRoute.HomeTab.CourseRecommend)
+                    },
+                    onGoHomeClick = { onSelectTab(0) },
+                )
+            }
+
+            toastMessage?.let { message ->
+                RunvealToast(
+                    message = message,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space16),
+                )
             }
 
             if (showTabBar) {
@@ -198,12 +267,12 @@ internal fun HomeScreen(modifier: Modifier = Modifier) {
                             )
                         }
                     }
-                    !locationPermissionState.isLocationServicesEnabled -> {
+                    !locationServicesState.isEnabled -> {
                         {
                             RunvealLocationOffBanner(
                                 message = stringResource(R.string.home_location_services_off_banner_message),
                                 actionLabel = stringResource(R.string.home_location_services_off_banner_action),
-                                onActionClick = locationPermissionState::requestEnableLocationServices,
+                                onActionClick = locationServicesState::requestEnable,
                             )
                         }
                     }
@@ -362,6 +431,7 @@ private fun HomeMapLayer(
             dongBoundarySourceKey = overlayBundle?.boundarySourceKey.orEmpty(),
             sigunguOverlay = if (hideOverlays) null else overlayBundle?.sigunguOverlay,
             sidoOverlay = if (hideOverlays) null else overlayBundle?.sidoOverlay,
+            locationPermissionGranted = locationPermissionState.isGranted,
         )
     }
 }

@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -44,6 +45,8 @@ fun RunvealButton(
     enabled: Boolean = true,
     fillWidth: Boolean = false,
     leadingIcon: ImageVector? = null,
+    /** 카카오·구글 로고처럼 색이 여러 개라 원본 색을 살려야 하는 아이콘은 false로 준다. */
+    tintLeadingIcon: Boolean = true,
 ) {
     val colors = RunvealTheme.colors
     val shape = RunvealTheme.shapes.full
@@ -69,7 +72,8 @@ fun RunvealButton(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (leadingIcon != null) {
-                Icon(leadingIcon, contentDescription = null, tint = colors.text.tertiary, modifier = Modifier.size(20.dp))
+                val iconTint = if (tintLeadingIcon) colors.text.tertiary else Color.Unspecified
+                Icon(leadingIcon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp))
             }
             Text(label, style = RunvealTheme.typography.bodyMRegular, color = colors.text.tertiary)
         }
@@ -120,7 +124,8 @@ fun RunvealButton(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (leadingIcon != null) {
-                Icon(leadingIcon, contentDescription = null, tint = labelColor, modifier = Modifier.size(20.dp))
+                val iconTint = if (tintLeadingIcon) labelColor else Color.Unspecified
+                Icon(leadingIcon, contentDescription = null, tint = iconTint, modifier = Modifier.size(20.dp))
             }
             Text(label, style = RunvealTheme.typography.labelButton, color = labelColor)
         }

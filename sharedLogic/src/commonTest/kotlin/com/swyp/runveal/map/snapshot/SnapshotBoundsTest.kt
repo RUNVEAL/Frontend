@@ -73,26 +73,39 @@ class SnapshotBoundsTest {
     }
 
     @Test
-    fun highlightsNewRoadOnlyForResultCard() {
+    fun highlightsNewRoadForRunRoutesInBothVariants() {
         val route = listOf(LatLon(37.0, 127.0), LatLon(37.001, 127.001), LatLon(37.002, 127.002))
         val newRoad = listOf(listOf(LatLon(37.001, 127.001), LatLon(37.002, 127.002)))
 
-        // 72dp 썸네일은 두 색이 구분되지 않아 넘겨도 무시한다.
-        assertNull(route.toSnapshotRequest("id", SnapshotVariant.THUMBNAIL, newRoad)?.highlightGeoJson)
-
-        val resultCard = route.toSnapshotRequest("id", SnapshotVariant.RESULT_CARD, newRoad)
-        assertNotNull(resultCard)
-        val highlight = assertNotNull(resultCard.highlightGeoJson)
-        assertTrue("MultiLineString" in highlight, highlight)
-        assertTrue("127.002" in highlight, highlight)
+        // 결과 카드든 기록 썸네일이든 러닝이면 처음 간 길을 금색으로 덧그린다.
+        listOf(SnapshotVariant.RESULT_CARD, SnapshotVariant.THUMBNAIL).forEach { variant ->
+            val request = assertNotNull(route.toSnapshotRequest("id", variant, newRoad))
+            assertTrue(request.isRunRoute)
+            val highlight = assertNotNull(request.highlightGeoJson, "variant=$variant")
+            assertTrue("MultiLineString" in highlight, highlight)
+            assertTrue("127.002" in highlight, highlight)
+        }
     }
 
     @Test
-    fun leavesHighlightNullWhenNothingIsNewRoad() {
+    fun treatsNullNewRoadPathsAsCourseAndDrawsOneColor() {
         val route = listOf(LatLon(37.0, 127.0), LatLon(37.001, 127.001))
 
-        // 매칭 실패 등으로 새 구간을 못 가려냈으면 전부 한 색으로 그린다.
-        assertNull(route.toSnapshotRequest("id", SnapshotVariant.RESULT_CARD)?.highlightGeoJson)
+        // 아직 달리지 않은 코스 — 넘기는 값이 없으면 러닝이 아니다.
+        val course = assertNotNull(route.toSnapshotRequest("id", SnapshotVariant.THUMBNAIL))
+        assertEquals(false, course.isRunRoute)
+        assertNull(course.highlightGeoJson)
+    }
+
+    @Test
+    fun keepsRunRouteEvenWhenNothingIsNewRoad() {
+        val route = listOf(LatLon(37.0, 127.0), LatLon(37.001, 127.001))
+
+        // 같은 길을 또 달린 러닝 — 금색은 없지만 경로는 "오늘 달린 길"(흰색)로 그려야 한다.
+        val rerun = assertNotNull(route.toSnapshotRequest("id", SnapshotVariant.RESULT_CARD, emptyList()))
+        assertTrue(rerun.isRunRoute)
+        assertNull(rerun.highlightGeoJson)
+
         // 점이 1개뿐인 줄은 선이 못 되니 버린다.
         val degenerate = listOf(listOf(LatLon(37.0, 127.0)))
         assertNull(route.toSnapshotRequest("id", SnapshotVariant.RESULT_CARD, degenerate)?.highlightGeoJson)

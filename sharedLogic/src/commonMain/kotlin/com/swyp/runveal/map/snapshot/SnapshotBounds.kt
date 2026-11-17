@@ -55,16 +55,18 @@ fun List<LatLon>.snapshotBounds(): GeoBounds {
 /**
  * 점이 1개 이하인 경로는 스냅샷 요청을 만들지 않는다.
  *
- * [newRoadPaths]는 이번에 처음 간 구간들 — 결과 카드에서만 경로 위에 금색으로 덧그린다. 썸네일은
- * 72dp라 두 색이 구분되지 않아 넘겨도 무시한다.
+ * [newRoadPaths]로 **러닝 기록인지 코스인지**가 갈린다:
+ * - `null` — 아직 달리지 않은 코스. 경로를 한 색으로만 그린다.
+ * - 목록(비어 있어도 됨) — 러닝 기록. 경로를 "오늘 달린 길"(흰색)로 깔고, 그중 처음 간 구간을
+ *   "새로 탐험한 길"(금색)로 덧그린다. 같은 길을 또 달렸으면 목록이 비고 흰색만 남는다.
  */
 fun List<LatLon>.toSnapshotRequest(
     ownerId: String,
     variant: SnapshotVariant,
-    newRoadPaths: List<List<LatLon>> = emptyList(),
+    newRoadPaths: List<List<LatLon>>? = null,
 ): SnapshotRequest? {
     if (size <= 1) return null
-    val highlight = newRoadPaths.filter { it.size >= 2 }
+    val highlight = newRoadPaths?.filter { it.size >= 2 }
     return SnapshotRequest(
         ownerId = ownerId,
         variant = variant,
@@ -72,8 +74,33 @@ fun List<LatLon>.toSnapshotRequest(
         bounds = snapshotBounds(),
         start = if (variant == SnapshotVariant.RESULT_CARD) first() else null,
         end = if (variant == SnapshotVariant.RESULT_CARD) last() else null,
-        highlightGeoJson = highlight
-            .takeIf { variant == SnapshotVariant.RESULT_CARD && it.isNotEmpty() }
-            ?.toMultiLineGeoJson(),
+        highlightGeoJson = highlight?.takeIf { it.isNotEmpty() }?.toMultiLineGeoJson(),
+        isRunRoute = newRoadPaths != null,
+    )
+}
+
+/**
+ * 경로가 여러 줄인 스냅샷 — Health Connect 기록 불러오기 결과처럼 **여러 기록을 한 장에** 담을 때
+ * 쓴다. 시작·끝 마커는 두지 않는다(여러 기록 중 어느 것의 시작인지 가릴 수 없다).
+ *
+ * 점이 2개 미만인 줄은 선이 되지 않아 빼고, 남은 게 없으면 요청을 만들지 않는다
+ * ([toSnapshotRequest]가 점 1개 이하를 거르는 것과 같은 이유).
+ */
+fun List<List<LatLon>>.toMultiRouteSnapshotRequest(
+    ownerId: String,
+    variant: SnapshotVariant,
+    newRoadPaths: List<List<LatLon>>,
+): SnapshotRequest? {
+    val routes = filter { it.size >= 2 }
+    if (routes.isEmpty()) return null
+    return SnapshotRequest(
+        ownerId = ownerId,
+        variant = variant,
+        routeGeoJson = routes.toMultiLineGeoJson(),
+        bounds = routes.flatten().snapshotBounds(),
+        start = null,
+        end = null,
+        highlightGeoJson = newRoadPaths.filter { it.size >= 2 }.takeIf { it.isNotEmpty() }?.toMultiLineGeoJson(),
+        isRunRoute = true,
     )
 }

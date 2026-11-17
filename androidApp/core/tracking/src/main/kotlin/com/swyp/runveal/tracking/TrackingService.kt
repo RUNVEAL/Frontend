@@ -21,10 +21,10 @@ import com.swyp.runveal.core.tracking.R
 import com.swyp.runveal.data.local.RunvealDatabaseProvider
 import com.swyp.runveal.data.local.FileStore
 import com.swyp.runveal.data.local.TrackLocalStore
-import com.swyp.runveal.dong.DongExploreRate
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.match.ChunkedMatcher
+import com.swyp.runveal.match.ServerRoadMatcher
 import com.swyp.runveal.network.match.MatchPurpose
 import com.swyp.runveal.network.meta.MetaApi
 import com.swyp.runveal.network.meta.MetaHolder
@@ -32,6 +32,7 @@ import com.swyp.runveal.recording.RecordingState
 import com.swyp.runveal.recording.TrackPoint
 import com.swyp.runveal.recording.TrackRecorder
 import com.swyp.runveal.result.DongRateChange
+import com.swyp.runveal.result.DongRateChanges
 import com.swyp.runveal.result.LiveMatchHolder
 import com.swyp.runveal.result.LiveNewRoadHolder
 import com.swyp.runveal.result.TrackResult
@@ -95,7 +96,7 @@ class TrackingService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_STOP -> stopTracking()
+            ACTION_STOP -> stopTracking(saveRecord = intent.getBooleanExtra(EXTRA_SAVE_RECORD, true))
             ACTION_PAUSE -> pauseTracking()
             ACTION_RESUME -> resumeTracking()
             else -> startTracking()
@@ -155,14 +156,17 @@ class TrackingService : Service() {
         fusedLocationClient.requestLocationUpdates(request, locationCallback, mainLooper)
     }
 
-    private fun stopTracking() {
+    /** [saveRecord]가 false면 100m/1분을 못 채운 러닝이라 GPX·track row를 아예 만들지 않고 버린다
+     * (판단은 호출부 — `RecordingViewModel`이 [com.swyp.runveal.recording.RecordingSavePolicy]로 한다).
+     * 그때는 [TrackResultHolder]도 publish하지 않는다 — 결과 화면으로 넘어가지 않으니 기다리는 쪽이 없다. */
+    private fun stopTracking(saveRecord: Boolean) {
         fusedLocationClient.removeLocationUpdates(locationCallback)
         liveMatchJob?.cancel()
         liveMatchJob = null
         LiveMatchHolder.clear()
         LiveNewRoadHolder.clear()
         val finished = TrackRecorder.finish(finishedAtEpochMs = System.currentTimeMillis())
-        if (finished != null) {
+        if (finished != null && saveRecord) {
             serviceScope.launch { saveFinishedTrack(finished) }
         }
         TrackRecorder.reset()
@@ -240,7 +244,12 @@ class TrackingService : Service() {
             val dongStats = buildDongStats(summary.touchedDongAdmCodes, beforeWalked, afterWalked)
             publishResult(
                 finished, distanceMeters, elapsedMs, summary.newRoadMeters, dongStats,
-                routePoints = points, newRoadPaths = summary.newRoadPaths,
+                // 결과 카드도 기록 탭 썸네일과 같은 선을 그리도록 **매칭 경로**를 넘긴다. 원본 GPS를
+                // 그리면 도로를 들쭉날쭉 벗어나서, 도로를 따라 그려지는 금색 "새로 탐험한 길"과 어긋나
+                // 보인다 — 같은 러닝인데 기록 탭에선 도로에 붙고 결과 화면에선 안 붙는 이유였다.
+                // 매칭이 점 2개도 못 돌려주면 원본 GPS로 떨어진다.
+                routePoints = result.path.takeIf { it.size >= 2 } ?: points,
+                newRoadPaths = summary.newRoadPaths,
             )
         } catch (e: Exception) {
             // TEMP DEBUG — 확인 끝나면 catch (_: Exception)으로 되돌린다.
@@ -279,31 +288,26 @@ class TrackingService : Service() {
         )
     }
 
-    /** 이번 트랙이 닿은 동만 — 전체 길이가 없거나(road_segment 인덱스에 없는 동) 이름을 못 찾으면 그
-     * 동은 뺀다. */
+    /** 이번 트랙이 닿은 동만 — 거르는 규칙과 계산은 [DongRateChanges]에 있다(기록 불러오기 결과와
+     * 같은 숫자를 보여 줘야 해서 공용). */
     private fun buildDongStats(
         touchedAdmCodes: Set<String>,
         beforeWalked: Map<String, Double>,
         afterWalked: Map<String, Double>,
     ): List<DongRateChange> {
         if (touchedAdmCodes.isEmpty()) return emptyList()
-        val totalLengths = trackLocalStore?.totalLengthByDong() ?: emptyMap()
         // 동 이름은 계층 파일(150KB)에서 꺼낸다 — 예전엔 이름 하나 때문에 4.3MB 경계 geoJSON을
         // 통째로 파싱했다. 계층 파일도 서버 코드 체계로 만들어서 `adm_cd2`가 그대로 맞는다.
         val hierarchy = DongAssetRepository(this).loadRegionHierarchy()
-        val namesByCode = hierarchy.sido
-            .flatMap { sido -> sido.sigungu.flatMap { it.dongs } }
-            .associate { it.code to it.name }
-        return touchedAdmCodes.mapNotNull { admCd2 ->
-            val total = totalLengths[admCd2]?.takeIf { it > 0.0 } ?: return@mapNotNull null
-            val name = namesByCode[admCd2] ?: return@mapNotNull null
-            DongRateChange(
-                admCd2 = admCd2,
-                name = name,
-                beforePercent = DongExploreRate.percentOf(beforeWalked[admCd2] ?: 0.0, total),
-                afterPercent = DongExploreRate.percentOf(afterWalked[admCd2] ?: 0.0, total),
-            )
-        }
+        return DongRateChanges.build(
+            touchedAdmCodes = touchedAdmCodes,
+            beforeWalked = beforeWalked,
+            afterWalked = afterWalked,
+            totalLengths = trackLocalStore?.totalLengthByDong() ?: emptyMap(),
+            namesByCode = hierarchy.sido
+                .flatMap { sido -> sido.sigungu.flatMap { it.dongs } }
+                .associate { it.code to it.name },
+        )
     }
 
     /** 앱 실행 시 스플래시가 받아 둔 버전([MetaHolder])이 있으면 그대로 쓰고, 없으면(스플래시 호출
@@ -369,6 +373,7 @@ class TrackingService : Service() {
         private const val ACTION_STOP = "com.swyp.runveal.tracking.ACTION_STOP"
         private const val ACTION_PAUSE = "com.swyp.runveal.tracking.ACTION_PAUSE"
         private const val ACTION_RESUME = "com.swyp.runveal.tracking.ACTION_RESUME"
+        private const val EXTRA_SAVE_RECORD = "com.swyp.runveal.tracking.EXTRA_SAVE_RECORD"
 
         fun start(context: Context) {
             val intent = Intent(context, TrackingService::class.java)
@@ -385,8 +390,11 @@ class TrackingService : Service() {
             context.startService(intent)
         }
 
-        fun stop(context: Context) {
-            val intent = Intent(context, TrackingService::class.java).setAction(ACTION_STOP)
+        /** [saveRecord]가 false면 이번 러닝을 기록으로 남기지 않고 버린다(너무 짧은 러닝). */
+        fun stop(context: Context, saveRecord: Boolean = true) {
+            val intent = Intent(context, TrackingService::class.java)
+                .setAction(ACTION_STOP)
+                .putExtra(EXTRA_SAVE_RECORD, saveRecord)
             context.startService(intent)
         }
     }

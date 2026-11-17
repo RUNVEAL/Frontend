@@ -6,7 +6,7 @@ on:
       platform:
         description: '빌드 대상'
         type: choice
-        # iOS(iosApp)는 macOS 러너 + Xcode 서명이 필요해 아직 잡을 안 만들었다.
+        # iOS(iosApp)는 macOS 러너가 필요해 별도 워크플로우로 분리했다 — .github/workflows/build-ios.yml
         options: [ all, android ]
         default: all
 

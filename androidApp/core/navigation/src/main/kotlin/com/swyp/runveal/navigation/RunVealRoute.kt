@@ -9,6 +9,21 @@ sealed interface RunVealRoute : Route {
         data object Splash : Main
     }
 
+    /** 로그인 + 신규 가입 흐름. 신규면 [SignIn] → [Terms] → [Nickname]을 거쳐 홈으로 간다. */
+    sealed interface Sign : RunVealRoute {
+        /** 소셜 로그인 화면. 스플래시가 로컬 토큰을 못 찾았을 때 여기로 보낸다. */
+        @Serializable
+        data object SignIn : Sign
+
+        /** 약관 동의 — 신규 사용자만 거친다. 가입 도중 앱이 끊기면 스플래시가 다시 여기로 보낸다. */
+        @Serializable
+        data object Terms : Sign
+
+        /** 닉네임 입력. "가입 완료"를 누르면 가입이 확정되고 홈으로 간다. */
+        @Serializable
+        data object Nickname : Sign
+    }
+
     sealed interface Home : RunVealRoute {
         @Serializable
         data object Main : Home
@@ -53,5 +68,27 @@ sealed interface RunVealRoute : Route {
 
         @Serializable
         data object My : HomeTab
+
+        /** MY 탭에서 들어가는 약관 및 정책 목록. 탭바를 숨기고 전체 화면으로 띄운다. */
+        @Serializable
+        data object Terms : HomeTab
+
+        /** MY 탭에서 들어가는 Health Connect 기록 불러오기 안내. 탭바를 숨기고 전체 화면으로 띄운다. */
+        @Serializable
+        data object ImportRecords : HomeTab
+
+        /** 기록 불러오기 진행 화면 — Health Connect에서 가져오는 동안 보인다. */
+        @Serializable
+        data object ImportRecordsProgress : HomeTab
+
+        /** 기록 불러오기 결과. 값은 라우트가 아니라 `ImportResultHolder`에서 읽는다 — 경로·동
+         * 목록은 라우트 인자로 싣기 어렵다(러닝 결과 화면이 `TrackResultHolder`를 쓰는 방식). */
+        @Serializable
+        data object ImportRecordsResult : HomeTab
+
+        /** 약관 한 건의 본문. [item]은 어떤 약관인지(`TermsPolicyItem`의 이름) — 상단 제목과 본문을
+         * 고르는 데 쓴다. 문서 자체를 라우트로 넘기지 않는 건 본문이 길고 서버에서 받아올 값이라서다. */
+        @Serializable
+        data class TermsDetail(val item: String) : HomeTab
     }
 }

@@ -17,3 +17,36 @@ ORDER BY t.started_at_epoch_ms, rs.segment_id;
 
 insertRunSegment:
 INSERT OR IGNORE INTO run_segment (track_id, segment_id) VALUES (?, ?);
+
+-- 기록 탭 월간 요약의 "새로 탐험한 길" — 그 달에 *처음* 달린 구간의 길이 합. `explored_segment`
+-- 캐시엔 "언제 처음 채택됐는지"가 없어서, 구간마다 그 구간을 달린 트랙 중 가장 이른 시작 시각을
+-- 구해 그게 이 기간에 들어오는 것만 더한다. `road_segment` 인덱스를 아직 안 들여온 구간은 JOIN에서
+-- 빠지므로(길이를 모름) 집계에도 들어가지 않는다 — TrackLocalStore.recordMatchResult의 기준과 같다.
+newRoadMetersBetween:
+SELECT COALESCE(SUM(first_run.length_m), 0.0) AS new_road_meters
+FROM (
+    SELECT seg.length_m AS length_m, MIN(t.started_at_epoch_ms) AS first_started_at_epoch_ms
+    FROM run_segment rs
+    JOIN track t ON t.id = rs.track_id
+    JOIN road_segment seg ON seg.segment_id = rs.segment_id
+    GROUP BY rs.segment_id
+) first_run
+WHERE first_run.first_started_at_epoch_ms >= :fromEpochMs
+  AND first_run.first_started_at_epoch_ms < :toEpochMs;
+
+-- 주어진 트랙들이 **처음 밟은** 구간의 지오메트리. "처음"은 그 구간을 가진 트랙 중 가장 먼저 시작한
+-- 트랙이라는 뜻이다 — 러닝 결과 카드와 기록 썸네일에서 "새로 탐험한 길"을 금색으로 덧그리는 데 쓴다.
+-- explored_segment는 "지금 가봤는가"만 알아서, 지나고 나면 어느 러닝이 그 길을 뚫었는지 못 가린다.
+selectFirstRunSegmentGeometries:
+SELECT rs.track_id, road.coordinates
+FROM run_segment rs
+JOIN track t ON t.id = rs.track_id
+JOIN road_segment road ON road.segment_id = rs.segment_id
+WHERE rs.track_id IN ?
+  AND NOT EXISTS (
+      SELECT 1 FROM run_segment prev
+      JOIN track pt ON pt.id = prev.track_id
+      WHERE prev.segment_id = rs.segment_id
+        AND (pt.started_at_epoch_ms < t.started_at_epoch_ms
+             OR (pt.started_at_epoch_ms = t.started_at_epoch_ms AND pt.id < t.id))
+  );

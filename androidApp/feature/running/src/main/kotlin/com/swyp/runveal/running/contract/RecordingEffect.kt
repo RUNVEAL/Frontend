@@ -8,5 +8,7 @@ sealed interface RecordingEffect : UiEffect {
     data object StartTrackingService : RecordingEffect
     data object PauseTrackingService : RecordingEffect
     data object ResumeTrackingService : RecordingEffect
-    data object StopTrackingService : RecordingEffect
+    /** [saveRecord]가 false면 너무 짧아 버리는 러닝 — 서비스도 저장을 건너뛰고, 화면도 결과 화면
+     * 대신 홈으로 돌아간다([com.swyp.runveal.recording.RecordingSavePolicy]). */
+    data class StopTrackingService(val saveRecord: Boolean) : RecordingEffect
 }

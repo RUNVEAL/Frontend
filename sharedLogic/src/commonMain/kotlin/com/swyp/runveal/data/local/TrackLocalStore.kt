@@ -39,7 +39,10 @@ class TrackLocalStore(
     private val json = Json
 
     /** 기록 종료 시 호출(§5): GPX 파일을 먼저 쓰고, 성공해야 `track` row를 insert한다 — 반대 순서면
-     * "DB엔 있는데 파일 없음" 상태가 더 자주 생긴다. */
+     * "DB엔 있는데 파일 없음" 상태가 더 자주 생긴다.
+     *
+     * [source]/[externalId]는 외부 기록을 가져올 때만 채운다(§3.7) — [externalId]에는 UNIQUE 제약이
+     * 걸려 있어서, 같은 외부 기록을 두 번 넣으려 하면 insert가 실패한다(중복 방지를 DB가 보장). */
     fun saveTrack(
         id: String,
         startedAtEpochMs: Long,
@@ -50,6 +53,8 @@ class TrackLocalStore(
         filteredGpx: String,
         rawGpx: String,
         nowEpochMs: Long,
+        source: TrackSource = TrackSource.LOCAL,
+        externalId: String? = null,
     ) {
         val filteredPath = "tracks/$id.gpx"
         val rawPath = "tracks/${id}_raw.gpx"
@@ -71,8 +76,17 @@ class TrackLocalStore(
             gpx_raw_path = rawPath,
             created_at_epoch_ms = nowEpochMs,
             updated_at_epoch_ms = nowEpochMs,
+            source = source.name,
+            external_id = externalId,
         )
     }
+
+    /** 이미 들여온 외부 기록 ID — 가져오기 시작 전에 한 번 읽어 건너뛸 세션을 걸러낸다. */
+    fun importedExternalIds(source: TrackSource): Set<String> =
+        database.trackQueries.selectExternalIdsBySource(source.name)
+            .executeAsList()
+            .mapNotNull { it }
+            .toSet()
 
     /** 매칭 완료 시 호출. 매칭된 경로는 `track_edge`에 그대로 저장(가본 길 렌더링용)하고, [segmentIds]
      * 중 [road_segment] 인덱스에 있는 것만 `run_segment`/`explored_segment`에 적립한다(인덱스에
@@ -129,7 +143,65 @@ class TrackLocalStore(
 
     private data class RoadSegmentInfo(val adm_cd2: String, val length_m: Double, val coordinates: String)
 
+    /** 기록 탭 한 줄치 요약 — 라벨 포맷은 화면(ViewModel)이 맡고, 여기선 숫자/시각만 넘긴다. */
+    data class TrackSummary(
+        val id: String,
+        val startedAtEpochMs: Long,
+        val elapsedMs: Long,
+        val distanceMeters: Double,
+        /** 역지오코딩으로 채우는 장소명 — 아직 조회 전/실패면 null이라 화면이 대체 제목을 쓴다. */
+        val placeName: String?,
+    )
+
+    /** 기록 탭 목록: `[fromEpochMs, toEpochMs)` 안에 *시작한* 트랙을 최신순으로. 러닝 횟수/총 거리는
+     * 이 목록만으로 계산되므로 따로 집계 쿼리를 두지 않는다. */
+    fun tracksBetween(fromEpochMs: Long, toEpochMs: Long): List<TrackSummary> =
+        database.trackQueries.selectStartedBetweenDesc(fromEpochMs = fromEpochMs, toEpochMs = toEpochMs)
+            .executeAsList()
+            .map { row ->
+                TrackSummary(
+                    id = row.id,
+                    startedAtEpochMs = row.started_at_epoch_ms,
+                    elapsedMs = row.finished_at_epoch_ms - row.started_at_epoch_ms,
+                    distanceMeters = row.distance_meters,
+                    placeName = row.place_name,
+                )
+            }
+
+    /** 그 기간에 처음 달린 구간의 길이 합(m) — 기록 탭 월간 "새로 탐험한 길". */
+    fun newRoadMetersBetween(fromEpochMs: Long, toEpochMs: Long): Double =
+        database.runSegmentQueries.newRoadMetersBetween(fromEpochMs = fromEpochMs, toEpochMs = toEpochMs)
+            .executeAsOne()
+
+    /** 기록 탭 썸네일용 트랙별 매칭 경로. 매칭이 아직/끝내 안 된 트랙은 `track_edge`가 비어 있어서
+     * 결과 맵에 키가 없다 — 호출부는 그때 썸네일 없이(플레이스홀더) 그린다. */
+    fun routesForTracks(trackIds: List<String>): Map<String, List<LatLon>> {
+        if (trackIds.isEmpty()) return emptyMap()
+        return database.trackEdgeQueries.selectEdgesForTracks(trackIds).executeAsList()
+            .groupBy { it.track_id }
+            .mapValues { (_, rows) -> rows.flatMap { decodeCoordinates(it.coordinates) } }
+    }
+
+    /**
+     * [trackIds] 각각이 **처음 밟은** 구간들의 경로(구간마다 한 줄). 결과 카드·기록 썸네일에서 "새로
+     * 탐험한 길"을 금색으로 덧그리는 데 쓴다 — 같은 길을 또 달린 러닝은 그만큼 비어 있다.
+     *
+     * 러닝이 끝나는 순간에는 [recordMatchResult]가 돌려주지만, 지나고 나면 `explored_segment`엔
+     * "지금 가봤는가"만 남아 어느 러닝이 그 길을 뚫었는지 모른다 — 그래서 `run_segment`를 트랙 시작
+     * 시각으로 되짚어 가린다.
+     */
+    fun newRoadPathsForTracks(trackIds: List<String>): Map<String, List<List<LatLon>>> {
+        if (trackIds.isEmpty()) return emptyMap()
+        return database.runSegmentQueries.selectFirstRunSegmentGeometries(trackIds).executeAsList()
+            .groupBy { it.track_id }
+            .mapValues { (_, rows) -> rows.flatMap { RoadSegmentParser.decodeLines(it.coordinates) } }
+    }
+
     /** 동별 완주 길이(분자) — `explored_segment`를 바로 집계한다. */
+    /** 지금까지 달린 거리 전부(m). 기록이 없으면 0. */
+    fun totalDistanceMeters(): Double =
+        database.trackQueries.totalDistanceMeters().executeAsOne().total_meters ?: 0.0
+
     fun walkedLengthByDong(): Map<String, Double> =
         database.exploredSegmentQueries.walkedLengthByDong().executeAsList()
             .associate { it.adm_cd2 to (it.walked_meters ?: 0.0) }
