@@ -78,7 +78,6 @@ import com.swyp.runveal.tabmypage.navigation.myGraph
 import com.swyp.runveal.tabrecord.navigation.recordGraph
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 private val HOME_BOTTOM_PANEL_INNER_INSET = 6.dp
@@ -402,16 +401,21 @@ private fun HomeMapLayer(
         var liveRunNewGeoJson by remember { mutableStateOf(emptyVisitedRoadGeoJson) }
         LaunchedEffect(isRecordingOrPaused) {
             if (!isRecordingOrPaused) return@LaunchedEffect
+            // 직전 러닝에서 적립된 구간까지 반영해 "이미 가본 길"을 다시 읽는다 — 안 그러면 앱을 켠 채
+            // 두 번째로 달릴 때 방금 달린 길이 또 처음 가는 길(금색)로 보인다.
+            withContext(Dispatchers.IO) { liveRoadClassifier.refreshExploredSegments() }
             while (true) {
                 withContext(Dispatchers.IO) {
-                    val matchedPath = LiveMatchHolder.state.value
-                    val livePoints = matchedPath ?: TrackRecorder.currentFilteredPoints().map { LatLon(lat = it.lat, lon = it.lon) }
-                    val classified = liveRoadClassifier.classify(livePoints)
-                    liveRunOldGeoJson = buildVisitedRoadGeoJson(classified.oldRuns)
-                    liveRunNewGeoJson = buildVisitedRoadGeoJson(classified.newRuns)
+                    // 매칭 경로는 GPS와 동떨어진 부분을 잘라낸 **조각 목록**이라(MatchedPathFilter),
+                    // 조각마다 따로 분류하고 따로 그린다 — 이어 붙이면 잘라낸 구간이 직선으로 되살아난다.
+                    val livePaths = LiveMatchHolder.state.value
+                        ?: listOf(TrackRecorder.currentFilteredPoints().map { LatLon(lat = it.lat, lon = it.lon) })
+                    val classified = livePaths.map { liveRoadClassifier.classify(it) }
+                    liveRunOldGeoJson = buildVisitedRoadGeoJson(classified.flatMap { it.oldRuns })
+                    liveRunNewGeoJson = buildVisitedRoadGeoJson(classified.flatMap { it.newRuns })
                     // 기록 화면의 "새로 탐험한 길" 배지가 같은 분류 결과를 쓰게 넘긴다 — 분류는 전국
                     // 구간 인덱스를 훑어서, 화면마다 따로 돌리면 매초 같은 계산을 두 번 하게 된다.
-                    LiveNewRoadHolder.publish(classified.newRoadMeters)
+                    LiveNewRoadHolder.publish(classified.sumOf { it.newRoadMeters })
                 }
                 delay(1000)
             }

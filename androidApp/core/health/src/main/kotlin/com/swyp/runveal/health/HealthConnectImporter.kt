@@ -2,6 +2,7 @@ package com.swyp.runveal.health
 
 import android.content.Context
 import android.util.Log
+import com.swyp.runveal.core.map.DongAssetRepository
 import com.swyp.runveal.core.map.RoadSegmentIndexImporter
 import com.swyp.runveal.data.local.FileStore
 import com.swyp.runveal.data.local.RunvealDatabaseProvider
@@ -16,10 +17,10 @@ import com.swyp.runveal.external.ImportResult
 import com.swyp.runveal.external.ImportResultHolder
 import com.swyp.runveal.external.ImportUnavailableReason
 import com.swyp.runveal.external.MatchPointReducer
-import com.swyp.runveal.dong.DongBoundaryParser
 import com.swyp.runveal.map.GeoMath
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.match.ChunkedMatcher
+import com.swyp.runveal.match.MatchedPathFilter
 import com.swyp.runveal.match.ServerRoadMatcher
 import com.swyp.runveal.network.match.MatchPurpose
 import com.swyp.runveal.network.meta.MetaApi
@@ -44,9 +45,6 @@ private const val MATCH_RETRY_BASE_DELAY_MS = 2_000L
 private const val BETWEEN_WORKOUTS_DELAY_MS = 500L
 
 private const val MATCH_STATE_FAILED = "FAILED"
-
-/** 동 이름을 얻는 경계 GeoJSON — `core:map`의 asset. `TrackingService`도 같은 파일을 쓴다. */
-private const val DONG_BOUNDARY_ASSET_PATH = "dong/korea_dong.geojson"
 
 /** 재개 지점이 없는 첫 실행에서 훑을 기간 — 90일. 전체 이력을 훑으면 첫 연동에만 수백 건이 걸릴
  * 수 있고, IMPORT는 서버가 한 건씩만 처리한다(§3.7). */
@@ -179,13 +177,14 @@ class HealthConnectImporter(
         )
     }
 
-    /** 행정동 코드 → 이름. 동 경계 GeoJSON은 `core:map`의 asset이고, 러닝 결과 화면도 같은 파일에서
-     * 이름을 얻는다(`TrackingService.loadDongBoundaries`). 못 읽으면 탐험률 줄이 비는 것으로 끝나고
-     * 가져오기 자체는 이미 끝나 있어서 실패를 삼킨다. */
+    /** 행정동 코드 → 이름. 러닝 결과 화면(`TrackingService.buildDongStats`)과 같은 계층 파일
+     * (150KB)에서 꺼낸다 — 이름 하나 때문에 4.3MB 경계 geoJSON을 파싱하지 않는다. 못 읽으면
+     * 탐험률 줄이 비는 것으로 끝나고 가져오기 자체는 이미 끝나 있어서 실패를 삼킨다. */
     private fun loadDongNames(): Map<String, String> = runCatching {
-        val geoJson = context.assets.open(DONG_BOUNDARY_ASSET_PATH).bufferedReader().use { it.readText() }
-        DongBoundaryParser.parse(geoJson).associate { it.admCd2 to it.name }
-    }.onFailure { Log.w(TAG, "동 경계 읽기 실패 — 탐험률 줄을 비운다", it) }
+        DongAssetRepository(context).loadRegionHierarchy().sido
+            .flatMap { sido -> sido.sigungu.flatMap { it.dongs } }
+            .associate { it.code to it.name }
+    }.onFailure { Log.w(TAG, "동 이름 읽기 실패 — 탐험률 줄을 비운다", it) }
         .getOrDefault(emptyMap())
 
     private enum class ImportOutcome { IMPORTED, SKIPPED, FAILED }
@@ -258,10 +257,19 @@ class HealthConnectImporter(
         // 이번 기록이 지나간 구의 구간 인덱스가 없으면 segmentId를 길이·행정동으로 못 바꿔서
         // 집계에서 통째로 빠진다(러닝 종료 흐름과 같은 이유).
         RoadSegmentIndexImporter(context, store.database).importIfNeeded(result.sigunguCodes)
+
+        // 거르는 규칙은 러닝 종료(`TrackingService.matchAndRecord`)와 **같아야 한다** — 가져온
+        // 기록만 다른 기준으로 적립하면 같은 길인데 출처에 따라 탐험률이 달라진다.
+        //  - 경로: 실제 GPS와 동떨어진 부분을 잘라내고 조각으로 나눈다.
+        //  - 구간: 로컬 구간 인덱스와 대조해 진짜 지나간 부분만 적립한다.
+        val matchedPaths = MatchedPathFilter.keepNearRecordedPoints(result.path, points)
+        val runPaths = matchedPaths.ifEmpty { listOf(points) }
+        val coverages = store.coverageOnPaths(runPaths)
+
         val summary = store.recordMatchResult(
             trackId = trackId,
-            matchedPath = result.path,
-            segmentIds = result.segmentIds,
+            matchedPaths = runPaths,
+            coverages = coverages,
             nowEpochMs = System.currentTimeMillis(),
         )
 
@@ -270,8 +278,7 @@ class HealthConnectImporter(
         accumulated.newRoadPaths += summary.newRoadPaths
         // 결과 지도도 기록 탭 썸네일과 같은 선을 그리도록 **매칭 경로**를 모은다 — 원본 GPS를 그리면
         // 도로를 벗어나서 금색 "새로 탐험한 길"과 어긋나 보인다(러닝 결과 화면과 같은 이유).
-        // 매칭이 점 2개도 못 돌려주면 줄여 둔 GPS로 떨어진다.
-        accumulated.routePaths += result.path.takeIf { it.size >= 2 } ?: points
+        accumulated.routePaths += runPaths
 
         return ImportOutcome.IMPORTED
     }

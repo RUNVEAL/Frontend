@@ -4,7 +4,7 @@ import androidx.lifecycle.viewModelScope
 import com.swyp.runveal.external.ImportResult
 import com.swyp.runveal.external.ImportResultHolder
 import com.swyp.runveal.map.snapshot.SnapshotVariant
-import com.swyp.runveal.map.snapshot.toMultiRouteSnapshotRequest
+import com.swyp.runveal.map.snapshot.toMultiPathSnapshotRequest
 import com.swyp.runveal.tabmypage.contract.ImportDongStat
 import com.swyp.runveal.tabmypage.contract.ImportRecordsResultState
 import com.swyp.runveal.ui.mvi.MviViewModel
@@ -41,10 +41,12 @@ class ImportRecordsResultViewModel : MviViewModel<Nothing, ImportRecordsResultSt
         noRouteCount = skipped,
         // 여러 기록을 한 장에 담는 지도 — 기록마다 선 하나씩, 그중 처음 간 구간만 금색이다.
         // ownerId는 스냅샷 캐시 키라서 가져온 건수·거리로 묶어 둔다(같은 결과면 같은 그림).
-        mapSnapshotRequest = routePaths.toMultiRouteSnapshotRequest(
+        mapSnapshotRequest = routePaths.toMultiPathSnapshotRequest(
             ownerId = "import_${imported}_${newRoadMeters.toLong()}",
             variant = SnapshotVariant.RESULT_CARD,
             newRoadPaths = newRoadPaths,
+            // 기록이 여러 건이라 어느 것의 시작인지 가릴 수 없다 — 시작·끝 마커를 두지 않는다.
+            withEndpoints = false,
         ),
     )
 }

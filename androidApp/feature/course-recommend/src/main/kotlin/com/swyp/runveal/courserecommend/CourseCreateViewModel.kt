@@ -8,6 +8,7 @@ import com.swyp.runveal.courserecommend.contract.DefaultCustomDistanceIndex
 import com.swyp.runveal.courserecommend.contract.DefaultDistance
 import com.swyp.runveal.courserecommend.contract.LocationSelectionTarget
 import com.swyp.runveal.data.local.RunvealDatabaseProvider
+import com.swyp.runveal.dong.SegmentCoverageMatcher
 import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.network.meta.MetaApi
 import com.swyp.runveal.network.meta.MetaHolder
@@ -167,7 +168,9 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
      * 여기서 걸릴 일은 거의 없지만(1만 구간) 로그는 남긴다.
      */
     private suspend fun loadExploredSegmentIds(maxCount: Int): List<Long> = withContext(Dispatchers.IO) {
-        val all = database.exploredSegmentQueries.selectAllSegmentIds().executeAsList()
+        val all = database.exploredSegmentQueries
+            .selectCoveredSegmentIds(SegmentCoverageMatcher.DEFAULT_SEGMENT_COVERAGE)
+            .executeAsList()
         if (all.size > maxCount) Log.w(TAG, "가본 구간 ${all.size}개 > 상한 ${maxCount}개 — 잘라서 보낸다")
         all.take(maxCount)
     }
