@@ -2,6 +2,7 @@ package com.swyp.runveal.tabrecord.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,7 +28,11 @@ import com.swyp.runveal.designsystem.theme.RunvealTheme
 import com.swyp.runveal.map.snapshot.SnapshotRequest
 
 /** 기록 목록의 한 줄 — 날짜 + 타임라인 마커(점/세로선) + 러닝 카드(지도/코스/거리·시간·페이스).
- * [thumbnailRequest]가 null이면(매칭 경로 없음) 지도 자리는 빈 플레이스홀더로 남는다. */
+ * [thumbnailRequest]가 null이면(매칭 경로 없음) 지도 자리는 빈 플레이스홀더로 남는다.
+ *
+ * 탭·길게 누르기는 **카드에만** 건다 — 왼쪽 타임라인(점·세로선)은 줄을 잇는 장식이라 누를 자리가
+ * 아니다. [onClick]은 아직 갈 곳이 없어 비어 있다(기록 상세 TODO). */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun RecordListItem(
     dateLabel: String,
@@ -36,6 +42,8 @@ fun RecordListItem(
     paceLabel: String,
     modifier: Modifier = Modifier,
     thumbnailRequest: SnapshotRequest? = null,
+    onClick: () -> Unit = {},
+    onLongClick: () -> Unit = {},
 ) {
     val colors = RunvealTheme.colors
     val cardShape = RunvealTheme.shapes.radius16
@@ -85,6 +93,7 @@ fun RecordListItem(
                     .height(106.dp)
                     .fillMaxWidth()
                     .clip(cardShape)
+                    .combinedClickable(onClick = onClick, onLongClick = onLongClick)
                     .background(colors.surface.default, cardShape)
                     .border(1.dp, colors.border.default, cardShape)
                     .padding(RunvealTheme.spacing.space12),

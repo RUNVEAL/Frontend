@@ -9,6 +9,7 @@ import com.swyp.runveal.map.LatLon
 import com.swyp.runveal.map.snapshot.SnapshotVariant
 import com.swyp.runveal.map.snapshot.toSnapshotRequest
 import com.swyp.runveal.result.TrackResultHolder
+import com.swyp.runveal.tabrecord.contract.RecordIntent
 import com.swyp.runveal.tabrecord.contract.RecordItem
 import com.swyp.runveal.tabrecord.contract.RecordState
 import com.swyp.runveal.ui.mvi.MviViewModel
@@ -22,8 +23,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * 기록 탭. 사용자가 보낼 의도가 없는 화면(월 선택/기록 상세는 아직 TODO)이라 Intent/Effect 타입
- * 인자로 [Nothing]을 쓴다.
+ * 기록 탭. 월 선택·기록 상세는 아직 TODO라, 지금 받는 의도는 기록 삭제뿐이다.
  *
  * 러닝을 끝내면 `TrackingService`가 최종 매칭 후 [TrackResultHolder]에 결과를 publish한다 — 그걸
  * 구독해 그때마다 DB를 다시 읽어, 방금 끝낸 러닝이 목록과 월간 요약에 바로 올라오게 한다. StateFlow라
@@ -36,7 +36,7 @@ class RecordViewModel(
         FileStore(),
     ),
     private val zoneId: ZoneId = ZoneId.systemDefault(),
-) : MviViewModel<Nothing, RecordState, Nothing>(
+) : MviViewModel<RecordIntent, RecordState, Nothing>(
     // 달 라벨은 DB와 무관하니 조회 전부터 보여준다 — 안 그러면 상단바 라벨이 한 프레임 비어 보인다.
     initialState = RecordState(monthLabel = monthLabel(YearMonth.now(zoneId))),
 ) {
@@ -47,7 +47,29 @@ class RecordViewModel(
         }
     }
 
-    override suspend fun handleIntent(intent: Nothing) {}
+    override suspend fun handleIntent(intent: RecordIntent) {
+        when (intent) {
+            is RecordIntent.DeleteRequested -> setState { copy(deleteTargetTrackId = intent.trackId) }
+            RecordIntent.DeleteDismissed -> setState { copy(deleteTargetTrackId = null) }
+            RecordIntent.DeleteConfirmed -> deleteTarget()
+        }
+    }
+
+    /**
+     * 기록 한 건을 지운다. [TrackLocalStore.deleteTrack]이 GPX 파일까지 같이 지우고
+     * `explored_segment` 커버리지를 남은 기록만으로 다시 만든다 — 그래서 **지운 러닝이 밝혀 둔
+     * 길과 탐험률도 같이 줄어든다**. 그 캐시를 다시 만드는 비용이 있어 IO로 넘긴다.
+     *
+     * 지운 뒤 [TrackResultHolder]를 건드리지 않고 직접 다시 읽는다 — 홀더는 "방금 끝낸 러닝"을
+     * 알리는 자리라 삭제와 뜻이 맞지 않는다. 대신 홈 지도는 다음에 오버레이를 다시 만들 때
+     * 반영된다.
+     */
+    private suspend fun deleteTarget() {
+        val trackId = currentState.deleteTargetTrackId ?: return
+        setState { copy(deleteTargetTrackId = null) }
+        withContext(Dispatchers.IO) { store.deleteTrack(trackId, System.currentTimeMillis()) }
+        loadThisMonth()
+    }
 
     private suspend fun loadThisMonth() {
         val month = YearMonth.now(zoneId)

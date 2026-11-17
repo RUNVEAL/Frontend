@@ -371,12 +371,25 @@ class TrackLocalStore(
 
     /** 트랙 삭제(§5): DB row 삭제(→ edge/note/run_segment CASCADE) → 완주율 캐시 재생성 → GPX 파일
      * 삭제. 중간에 실패해도 고아 GPX만 남고 기능엔 영향 없다. */
-    fun deleteTrack(id: String) {
-        val track = database.trackQueries.selectById(id).executeAsOneOrNull() ?: return
-        database.trackQueries.deleteTrack(id)
-        regenerateCoverage()
-        fileStore.delete(track.gpx_filtered_path)
-        fileStore.delete(track.gpx_raw_path)
+    /**
+     * 기록을 목록에서 지운다 — **소프트 삭제**다(행은 남는다).
+     *
+     * 그 러닝이 밝힌 길은 지도에 그대로 남아야 한다. 행을 진짜로 지우면 `run_segment`·`track_edge`가
+     * ON DELETE CASCADE로 같이 날아가, 적립(탐험률)과 "가본 길" 선까지 사라진다. 그래서 지운 시각만
+     * 적고 목록 쿼리에서만 걸러낸다 — [regenerateCoverage]도 부르지 않는다(부르면 그 트랙 몫이
+     * 빠진 캐시가 다시 만들어진다).
+     *
+     * GPX 파일도 남겨 둔다. 되살리거나 다시 매칭할 여지를 없애지 않기 위해서다.
+     *
+     * TODO: 지운 기록이 쌓이기만 한다. 되살리기(실행 취소)를 붙이거나 오래된 것을 실제로 정리하는
+     *  규칙이 필요하다 — 그때는 적립을 어떻게 유지할지 같이 정해야 한다.
+     */
+    fun deleteTrack(id: String, nowEpochMs: Long) {
+        database.trackQueries.softDeleteTrack(
+            deleted_at_epoch_ms = nowEpochMs,
+            updated_at_epoch_ms = nowEpochMs,
+            id = id,
+        )
     }
 
     /** `explored_segment` 캐시를 비우고 `run_segment`(남은 트랙 전체)의 커버리지를 다시 합쳐 채운다 —
