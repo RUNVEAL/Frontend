@@ -1,14 +1,13 @@
-package com.swyp.runveal.tracking
+package com.swyp.runveal.match
 
 import com.swyp.runveal.map.LatLon
-import com.swyp.runveal.match.MatchResult
-import com.swyp.runveal.match.RoadMatcher
 import com.swyp.runveal.network.match.MatchApi
 import com.swyp.runveal.network.match.MatchPurpose
 import com.swyp.runveal.network.match.MatchRequest
 
 /**
- * 실서버 `POST /api/v1/match`(`docs/api/API.md` §3.6/§3.7)로 도로매칭한다. [ChunkedMatcher]가 그대로
+ * 실서버 `POST /api/v1/match`(`docs/api/API.md` §3.6/§3.7)로 도로매칭한다. 플랫폼 의존성이 없어서
+ * 러닝 종료(`core:tracking`, `LIVE`)와 외부 기록 가져오기(`core:health`, `IMPORT`)가 같이 쓴다. [ChunkedMatcher]가 그대로
  * 2,000점 단위로 쪼개서 호출하므로 `/meta`의 `limits.match.maxPoints` 제한도 그대로 지켜진다.
  *
  * 서버가 주는 `segmentIds`를 그대로 [MatchResult.segmentIds]로 넘긴다 — "가본 길" 인정은 이제 이

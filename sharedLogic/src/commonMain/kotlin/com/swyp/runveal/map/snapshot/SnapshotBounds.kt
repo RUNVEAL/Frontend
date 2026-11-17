@@ -78,3 +78,29 @@ fun List<LatLon>.toSnapshotRequest(
         isRunRoute = newRoadPaths != null,
     )
 }
+
+/**
+ * 경로가 여러 줄인 스냅샷 — Health Connect 기록 불러오기 결과처럼 **여러 기록을 한 장에** 담을 때
+ * 쓴다. 시작·끝 마커는 두지 않는다(여러 기록 중 어느 것의 시작인지 가릴 수 없다).
+ *
+ * 점이 2개 미만인 줄은 선이 되지 않아 빼고, 남은 게 없으면 요청을 만들지 않는다
+ * ([toSnapshotRequest]가 점 1개 이하를 거르는 것과 같은 이유).
+ */
+fun List<List<LatLon>>.toMultiRouteSnapshotRequest(
+    ownerId: String,
+    variant: SnapshotVariant,
+    newRoadPaths: List<List<LatLon>>,
+): SnapshotRequest? {
+    val routes = filter { it.size >= 2 }
+    if (routes.isEmpty()) return null
+    return SnapshotRequest(
+        ownerId = ownerId,
+        variant = variant,
+        routeGeoJson = routes.toMultiLineGeoJson(),
+        bounds = routes.flatten().snapshotBounds(),
+        start = null,
+        end = null,
+        highlightGeoJson = newRoadPaths.filter { it.size >= 2 }.takeIf { it.isNotEmpty() }?.toMultiLineGeoJson(),
+        isRunRoute = true,
+    )
+}

@@ -8,10 +8,13 @@ import com.swyp.runveal.data.local.FileStore
 import com.swyp.runveal.data.local.RunvealDatabaseProvider
 import com.swyp.runveal.data.local.TrackLocalStore
 import com.swyp.runveal.dong.DongExploreRate
+import com.swyp.runveal.external.ImportProgress
+import com.swyp.runveal.external.ImportProgressHolder
 import com.swyp.runveal.result.TrackResultHolder
 import com.swyp.runveal.tabmypage.contract.MyEffect
 import com.swyp.runveal.tabmypage.contract.MyIntent
 import com.swyp.runveal.tabmypage.contract.MyState
+import com.swyp.runveal.tabmypage.contract.MyToast
 import com.swyp.runveal.ui.mvi.MviViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
@@ -37,26 +40,34 @@ class MyViewModel : MviViewModel<MyIntent, MyState, MyEffect>(
         viewModelScope.launch {
             TrackResultHolder.state.collectLatest { loadRunningSummary() }
         }
+
+        // Health Connect에서 기록을 가져오면 "탐험한 동"·"누적 거리"가 늘어난다. 진행 화면은 이
+        // 화면 위에 올라갔다 내려오기만 해서 ViewModel이 다시 만들어지지 않으므로, 끝나는 걸 보고
+        // 직접 다시 집계한다.
+        viewModelScope.launch {
+            ImportProgressHolder.state.collectLatest { progress ->
+                if (progress is ImportProgress.Finished) loadRunningSummary()
+            }
+        }
     }
 
     override suspend fun handleIntent(intent: MyIntent) {
         when (intent) {
-            // 아래 셋은 아직 붙일 기능이 없어 전부 "준비 중" 안내만 띄운다. 각 TODO가 풀리는 대로
+            // 아래 둘은 아직 붙일 기능이 없어 "준비 중" 안내만 띄운다. 각 TODO가 풀리는 대로
             // 하나씩 실제 동작으로 바꾼다.
             //  - TODO: 닉네임 변경 화면으로 이동 — 회원 정보 기능이 붙은 뒤.
-            //  - TODO: Health Connect 기록 가져오기 — 가져오기 기능이 붙은 뒤.
             //  - TODO: 회원 탈퇴 — 회원 API가 붙은 뒤(되돌릴 수 없으니 확인 다이얼로그 필요).
             MyIntent.NicknameChangeClicked,
-            MyIntent.ImportRecordsClicked,
             MyIntent.WithdrawClicked,
-            -> setState { copy(showNotReadyToast = true) }
+            -> setState { copy(toast = MyToast.NOT_READY) }
 
             // 로그아웃은 되돌리려면 다시 로그인해야 해서 한 번 더 묻는다.
             MyIntent.LogoutClicked -> setState { copy(showLogoutDialog = true) }
             MyIntent.LogoutDismissed -> setState { copy(showLogoutDialog = false) }
             MyIntent.LogoutConfirmed -> logout()
 
-            MyIntent.ToastShown -> setState { copy(showNotReadyToast = false) }
+            is MyIntent.ToastRequested -> setState { copy(toast = intent.toast) }
+            MyIntent.ToastShown -> setState { copy(toast = null) }
         }
     }
 
