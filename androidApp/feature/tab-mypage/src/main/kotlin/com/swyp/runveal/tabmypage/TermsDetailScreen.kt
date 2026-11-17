@@ -143,6 +143,12 @@ private fun OpenSourceLicenseContent() {
                 name = stringResource(R.string.oss_map_tiles),
                 license = stringResource(R.string.oss_map_tiles_license),
             )
+            // 행정동 경계는 앱 번들이 아니라 서버 `index.geojson`에서 받지만, 화면에 그리는 건
+            // 앱이라 출처를 여기 함께 적는다.
+            LicenseRow(
+                name = stringResource(R.string.oss_map_dong),
+                license = stringResource(R.string.oss_map_dong_license),
+            )
         }
 
         LicenseSection(title = stringResource(R.string.oss_library_section)) {

@@ -72,5 +72,7 @@
     <string name="oss_map_data_license">ODbL 1.0</string>
     <string name="oss_map_tiles">지도 타일 OpenFreeMap · OpenMapTiles</string>
     <string name="oss_map_tiles_license">BSD 3-Clause</string>
+    <string name="oss_map_dong">행정동 경계 행정안전부 · vuski/admdongkor</string>
+    <string name="oss_map_dong_license">CC BY 4.0 · 공공누리 제1유형</string>
     <string name="oss_library_section">라이브러리</string>
 </resources>

@@ -52,6 +52,9 @@ private struct OpenSourceLicenseContent: View {
             LicenseSection(title: MyStrings.ossMapSection) {
                 LicenseRow(name: MyStrings.ossMapData, license: MyStrings.ossMapDataLicense)
                 LicenseRow(name: MyStrings.ossMapTiles, license: MyStrings.ossMapTilesLicense)
+                // 행정동 경계는 앱 번들이 아니라 서버 index.geojson에서 받지만, 화면에 그리는 건
+                // 앱이라 출처를 여기 함께 적는다.
+                LicenseRow(name: MyStrings.ossMapDong, license: MyStrings.ossMapDongLicense)
             }
 
             LicenseSection(title: MyStrings.ossLibrarySection) {

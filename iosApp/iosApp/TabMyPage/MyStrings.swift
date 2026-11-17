@@ -15,5 +15,7 @@ enum MyStrings {
     static let ossMapDataLicense = "ODbL 1.0"
     static let ossMapTiles = "지도 타일 OpenFreeMap · OpenMapTiles"
     static let ossMapTilesLicense = "BSD 3-Clause"
+    static let ossMapDong = "행정동 경계 행정안전부 · vuski/admdongkor"
+    static let ossMapDongLicense = "CC BY 4.0 · 공공누리 제1유형"
     static let ossLibrarySection = "라이브러리"
 }
