@@ -1,33 +1,51 @@
 -- "가본 구간" 캐시(docs/api/API.md §4 explored_segments) — segmentId당 한 번만, 어느 동에 몇 m인지
 -- 같이 들고 있어서 완주율(%) 집계를 바로 할 수 있다. `run_segment`(진실의 원천)에서 언제든 다시
 -- 만들 수 있는 캐시라, 트랙 삭제 시엔 지우고 다시 돌린다(TrackLocalStore.regenerateCoverage).
+--
+-- 적립 단위는 구간 전체가 아니라 구간을 쪼갠 샘플이다(com.swyp.runveal.dong.CoverageMask):
+--   covered_mask — 어느 샘플까지 지나갔는지. 러닝마다 OR로 합쳐서, 앞쪽 절반과 뒤쪽 절반을 다른 날
+--                  달려도 합쳐서 전체가 된다. 빈 문자열은 "구간 전체"(쪼개 적립 전에 쌓인 행)다.
+--   covered_m    — covered_mask를 길이로 환산해 둔 값. 완주율 집계(walkedLengthByDong)가 매번
+--                  mask를 세지 않도록 같이 저장한다. 항상 length_m 이하다.
 CREATE TABLE explored_segment (
-    segment_id INTEGER PRIMARY KEY NOT NULL,
-    adm_cd2    TEXT NOT NULL,
-    length_m   REAL NOT NULL
+    segment_id   INTEGER PRIMARY KEY NOT NULL,
+    adm_cd2      TEXT NOT NULL,
+    length_m     REAL NOT NULL,
+    covered_mask TEXT NOT NULL DEFAULT '',
+    covered_m    REAL NOT NULL DEFAULT 0.0
 );
 
 CREATE INDEX explored_segment_adm_cd2_idx ON explored_segment(adm_cd2);
 
-selectAllSegmentIds:
-SELECT segment_id FROM explored_segment;
+-- 구간별 커버리지 — 러닝 중 흰색/금색 판정(LiveRoadClassifier)이 "지금 밟은 자리가 이미 가본
+-- 자리인지"까지 보려면 ID만으론 모자라고 mask가 필요하다.
+selectCoverageMasks:
+SELECT segment_id, covered_mask FROM explored_segment;
 
--- 주어진 구간들 중 이미 가본 것의 길이 합 — 추천/저장 코스의 "새 길"(안 가본 길) 계산용
+selectCoverageForSegment:
+SELECT covered_mask FROM explored_segment WHERE segment_id = ?;
+
+-- 서버에 "가본 구간"으로 보낼 ID(docs/api/API.md §3.3.1 exploredSegmentIds). 일부만 밟은 구간은
+-- 보내지 않는다 — 서버는 구간 단위로만 새 길을 계산해서, 10%만 달린 구간을 보내면 남은 90%가
+-- 새 길에서 빠진다. 기준은 manifest `segmentCoverage`와 같은 비율이다.
+selectCoveredSegmentIds:
+SELECT segment_id FROM explored_segment WHERE covered_m >= length_m * :minRatio;
+
+-- 주어진 구간들 중 이미 가본 길이 합 — 추천/저장 코스의 "새 길"(안 가본 길) 계산용
 -- (NewRoadEstimator). 겹치는 구간이 하나도 없으면 SUM이 NULL이라 COALESCE로 0을 돌려준다.
 -- 빈 목록으로 부르면 `IN ()`이 돼서 SQLite 문법 오류가 나니 호출부가 먼저 걸러야 한다.
 exploredLengthForSegments:
-SELECT COALESCE(SUM(length_m), 0.0) AS explored_meters FROM explored_segment WHERE segment_id IN ?;
+SELECT COALESCE(SUM(covered_m), 0.0) AS explored_meters FROM explored_segment WHERE segment_id IN ?;
 
 walkedLengthByDong:
-SELECT adm_cd2, SUM(length_m) AS walked_meters FROM explored_segment GROUP BY adm_cd2;
+SELECT adm_cd2, SUM(covered_m) AS walked_meters FROM explored_segment GROUP BY adm_cd2;
 
--- insertSegmentIfAbsent 바로 다음, 같은 트랜잭션/커넥션 안에서 호출해야 그 호출이 insert한
--- row 수를 읽는다 — 커넥션이 다르거나 사이에 다른 쓰기가 끼면 엉뚱한 값을 읽는다.
-changes:
-SELECT changes();
+insertSegment:
+INSERT OR IGNORE INTO explored_segment (segment_id, adm_cd2, length_m, covered_mask, covered_m)
+VALUES (?, ?, ?, ?, ?);
 
-insertSegmentIfAbsent:
-INSERT OR IGNORE INTO explored_segment (segment_id, adm_cd2, length_m) VALUES (?, ?, ?);
+updateCoverage:
+UPDATE explored_segment SET covered_mask = :coveredMask, covered_m = :coveredM WHERE segment_id = :segmentId;
 
 clearExploredSegments:
 DELETE FROM explored_segment;

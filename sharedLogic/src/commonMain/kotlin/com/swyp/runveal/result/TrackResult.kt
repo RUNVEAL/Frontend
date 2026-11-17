@@ -14,9 +14,10 @@ data class DongRateChange(
 )
 
 /** 러닝 결과 화면이 그대로 쓰는 최종 데이터 — 최종 매칭(§6)이 끝나야 만들어진다.
- * [routePoints]는 결과 카드 지도 스냅샷(`docs/running/COURSE_MAP_SNAPSHOT.md`) 생성용 — 도로 매칭에
- * 성공하면 **매칭 경로**(기록 탭 썸네일과 같은 선)이고, 실패하면 필터링된 GPS 경로 그대로다.
- * 그래서 매칭이 실패하거나 점이 2개 미만이면 선이 짧거나 비어 있을 수 있다. */
+ * [routePaths]는 결과 카드 지도 스냅샷(`docs/running/COURSE_MAP_SNAPSHOT.md`) 생성용 — 도로 매칭에
+ * 성공하면 **실제로 달린 자리만 남긴 매칭 경로**(지도의 가본 길과 같은 선)이고, 실패하면 필터링된
+ * GPS 경로 한 줄이다. 조각 목록인 이유는 [com.swyp.runveal.match.MatchedPathFilter]가 GPS와
+ * 동떨어진 부분을 잘라내면서 선이 나뉘기 때문이다. */
 data class TrackResult(
     val trackId: String,
     val startedAtEpochMs: Long,
@@ -24,8 +25,8 @@ data class TrackResult(
     val elapsedMs: Long,
     val newRoadMeters: Double,
     val dongStats: List<DongRateChange>,
-    val routePoints: List<LatLon>,
-    /** 이번에 처음 간 구간들 — 결과 카드 지도에서 [routePoints] 위에 금색으로 덧그린다. 매칭이
+    val routePaths: List<List<LatLon>>,
+    /** 이번에 처음 간 구간들 — 결과 카드 지도에서 [routePaths] 위에 금색으로 덧그린다. 매칭이
      * 실패하면 비어 있고, 그때는 전부 한 색("오늘 달린 길")으로만 그려진다. */
     val newRoadPaths: List<List<LatLon>> = emptyList(),
 )
