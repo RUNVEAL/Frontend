@@ -37,6 +37,11 @@ dependencies {
 
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.maplibre.android.sdk)
+    // 이 모듈의 AndroidManifest가 카카오 SDK의 AuthCodeHandlerActivity를 직접 선언하므로 여기서도
+    // 의존성을 밝힌다. sharedLogic이 implementation으로 들고 있어 런타임에는 어차피 들어오지만,
+    // 그건 전이 의존이라 lint가 못 보고(MissingClass 에러), sharedLogic이 카카오를 걷어내면
+    // 매니페스트만 조용히 깨진다.
+    implementation(libs.kakao.sdk.user)
 }
 
 android {
