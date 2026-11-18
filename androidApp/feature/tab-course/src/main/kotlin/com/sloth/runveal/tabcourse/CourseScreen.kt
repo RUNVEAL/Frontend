@@ -52,10 +52,13 @@ fun CourseScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
     // 탭을 나갔다 들어올 때마다(restoreState로 화면만 재구성) 새로 저장한 코스가 반영되게 매번 다시 불러온다.
     LaunchedEffect(Unit) { viewModel.onIntent(CourseListIntent.Load) }
+    val readyState = state as? CourseListState.Ready
     CourseListContent(
-        courses = (state as? CourseListState.Ready)?.courses ?: emptyList(),
+        courses = readyState?.courses ?: emptyList(),
+        featured = readyState?.featuredCourse,
         isLoading = state is CourseListState.Loading,
         onCreateCourseClick = onCreateCourseClick,
+        onCourseClick = { viewModel.onIntent(CourseListIntent.SelectCourse(it.id)) },
         onStartCourse = onStartCourse,
         modifier = modifier,
     )
@@ -64,8 +67,11 @@ fun CourseScreen(
 @Composable
 private fun CourseListContent(
     courses: List<SavedCourseUiModel>,
+    /** 위 큰 카드에 띄울 코스 — 목록에서 고른 것, 없으면 가장 최근 코스. */
+    featured: SavedCourseUiModel?,
     isLoading: Boolean,
     onCreateCourseClick: () -> Unit,
+    onCourseClick: (SavedCourseUiModel) -> Unit,
     onStartCourse: (SavedCourseUiModel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -100,8 +106,7 @@ private fun CourseListContent(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            if (hasSavedCourses) {
-                val featured = courses.first()
+            if (hasSavedCourses && featured != null) {
                 CourseRecommendationCard(
                     badgeLabel = stringResource(R.string.tab_course_recommend_badge),
                     title = featured.title,
@@ -149,6 +154,7 @@ private fun CourseListContent(
                             lastRunLabel = "",
                             // TODO: 위 카드와 같은 더보기 메뉴.
                             onMoreClick = null,
+                            onClick = { onCourseClick(course) },
                             onStartClick = { onStartCourse(course) },
                             thumbnailRequest = course.snapshotRequest,
                         )
@@ -199,6 +205,8 @@ private fun CourseTopBarActionButton(onClick: () -> Unit, modifier: Modifier = M
 private fun CourseListContentPreview() {
     RunvealTheme {
         CourseListContent(
+            featured = null,
+            onCourseClick = {},
             courses = listOf(
                 SavedCourseUiModel(
                     id = "preview-1",
@@ -225,6 +233,8 @@ private fun CourseListContentPreview() {
 private fun CourseListContentEmptyPreview() {
     RunvealTheme {
         CourseListContent(
+            featured = null,
+            onCourseClick = {},
             courses = emptyList(),
             isLoading = false,
             onCreateCourseClick = {},

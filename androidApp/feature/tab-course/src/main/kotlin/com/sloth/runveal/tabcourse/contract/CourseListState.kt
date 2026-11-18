@@ -9,6 +9,9 @@ import com.sloth.runveal.ui.mvi.UiState
  * 다시 불러오게 하는 의도 — 코스 상세 화면의 진입 시 `Load` 패턴과 같다. */
 sealed interface CourseListIntent : UiIntent {
     data object Load : CourseListIntent
+
+    /** 목록에서 코스를 골랐다 — 위 큰 카드가 그 코스로 바뀐다. */
+    data class SelectCourse(val courseId: String) : CourseListIntent
 }
 
 /** 저장한 코스 목록의 한 항목. */
@@ -29,6 +32,18 @@ data class SavedCourseUiModel(
 sealed interface CourseListState : UiState {
     data object Loading : CourseListState
 
-    /** [courses]는 `created_at_epoch_ms` 최신순 — 비어있으면 빈 상태 화면을 보여준다. */
-    data class Ready(val courses: List<SavedCourseUiModel>) : CourseListState
+    /**
+     * [courses]는 `created_at_epoch_ms` 최신순 — 비어있으면 빈 상태 화면을 보여준다.
+     *
+     * [selectedCourseId]는 위 큰 카드에 띄울 코스. 목록에서 코스를 누르면 바뀐다. null이거나
+     * 목록에 없는 id면(코스를 지운 경우 등) 맨 위 코스로 떨어진다 — [featuredCourse] 참고.
+     */
+    data class Ready(
+        val courses: List<SavedCourseUiModel>,
+        val selectedCourseId: String? = null,
+    ) : CourseListState {
+        /** 큰 카드에 띄울 코스. 고른 게 없으면 가장 최근에 저장한 코스다. */
+        val featuredCourse: SavedCourseUiModel?
+            get() = courses.firstOrNull { it.id == selectedCourseId } ?: courses.firstOrNull()
+    }
 }

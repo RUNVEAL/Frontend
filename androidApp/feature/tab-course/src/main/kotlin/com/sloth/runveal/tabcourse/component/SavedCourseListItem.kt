@@ -39,6 +39,8 @@ fun SavedCourseListItem(
      * 달려 있으면 눌러 보게 되고, 눌러도 아무 일이 없어 고장으로 보인다.
      */
     onMoreClick: (() -> Unit)?,
+    /** 줄 전체를 눌렀을 때 — 위 큰 카드를 이 코스로 바꾼다. */
+    onClick: () -> Unit,
     onStartClick: () -> Unit,
     modifier: Modifier = Modifier,
     thumbnailRequest: SnapshotRequest? = null,
@@ -49,6 +51,7 @@ fun SavedCourseListItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(vertical = RunvealTheme.spacing.space12),
         horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space16),
         verticalAlignment = Alignment.CenterVertically,
@@ -137,6 +140,7 @@ private fun SavedCourseListItemPreview() {
             runCountLabel = "2회 달림",
             lastRunLabel = "최근 10.31",
             onMoreClick = null,
+            onClick = {},
             onStartClick = {},
         )
     }
