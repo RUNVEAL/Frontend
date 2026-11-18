@@ -22,4 +22,6 @@ dependencies {
 
     implementation(libs.androidx.navigation.compose)
     implementation(libs.kotlinx.serialization.core)
+    // 러닝 시작 전 위치 안내 바텀시트(ModalBottomSheet)를 여기서 띄운다.
+    implementation(libs.compose.material3)
 }

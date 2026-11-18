@@ -3,6 +3,13 @@ package com.sloth.runveal.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
+import com.sloth.runveal.designsystem.component.overlay.RunvealLocationServicesSheet
+import com.sloth.runveal.designsystem.component.overlay.RunvealLocationPermissionSheet
+import com.sloth.runveal.designsystem.component.overlay.RunvealLocationPermissionSettingsSheet
+import androidx.compose.ui.graphics.Color
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
@@ -97,6 +104,7 @@ private val LOCATION_BANNER_EXTRA_INSET = 56.dp
  * 홈 탭 화면 — Map Shell. 지도(`RunvealMap`)는 여기서 하나만 그리고, 탭 화면과 지도 위 흐름(홈 지도,
  * 코스 추천)은 전부 이 아래 단일 NavHost로 조립한다. 탭바 노출 규칙도 여기 한 곳에만 둔다.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) {
     val tabNavigator = rememberRunVealNavigator()
@@ -108,27 +116,33 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     val appSettingsContext = LocalContext.current
 
     /**
-     * 위치가 필요한 화면(러닝 기록, 코스 추천)으로 가기 전에 **먼저 설정을 받는다.**
+     * **러닝을 시작하기 전에** 위치가 준비됐는지 보고, 안 됐으면 그 자리에서 안내 바텀시트를 띄운다.
      *
      * 그냥 보내면 앱이 죽는다 — 러닝 기록은 위치 권한이 있어야 시작할 수 있는 Foreground Service를
-     * 띄우는데, 권한이 없으면 그 자리에서 SecurityException이 난다. 안내 바텀시트는 닫을 수 있어서
-     * "닫고 러닝 시작"이 그대로 가능했다.
+     * 띄우는데, 권한이 없으면 그 자리에서 SecurityException이 난다. 지도 위 안내 시트는 닫을 수
+     * 있어서 "닫고 러닝 시작"이 그대로 가능했다.
      *
      * 권한과 위치 서비스는 서로 다른 상태라 순서대로 본다 — 둘 중 하나만 꺼져 있어도 위치를 못 받는다.
-     * 영구 거부라 시스템 다이얼로그를 더 띄울 수 없으면 앱 설정 화면으로 보낸다.
+     *
+     * **코스 탐색에는 걸지 않는다.** 코스를 찾아보는 데까지는 위치가 없어도 되고, 실제로 뛰기
+     * 시작할 때만 필요하다.
      */
-    val withLocationReady: (() -> Unit) -> Unit = { proceed ->
-        when {
-            !locationPermissionState.isGranted ->
-                if (locationPermissionState.isPermanentlyDenied) {
-                    appSettingsContext.openAppSettings()
-                } else {
-                    locationPermissionState.request()
-                }
+    var pendingRunStart by remember { mutableStateOf<(() -> Unit)?>(null) }
+    val requireLocationForRun: (() -> Unit) -> Unit = { proceed ->
+        if (locationPermissionState.isGranted && locationServicesState.isEnabled) {
+            proceed()
+        } else {
+            // 시트에서 허용·켜기를 마치면 이어서 실행한다(아래 LaunchedEffect).
+            pendingRunStart = proceed
+        }
+    }
 
-            !locationServicesState.isEnabled -> locationServicesState.requestEnable()
-
-            else -> proceed()
+    // 시트를 띄운 뒤 사용자가 권한을 허용하거나 위치 서비스를 켜면, 다시 누르게 하지 않고 바로 잇는다.
+    LaunchedEffect(locationPermissionState.isGranted, locationServicesState.isEnabled, pendingRunStart) {
+        val proceed = pendingRunStart ?: return@LaunchedEffect
+        if (locationPermissionState.isGranted && locationServicesState.isEnabled) {
+            pendingRunStart = null
+            proceed()
         }
     }
     val currentDestination by tabNavigator.navController.currentBackStackEntryAsState()
@@ -226,11 +240,10 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
             ) {
                 navigation<RunVealRoute.HomeTab.Home>(startDestination = RunVealRoute.HomeTab.HomeMap) {
                     homeMapOverlay(
-                        onCreateCourseClick = {
-                            withLocationReady { tabNavigator.navigate(RunVealRoute.HomeTab.CourseRecommend) }
-                        },
+                        // 코스 탐색은 위치 없이도 들어갈 수 있다 — 실제로 뛸 때만 위치가 필요하다.
+                        onCreateCourseClick = { tabNavigator.navigate(RunVealRoute.HomeTab.CourseRecommend) },
                         onRunStartClick = {
-                            withLocationReady { tabNavigator.navigate(RunVealRoute.HomeTab.Recording) }
+                            requireLocationForRun { tabNavigator.navigate(RunVealRoute.HomeTab.Recording) }
                         },
                     )
                     courseRecommendOverlay(
@@ -245,8 +258,9 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                         onBack = tabNavigator::popBackStack,
                         // 코스 추천 흐름(CourseRecommend~CourseDetail) 스택을 전부 지우고 들어간다 —
                         // 안 지우면 러닝 종료 후 뒤로가기/닫기로 홈이 아니라 코스 추천 화면으로 돌아간다.
+                        // 코스 상세에서 "이 코스로 러닝 시작" — 여기서부터 위치가 필요하다.
                         onStartRunning = {
-                            withLocationReady {
+                            requireLocationForRun {
                                 tabNavigator.navController.navigate(RunVealRoute.HomeTab.Recording) {
                                     popUpTo(RunVealRoute.HomeTab.HomeMap) { inclusive = false }
                                 }
@@ -387,6 +401,39 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                                     vertical = RunvealTheme.spacing.space8,
                                 ),
                         )
+                    }
+                }
+            }
+
+            // 러닝 시작을 눌렀는데 위치가 준비 안 된 경우 — 무엇이 모자란지에 맞는 시트를 띄운다.
+            // 권한을 먼저 보고, 권한이 있으면 위치 서비스를 본다(둘 중 하나만 꺼져도 위치를 못 받는다).
+            if (pendingRunStart != null) {
+                ModalBottomSheet(
+                    onDismissRequest = { pendingRunStart = null },
+                    sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+                    containerColor = Color.Transparent,
+                    dragHandle = null,
+                    // 시트 배경이 OS 내비게이션 바 뒤까지 그대로 채우게 한다(RequireLocationPermission과 같은 이유).
+                    contentWindowInsets = { WindowInsets(0) },
+                ) {
+                    when {
+                        locationPermissionState.isPermanentlyDenied ->
+                            RunvealLocationPermissionSettingsSheet(
+                                onSettingsClick = { appSettingsContext.openAppSettings() },
+                                onCloseClick = { pendingRunStart = null },
+                            )
+
+                        !locationPermissionState.isGranted ->
+                            RunvealLocationPermissionSheet(
+                                onAllowClick = locationPermissionState::request,
+                                onLaterClick = { pendingRunStart = null },
+                            )
+
+                        else ->
+                            RunvealLocationServicesSheet(
+                                onSettingsClick = locationServicesState::requestEnable,
+                                onCloseClick = { pendingRunStart = null },
+                            )
                     }
                 }
             }
