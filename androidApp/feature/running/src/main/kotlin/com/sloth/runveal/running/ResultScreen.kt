@@ -48,6 +48,8 @@ import com.sloth.runveal.feature.running.R
 import com.sloth.runveal.map.snapshot.SnapshotRequest
 import com.sloth.runveal.running.contract.ResultDongStat
 import com.sloth.runveal.running.contract.ResultState
+import com.sloth.runveal.ui.toast.NotReadyToastHost
+import com.sloth.runveal.ui.toast.rememberNotReadyToastState
 
 private val MAP_CARD_HEIGHT = 268.dp
 private val RESULT_GLOW_WIDTH = 480.dp
@@ -66,6 +68,8 @@ private val LEGEND_SWATCH_LABEL_GAP = 6.dp
 fun ResultScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewModel: ResultViewModel = viewModel()) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val colors = RunvealTheme.colors
+
+    val notReadyToast = rememberNotReadyToastState()
 
     Box(modifier = modifier.fillMaxSize().background(colors.bg.canvas)) {
         // 제일 뒤에 깔리는 배경 glow — statusBar 인셋을 안 받아서 그 밑까지 그대로 번진다. 이미지 자체에
@@ -93,14 +97,24 @@ fun ResultScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewModel: 
                 is ResultState.Loading -> Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
-                is ResultState.Ready -> ResultContent(state = current, modifier = Modifier.weight(1f).fillMaxWidth())
+                is ResultState.Ready -> ResultContent(
+                    state = current,
+                    onNotReadyClick = notReadyToast::show,
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                )
             }
         }
+
+        NotReadyToastHost(notReadyToast)
     }
 }
 
 @Composable
-private fun ResultContent(state: ResultState.Ready, modifier: Modifier = Modifier) {
+private fun ResultContent(
+    state: ResultState.Ready,
+    onNotReadyClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val colors = RunvealTheme.colors
 
     Column(modifier = modifier) {
@@ -146,11 +160,14 @@ private fun ResultContent(state: ResultState.Ready, modifier: Modifier = Modifie
             )
         }
 
+        // TODO: 기록 상세 화면으로 이동 — 기록 탭의 상세가 생기면 그 화면을 재사용한다.
+        // TODO: 결과 카드를 이미지로 저장(공유) — 지도 스냅샷과 통계를 한 장으로 렌더링해야 한다.
+        //  둘 다 붙기 전까지는 "개발 중" 안내만 띄운다.
         RunvealButtonGroupEqual(
             firstLabel = stringResource(R.string.result_detail_button),
-            onFirstClick = {},
+            onFirstClick = onNotReadyClick,
             secondLabel = stringResource(R.string.result_save_image_button),
-            onSecondClick = {},
+            onSecondClick = onNotReadyClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
@@ -324,6 +341,7 @@ private fun ResultStat(label: String, value: String, unit: String? = null, modif
 private fun ResultScreenPreview() {
     RunvealTheme {
         ResultContent(
+            onNotReadyClick = {},
             state = ResultState.Ready(
                 dateLabel = "10월 25일 일요일 저녁 러닝",
                 newRoadLabel = "1.3",

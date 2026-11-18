@@ -38,7 +38,11 @@ fun CourseRecommendationCard(
     tag: String,
     newRoadLabel: String,
     notRunLabel: String,
-    onMoreClick: () -> Unit,
+    /**
+     * 더보기(점 세 개). null이면 **아이콘 자체를 그리지 않는다** — 열 메뉴가 없는데 아이콘만
+     * 달려 있으면 눌러 보게 되고, 눌러도 아무 일이 없어 고장으로 보인다.
+     */
+    onMoreClick: (() -> Unit)?,
     onStartClick: () -> Unit,
     modifier: Modifier = Modifier,
     thumbnailRequest: SnapshotRequest? = null,
@@ -122,12 +126,14 @@ fun CourseRecommendationCard(
                         }
                     }
                 }
-                Icon(
-                    imageVector = RunvealIcons.More,
-                    contentDescription = "더보기",
-                    tint = colors.icon.tertiary,
-                    modifier = Modifier.size(24.dp).clickable(onClick = onMoreClick),
-                )
+                if (onMoreClick != null) {
+                    Icon(
+                        imageVector = RunvealIcons.More,
+                        contentDescription = "더보기",
+                        tint = colors.icon.tertiary,
+                        modifier = Modifier.size(24.dp).clickable(onClick = onMoreClick),
+                    )
+                }
             }
 
             RunvealButton(
@@ -154,7 +160,7 @@ private fun CourseRecommendationCardPreview() {
             tag = "순환",
             newRoadLabel = "새 길 1.3km",
             notRunLabel = "아직 안달림",
-            onMoreClick = {},
+            onMoreClick = null,
             onStartClick = {},
         )
     }

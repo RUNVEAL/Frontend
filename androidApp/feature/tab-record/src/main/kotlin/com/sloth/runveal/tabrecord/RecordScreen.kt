@@ -38,6 +38,8 @@ import com.sloth.runveal.tabrecord.component.RecordListItem
 import com.sloth.runveal.tabrecord.contract.RecordIntent
 import com.sloth.runveal.tabrecord.contract.RecordItem
 import com.sloth.runveal.tabrecord.contract.RecordState
+import com.sloth.runveal.ui.toast.NotReadyToastHost
+import com.sloth.runveal.ui.toast.rememberNotReadyToastState
 
 @Composable
 fun RecordScreen(
@@ -57,7 +59,11 @@ private fun RecordScreen(
 ) {
     val colors = RunvealTheme.colors
 
+    val notReadyToast = rememberNotReadyToastState()
+
     Box(modifier = modifier.fillMaxSize().background(colors.bg.canvas)) {
+        NotReadyToastHost(notReadyToast)
+
         Column(
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -115,11 +121,13 @@ private fun RecordScreen(
                 }
             } else if (!state.isLoading) {
                 // 60dp에 맞는 spacing 토큰이 없어 그대로 하드코딩.
+                // TODO: 홈 탭으로 전환하고 러닝 기록 화면을 연다 — 탭을 넘나드는 이동이라
+                //  HomeScreen이 콜백을 내려줘야 한다. 그때까지는 "개발 중" 안내만 띄운다.
                 RunvealEmptyState(
                     title = "아직 달린 기록이 없어요",
                     description = "코스를 만들고 첫 길을 밝혀보세요",
                     actionLabel = "러닝 시작하기",
-                    onActionClick = {},
+                    onActionClick = notReadyToast::show,
                     graphic = { Image(painter = painterResource(R.drawable.empty_course), contentDescription = null) },
                     modifier = Modifier
                         .fillMaxWidth()

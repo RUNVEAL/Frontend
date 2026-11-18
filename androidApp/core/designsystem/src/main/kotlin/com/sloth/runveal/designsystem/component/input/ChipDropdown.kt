@@ -25,11 +25,16 @@ import com.sloth.runveal.designsystem.theme.runvealGlass
 /** OnCard=카드 위(불투명), OnMap=지도 위(글래스). */
 enum class RunvealChipDropdownUsage { OnCard, OnMap }
 
-/** 누르면 선택지가 열리는 칩. 라벨 + icon/expand 16. */
+/**
+ * 누르면 선택지가 열리는 칩. 라벨 + icon/expand 16.
+ *
+ * [onClick]이 null이면 **고른 값을 보여주기만 하는 칩**이 된다 — 화살표를 빼고 탭도 받지 않는다.
+ * 열 선택지가 없는데 화살표만 달려 있으면 눌러 보게 되고, 눌러도 아무 일이 없어 고장으로 보인다.
+ */
 @Composable
 fun RunvealChipDropdown(
     label: String,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
     usage: RunvealChipDropdownUsage = RunvealChipDropdownUsage.OnCard,
 ) {
@@ -52,18 +57,20 @@ fun RunvealChipDropdown(
                         RunvealChipDropdownUsage.OnMap -> Modifier.runvealGlass(shape)
                     },
                 )
-                .clickable(onClick = onClick)
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
                 .padding(start = RunvealTheme.spacing.space16, end = RunvealTheme.spacing.space12),
             horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(label, style = RunvealTheme.typography.bodyMSemibold, color = colors.text.primary)
-            Icon(
-                imageVector = RunvealIcons.Expand,
-                contentDescription = null,
-                tint = colors.icon.primary,
-                modifier = Modifier.size(16.dp),
-            )
+            if (onClick != null) {
+                Icon(
+                    imageVector = RunvealIcons.Expand,
+                    contentDescription = null,
+                    tint = colors.icon.primary,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
         }
     }
 }

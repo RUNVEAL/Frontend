@@ -3,4 +3,6 @@
     <string name="network_error_title">인터넷 연결을 확인해 주세요</string>
     <string name="network_error_description">연결 상태를 확인한 뒤 다시 시도해 주세요</string>
     <string name="network_error_retry">다시 시도</string>
+    <!-- 아직 기능이 안 붙은 버튼을 눌렀을 때. 붙는 대로 해당 호출부에서 제거한다. -->
+    <string name="not_ready_toast">아직 개발 중입니다</string>
 </resources>

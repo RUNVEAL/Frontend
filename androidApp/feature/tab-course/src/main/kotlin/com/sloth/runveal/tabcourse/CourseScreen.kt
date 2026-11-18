@@ -110,7 +110,8 @@ private fun CourseListContent(
                     tag = featured.tagLabel,
                     newRoadLabel = featured.newRoadLabel,
                     notRunLabel = featured.notRunLabel,
-                    onMoreClick = {},
+                    // TODO: 더보기 메뉴(이름 바꾸기·삭제 등) — 메뉴가 생기면 람다를 주면 아이콘이 돌아온다.
+                    onMoreClick = null,
                     onStartClick = { onStartCourse(featured) },
                     thumbnailRequest = featured.snapshotRequest,
                     modifier = Modifier
@@ -121,7 +122,9 @@ private fun CourseListContent(
                 SavedCourseSectionHeader(
                     title = stringResource(R.string.tab_course_section_title),
                     sortLabel = stringResource(R.string.tab_course_sort_label),
-                    onSortClick = {},
+                    // TODO: 정렬 바꾸기(최근 저장순/거리순 등) — 고를 게 생기면 onSortClick을 주면
+                    //  화살표가 돌아온다. 지금은 최근 저장순 하나뿐이라 보여주기만 한다.
+                    onSortClick = null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(
@@ -144,7 +147,8 @@ private fun CourseListContent(
                             tag = course.tagLabel,
                             runCountLabel = course.notRunLabel,
                             lastRunLabel = "",
-                            onMoreClick = {},
+                            // TODO: 위 카드와 같은 더보기 메뉴.
+                            onMoreClick = null,
                             onStartClick = { onStartCourse(course) },
                             thumbnailRequest = course.snapshotRequest,
                         )

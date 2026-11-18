@@ -16,12 +16,17 @@ import androidx.compose.ui.unit.dp
 import com.sloth.runveal.designsystem.RunvealIcons
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 
-/** "저장한 코스" 목록 섹션 머리 — 제목 + 정렬 기준(탭하면 정렬 메뉴). */
+/**
+ * "저장한 코스" 목록 섹션 머리 — 제목 + 정렬 기준.
+ *
+ * [onSortClick]이 null이면 **현재 정렬을 보여주기만 한다** — 화살표를 빼고 탭도 받지 않는다.
+ * 고를 정렬이 없는데 화살표만 달려 있으면 눌러 보게 되고, 눌러도 아무 일이 없어 고장으로 보인다.
+ */
 @Composable
 fun SavedCourseSectionHeader(
     title: String,
     sortLabel: String,
-    onSortClick: () -> Unit,
+    onSortClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val colors = RunvealTheme.colors
@@ -33,17 +38,19 @@ fun SavedCourseSectionHeader(
     ) {
         Text(title, style = RunvealTheme.typography.bodyLSemibold, color = colors.text.primary)
         Row(
-            modifier = Modifier.clickable(onClick = onSortClick),
+            modifier = if (onSortClick != null) Modifier.clickable(onClick = onSortClick) else Modifier,
             horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(sortLabel, style = RunvealTheme.typography.bodyMSemibold, color = colors.text.primary)
-            Icon(
-                imageVector = RunvealIcons.Expand,
-                contentDescription = null,
-                tint = colors.icon.primary,
-                modifier = Modifier.size(16.dp),
-            )
+            if (onSortClick != null) {
+                Icon(
+                    imageVector = RunvealIcons.Expand,
+                    contentDescription = null,
+                    tint = colors.icon.primary,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
         }
     }
 }
@@ -52,6 +59,6 @@ fun SavedCourseSectionHeader(
 @Composable
 private fun SavedCourseSectionHeaderPreview() {
     RunvealTheme {
-        SavedCourseSectionHeader(title = "저장한 코스", sortLabel = "최근 저장순", onSortClick = {})
+        SavedCourseSectionHeader(title = "저장한 코스", sortLabel = "최근 저장순", onSortClick = null)
     }
 }

@@ -114,6 +114,7 @@ fun CourseRecommendResultScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
+
         Column(
             modifier = Modifier
                 .align(Alignment.TopStart)
@@ -207,13 +208,16 @@ fun CourseRecommendResultScreen(
 }
 
 /** B0에서 고른 거리·안 가본 길 우선·필터 수를 그대로 보여주는 요약 칩 — 코스 만들기 바텀 패널과 같은
- * 칩이지만 지도 위에 바로 떠서 글래스(OnMap) 스타일을 쓴다. 조회용이라 탭해도 아무 동작이 없다. */
+ * 칩이지만 지도 위에 바로 떠서 글래스(OnMap) 스타일을 쓴다.
+ *
+ * **조회용이다.** 그래서 거리 칩도 `onClick`을 주지 않아 화살표가 없고 눌리지도 않는다 —
+ * 여기서 조건을 바꾸려면 뒤로 가서 다시 고른다. */
 @Composable
 private fun SettingsSummaryRow(settings: CourseRecommendSettings, modifier: Modifier = Modifier) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8)) {
         RunvealChipDropdown(
             label = settings.distanceLabel,
-            onClick = {},
+            onClick = null,
             usage = RunvealChipDropdownUsage.OnMap,
         )
         if (settings.avoidVisitedPreferred) {
