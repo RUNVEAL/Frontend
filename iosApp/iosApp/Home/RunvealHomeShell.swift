@@ -24,6 +24,35 @@ struct RunvealHomeShell: View {
 
     @State private var toastMessage: String?
 
+    /**
+     러닝을 시작하기 전에 위치가 준비됐는지 보고, 안 됐으면 그 자리에서 안내 시트를 띄운다.
+     여기에 담긴 동작은 권한·위치 서비스가 갖춰지면 이어서 실행된다.
+
+     그냥 보내면 기록이 시작돼도 좌표가 하나도 안 들어와서, 러닝이 끝날 때까지 빈 화면을 보게 된다
+     (Android는 Foreground Service가 SecurityException으로 죽는 자리다 — 증상은 달라도 원인은 같다).
+
+     **코스 탐색에는 걸지 않는다.** 코스를 찾아보는 데까지는 위치가 없어도 되고, 실제로 뛰기
+     시작할 때만 필요하다.
+     */
+    @State private var pendingRunStart: (() -> Void)?
+
+    /// 위치가 준비됐으면 바로 실행하고, 아니면 시트를 띄운 뒤 갖춰질 때까지 미뤄 둔다.
+    private func requireLocationForRun(_ proceed: @escaping () -> Void) {
+        if permissionState.isGranted && permissionState.isLocationServicesEnabled {
+            proceed()
+        } else {
+            pendingRunStart = proceed
+        }
+    }
+
+    /// 시트에서 허용·켜기를 마치면 다시 누르게 하지 않고 바로 잇는다.
+    private func resumePendingRunIfReady() {
+        guard let proceed = pendingRunStart else { return }
+        guard permissionState.isGranted && permissionState.isLocationServicesEnabled else { return }
+        pendingRunStart = nil
+        proceed()
+    }
+
     private var isLocationBannerNeeded: Bool {
         !permissionState.isGranted || !permissionState.isLocationServicesEnabled
     }
@@ -94,6 +123,18 @@ struct RunvealHomeShell: View {
             try? await Task.sleep(for: Self.toastDuration)
             toastMessage = nil
         }
+        // 러닝 시작을 눌렀는데 위치가 준비 안 된 경우 — 무엇이 모자란지에 맞는 시트를 띄운다.
+        // 권한을 먼저 보고, 권한이 있으면 위치 서비스를 본다(둘 중 하나만 꺼져도 좌표를 못 받는다).
+        .sheet(isPresented: Binding(get: { pendingRunStart != nil },
+                                    set: { if !$0 { pendingRunStart = nil } })) {
+            runStartLocationSheet
+                .presentationBackground(.clear)
+                .presentationDetents([.height(Self.locationSheetHeight)])
+                .presentationDragIndicator(.hidden)
+        }
+        // 시트에서 허용·켜기를 마치고 돌아오면 미뤄 둔 러닝 시작을 잇는다.
+        .onChange(of: permissionState.isGranted) { _, _ in resumePendingRunIfReady() }
+        .onChange(of: permissionState.isLocationServicesEnabled) { _, _ in resumePendingRunIfReady() }
     }
 
     // MARK: - 탭/오버레이 콘텐츠
@@ -113,8 +154,9 @@ struct RunvealHomeShell: View {
         case .home:
             HomeMapOverlayScreen(
                 mapState: mapState,
+                // 코스 탐색은 위치 없이도 들어갈 수 있다 — 실제로 뛸 때만 위치가 필요하다.
                 onCreateCourseClick: { navigator.push(.courseRecommend) },
-                onRunStartClick: { navigator.push(.recording) }
+                onRunStartClick: { requireLocationForRun { navigator.push(.recording) } }
             )
         case .course:
             CourseScreen(onCreateCourseClick: { navigator.push(.courseRecommend) })
@@ -150,7 +192,8 @@ struct RunvealHomeShell: View {
                 onBack: { navigator.pop() },
                 // 코스 추천 흐름 스택을 전부 지우고 들어간다 — 안 지우면 러닝 종료 후 뒤로가기/닫기로
                 // 홈이 아니라 코스 추천 화면으로 돌아간다.
-                onStartRunning: { navigator.replaceStack(with: .recording) }
+                // 코스 상세에서 "이 코스로 러닝 시작" — 여기서부터 위치가 필요하다.
+                onStartRunning: { requireLocationForRun { navigator.replaceStack(with: .recording) } }
             )
         case .recording:
             RecordingScreen(
@@ -220,6 +263,29 @@ struct RunvealHomeShell: View {
         }
     }
 
+    /// 지도 위 안내 시트 높이 — 디자인시스템 바텀시트가 자체 높이를 가져서 detent로 고정해 준다.
+    private static let locationSheetHeight: CGFloat = 420
+
+    @ViewBuilder
+    private var runStartLocationSheet: some View {
+        if permissionState.isPermanentlyDenied {
+            RunvealLocationPermissionSettingsSheet(
+                onSettingsClick: { permissionState.openSettings() },
+                onCloseClick: { pendingRunStart = nil }
+            )
+        } else if !permissionState.isGranted {
+            RunvealLocationPermissionSheet(
+                onAllowClick: { permissionState.request() },
+                onLaterClick: { pendingRunStart = nil }
+            )
+        } else {
+            RunvealLocationServicesSheet(
+                onSettingsClick: { permissionState.requestEnableLocationServices() },
+                onCloseClick: { pendingRunStart = nil }
+            )
+        }
+    }
+
     private var locationOffBanner: AnyView? {
         if !permissionState.isGranted {
             return AnyView(
@@ -227,7 +293,14 @@ struct RunvealHomeShell: View {
                     message: HomeStrings.locationPermissionOffBannerMessage,
                     actionLabel: HomeStrings.locationPermissionOffBannerAction
                 ) {
-                    permissionState.request()
+                    // 거부가 굳어지면 시스템이 권한 다이얼로그를 더 띄워 주지 않는다 — 그대로
+                    // request()를 부르면 아무 일도 안 일어난 것처럼 보인다. 그때는 설정으로 보낸다
+                    // (마이페이지의 위치 권한 줄과 같은 처리).
+                    if permissionState.isPermanentlyDenied {
+                        permissionState.openSettings()
+                    } else {
+                        permissionState.request()
+                    }
                 }
             )
         }
