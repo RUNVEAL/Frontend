@@ -60,6 +60,7 @@ import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.running.R
 import com.sloth.runveal.map.LatLon
 import com.sloth.runveal.map.MapConfig
+import com.sloth.runveal.permission.RequestNotificationPermissionOnce
 import com.sloth.runveal.recording.CourseProgressTracker
 import com.sloth.runveal.recording.TrackRecorder
 import com.sloth.runveal.running.contract.RecordingEffect
@@ -128,6 +129,11 @@ fun RecordingScreen(
             }
         }
     }
+
+    // 이 화면에 들어온 것 자체가 "러닝 시작"이라, 알림 권한을 묻기에 맥락이 가장 분명한 자리다
+    // (앱 첫 실행에 몰아서 묻지 않는다). 러닝을 막지 않으므로 결과를 기다리지도, 보지도 않는다 —
+    // 거부되면 지속 알림이 안 보일 뿐 TrackingService는 그대로 돈다.
+    RequestNotificationPermissionOnce()
 
     LaunchedEffect(Unit) {
         if (state.phase == RecordingPhase.IDLE) viewModel.onIntent(RecordingIntent.StartClicked)

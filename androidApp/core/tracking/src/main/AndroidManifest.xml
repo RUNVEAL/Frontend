@@ -3,7 +3,12 @@
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      알림 권한(POST_NOTIFICATIONS) 선언은 core:permission 매니페스트에 있다 — 요청하는 코드
+      (RequestNotificationPermissionOnce)가 거기 있고, 앱이 사용자에게 요구하는 권한은 그 모듈에
+      모아 둔다. 이 모듈은 그 알림을 "띄우는" 쪽이다(TrackingService).
+    -->
 
     <application>
         <service

@@ -6,6 +6,16 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <!--
+      알림 권한. Android 13+에서 런타임 권한이라 이 선언만으로는 알림이 뜨지 않는다 —
+      RequestNotificationPermissionOnce가 러닝 시작 시점에 요청한다. 쓰는 쪽은 core:tracking의
+      TrackingService(러닝 중 지속 알림)지만, 요청 코드가 여기 있어 선언도 같이 둔다.
+
+      거부돼도 포그라운드 서비스는 정상으로 돈다. 알림이 안 보여서 러닝 중 상태를 확인하거나
+      알림의 "종료" 버튼을 쓸 수 없을 뿐이다.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
       Health Connect 읽기 권한. 런타임 권한이지만 보통의 dangerous permission과 달리 OS 다이얼로그가
       아니라 Health Connect 앱 화면에서 사용자가 허용한다(요청은 rememberHealthConnectPermissionState
       가 PermissionController 계약으로 띄운다). 권한 근거 화면 선언은 Activity를 가리켜야 해서

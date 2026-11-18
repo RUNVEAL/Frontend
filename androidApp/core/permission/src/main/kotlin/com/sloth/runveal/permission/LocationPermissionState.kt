@@ -34,7 +34,12 @@ private const val KEY_REQUESTED_BEFORE = "requested_before"
 
 /**
  * 위치 권한(FINE+COARSE) 요청 상태. 지도에 현재 위치 점을 띄우는 데 필요한 최소 권한만 다룬다 —
- * 알림/백그라운드 위치 같은 GPS 기록용 권한은 `core:tracking` 몫이라 여기 포함하지 않는다.
+ * 알림 권한은 요청 시점이 달라서([RequestNotificationPermissionOnce]는 러닝 시작 때 묻는다) 같은
+ * 모듈의 [NotificationPermissionState]가 따로 다룬다.
+ *
+ * `ACCESS_BACKGROUND_LOCATION`은 **선언하지 않는다.** 러닝 중 위치는 포그라운드 서비스
+ * (`core:tracking`의 location 타입)로 받으므로 그 권한 없이도 화면이 꺼진 동안 수집된다 — 괜히
+ * 선언하면 Play 심사에 백그라운드 위치 선언만 추가된다.
  *
  * [isPermanentlyDenied]는 사용자가 권한을 2회 이상(또는 '다시 묻지 않음') 거부해 시스템이 더 이상
  * 권한 다이얼로그를 띄워주지 않는 상태. `shouldShowRequestPermissionRationale`이 false면 "한 번도

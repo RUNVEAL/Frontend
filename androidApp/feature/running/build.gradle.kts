@@ -20,6 +20,8 @@ dependencies {
     implementation(project(":androidApp:core:designsystem"))
     implementation(project(":androidApp:core:map"))
     implementation(project(":androidApp:core:navigation"))
+    // 러닝 시작 시점에 알림 권한을 묻는다(RequestNotificationPermissionOnce).
+    implementation(project(":androidApp:core:permission"))
     implementation(project(":androidApp:core:tracking"))
 
     implementation(libs.androidx.activity.compose)
