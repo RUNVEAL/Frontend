@@ -38,6 +38,7 @@ object IosCourseRecommend {
      * [end]는 지도에서 도착지를 직접 고른 경우에만 넘긴다 — 안 고르면 null이라 자동으로 순환(LOOP)
      * 코스가 된다(§3.3.1). 화면 라벨(한글)인 필터는 서버 필터 코드와 1:1로 안 맞아서 아직 안 보낸다.
      */
+    @Throws(Exception::class) // 없으면 Swift catch 대신 앱이 종료된다 — IosMeta.fetchAndPublish 주석.
     suspend fun fetchRoutes(
         start: LatLon,
         end: LatLon?,

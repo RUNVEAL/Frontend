@@ -4,6 +4,8 @@ import com.sloth.runveal.data.local.FileStore
 import com.sloth.runveal.data.local.RunvealDatabaseProvider
 import com.sloth.runveal.data.local.TrackLocalStore
 import com.sloth.runveal.dong.DongExploreRate
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * 번들에 들어 있는 경계 에셋 원본 텍스트 — iOS 번들에서 읽는 건 Swift(`RunvealBundleAsset`) 몫이고,
@@ -27,18 +29,27 @@ data class DongBundleAssets(
  */
 object IosDongOverlayLoader {
 
-    suspend fun load(assets: DongBundleAssets): DongOverlayGeoJsonBundle {
+    /**
+     * [Throws]가 없으면 DB·파싱 중 난 예외가 Swift `catch`로 가지 않고 앱을 종료시킨다
+     * ([IosMeta.fetchAndPublish] 주석 참고). 홈 지도는 오버레이를 못 만들어도 떠야 한다.
+     *
+     * [Dispatchers.IO]로 옮기는 이유는 Android `loadDongOverlayBundle`과 같다 — 전국 경계 GeoJSON
+     * 파싱과 동별 집계에 몇 초가 걸리는데, 안 옮기면 Kotlin/Native가 **부른 쪽 스레드에서 그대로**
+     * 돌려서 호출부가 메인 액터면 그만큼 화면이 멈춘다.
+     */
+    @Throws(Exception::class)
+    suspend fun load(assets: DongBundleAssets): DongOverlayGeoJsonBundle = withContext(Dispatchers.IO) {
         val trackLocalStore = TrackLocalStore(RunvealDatabaseProvider.database, FileStore())
 
         // 동 경계는 서버에서만 온다. 못 받으면(오프라인 등) 동 레이어를 비운 채 돌려준다 —
         // 번들 스냅샷으로 대신 그리면 서버와 코드 체계가 달라 완주율이 조용히 틀어진다.
-        val server = IosServerDongData.fetch() ?: return DongOverlayGeoJsonBundle.empty()
+        val server = IosServerDongData.fetch() ?: return@withContext DongOverlayGeoJsonBundle.empty()
 
         val walkedLengths = trackLocalStore.walkedLengthByDong()
         val totalLengths = server.totalLengthsByDong.ifEmpty { trackLocalStore.totalLengthByDong() }
         val dongPercents = DongExploreRate.percents(walkedLengths, totalLengths)
 
-        return IosDongOverlayBuilder.build(
+        IosDongOverlayBuilder.build(
             dongBoundaryGeoJson = server.boundaryGeoJson,
             sigunguBoundaryGeoJson = assets.sigunguGeoJson,
             sidoBoundaryGeoJson = assets.sidoGeoJson,

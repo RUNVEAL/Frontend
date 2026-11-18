@@ -29,6 +29,7 @@ object IosCurrentDong {
 
     private val dongApi = DongApi()
 
+    @Throws(Exception::class) // 없으면 Swift의 `try?` 대신 앱이 종료된다 — IosMeta.fetchAndPublish 주석.
     suspend fun fetch(lat: Double, lon: Double): CurrentDong? =
         when (val result = dongApi.fetchDong(lat = lat, lon = lon)) {
             is DongResult.Success -> {
