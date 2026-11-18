@@ -57,7 +57,9 @@ struct HomeMapOverlayScreen: View {
         .task {
             // 위치를 못 받으면(권한 없음·위치 꺼짐) 동 조회를 건너뛴다 — 흔한 상황이라 오류가 아니다.
             guard let location = await RunvealCurrentLocation().fetch() else { return }
-            currentDong = await IosCurrentDong.shared.fetch(lat: location.lat, lon: location.lon)
+            // Kotlin suspend 함수는 Swift에 async throws로 들어온다(완료 핸들러가 NSError를
+            // 받기 때문) — 실패하면 동 이름 없이 두면 되므로 try?로 흘린다.
+            currentDong = try? await IosCurrentDong.shared.fetch(lat: location.lat, lon: location.lon)
         }
         // "안 가본 길"을 고른 동안만 베이스 지도 도로를 강조한다 — 줌 아웃되거나 이 화면을 벗어나면
         // 원래대로.
