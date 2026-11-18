@@ -10,6 +10,8 @@ on:
         options: [ all, android ]
         default: all
 
+  # dev는 Android용 통합 브랜치다. iOS 작업은 dev-ios에서 하고 테스트가 끝나면 dev로 머지한다 —
+  # iOS 컴파일 검사는 .github/workflows/build-ios.yml이 dev-ios 푸시·PR에서 돌린다.
   push:
     branches: [ dev ]
 
