@@ -5,6 +5,9 @@ import com.sloth.runveal.data.local.RunvealDatabaseProvider
 import com.sloth.runveal.data.local.TrackLocalStore
 import com.sloth.runveal.dong.DongExploreRate
 import kotlinx.coroutines.Dispatchers
+// Kotlin/Native에서 `Dispatchers.IO`는 객체의 멤버가 아니라 **확장 프로퍼티**다(멤버 쪽은 internal).
+// 이 import가 없으면 "Cannot access 'val IO': it is internal"로 깨진다 — 지우지 않는다.
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 
 /**
