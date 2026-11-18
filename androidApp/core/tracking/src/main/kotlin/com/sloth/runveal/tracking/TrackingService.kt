@@ -51,6 +51,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+private const val TAG = "TrackingService"
 private const val MATCH_STATE_FAILED = "FAILED"
 
 /** 러닝 중 도로 매칭 재요청 간격 — `/meta`의 분당 30회 제한(§5.6)에 여유 있게 걸리고, §3.6.1의
@@ -100,7 +101,16 @@ class TrackingService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
+        // intent가 null이면 OS가 START_STICKY로 되살린 것이다(프로세스가 죽은 뒤). 그때 기록을
+        // 다시 시작하면 안 된다 — 사용자가 시작하지도 않은 러닝이 부활하고, 죽은 원인이 그대로면
+        // 되살아나자마자 또 죽어 앱을 켤 때마다 꺼지는 상태가 된다.
+        if (intent == null) {
+            android.util.Log.w(TAG, "시스템이 되살린 서비스 — 기록을 다시 시작하지 않고 끝낸다")
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        when (intent.action) {
             ACTION_STOP -> stopTracking(saveRecord = intent.getBooleanExtra(EXTRA_SAVE_RECORD, true))
             ACTION_PAUSE -> pauseTracking()
             ACTION_RESUME -> resumeTracking()
@@ -126,7 +136,7 @@ class TrackingService : Service() {
         // 기록을 못 시작하는 건 참을 수 있어도 죽는 건 안 된다. 권한이 러닝 도중 회수되는 경우도
         // 있어서(설정에서 끄기) 호출부 보장만 믿을 수 없다.
         if (!hasLocationPermission()) {
-            android.util.Log.w("TrackingService", "위치 권한이 없어 기록을 시작하지 않는다")
+            android.util.Log.w(TAG, "위치 권한이 없어 기록을 시작하지 않는다")
             stopSelf()
             return
         }
