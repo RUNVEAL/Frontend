@@ -34,7 +34,7 @@ final class CourseDetailViewModel: MviViewModel<CourseDetailIntent, CourseDetail
             return
         }
         currentRoute = found.route
-        currentNewRoadMeters = IosCourseRecommend.shared.newRoadMeters(route: found.route)
+        currentNewRoadMeters = IosCourseRecommend.shared.estimateNewRoadMeters(route: found.route)
         let ready = Self.ready(
             from: found.route,
             courseLabel: CourseRecommendResultViewModel.courseLabel(index: found.index),

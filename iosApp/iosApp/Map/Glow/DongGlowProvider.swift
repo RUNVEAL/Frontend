@@ -43,9 +43,12 @@ final class DongGlowProvider {
 
         guard let dir = ensureCacheDir(boundarySourceKey: boundarySourceKey) else { return nil }
 
-        if let fromDisk = await Task.detached(priority: .utility) {
+        // `if let x = await Task.detached { ... }.value {` 로 쓰면 후행 클로저를 if 본문으로
+        // 읽어 버린다 — 값을 먼저 받아 두고 바인딩한다.
+        let fromDisk = await Task.detached(priority: .utility) {
             DongGlowDiskCache.read(dir: dir, admCd2: admCd2, level: level)
-        }.value {
+        }.value
+        if let fromDisk {
             memoryCache.put(admCd2: admCd2, level: level, asset: fromDisk)
             return fromDisk
         }

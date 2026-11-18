@@ -31,7 +31,8 @@ final class DongGlowAsset {
         guard width > 0, height > 0 else { return nil }
 
         let data = glow.rgba
-        guard data.length == width * height * 4 else { return nil }
+        // Kotlin의 NSData는 Swift에 Data로 들어온다 — 길이는 length가 아니라 count다.
+        guard data.count == width * height * 4 else { return nil }
         guard let provider = CGDataProvider(data: data as CFData) else { return nil }
         guard let cgImage = CGImage(
             width: width,
