@@ -289,13 +289,20 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                 myGraph(
                     tabNavigator,
                     onLoggedOut = onLoggedOut,
-                    // 기록 불러오기 결과에서 나가는 두 길 — 둘 다 홈 탭으로 넘긴다. onSelectTab이
-                    // 시작 목적지까지 되감아서 결과 화면은 스택에서 빠진다.
+                    // 기록 불러오기 결과에서 나가는 두 길 — 둘 다 홈 탭으로 넘긴다.
+                    //
+                    // 탭을 바꾸기 전에 결과 화면을 **MY 탭 스택에서 먼저 떼어낸다.** onSelectTab은
+                    // saveState로 떠나는 탭의 스택을 통째로 저장해 뒀다가 돌아올 때 복원하므로,
+                    // 그냥 나가면 나중에 MY 탭에 들어올 때 결과 화면이 다시 떠 있다.
                     onCreateCourseClick = {
+                        tabNavigator.navController.popBackStack(RunVealRoute.HomeTab.My, inclusive = false)
                         onSelectTab(0)
                         tabNavigator.navigate(RunVealRoute.HomeTab.CourseRecommend)
                     },
-                    onGoHomeClick = { onSelectTab(0) },
+                    onGoHomeClick = {
+                        tabNavigator.navController.popBackStack(RunVealRoute.HomeTab.My, inclusive = false)
+                        onSelectTab(0)
+                    },
                 )
             }
 
