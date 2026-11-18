@@ -19,7 +19,6 @@
       골라야 한다. 선언 자체는 두 경로 모두에 필요하다.
     -->
     <uses-permission android:name="android.permission.health.READ_EXERCISE" />
-    <uses-permission android:name="android.permission.health.READ_DISTANCE" />
     <uses-permission android:name="android.permission.health.READ_EXERCISE_ROUTES" />
 
     <!--

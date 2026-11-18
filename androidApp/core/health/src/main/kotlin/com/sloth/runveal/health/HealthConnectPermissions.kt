@@ -1,7 +1,6 @@
 package com.sloth.runveal.health
 
 import androidx.health.connect.client.permission.HealthPermission
-import androidx.health.connect.client.records.DistanceRecord
 import androidx.health.connect.client.records.ExerciseSessionRecord
 
 /**
@@ -14,7 +13,7 @@ import androidx.health.connect.client.records.ExerciseSessionRecord
  *  - [READ_EXERCISE_ROUTES](복수): 모든 경로를 한 번에. 일괄 가져오기에 필요한 쪽이고, 이걸 쓴다.
  *
  * 중요: [READ_EXERCISE_ROUTES]는 **일반 권한 요청 화면으로는 받을 수 없다.** 앱이
- * `createRequestPermissionResultContract()`에 넣어도 무시되고, 그 화면에는 운동·거리만 뜬다.
+ * `createRequestPermissionResultContract()`에 넣어도 무시되고, 그 화면에는 운동 세션만 뜬다.
  * 받는 길은 둘뿐이다.
  *  1. 사용자가 Health Connect 설정에서 직접 켠다.
  *  2. 세션별 경로 동의 화면(`ExerciseRouteRequestContract`)에서 "항상 허용"을 고른다.
@@ -25,13 +24,18 @@ object HealthConnectPermissions {
     const val READ_EXERCISE_ROUTES = "android.permission.health.READ_EXERCISE_ROUTES"
 
     /**
-     * 운동 세션과 거리. 경로 없이도 세션 목록을 훑는 데는 이것만 있으면 된다 — **없으면 아무것도
-     * 못 하는 최소 묶음**이라, 가져오기를 막을지 판단하는 기준도 이 집합이다
-     * ([HealthConnectAvailability]).
+     * 운동 세션. 경로 없이도 세션 목록을 훑는 데는 이것만 있으면 된다 — **없으면 아무것도 못 하는
+     * 최소 묶음**이라, 가져오기를 막을지 판단하는 기준도 이 집합이다 ([HealthConnectAvailability]).
+     *
+     * 경로는 독립 레코드가 아니라 [ExerciseSessionRecord]의 `exerciseRouteResult` 필드라서, 경로만
+     * 쓰더라도 이 권한을 뺄 수 없다 — 세션을 못 읽으면 경로에 닿을 방법이 없다.
+     *
+     * `READ_DISTANCE`는 일부러 넣지 않는다. 거리는 `DistanceRecord`를 따로 합산해야 나오는데
+     * 매칭된 경로 길이로 대신하고 있어서(`HealthConnectWorkoutSource.toExternalWorkout`) 읽는 코드가
+     * 없다. 여기 넣으면 "거리"만 거부한 사용자의 가져오기를 이유 없이 막는다.
      */
     val session: Set<String> = setOf(
         HealthPermission.getReadPermission(ExerciseSessionRecord::class),
-        HealthPermission.getReadPermission(DistanceRecord::class),
     )
 
     /**

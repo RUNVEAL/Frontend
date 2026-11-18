@@ -68,7 +68,8 @@ class HealthConnectWorkoutSource(context: Context) {
             startedAtEpochMs = startTime.toEpochMilli(),
             finishedAtEpochMs = endTime.toEpochMilli(),
             // 거리는 DistanceRecord를 따로 합산해야 나오는데, 가져온 기록은 매칭된 경로 길이로
-            // 대신할 수 있어서 추가 조회를 하지 않는다.
+            // 대신할 수 있어서 추가 조회를 하지 않는다. 그래서 READ_DISTANCE 권한도 선언하지 않는다
+            // ([HealthConnectPermissions.session]).
             distanceMeters = null,
             route = locations.map {
                 ExternalWorkoutPoint(
