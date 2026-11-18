@@ -63,6 +63,7 @@ import com.sloth.runveal.feature.home.R
 import com.sloth.runveal.map.LatLon
 import com.sloth.runveal.permission.LocationPermissionState
 import com.sloth.runveal.permission.RequireLocationPermission
+import com.sloth.runveal.permission.openAppSettings
 import com.sloth.runveal.devicestate.rememberLocationServicesState
 import com.sloth.runveal.permission.rememberLocationPermissionState
 import com.sloth.runveal.recording.RecordingState
@@ -104,6 +105,32 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     // 권한(앱)과 위치 서비스(기기)는 서로 다른 상태라 따로 본다 — 둘 중 하나만 꺼져 있어도 위치를 못 받는다.
     val locationServicesState = rememberLocationServicesState()
     val isLocationBannerNeeded = !locationPermissionState.isGranted || !locationServicesState.isEnabled
+    val appSettingsContext = LocalContext.current
+
+    /**
+     * 위치가 필요한 화면(러닝 기록, 코스 추천)으로 가기 전에 **먼저 설정을 받는다.**
+     *
+     * 그냥 보내면 앱이 죽는다 — 러닝 기록은 위치 권한이 있어야 시작할 수 있는 Foreground Service를
+     * 띄우는데, 권한이 없으면 그 자리에서 SecurityException이 난다. 안내 바텀시트는 닫을 수 있어서
+     * "닫고 러닝 시작"이 그대로 가능했다.
+     *
+     * 권한과 위치 서비스는 서로 다른 상태라 순서대로 본다 — 둘 중 하나만 꺼져 있어도 위치를 못 받는다.
+     * 영구 거부라 시스템 다이얼로그를 더 띄울 수 없으면 앱 설정 화면으로 보낸다.
+     */
+    val withLocationReady: (() -> Unit) -> Unit = { proceed ->
+        when {
+            !locationPermissionState.isGranted ->
+                if (locationPermissionState.isPermanentlyDenied) {
+                    appSettingsContext.openAppSettings()
+                } else {
+                    locationPermissionState.request()
+                }
+
+            !locationServicesState.isEnabled -> locationServicesState.requestEnable()
+
+            else -> proceed()
+        }
+    }
     val currentDestination by tabNavigator.navController.currentBackStackEntryAsState()
     val tabItems = listOf(
         RunvealTabItemSpec(RunvealIcons.Home, "홈"),
@@ -199,8 +226,12 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
             ) {
                 navigation<RunVealRoute.HomeTab.Home>(startDestination = RunVealRoute.HomeTab.HomeMap) {
                     homeMapOverlay(
-                        onCreateCourseClick = { tabNavigator.navigate(RunVealRoute.HomeTab.CourseRecommend) },
-                        onRunStartClick = { tabNavigator.navigate(RunVealRoute.HomeTab.Recording) },
+                        onCreateCourseClick = {
+                            withLocationReady { tabNavigator.navigate(RunVealRoute.HomeTab.CourseRecommend) }
+                        },
+                        onRunStartClick = {
+                            withLocationReady { tabNavigator.navigate(RunVealRoute.HomeTab.Recording) }
+                        },
                     )
                     courseRecommendOverlay(
                         onBack = tabNavigator::popBackStack,
@@ -215,8 +246,10 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                         // 코스 추천 흐름(CourseRecommend~CourseDetail) 스택을 전부 지우고 들어간다 —
                         // 안 지우면 러닝 종료 후 뒤로가기/닫기로 홈이 아니라 코스 추천 화면으로 돌아간다.
                         onStartRunning = {
-                            tabNavigator.navController.navigate(RunVealRoute.HomeTab.Recording) {
-                                popUpTo(RunVealRoute.HomeTab.HomeMap) { inclusive = false }
+                            withLocationReady {
+                                tabNavigator.navController.navigate(RunVealRoute.HomeTab.Recording) {
+                                    popUpTo(RunVealRoute.HomeTab.HomeMap) { inclusive = false }
+                                }
                             }
                         },
                     )

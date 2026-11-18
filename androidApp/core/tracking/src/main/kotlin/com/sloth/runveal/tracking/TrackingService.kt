@@ -1,11 +1,13 @@
 package com.sloth.runveal.tracking
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -15,6 +17,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import androidx.core.content.ContextCompat
 import com.sloth.runveal.core.map.DongAssetRepository
 import com.sloth.runveal.core.map.LiveRoadClassifier
 import com.sloth.runveal.core.map.RoadSegmentIndexImporter
@@ -114,9 +117,19 @@ class TrackingService : Service() {
         super.onDestroy()
     }
 
-    @SuppressLint("MissingPermission") // 호출부(core:permission 흐름)가 먼저 보장한다.
+    @SuppressLint("MissingPermission") // 바로 아래에서 직접 확인한다.
     private fun startTracking() {
         if (TrackRecorder.state.value is RecordingState.Recording) return // 이미 기록 중이면 무시.
+
+        // 호출부(HomeScreen.withLocationReady)가 먼저 받아 두지만, 여기서 한 번 더 본다 — 권한
+        // 없이 들어오면 requestLocationUpdates()가 SecurityException을 던지고 그대로 앱이 죽는다.
+        // 기록을 못 시작하는 건 참을 수 있어도 죽는 건 안 된다. 권한이 러닝 도중 회수되는 경우도
+        // 있어서(설정에서 끄기) 호출부 보장만 믿을 수 없다.
+        if (!hasLocationPermission()) {
+            android.util.Log.w("TrackingService", "위치 권한이 없어 기록을 시작하지 않는다")
+            stopSelf()
+            return
+        }
 
         TrackResultHolder.clear() // 이전 결과가 남아 있으면 새 결과 화면이 잠깐 옛 값을 보여준다.
         LiveMatchHolder.clear() // 지난 러닝의 매칭 선이 새 러닝 시작 직후 잠깐 겹쳐 보이지 않게.
@@ -152,6 +165,12 @@ class TrackingService : Service() {
             }
         }
     }
+
+    private fun hasLocationPermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
 
     private fun requestLocationUpdates() {
         val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, TimeUnit.SECONDS.toMillis(5))
