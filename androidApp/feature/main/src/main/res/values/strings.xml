@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="splash_tagline">달릴수록 채워지는\n우리 동네 지도</string>
+    <string name="privacy_policy_title">개인정보 처리방침</string>
 </resources>

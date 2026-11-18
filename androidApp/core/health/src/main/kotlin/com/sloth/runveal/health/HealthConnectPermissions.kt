@@ -13,8 +13,12 @@ import androidx.health.connect.client.records.ExerciseSessionRecord
  *  - `READ_EXERCISE_ROUTE`(단수): 사용자가 **세션 하나씩** 시스템 다이얼로그로 허용. 일괄 가져오기엔 못 쓴다.
  *  - [READ_EXERCISE_ROUTES](복수): 모든 경로를 한 번에. 일괄 가져오기에 필요한 쪽이고, 이걸 쓴다.
  *
- * 다만 복수 권한은 Play 배포 시 **Google의 Health Connect 데이터 접근 승인**이 있어야 한다
- * (기술적 차단이 아니라 정책 심사라 개발 중에는 그대로 동작한다).
+ * 중요: [READ_EXERCISE_ROUTES]는 **일반 권한 요청 화면으로는 받을 수 없다.** 앱이
+ * `createRequestPermissionResultContract()`에 넣어도 무시되고, 그 화면에는 운동·거리만 뜬다.
+ * 받는 길은 둘뿐이다.
+ *  1. 사용자가 Health Connect 설정에서 직접 켠다.
+ *  2. 세션별 경로 동의 화면(`ExerciseRouteRequestContract`)에서 "항상 허용"을 고른다.
+ *     그때부터 Health Connect 설정의 앱 권한 화면에도 경로 항목이 생긴다.
  */
 object HealthConnectPermissions {
     /** `androidx.health.connect.client`가 상수로 노출하지 않는 복수형 경로 권한. */
@@ -34,7 +38,7 @@ object HealthConnectPermissions {
      * 30일보다 오래된 기록까지 읽는 권한. 이게 없으면 읽기 권한을 줘도 **지난 30일치만** 올라와서
      * (권한 화면이 그렇게 안내한다) 첫 연동에서 90일을 훑는 게 의미가 없어진다.
      *
-     * 경로와 달리 제한 데이터가 아니라 승인 없이 받을 수 있다. 다만 Health Connect가 오래된
+     * 경로와 달리 일반 권한 요청 화면에서 그대로 받을 수 있다. 다만 Health Connect가 오래된
      * 버전이면 이 권한을 모르고 넘어가므로, 못 받아도 가져오기 자체는 되게 둔다(범위만 좁아진다).
      */
     val READ_HEALTH_DATA_HISTORY: String = HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY

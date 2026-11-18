@@ -2,6 +2,7 @@ package com.sloth.runveal.tabmypage
 
 import android.content.Context
 import androidx.lifecycle.viewModelScope
+import com.sloth.runveal.external.ExternalWorkoutPoint
 import com.sloth.runveal.external.ImportProgress
 import com.sloth.runveal.external.ImportProgressHolder
 import com.sloth.runveal.health.HealthConnectImporter
@@ -20,13 +21,19 @@ import kotlinx.coroutines.withContext
  * 지점이 전진하므로(`ImportCheckpointStore`) 중간에 끊겨도 다음 실행이 이어 가고, 중복은
  * `external_id`가 막는다 — 다만 앱을 벗어나도 계속 받으려면 WorkManager로 옮겨야 한다.
  *
- * TODO: 백그라운드 실행으로 옮긴다 — 수십 건이면 몇 분 걸릴 수 있어 화면을 붙잡아 두기 어렵다.
+ * **백그라운드로 옮기면 안 된다.** 다른 앱이 기록한 경로는 화면이 떠 있을 때만 읽을 수 있다 —
+ * 백그라운드에서는 "항상 허용" 상태여도 `ConsentRequired`가 돌아온다
+ * (`rememberExerciseRouteConsentRequester` 주석). 수십 건이면 몇 분 걸리는 건 감수한다.
  */
-class ImportRecordsProgressViewModel(context: Context) :
+class ImportRecordsProgressViewModel(
+    context: Context,
+    /** 경로 동의가 필요한 세션에 쓸 동의 화면. 화면이 들고 있다가 넘겨준다. */
+    requestRouteConsent: suspend (sessionId: String) -> List<ExternalWorkoutPoint>?,
+) :
     MviViewModel<Nothing, ImportRecordsProgressState, ImportRecordsProgressEffect>(
         initialState = ImportRecordsProgressState(),
     ) {
-    private val importer = HealthConnectImporter(context)
+    private val importer = HealthConnectImporter(context, requestRouteConsent)
 
     init {
         // 진행 상황은 가져오기 로직이 전역 홀더로 내보낸다 — 그대로 화면 상태로 옮긴다. 홀더에

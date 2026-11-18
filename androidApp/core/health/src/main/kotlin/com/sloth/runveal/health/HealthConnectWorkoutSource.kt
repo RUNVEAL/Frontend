@@ -57,10 +57,12 @@ class HealthConnectWorkoutSource(context: Context) {
     }
 
     private fun ExerciseSessionRecord.toExternalWorkout(): ExternalWorkout {
-        // 경로는 세션에 같이 들어 있지만 권한이 따로다 — 권한이 없으면 ConsentRequired로 오고
-        // (기록 자체는 읽힌다), 애초에 경로 없이 기록된 세션은 NoData다. 둘 다 좌표가 없어서
-        // 도로 매칭을 할 수 없고, 가져오기는 그 세션을 건너뛴다.
-        val locations = (exerciseRouteResult as? ExerciseRouteResult.Data)?.exerciseRoute?.route.orEmpty()
+        // 경로는 세션에 같이 들어 있지만 읽는 조건이 따로다.
+        //  - Data            — 바로 쓸 수 있다(내가 쓴 경로이거나 이미 동의를 받은 경우).
+        //  - ConsentRequired — 경로는 있는데 그 세션에 대한 동의가 필요하다. 동의 화면을 띄우면 읽힌다.
+        //  - NoData          — 애초에 경로 없이 기록된 세션(실내 러닝 등). 물어봐야 소용없다.
+        val routeResult = exerciseRouteResult
+        val locations = (routeResult as? ExerciseRouteResult.Data)?.exerciseRoute?.route.orEmpty()
         return ExternalWorkout(
             externalId = metadata.id,
             startedAtEpochMs = startTime.toEpochMilli(),
@@ -75,6 +77,7 @@ class HealthConnectWorkoutSource(context: Context) {
                     timeEpochMs = it.time.toEpochMilli(),
                 )
             },
+            needsRouteConsent = routeResult is ExerciseRouteResult.ConsentRequired,
         )
     }
 

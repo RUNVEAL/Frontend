@@ -67,10 +67,22 @@ private const val DEFAULT_FIRST_SCAN_WINDOW_MS = 90L * 24 * 60 * 60 * 1000
  */
 class HealthConnectImporter(
     private val context: Context,
+    /**
+     * 경로 동의가 필요한 세션(`needsRouteConsent`)에 대해 **UI가** 동의 화면을 띄우고 결과를
+     * 돌려준다. 동의 화면은 Activity에 묶여 있어 여기서 직접 띄울 수 없다 —
+     * `core:permission`의 `rememberExerciseRouteConsentRequester`가 그 구현이다.
+     *
+     * 기본값은 "안 물어본다" — 동의 흐름을 붙이지 않은 호출부(배치 작업 등)는 경로 있는 기록만
+     * 가져간다.
+     */
+    private val requestRouteConsent: suspend (sessionId: String) -> List<ExternalWorkoutPoint>? = { null },
     private val source: HealthConnectWorkoutSource = HealthConnectWorkoutSource(context),
     private val store: TrackLocalStore = TrackLocalStore(RunvealDatabaseProvider.database, FileStore()),
 ) {
     private val checkpoints = ImportCheckpointStore(RunvealDatabaseProvider.database)
+
+    /** 한 번 거부하면 남은 기록에 대해선 더 묻지 않는다 — 수십 건이면 그만큼 화면이 뜬다. */
+    private var routeConsentDeclined = false
     private val availability = HealthConnectAvailability(context, source)
 
     /** 가져오기를 시작할 수 있는 상태인지 — 판단은 권한 요청 UI와 공용인
@@ -187,6 +199,23 @@ class HealthConnectImporter(
     }.onFailure { Log.w(TAG, "동 이름 읽기 실패 — 탐험률 줄을 비운다", it) }
         .getOrDefault(emptyMap())
 
+    /**
+     * 경로가 비어 있을 때 동의를 받아 다시 읽어 본다. 물어볼 수 없는 경우(동의 대상이 아니거나
+     * 이미 한 번 거부당함)엔 빈 목록 — 호출부는 그 기록을 건너뛴다.
+     */
+    private suspend fun requestRouteIfConsentable(workout: ExternalWorkout): List<ExternalWorkoutPoint> {
+        if (!workout.needsRouteConsent || routeConsentDeclined) return emptyList()
+
+        val route = requestRouteConsent(workout.externalId)
+        if (route.isNullOrEmpty()) {
+            // 거부했거나 띄울 수 없었다. 남은 기록에 대해선 더 묻지 않는다.
+            routeConsentDeclined = true
+            Log.i(TAG, "경로 동의를 못 받아 이후 기록은 묻지 않는다 id=${workout.externalId}")
+            return emptyList()
+        }
+        return route
+    }
+
     private enum class ImportOutcome { IMPORTED, SKIPPED, FAILED }
 
     /** 기록 여러 건에 걸쳐 모으는 값 — 결과 화면이 "이번 가져오기"를 한 덩어리로 보여 주기 때문이다. */
@@ -198,7 +227,8 @@ class HealthConnectImporter(
     }
 
     private suspend fun importOne(workout: ExternalWorkout, accumulated: ImportAccumulator): ImportOutcome {
-        val reduced = MatchPointReducer.reduce(workout.route)
+        val route = workout.route.ifEmpty { requestRouteIfConsentable(workout) }
+        val reduced = MatchPointReducer.reduce(route)
         if (reduced.isEmpty()) {
             // 경로가 아예 없거나(권한 거부·실내 기록) 점이 너무 적어 서버가 받지 않는 기록.
             Log.i(TAG, "경로 부족으로 건너뜀 id=${workout.externalId} points=${workout.route.size}")
@@ -206,7 +236,7 @@ class HealthConnectImporter(
         }
 
         val trackId = UUID.randomUUID().toString()
-        val rawPoints = workout.route
+        val rawPoints = route
         val distanceMeters = workout.distanceMeters
             ?: GeoMath.totalDistanceMeters(rawPoints.map { it.toLatLon() })
 
