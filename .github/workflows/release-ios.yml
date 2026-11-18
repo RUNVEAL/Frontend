@@ -132,6 +132,14 @@ jobs:
           cp "$FILE" "$NEW/$UUID.mobileprovision"
           echo "PROFILE_UUID_APPSTORE=$UUID" >> "$GITHUB_ENV"
 
+      - name: Kotlin/Native · 생성물 먼저 확인
+        # Xcode Run Script가 Gradle을 부르기 전에 여기서 한 번 돌려 둔다 — Swift보다 먼저 깨질 수
+        # 있는 쪽을 떼어 둬야 실패 위치가 바로 보인다(Run Script 안에서 죽으면 로그가 묻힌다).
+        # chmod는 gradlew가 실행 비트 없이 커밋돼 있던 시절의 보험으로 남겨 둔다.
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :sharedLogic:compileKotlinIosArm64 :generateRunvealIosResources --no-daemon
+
       - name: SPM 캐시
         uses: actions/cache@v4
         with:
