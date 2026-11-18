@@ -258,6 +258,15 @@ jobs:
           cp "$FILE" "$NEW/$UUID.mobileprovision"
           echo "PROFILE_UUID_ADHOC=$UUID" >> "$GITHUB_ENV"
 
+      - name: Kotlin/Native · 생성물 먼저 확인
+        # **아카이브 전에 반드시 돌아야 한다.** 디자인 토큰·아이콘·이미지 Swift 파일은 생성물이라
+        # (.gitignore) 체크아웃 직후엔 없는데, Xcode는 File System Synchronized Group의 파일 목록을
+        # 빌드 시작 시점에 잡는다. Run Script 안에서 만들면 그 빌드에는 안 잡혀서
+        # "cannot find 'RunvealSpacing' in scope" 같은 오류가 쏟아진다.
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :sharedLogic:compileKotlinIosArm64 :generateRunvealIosResources --no-daemon
+
       - name: SPM 캐시
         uses: actions/cache@v4
         with:
