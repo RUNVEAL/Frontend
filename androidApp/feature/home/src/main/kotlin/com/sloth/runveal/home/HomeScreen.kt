@@ -316,7 +316,16 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                             RunvealLocationOffBanner(
                                 message = stringResource(R.string.home_location_permission_off_banner_message),
                                 actionLabel = stringResource(R.string.home_location_permission_off_banner_action),
-                                onActionClick = locationPermissionState::request,
+                                // 2회 이상 거부하면 시스템이 권한 다이얼로그를 더 띄워 주지 않는다 —
+                                // 그대로 request()를 부르면 아무 일도 안 일어난 것처럼 보인다.
+                                // 그때는 앱 설정으로 보낸다(마이페이지의 위치 권한 줄과 같은 처리).
+                                onActionClick = {
+                                    if (locationPermissionState.isPermanentlyDenied) {
+                                        appSettingsContext.openAppSettings()
+                                    } else {
+                                        locationPermissionState.request()
+                                    }
+                                },
                             )
                         }
                     }
