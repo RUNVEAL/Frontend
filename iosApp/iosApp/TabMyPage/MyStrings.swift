@@ -4,6 +4,16 @@ import Foundation
 enum MyStrings {
     static let title = "MY"
 
+    static let statExploredDongLabel = "탐험한 동"
+    static let statExploredDongUnit = "개"
+    static let statTotalDistanceLabel = "누적 거리"
+    static let statTotalDistanceUnit = "km"
+
+    static let sectionSettings = "설정"
+    static let menuLocationPermission = "위치 권한 설정"
+    static let menuLocationPermissionGranted = "허용됨"
+    static let menuLocationPermissionDenied = "허용 안 됨"
+
     static let termsPolicyTitle = "약관 및 정책"
     static let termsPolicyService = "서비스 이용약관"
     static let termsPolicyPrivacy = "개인정보 처리방침"

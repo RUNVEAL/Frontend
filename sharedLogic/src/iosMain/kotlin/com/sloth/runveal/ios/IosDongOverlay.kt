@@ -37,6 +37,13 @@ data class DongOverlayGeoJsonBundle(
      * Android는 fill GeoJSON을 다시 파싱해서 뽑지만(4MB짜리 재파싱이 팬·줌 버벅임의 원인이었다),
      * 여기서는 만들 때 이미 아는 값이라 그대로 같이 돌려준다. */
     val dongLevelByAdmCd2: Map<String, Int>,
+    /** 동별 탐험률(%) — 지도 빛 단계를 정하는 값 그대로다. 줌인 헤더가 "내 동네 N%"를 여기서
+     * 꺼내 쓰므로 헤더 숫자와 지도 밝기가 어긋날 수 없다. 0%인 동은 들어 있지 않다. */
+    val dongPercents: Map<String, Int>,
+    /** 동별 "가본 길" 길이(m)와 전체 도로 길이(m) — [dongPercents]의 분자·분모 그대로다.
+     * 줌인 헤더의 "누적 N km / 전체 N km"가 퍼센트와 어긋나지 않게 같은 값을 쓴다. */
+    val walkedLengthsByDong: Map<String, Double>,
+    val totalLengthsByDong: Map<String, Double>,
     /** 이 오버레이를 만든 경계 데이터의 출처 — `"server:<지도 버전>"`(경계를 못 받았으면 `"none"`).
      * 빛 이미지 디스크 캐시 키에 들어가서, 서버가 경계를 고쳐 새 버전으로 배포하면 옛 경계로
      * 만들어 둔 빛 이미지가 자동으로 버려진다(안 그러면 새 테두리와 어긋난 채로 남는다). */
@@ -62,6 +69,11 @@ data class DongOverlayGeoJsonBundle(
                 sidoLabelGeoJson = emptyCollection,
                 dongPolygonPartsByAdmCd2 = emptyMap(),
                 dongLevelByAdmCd2 = emptyMap(),
+                // 경계를 못 받았으면 탐험률도 비운다 — 분자·분모는 로컬에도 있지만, 서버와 코드
+                // 체계가 어긋난 채로 숫자만 띄우면 지도는 안 빛나는데 헤더만 8%라고 하게 된다.
+                dongPercents = emptyMap(),
+                walkedLengthsByDong = emptyMap(),
+                totalLengthsByDong = emptyMap(),
                 boundarySourceKey = "none",
             )
         }
@@ -104,6 +116,9 @@ object IosDongOverlayBuilder {
         sidoBoundaryGeoJson: String,
         regionHierarchyJson: String,
         dongPercents: Map<String, Int>,
+        /** [dongPercents]의 분자·분모 — 줌인 헤더가 퍼센트와 같은 값으로 거리를 보여준다. */
+        walkedLengthsByDong: Map<String, Double>,
+        totalLengthsByDong: Map<String, Double>,
         boundarySourceKey: String,
     ): DongOverlayGeoJsonBundle {
         val hierarchy = com.sloth.runveal.dong.region.RegionHierarchyParser.parse(regionHierarchyJson)
@@ -128,6 +143,9 @@ object IosDongOverlayBuilder {
             sidoLabelGeoJson = sido.labelGeoJson,
             dongPolygonPartsByAdmCd2 = dongParts,
             dongLevelByAdmCd2 = dongParts.keys.associateWith { levelOf(dongPercents[it] ?: 0) },
+            dongPercents = dongPercents,
+            walkedLengthsByDong = walkedLengthsByDong,
+            totalLengthsByDong = totalLengthsByDong,
             boundarySourceKey = boundarySourceKey,
         )
     }

@@ -27,15 +27,22 @@ struct HomeMapOverlayScreen: View {
 
     @State private var selectedToggleIndex = 0
 
+    /// 현재 위치의 행정동 — 서버에 한 번 물어 둔다(`IosCurrentDong`). 못 받으면 nil이고 화면은
+    /// 대체 문구를 쓴다.
+    @State private var currentDong: CurrentDong?
+
+    /// 스플래시가 미리 만들어 둔 오버레이 — 탐험률·거리를 여기서 꺼낸다.
+    @ObservedObject private var overlayHolder = RunvealDongOverlayHolder.shared
+
     var body: some View {
         Group {
             if mapState.isZoomedIn {
-                // TODO: 동 상세 진입, 실제 탐험률/거리 연동 추가 예정(Android도 같은 TODO 상태다).
+                // TODO: 동 상세 진입은 아직 — Android도 `onDongClick = {}`으로 비워 둔 상태다.
                 ZoomedInMapOverlay(
-                    dongName: "성수동",
-                    ratePercent: 0,
-                    exploredKm: 0,
-                    totalKm: 0,
+                    dongName: currentDong?.name ?? TabHomeStrings.currentLocation,
+                    ratePercent: ratePercent,
+                    exploredKm: exploredKm,
+                    totalKm: totalKm,
                     selectedToggleIndex: selectedToggleIndex,
                     onToggleSelect: { selectedToggleIndex = $0 },
                     onDongClick: {},
@@ -44,8 +51,15 @@ struct HomeMapOverlayScreen: View {
                     onMyLocationClick: { mapState.recenterToCurrentLocation() }
                 )
             } else {
-                HomeMapOverlay(locationName: TabHomeStrings.currentLocation)
+                HomeMapOverlay(locationName: currentDong?.name ?? TabHomeStrings.currentLocation)
             }
+        }
+        .task {
+            // 위치를 못 받으면(권한 없음·위치 꺼짐) 동 조회를 건너뛴다 — 흔한 상황이라 오류가 아니다.
+            guard let location = await RunvealCurrentLocation().fetch() else { return }
+            // Kotlin suspend 함수는 Swift에 async throws로 들어온다(완료 핸들러가 NSError를
+            // 받기 때문) — 실패하면 동 이름 없이 두면 되므로 try?로 흘린다.
+            currentDong = try? await IosCurrentDong.shared.fetch(lat: location.lat, lon: location.lon)
         }
         // "안 가본 길"을 고른 동안만 베이스 지도 도로를 강조한다 — 줌 아웃되거나 이 화면을 벗어나면
         // 원래대로.
@@ -54,6 +68,23 @@ struct HomeMapOverlayScreen: View {
         }
         .onAppear { mapState.unexploredRoadFocus = unexploredRoadFocus }
         .onDisappear { mapState.unexploredRoadFocus = false }
+    }
+
+    // 탐험률·거리는 지도 빛과 **같은 집계**에서 꺼낸다 — 다른 데서 계산하면 헤더는 8%인데 지도는
+    // 안 빛나는 상태가 된다. 동 코드를 아직 못 받았거나 그 동이 집계에 없으면 0으로 둔다.
+    private var ratePercent: Int {
+        guard let code = currentDong?.code else { return 0 }
+        return overlayHolder.bundle?.dongPercents[code] ?? 0
+    }
+
+    private var exploredKm: Double {
+        guard let code = currentDong?.code else { return 0 }
+        return (overlayHolder.bundle?.walkedLengthsByDong[code] ?? 0) / 1000.0
+    }
+
+    private var totalKm: Double {
+        guard let code = currentDong?.code else { return 0 }
+        return (overlayHolder.bundle?.totalLengthsByDong[code] ?? 0) / 1000.0
     }
 
     private var unexploredRoadFocus: Bool {
