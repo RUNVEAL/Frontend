@@ -32,6 +32,7 @@ import com.sloth.runveal.designsystem.component.overlay.RunvealLoading
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.tabmypage.R
 import com.sloth.runveal.tabmypage.contract.OPEN_SOURCE_LICENSES
+import com.sloth.runveal.ui.web.RunvealWebView
 import com.sloth.runveal.tabmypage.contract.TermsPolicyItem
 
 /**
@@ -65,7 +66,7 @@ internal fun TermsDetailScreen(
         if (url != null) {
             // 웹뷰는 스스로 스크롤하므로 verticalScroll로 감싸지 않는다 — 감싸면 높이 제약이 없어져
             // 페이지 전체가 펼쳐지고 스크롤이 두 겹이 된다.
-            TermsWebView(url = url, modifier = Modifier.fillMaxSize())
+            RunvealWebView(url = url, modifier = Modifier.fillMaxSize())
         } else {
             Column(
                 modifier = Modifier
@@ -76,45 +77,6 @@ internal fun TermsDetailScreen(
             ) {
                 OpenSourceLicenseContent()
             }
-        }
-    }
-}
-
-/**
- * 약관 원문을 띄우는 웹뷰.
- *
- * 자바스크립트는 켜지 않는다(WebView 기본값) — 정적 HTML이라 필요 없고, 꺼 두는 쪽이 안전하다.
- *
- * 로드가 끝나기 전까지 캔버스 색으로 덮인 채 로딩 모션만 보인다. 배경색을 지정하지 않으면 로드
- * 직전에 흰 화면이 한 번 번쩍인다 — 앱이 다크 단일 테마라 특히 눈에 띈다.
- *
- * 원문 HTML이 이미 다크 테마라 앱 안에서 겉돌지 않는다(실기기 확인). 원문을 밝은 배경으로 바꾸면
- * 이 화면만 희게 뜨므로, 그때는 원문에 `prefers-color-scheme`을 넣는 쪽이 낫다 — 앱에서
- * 강제 다크닝(`androidx.webkit`)을 걸면 글자가 뭉개진다.
- */
-@Composable
-private fun TermsWebView(url: String, modifier: Modifier = Modifier) {
-    var isLoading by remember(url) { mutableStateOf(true) }
-    val backgroundColor = RunvealTheme.colors.bg.canvas.toArgb()
-
-    Box(modifier = modifier) {
-        AndroidView(
-            factory = { context ->
-                WebView(context).apply {
-                    setBackgroundColor(backgroundColor)
-                    webViewClient = object : WebViewClient() {
-                        override fun onPageFinished(view: WebView?, finishedUrl: String?) {
-                            isLoading = false
-                        }
-                    }
-                    loadUrl(url)
-                }
-            },
-            modifier = Modifier.fillMaxSize(),
-        )
-
-        if (isLoading) {
-            RunvealLoading(modifier = Modifier.align(Alignment.Center))
         }
     }
 }
