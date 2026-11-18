@@ -62,10 +62,16 @@ jobs:
       - name: Xcode 선택
         run: |
           # 프로젝트가 objectVersion 77 + File System Synchronized Group을 써서 16.2 이상이 필요하다.
-          XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n1 || true)
+          #
+          # 상한은 두지 않는다 — Apple이 2026년부터 **iOS 26 SDK 이상**으로 빌드한 앱만 App Store
+          # Connect에 받는다(업로드 오류 90725). Xcode 16에 묶어 두면 18.x SDK라 거부되므로,
+          # 러너에 깔린 Xcode 중 가장 높은 버전을 고른다.
+          XCODE=$(ls -d /Applications/Xcode_*.app 2>/dev/null | sort -V | tail -n1 || true)
           if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE"; fi
           set -o pipefail
           xcodebuild -version 2>&1 | tee -a "$RUNNER_TEMP/xcodebuild.log"
+          # 어느 iOS SDK로 빌드되는지 남긴다 — 90725를 미리 알아보려고.
+          xcodebuild -showsdks 2>&1 | grep -i iphoneos | tee -a "$RUNNER_TEMP/xcodebuild.log" || true
 
       - name: 설정값 확인
         # 스토어에 올라갈 빌드는 값이 하나라도 비면 만들지 않는다 — 서버 주소 없는 IPA가
