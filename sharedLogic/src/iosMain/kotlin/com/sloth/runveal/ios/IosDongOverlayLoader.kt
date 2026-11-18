@@ -44,6 +44,8 @@ object IosDongOverlayLoader {
             sidoBoundaryGeoJson = assets.sidoGeoJson,
             regionHierarchyJson = assets.regionHierarchyJson,
             dongPercents = dongPercents,
+            walkedLengthsByDong = walkedLengths,
+            totalLengthsByDong = totalLengths,
             boundarySourceKey = "server:${server.mapVersion}",
         )
     }

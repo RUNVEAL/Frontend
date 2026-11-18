@@ -64,7 +64,8 @@ jobs:
           # 프로젝트가 objectVersion 77 + File System Synchronized Group을 써서 16.2 이상이 필요하다.
           XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n1 || true)
           if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE"; fi
-          xcodebuild -version
+          set -o pipefail
+          xcodebuild -version 2>&1 | tee -a "$RUNNER_TEMP/xcodebuild.log"
 
       - name: 설정값 확인
         # 스토어에 올라갈 빌드는 값이 하나라도 비면 만들지 않는다 — 서버 주소 없는 IPA가
@@ -98,12 +99,16 @@ jobs:
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
 
           echo "$IOS_DIST_CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          # -T /usr/bin/codesign: codesign이 이 키를 쓸 때 확인 창을 띄우지 않게 미리 허용한다.
           security import "$RUNNER_TEMP/dist.p12" \
-            -P "$IOS_DIST_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+            -P "$IOS_DIST_CERT_PASSWORD" -A -t cert -f pkcs12 \
+            -T /usr/bin/codesign -T /usr/bin/security -k "$KEYCHAIN"
           rm -f "$RUNNER_TEMP/dist.p12"
 
           # codesign이 키체인 접근 때 UI 프롬프트를 띄우지 않게 한다(헤드리스 러너).
-          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          # codesign: 파티션을 빠뜨리면 아카이브·export가 "User interaction is not allowed"로 멈춘다.
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
           # 검색 목록에 넣어야 xcodebuild가 이 키체인을 본다.
           security list-keychain -d user -s "$KEYCHAIN" login.keychain-db
 
@@ -132,6 +137,14 @@ jobs:
           cp "$FILE" "$NEW/$UUID.mobileprovision"
           echo "PROFILE_UUID_APPSTORE=$UUID" >> "$GITHUB_ENV"
 
+      - name: Kotlin/Native · 생성물 먼저 확인
+        # Xcode Run Script가 Gradle을 부르기 전에 여기서 한 번 돌려 둔다 — Swift보다 먼저 깨질 수
+        # 있는 쪽을 떼어 둬야 실패 위치가 바로 보인다(Run Script 안에서 죽으면 로그가 묻힌다).
+        # chmod는 gradlew가 실행 비트 없이 커밋돼 있던 시절의 보험으로 남겨 둔다.
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :sharedLogic:compileKotlinIosArm64 :generateRunvealIosResources --no-daemon
+
       - name: SPM 캐시
         uses: actions/cache@v4
         with:
@@ -148,6 +161,13 @@ jobs:
           #
           # TEAM_ID는 Config.xcconfig가 DEVELOPMENT_TEAM에 쓰는 값이라 둘 다 넘긴다
           # (로컬 xcconfig는 비어 있고 CI가 채우는 구조).
+          #
+          # **서명은 여기서 하지 않는다**(CODE_SIGNING_ALLOWED=NO). xcodebuild의 커맨드라인 빌드
+          # 설정은 SPM 패키지를 포함한 **모든 타깃**에 적용되는데, Lottie 같은 패키지 타깃은
+          # 프로비저닝 프로파일을 받지 못해 "does not support provisioning profiles"로 깨진다.
+          # 대신 아래 export 단계가 ExportOptions plist의 수동 서명 설정으로 앱과 임베드된
+          # 프레임워크를 한꺼번에 서명한다 — 결과물은 같고 타깃 범위 문제만 사라진다.
+          set -o pipefail
           xcodebuild archive \
             -project iosApp/iosApp.xcodeproj \
             -scheme iosApp \
@@ -155,12 +175,9 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/Runveal.xcarchive" \
             -derivedDataPath "$RUNNER_TEMP/dd" \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_UUID_APPSTORE" \
-            DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
+            CODE_SIGNING_ALLOWED=NO \
             TEAM_ID="$IOS_TEAM_ID" \
-            CURRENT_PROJECT_VERSION=${{ github.run_number }}
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} 2>&1 | tee -a "$RUNNER_TEMP/xcodebuild.log"
 
       - name: export 옵션 채우기
         run: |
@@ -170,10 +187,11 @@ jobs:
 
       - name: IPA 추출 (App Store)
         run: |
+          set -o pipefail
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/Runveal.xcarchive" \
             -exportOptionsPlist iosApp/ExportOptions-AppStore.plist \
-            -exportPath "$RUNNER_TEMP/export-appstore"
+            -exportPath "$RUNNER_TEMP/export-appstore" 2>&1 | tee -a "$RUNNER_TEMP/xcodebuild.log"
           ls -lh "$RUNNER_TEMP/export-appstore"
 
       - name: IPA 아티팩트 업로드
@@ -182,6 +200,16 @@ jobs:
           name: runveal-ios-appstore-build${{ github.run_number }}
           path: ${{ runner.temp }}/export-appstore/*.ipa
           if-no-files-found: error
+          retention-days: 30
+
+      - name: dSYM 아티팩트 업로드
+        # ExportOptions의 uploadSymbols로 App Store Connect에도 올라가지만, 업로드가 실패하거나
+        # 나중에 다른 도구로 심볼화해야 할 때를 대비해 아카이브에서 꺼내 따로 보관한다.
+        uses: actions/upload-artifact@v4
+        with:
+          name: runveal-ios-dsyms-build${{ github.run_number }}
+          path: ${{ runner.temp }}/Runveal.xcarchive/dSYMs
+          if-no-files-found: warn
           retention-days: 30
 
       - name: TestFlight 업로드
@@ -196,6 +224,35 @@ jobs:
           xcrun altool --upload-app -f "$IPA" -t ios \
             --apiKey "$APPSTORE_KEY_ID" \
             --apiIssuer "$APPSTORE_ISSUER_ID"
+
+      - name: 실패 시 오류만 추려 보기
+        # xcodebuild 로그는 수천 줄이라 Actions 화면에서 error: 줄을 찾기 어렵다. 실패했을 때만
+        # 오류 줄을 모아 잡 요약(Summary)에 올려 둔다 — 로그를 내려받아 뒤지지 않아도 원인이 보인다.
+        if: failure()
+        run: |
+          LOG="$RUNNER_TEMP/xcodebuild.log"
+          if [ ! -f "$LOG" ]; then
+            echo "빌드 로그가 없습니다 — xcodebuild 이전 단계에서 실패했습니다."
+            exit 0
+          fi
+
+          # 같은 오류가 타깃·아키텍처마다 반복되므로 중복을 걷어낸다.
+          ERRORS=$(grep "error: " "$LOG" | sort -u | head -60)
+
+          {
+            echo "### 빌드 오류"
+            echo ""
+            if [ -n "$ERRORS" ]; then
+              echo '```'
+              echo "$ERRORS"
+              echo '```'
+            else
+              echo "\`error:\` 줄이 없습니다 — 컴파일이 아니라 스크립트·서명 단계에서 실패했을 수 있습니다."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "--- 오류 줄 ---"
+          echo "$ERRORS"
 
       - name: 키체인·프로파일·API 키 정리
         if: always()

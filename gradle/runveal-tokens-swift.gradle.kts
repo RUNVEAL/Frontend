@@ -142,7 +142,9 @@ class RunvealSwiftTokenGenerator(private val root: Map<String, Any?>) {
 
     private fun blendMode(figma: String?): String? = when (figma) {
         null, "NORMAL", "PASS_THROUGH" -> null
-        "LINEAR_DODGE" -> ".plus"
+        // SwiftUI에는 `.plus`가 없다. Figma의 Linear Dodge(= add)에 대응하는 건
+        // `.plusLighter`다(`.plusDarker`는 반대 방향).
+        "LINEAR_DODGE" -> ".plusLighter"
         "MULTIPLY" -> ".multiply"
         "SCREEN" -> ".screen"
         "OVERLAY" -> ".overlay"

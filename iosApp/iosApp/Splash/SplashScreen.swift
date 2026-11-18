@@ -71,8 +71,8 @@ struct SplashScreen: View {
     /// 앱 실행 시 1번 — `docs/api/API.md` §3.1/§9. 받아서 `MetaHolder`에만 둔다.
     private func fetchMeta() async -> Bool {
         do {
-            let meta = try await MetaApi().fetchMeta()
-            MetaHolder.shared.publish(meta: meta)
+            // MetaApi 생성자에 기본 인자가 있어 Swift에서 init()이 막힌다 — iosMain 래퍼를 쓴다.
+            try await IosMeta.shared.fetchAndPublish()
             return true
         } catch {
             print("[Splash] GET /api/v1/meta 실패: \(error)")

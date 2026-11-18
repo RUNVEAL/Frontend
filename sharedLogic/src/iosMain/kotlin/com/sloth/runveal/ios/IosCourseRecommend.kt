@@ -73,8 +73,13 @@ object IosCourseRecommend {
             .executeAsList()
             .take(maxCount)
 
-    /** 서버가 `newRoadM`을 줬으면 그대로 쓰고, 안 줬으면 로컬 `explored_segment`로 추정한다. */
-    fun newRoadMeters(route: RouteDto): Double =
+    /**
+     * 서버가 `newRoadM`을 줬으면 그대로 쓰고, 안 줬으면 로컬 `explored_segment`로 추정한다.
+     *
+     * 이름이 `new`로 시작하면 안 된다 — ObjC의 `new` 계열 메서드 규약(반환값 소유권)에 걸려
+     * Kotlin/Native가 Swift 쪽 이름을 바꿔 버리고, Swift에서 `newRoadMeters`로는 안 보인다.
+     */
+    fun estimateNewRoadMeters(route: RouteDto): Double =
         route.newRoadM?.toDouble() ?: NewRoadEstimator.newRoadMeters(
             totalDistanceM = route.distanceM.toDouble(),
             exploredLengthM = exploredLengthFor(route.segmentIds),

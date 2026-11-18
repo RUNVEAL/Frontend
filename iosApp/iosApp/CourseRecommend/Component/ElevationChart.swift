@@ -38,7 +38,9 @@ struct ElevationChart: View {
                 let maxDistance = max(points.last?.cumulativeDistanceM ?? 1, 1)
                 let elevationRange = max(maxElevation - minElevation, 1)
 
-                func point(for item: ElevationPoint) -> CGPoint {
+                // ViewBuilder 클로저 안에서는 `func` 선언을 할 수 없다(result builder 제약) —
+                // 같은 일을 하는 클로저 상수로 둔다.
+                let point: (ElevationPoint) -> CGPoint = { item in
                     CGPoint(
                         x: CGFloat(item.cumulativeDistanceM / maxDistance) * size.width,
                         y: size.height - CGFloat((item.elevationM - minElevation) / elevationRange) * size.height
