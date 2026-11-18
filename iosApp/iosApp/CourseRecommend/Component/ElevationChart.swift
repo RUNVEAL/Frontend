@@ -49,7 +49,7 @@ struct ElevationChart: View {
 
                 let linePath = Path { path in
                     for (index, item) in points.enumerated() {
-                        let position = point(for: item)
+                        let position = point(item)
                         if index == 0 {
                             path.move(to: position)
                         } else {
