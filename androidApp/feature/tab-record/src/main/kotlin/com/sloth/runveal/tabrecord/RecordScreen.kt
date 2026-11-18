@@ -75,7 +75,9 @@ private fun RecordScreen(
                 title = "기록",
                 metaLabel = state.monthLabel,
                 titleStyle = RunvealTheme.typography.heading1,
-                onMetaLabelClick = {},
+                // TODO: 월 선택 — 고를 수 있게 되면 람다를 주면 화살표가 돌아온다. 지금은 이번 달만
+                //  조회해서 바꿀 게 없다(RecordViewModel.loadThisMonth).
+                onMetaLabelClick = null,
                 modifier = Modifier.fillMaxWidth(),
             )
 
