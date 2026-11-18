@@ -237,7 +237,9 @@ jobs:
           fi
 
           # 같은 오류가 타깃·아키텍처마다 반복되므로 중복을 걷어낸다.
-          ERRORS=$(grep "error: " "$LOG" | sort -u | head -60)
+          # 컴파일 오류(error:)뿐 아니라 링커 오류도 잡는다 — "Undefined symbols" 블록에는
+          # error: 가 없어서 전에 놓쳤다.
+          ERRORS=$(grep -E "error: |Undefined symbol|symbol\(s\) not found|^ld: " "$LOG" \n            | sort -u | head -80)
 
           {
             echo "### 빌드 오류"

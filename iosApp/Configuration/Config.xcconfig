@@ -12,3 +12,8 @@ PRODUCT_BUNDLE_IDENTIFIER=com.sloth.runveal
 
 CURRENT_PROJECT_VERSION=1
 MARKETING_VERSION=1.0
+
+// KMP 프레임워크가 **정적(isStatic = true)**이라, 그 안의 네이티브 의존성은 앱이 직접 링크해야
+// 한다. SQLDelight native 드라이버가 SQLite를 쓰므로 -lsqlite3이 없으면 최종 Ld 단계에서
+// "Undefined symbols: _sqlite3_*"로 깨진다(동적 프레임워크였다면 프레임워크가 들고 간다).
+OTHER_LDFLAGS = $(inherited) -lsqlite3
