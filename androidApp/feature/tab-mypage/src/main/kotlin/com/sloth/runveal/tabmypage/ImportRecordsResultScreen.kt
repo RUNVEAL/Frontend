@@ -190,9 +190,9 @@ private fun ResultContent(state: ImportRecordsResultState.Ready, modifier: Modif
             ExploreResultCard(state = state)
 
             // 경로가 없어 지도에 못 올린 기록이 없으면 꺼낼 말이 아니다.
-            if (state.noRouteCount > 0) {
+            if (state.skippedCount > 0) {
                 Text(
-                    text = stringResource(R.string.import_records_result_no_route, state.noRouteCount),
+                    text = stringResource(R.string.import_records_result_skipped, state.skippedCount),
                     style = RunvealTheme.typography.captionMRegular,
                     color = RunvealTheme.colors.text.tertiary,
                     textAlign = TextAlign.Center,

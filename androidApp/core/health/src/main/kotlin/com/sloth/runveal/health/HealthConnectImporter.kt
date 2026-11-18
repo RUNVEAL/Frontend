@@ -19,6 +19,7 @@ import com.sloth.runveal.external.ImportUnavailableReason
 import com.sloth.runveal.external.MatchPointReducer
 import com.sloth.runveal.map.GeoMath
 import com.sloth.runveal.map.LatLon
+import com.sloth.runveal.recording.RecordingSavePolicy
 import com.sloth.runveal.match.ChunkedMatcher
 import com.sloth.runveal.match.MatchedPathFilter
 import com.sloth.runveal.match.ServerRoadMatcher
@@ -239,6 +240,22 @@ class HealthConnectImporter(
         val rawPoints = route
         val distanceMeters = workout.distanceMeters
             ?: GeoMath.totalDistanceMeters(rawPoints.map { it.toLatLon() })
+
+        // 저장 기준은 실시간 기록과 **같아야 한다**([RecordingSavePolicy]). 신호만 받아보려고 몇 초
+        // 켰다 끈 기록이나 테스트로 넣어 둔 운동까지 들어오면 목록·월간 요약·탐험률이 망가진다 —
+        // 같은 러닝을 앱으로 하면 버려지는데 Health Connect를 거치면 남는 것도 앞뒤가 안 맞는다.
+        //
+        // 경과 시간은 세션의 시작~종료 차이를 쓴다. 다른 앱이 기록한 일시정지까지는 알 수 없어
+        // 실시간 기록(일시정지 제외)보다 느슨하지만, 짧은 기록을 거르는 데는 충분하다.
+        val elapsedMs = workout.finishedAtEpochMs - workout.startedAtEpochMs
+        if (!RecordingSavePolicy.isSavable(distanceMeters, elapsedMs)) {
+            Log.i(
+                TAG,
+                "거리·시간 기준 미달로 건너뜀 id=${workout.externalId} " +
+                    "distance=${distanceMeters}m elapsed=${elapsedMs}ms",
+            )
+            return ImportOutcome.SKIPPED
+        }
 
         try {
             store.saveTrack(

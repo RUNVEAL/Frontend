@@ -22,14 +22,16 @@ sealed interface ImportRecordsResultState : UiState {
 
     /**
      * @param newRoadLabel 새로 탐험한 길(km, 소수 한 자리) — 단위는 화면이 붙인다.
-     * @param noRouteCount 경로가 없어 지도에 올리지 못한 기록 수. 0이면 화면에서 그 줄을 뺀다.
+     * @param skippedCount 가져오지 않고 건너뛴 기록 수 — 경로가 없거나(권한 거부·실내 기록)
+     *  거리·시간이 저장 기준([com.sloth.runveal.recording.RecordingSavePolicy])에 못 미치는 경우다.
+     *  0이면 화면에서 그 줄을 뺀다.
      * @param mapSnapshotRequest 가져온 경로를 모두 그린 지도 — 그릴 선이 없으면 null이다.
      */
     data class Ready(
         val importedCount: Int,
         val newRoadLabel: String,
         val dongStats: List<ImportDongStat>,
-        val noRouteCount: Int,
+        val skippedCount: Int,
         val mapSnapshotRequest: SnapshotRequest?,
     ) : ImportRecordsResultState
 }

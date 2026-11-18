@@ -34,7 +34,7 @@
 러닝 기록을 불러올 수 있어요</string>
     <string name="import_records_description">불러온 길은 탐험 지도에 채워져요</string>
     <string name="import_records_notice_what">가져오는 정보: 러닝 기록과 달린 경로</string>
-    <string name="import_records_notice_no_route">경로가 없는 기록은 지도에 표시되지 않아요</string>
+    <string name="import_records_notice_skipped">경로가 없거나 100m·1분을 넘지 않는 기록은 가져오지 않아요</string>
     <string name="import_records_notice_disconnect">연결은 설정에서 언제든 끊을 수 있어요</string>
     <string name="import_records_start">Health Connect에서 불러오기</string>
     <string name="import_records_later">나중에 할게요</string>
@@ -52,7 +52,7 @@
     <string name="import_records_result_explore_rate">상승한 탐험률</string>
     <string name="import_records_result_rate_percent">%1$d%%</string>
     <string name="import_records_result_rate_arrow">→</string>
-    <string name="import_records_result_no_route">경로가 없는 기록 %1$d개는 지도에 표시하지 못했어요</string>
+    <string name="import_records_result_skipped">기록 %1$d개는 가져오지 않았어요 (경로가 없거나 너무 짧아요)</string>
     <string name="import_records_result_create_course">첫 코스 만들기</string>
     <string name="import_records_result_view_map">탐험 지도 보기</string>
     <string name="import_records_empty_title">불러올 러닝 기록이 없어요</string>

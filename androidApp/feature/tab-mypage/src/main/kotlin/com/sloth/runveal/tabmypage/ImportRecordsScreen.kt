@@ -129,7 +129,7 @@ internal fun ImportRecordsScreen(
                 NoticeCard(
                     notices = listOf(
                         stringResource(R.string.import_records_notice_what),
-                        stringResource(R.string.import_records_notice_no_route),
+                        stringResource(R.string.import_records_notice_skipped),
                         stringResource(R.string.import_records_notice_disconnect),
                     ),
                 )
