@@ -125,8 +125,12 @@ struct SplashScreen: View {
     private nonisolated func resolveStartDestination() async -> RunvealAppRoute {
         do {
             // 온보딩을 아직 안 봤으면 홈보다 먼저 보여준다(끝내거나 건너뛰면 "봤다"로 적힌다).
+            //
+            // `suspend fun` 의 반환값은 ObjC 블록 콜백으로 넘어오면서 **원시 타입이 박싱된다** —
+            // Kotlin `Boolean`이 `Bool`이 아니라 `KotlinBoolean`(NSNumber)으로 온다. 같은 함수가
+            // suspend가 아니었다면 `Bool`이었을 자리라 그냥 쓰면 컴파일이 깨진다.
             let completed = try await IosOnboarding.shared.isCompleted()
-            return completed ? .home : .onboarding
+            return completed.boolValue ? .home : .onboarding
         } catch {
             // 못 읽으면 홈으로 보낸다 — 온보딩을 한 번 더 보여주는 것보다, 첫 화면을 못 띄우는
             // 쪽이 나쁘다.
