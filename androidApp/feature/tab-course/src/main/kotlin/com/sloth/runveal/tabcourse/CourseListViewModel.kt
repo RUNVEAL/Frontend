@@ -59,7 +59,28 @@ class CourseListViewModel : MviViewModel<CourseListIntent, CourseListState, Noth
                 setState { (this as? CourseListState.Ready)?.copy(pendingDeleteCourseId = null) ?: this }
 
             CourseListIntent.DeleteConfirmed -> deleteCourse()
+
+            is CourseListIntent.RenameCourseClicked ->
+                setState {
+                    (this as? CourseListState.Ready)?.copy(pendingRenameCourseId = intent.courseId) ?: this
+                }
+
+            CourseListIntent.RenameDismissed ->
+                setState { (this as? CourseListState.Ready)?.copy(pendingRenameCourseId = null) ?: this }
+
+            is CourseListIntent.RenameConfirmed -> renameCourse(intent.name)
         }
+    }
+
+    /** 입력 시트에서 "저장"을 누른 뒤 — 이름만 바꾸고 목록을 다시 읽는다(썸네일은 경로로 캐시되니
+     * 이름이 바뀌어도 그대로 쓴다). 다시 읽으면서 [CourseListState.Ready]가 새로 만들어지므로 시트도
+     * 같이 닫힌다. 공백만 들어오면 아무것도 하지 않는다 — 시트의 "저장" 버튼도 같은 조건으로 꺼진다. */
+    private suspend fun renameCourse(name: String) {
+        val courseId = (currentState as? CourseListState.Ready)?.pendingRenameCourseId ?: return
+        val newName = name.trim()
+        if (newName.isEmpty()) return
+        withContext(Dispatchers.IO) { database.courseQueries.renameCourse(name = newName, id = courseId) }
+        reload()
     }
 
     /** 확인 다이얼로그에서 "삭제"를 누른 뒤 — 코스 행과 그 썸네일 캐시를 지우고 목록을 다시 읽는다.

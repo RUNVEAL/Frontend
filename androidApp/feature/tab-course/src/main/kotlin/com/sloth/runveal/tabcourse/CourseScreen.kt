@@ -16,13 +16,17 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -39,6 +43,7 @@ import com.sloth.runveal.designsystem.component.overlay.RunvealDialogType
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.tabcourse.R
 import com.sloth.runveal.tabcourse.component.CourseMoreMenuActions
+import com.sloth.runveal.tabcourse.component.CourseRenameSheet
 import com.sloth.runveal.tabcourse.component.CourseRecommendationCard
 import com.sloth.runveal.tabcourse.component.SavedCourseListItem
 import com.sloth.runveal.tabcourse.component.SavedCourseSectionHeader
@@ -70,6 +75,10 @@ fun CourseScreen(
         isDeleteDialogVisible = readyState?.pendingDeleteCourseId != null,
         onDeleteConfirm = { viewModel.onIntent(CourseListIntent.DeleteConfirmed) },
         onDeleteDismiss = { viewModel.onIntent(CourseListIntent.DeleteDismissed) },
+        onRenameCourseClick = { viewModel.onIntent(CourseListIntent.RenameCourseClicked(it.id)) },
+        renamingCourseName = readyState?.pendingRenameCourse?.title,
+        onRenameConfirm = { viewModel.onIntent(CourseListIntent.RenameConfirmed(it)) },
+        onRenameDismiss = { viewModel.onIntent(CourseListIntent.RenameDismissed) },
         modifier = modifier,
     )
 }
@@ -88,17 +97,22 @@ private fun CourseListContent(
     isDeleteDialogVisible: Boolean,
     onDeleteConfirm: () -> Unit,
     onDeleteDismiss: () -> Unit,
+    /** 더보기 메뉴에서 "이름 수정"을 골랐다 — 입력 시트를 띄운다. */
+    onRenameCourseClick: (SavedCourseUiModel) -> Unit,
+    /** 이름 수정 시트에 채워 둘 지금 이름. null이면 시트를 띄우지 않는다. */
+    renamingCourseName: String?,
+    onRenameConfirm: (String) -> Unit,
+    onRenameDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = RunvealTheme.colors
     val hasSavedCourses = courses.isNotEmpty()
     val notReadyToast = rememberNotReadyToastState()
-    // 코스마다 "그 코스를" 지우므로 메뉴도 코스 단위로 만든다.
-    // TODO: 이름 수정은 입력 다이얼로그가 필요해서(renameCourse 쿼리는 이미 있다) 아직 "개발 중"
-    //  안내만 띄운다. GPX 내보내기도 마찬가지.
+    // 코스마다 "그 코스를" 고치고 지우므로 메뉴도 코스 단위로 만든다.
+    // TODO: GPX 내보내기는 아직 할 일이 없어 "개발 중" 안내만 띄운다.
     val moreMenuFor = { course: SavedCourseUiModel ->
         CourseMoreMenuActions(
-            onRename = notReadyToast::show,
+            onRename = { onRenameCourseClick(course) },
             onExportGpx = notReadyToast::show,
             onDelete = { onDeleteCourseClick(course) },
         )
@@ -205,6 +219,14 @@ private fun CourseListContent(
             }
         }
 
+        if (renamingCourseName != null) {
+            CourseRenameModalSheet(
+                courseName = renamingCourseName,
+                onConfirm = onRenameConfirm,
+                onDismiss = onRenameDismiss,
+            )
+        }
+
         if (!hasSavedCourses && !isLoading) {
             RunvealEmptyState(
                 title = stringResource(R.string.tab_course_empty_title),
@@ -242,6 +264,26 @@ private fun CourseTopBarActionButton(onClick: () -> Unit, modifier: Modifier = M
     }
 }
 
+/** 이름 수정 시트 — 필터 시트(`FilterBottomSheet`)와 같은 방식으로 띄운다: 모양은
+ * [CourseRenameSheet]가 그리고 ModalBottomSheet는 scrim·드래그 닫기만 맡는다(그래서 배경은
+ * 투명, 드래그 핸들은 시트가 직접 그린다). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CourseRenameModalSheet(
+    courseName: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Color.Transparent,
+        dragHandle = null,
+    ) {
+        CourseRenameSheet(initialName = courseName, onConfirm = onConfirm, onCancel = onDismiss)
+    }
+}
+
 @Preview
 @Composable
 private fun CourseListContentPreview() {
@@ -270,6 +312,10 @@ private fun CourseListContentPreview() {
             isDeleteDialogVisible = false,
             onDeleteConfirm = {},
             onDeleteDismiss = {},
+            onRenameCourseClick = {},
+            renamingCourseName = null,
+            onRenameConfirm = {},
+            onRenameDismiss = {},
         )
     }
 }
@@ -289,6 +335,10 @@ private fun CourseListContentEmptyPreview() {
             isDeleteDialogVisible = false,
             onDeleteConfirm = {},
             onDeleteDismiss = {},
+            onRenameCourseClick = {},
+            renamingCourseName = null,
+            onRenameConfirm = {},
+            onRenameDismiss = {},
         )
     }
 }
