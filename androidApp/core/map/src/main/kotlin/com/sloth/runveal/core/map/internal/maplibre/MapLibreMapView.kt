@@ -280,7 +280,9 @@ internal fun MapLibreMapView(
                 CurrentLocationLayer.startFollowing(
                     map = map,
                     zoom = followCommand.zoom,
-                    bottomPaddingPx = with(density) { followBottomInset.toPx() }.toDouble(),
+                    // 호출 시점이 아니라 쓰는 시점의 값을 읽는다 — 러닝 시작 직후엔 패널 높이를 아직
+                    // 재기 전이라 0이고, 추적 전환이 끝날 즈음엔 측정이 끝나 있다.
+                    bottomPaddingPx = { with(density) { state.followBottomInset.toPx() }.toDouble() },
                 )
         }
     }

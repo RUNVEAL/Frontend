@@ -66,24 +66,44 @@ internal object CurrentLocationLayer {
      *
      * [zoom]을 주면 그 줌으로 맞추고, null이면 지금 줌을 그대로 둔다("내 위치" 버튼·러닝 재개).
      * [bottomPaddingPx]는 지도 아래쪽이 패널에 가려지는 높이 — 그만큼 카메라 아래 여백을 줘서 현재
-     * 위치가 "보이는 영역의 가운데"에 오게 한다(여백을 뺀 영역의 가운데가 카메라 중심이다).
+     * 위치가 "보이는 영역의 가운데"에 오게 한다(여백을 뺀 영역의 가운데가 카메라 중심이다). 호출
+     * 시점이 아니라 **쓰는 시점**의 높이를 읽어야 해서 람다로 받는다(아래 전환 뒤 재적용 참고).
      *
      * 줌·여백은 추적 모드에서만 반영되므로([LocationComponent.zoomWhileTracking] 등 모드가
      * [CameraMode.NONE]이면 조용히 무시) 모드를 바꾼 **뒤에** 준다.
+     *
+     * 추적이 꺼져 있다가 켜지는 경우(러닝 시작)엔 SDK가 현재 위치로 카메라를 옮기는 전환
+     * 애니메이션을 돌리는데, 그동안 들어온 여백은 그냥 버린다(`LocationCameraController.setPadding`의
+     * 첫 줄이 `if (isTransitioning) return`). 그래서 **전환이 끝난 뒤 한 번 더** 건다 — 그 시점엔
+     * 이미 추적 중이라, 러닝 중에 "내 위치"를 누른 것과 똑같은 상태로 끝난다. 이미 추적 중이면
+     * (= "내 위치" 버튼) 전환 자체가 없어 지금까지와 동작이 같다.
      */
-    fun startFollowing(map: MapLibreMap, zoom: Double?, bottomPaddingPx: Double) {
+    fun startFollowing(map: MapLibreMap, zoom: Double?, bottomPaddingPx: () -> Double) {
         val locationComponent = map.locationComponent
         if (!locationComponent.isLocationComponentActivated) return
 
+        val needsTransition = locationComponent.cameraMode != CameraMode.TRACKING_GPS_NORTH
         locationComponent.setCameraMode(
             CameraMode.TRACKING_GPS_NORTH,
             FOLLOW_TRANSITION_DURATION_MS,
             zoom,
             null, // bearing — 북쪽 고정은 CameraMode가 맡는다.
             null, // tilt — 기울이지 않는다.
-            null,
+            if (needsTransition) {
+                object : OnLocationCameraTransitionListener {
+                    override fun onLocationCameraTransitionFinished(cameraMode: Int) {
+                        applyFollowBottomPadding(map, bottomPaddingPx())
+                    }
+
+                    override fun onLocationCameraTransitionCanceled(cameraMode: Int) {
+                        applyFollowBottomPadding(map, bottomPaddingPx())
+                    }
+                }
+            } else {
+                null
+            },
         )
-        applyFollowBottomPadding(map, bottomPaddingPx)
+        applyFollowBottomPadding(map, bottomPaddingPx())
     }
 
     /** 추적 중 아래 여백만 다시 맞춘다 — 가리는 패널 높이가 바뀔 때. 추적 중이 아니면 무시된다. */
