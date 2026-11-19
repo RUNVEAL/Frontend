@@ -3,6 +3,8 @@ import Foundation
 /// 앱 최상위 목적지 — Android `RunVealRoute.Main` / `RunVealRoute.Home`.
 enum RunvealAppRoute: Hashable {
     case splash
+    /// 첫 실행에 한 번만 — 끝내거나 건너뛰면 "봤다"로 적히고 다음부터는 스플래시가 바로 홈으로 보낸다.
+    case onboarding
     case home
 }
 

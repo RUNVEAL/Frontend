@@ -12,7 +12,8 @@ enum SplashStrings {
 /// `/meta`와 **같이** 시작한다 — 서버가 죽어 있으면 `/meta`가 타임아웃까지 10초를 쓰는데, 그 뒤에
 /// 시작하면 스플래시가 그만큼 더 길어진다.
 struct SplashScreen: View {
-    let onFinished: () -> Void
+    /// 다음 화면 — 온보딩을 아직 안 봤으면 온보딩, 봤으면 홈.
+    let onFinished: (RunvealAppRoute) -> Void
 
     /// `/meta`가 실패(오프라인·서버 꺼짐)하면 거의 즉시 지나가 버리니 그때만 채우는 최소 노출 시간.
     private static let minimumVisibleDuration: Duration = .seconds(2)
@@ -59,19 +60,25 @@ struct SplashScreen: View {
             overlayWarmUpFinished = true
             RunvealTrace.step(.overlayFlagSet)
         }
+        // 어디로 보낼지는 `/meta`보다 **먼저** 정해 둔다 — 서버가 죽어 있으면 `/meta`가 타임아웃까지
+        // 10초를 쓰는데, 그 뒤에 판정하면 그만큼 늦어진다(Android `splashGraph`와 같다).
+        let destination = await resolveStartDestination()
+        // 바로 홈으로 갈 때만 지도 오버레이를 기다린다 — 온보딩을 거쳐 갈 거면 그 사이에 만들어진다.
+        let goingHome = destination == .home
+
         let metaSucceeded = await fetchMeta()
         RunvealTrace.step(metaSucceeded ? .metaDone : .metaFailed)
 
         if !metaSucceeded {
             try? await Task.sleep(for: Self.minimumVisibleDuration)
         }
-        // 오버레이가 준비될 때까지(상한까지) 기다렸다 홈으로 넘어간다.
-        await waitForOverlayWarmUp()
+        if goingHome {
+            // 오버레이가 준비될 때까지(상한까지) 기다렸다 넘어간다.
+            await waitForOverlayWarmUp()
+        }
 
-        // TODO: 로그인 여부 확인 후 로그인 화면/홈으로 분기. 로그인 기능 구현 전까지는 항상 홈으로 이동
-        //  (Android도 같은 TODO 상태다).
-        RunvealTrace.step(.navigatingHome)
-        onFinished()
+        RunvealTrace.step(.navigatingNext, goingHome ? "홈" : "온보딩")
+        onFinished(destination)
     }
 
     /// 오버레이 사전 생성을 [overlayWarmUpTimeout]까지만 기다린다.
@@ -108,6 +115,23 @@ struct SplashScreen: View {
         } catch {
             // 홈에서 다시 시도한다.
             RunvealTrace.step(.overlayFailed, "\(error)")
+        }
+    }
+
+    /// 스플래시 다음에 어느 화면을 보여줄지 — Android `splashGraph.resolveStartDestination()`.
+    ///
+    /// TODO: 로그인 여부 확인 후 로그인 화면으로 분기. 로그인 기능 구현 전까지는 온보딩/홈만
+    ///  판정한다(Android도 같은 TODO 상태다).
+    private nonisolated func resolveStartDestination() async -> RunvealAppRoute {
+        do {
+            // 온보딩을 아직 안 봤으면 홈보다 먼저 보여준다(끝내거나 건너뛰면 "봤다"로 적힌다).
+            let completed = try await IosOnboarding.shared.isCompleted()
+            return completed ? .home : .onboarding
+        } catch {
+            // 못 읽으면 홈으로 보낸다 — 온보딩을 한 번 더 보여주는 것보다, 첫 화면을 못 띄우는
+            // 쪽이 나쁘다.
+            RunvealTrace.step(.onboardingCheckFailed, "\(error)")
+            return .home
         }
     }
 

@@ -32,11 +32,13 @@ enum RunvealTrace {
         case metaFailed = 8
         case overlayWaitFinished = 9
         case overlayWaitTimedOut = 10
-        case navigatingHome = 11
+        case navigatingNext = 11
         case homeShellAppeared = 12
         case overlayFlagSet = 13
         case homeMapDataInit = 14
         case homeShellInit = 15
+        case onboardingShown = 16
+        case onboardingCheckFailed = 17
 
         /// 화면과 Crashlytics 콘솔에 보이는 이름.
         var name: String {
@@ -51,11 +53,13 @@ enum RunvealTrace {
             case .metaFailed: return "GET /meta 실패"
             case .overlayWaitFinished: return "오버레이 대기 완료"
             case .overlayWaitTimedOut: return "오버레이 대기 상한 초과"
-            case .navigatingHome: return "홈으로 전환 호출"
+            case .navigatingNext: return "다음 화면으로 전환 호출"
             case .homeShellAppeared: return "홈 표시됨"
             case .overlayFlagSet: return "대기 플래그 설정"
             case .homeMapDataInit: return "홈 지도 모델 생성"
             case .homeShellInit: return "홈 셸 생성"
+            case .onboardingShown: return "온보딩 표시됨"
+            case .onboardingCheckFailed: return "온보딩 여부 확인 실패"
             }
         }
     }

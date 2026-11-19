@@ -13,7 +13,9 @@ struct RunvealRootView: View {
 
             switch navigator.route {
             case .splash:
-                SplashScreen { navigator.replace(with: .home) }
+                SplashScreen { destination in navigator.replace(with: destination) }
+            case .onboarding:
+                OnboardingScreen { navigator.replace(with: .home) }
             case .home:
                 RunvealHomeShell()
             }
