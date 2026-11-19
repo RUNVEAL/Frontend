@@ -177,6 +177,7 @@ fun CourseCreateScreen(
                 selectedFilterCount = state.selectedFilters.size,
                 endLocationIsDefault = state.endLocationIsDefault,
                 recommendEnabled = !isRecommending,
+                onMyLocationClick = mapState::recenterToCurrentLocation,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
@@ -193,6 +194,7 @@ fun CourseCreateScreen(
                 distanceLabel = state.selectedPlaceDistance,
                 confirmLabel = state.locationConfirmLabel,
                 onConfirmClick = { viewModel.onIntent(CourseCreateIntent.ConfirmLocationSelection) },
+                onMyLocationClick = mapState::recenterToCurrentLocation,
                 modifier = Modifier.align(Alignment.BottomCenter),
             )
         }

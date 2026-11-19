@@ -533,7 +533,9 @@ private fun HomeMapLayer(
         }
 
         // 기록 중이거나 코스 추천(만들기/결과) 중엔 줌아웃해도 동/시군구/시도 테두리·라벨·빛을 안
-        // 보여준다 — 지금 뛰고 있는 길, 또는 지금 고르고 있는 코스에만 집중하게 한다.
+        // 보여준다 — 지금 뛰고 있는 길, 또는 지금 고르고 있는 코스에만 집중하게 한다. 같은 이유로
+        // 베이스 지도도 줌아웃해도 "줌인 상태" 밝기로 고정한다(keepZoomedInStyle) — 동 경계를 안
+        // 띄우니 흐리게 할 이유가 없고, 어두워지면 길이 안 보여 코스를 가늠할 수 없다.
         val hideOverlays = isRecordingOrPaused || hideRegionOverlays
         RunvealMap(
             modifier = Modifier.fillMaxSize(),
@@ -544,6 +546,7 @@ private fun HomeMapLayer(
             sigunguOverlay = if (hideOverlays) null else overlayBundle?.sigunguOverlay,
             sidoOverlay = if (hideOverlays) null else overlayBundle?.sidoOverlay,
             locationPermissionGranted = locationPermissionState.isGranted,
+            keepZoomedInStyle = hideOverlays,
         )
     }
 }

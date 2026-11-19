@@ -6,12 +6,6 @@ import com.sloth.runveal.ui.mvi.UiState
 enum class MyToast {
     /** 아직 붙일 기능이 없는 항목을 눌렀을 때. */
     NOT_READY,
-
-    /** 기기에서 Health Connect를 쓸 수 없을 때. */
-    HEALTH_CONNECT_UNAVAILABLE,
-
-    /** Health Connect 권한을 못 받았을 때. */
-    HEALTH_CONNECT_PERMISSION_DENIED,
 }
 
 /**

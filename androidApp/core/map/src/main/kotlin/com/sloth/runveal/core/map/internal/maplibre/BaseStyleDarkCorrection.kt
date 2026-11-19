@@ -11,6 +11,9 @@ import org.maplibre.android.style.layers.PropertyFactory
  * 러닝 포커스(zoom >= [MapConfig.ZOOM_IN_THRESHOLD])에서는 기본 다크 스타일의 건물/공원/숲 색이
  * 배경(거의 검정)과 구분이 안 가는 문제를, docs/map/maplibre-tabs-map-style.md §2(MapLibre2 탭)에서
  * 쓴 보정값으로 고친다. 그 아래 줌(동/시군구/시도 뷰)은 원래 스타일 색 그대로 둔다.
+ *
+ * 홈 지도가 아닌 화면(코스 추천·러닝 중)은 동 뷰로 돌아갈 일이 없으므로 [apply]에
+ * `keepZoomedIn = true`를 주면 줌과 무관하게 보정 색으로 고정한다([BaseMapDimmer]와 같은 기준).
  */
 internal object BaseStyleDarkCorrection {
     /** 원래 다크 스타일 색(`rgb(10,10,10)`) — zoom 미만에서는 이대로 유지. */
@@ -25,8 +28,10 @@ internal object BaseStyleDarkCorrection {
     /** 구글 탭 다크 스타일의 poi.park 색과 맞춘 보정 색 — park/wood/grass가 공유한다. */
     private const val PARK_WOOD_GRASS_DARK_FIX = "#1F2A1F"
 
-    fun applyAtStyleLoad(style: Style) {
-        val switchZoom = MapConfig.ZOOM_IN_THRESHOLD.toFloat()
+    /** [keepZoomedIn]이면 모든 줌에서 보정 색, 아니면 [MapConfig.ZOOM_IN_THRESHOLD] 이상에서만. */
+    fun apply(style: Style, keepZoomedIn: Boolean) {
+        // 보정 색으로 바뀌는 줌 — 0이면 모든 줌이 "그 이상"이라 사실상 항상 보정된다.
+        val switchZoom = if (keepZoomedIn) 0f else MapConfig.ZOOM_IN_THRESHOLD.toFloat()
 
         style.getLayerAs<FillLayer>(MapConfig.LAYER_BASE_BUILDING)?.setProperties(
             PropertyFactory.fillColor(colorStep(switchZoom, BUILDING_ORIGINAL, BUILDING_DARK_FIX)),
@@ -38,6 +43,8 @@ internal object BaseStyleDarkCorrection {
             PropertyFactory.fillColor(colorStep(switchZoom, PARK_WOOD_ORIGINAL, PARK_WOOD_GRASS_DARK_FIX)),
         )
         addGrassLayerIfMissing(style, switchZoom)
+        // 이미 추가돼 있던 경우에도 보이는 줌 범위를 지금 기준으로 다시 맞춘다.
+        style.getLayerAs<FillLayer>(MapConfig.LAYER_BASE_LANDCOVER_GRASS)?.minZoom = switchZoom
     }
 
     /**

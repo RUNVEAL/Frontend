@@ -27,6 +27,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.sloth.runveal.core.map.DongOverlayGeoJson
+import com.sloth.runveal.core.map.FollowCurrentLocationCommand
 import com.sloth.runveal.core.map.MapState
 import com.sloth.runveal.core.map.SidoOverlayGeoJson
 import com.sloth.runveal.core.map.SigunguOverlayGeoJson
@@ -58,6 +59,7 @@ internal fun MapLibreMapView(
     sigunguOverlay: SigunguOverlayGeoJson?,
     sidoOverlay: SidoOverlayGeoJson?,
     locationPermissionGranted: Boolean,
+    keepZoomedInStyle: Boolean,
 ) {
     val mapView = rememberMapViewWithLifecycle()
     val context = LocalContext.current
@@ -72,6 +74,7 @@ internal fun MapLibreMapView(
     val dongGlowProvider = remember { DongGlowProvider(context) { glowAssetReadyTick++ } }
     val dongGlowImageLayer = remember { DongGlowImageLayer(dongGlowProvider) }
     val baseStyleRoadFocus = remember { BaseStyleRoadFocus() }
+    val baseMapDimmer = remember { BaseMapDimmer() }
     DisposableEffect(Unit) { onDispose { dongGlowProvider.dispose() } }
     val colors = RunvealTheme.colors
     val mapColors = remember(colors) {
@@ -123,15 +126,23 @@ internal fun MapLibreMapView(
                         cameraIdleTick++
                     }
                     map.addOnCameraMoveListener { refreshMarkerScreenOffsets() }
+                    // 사용자가 지도를 직접 움직이면(드래그·핀치) 현재 위치 추적을 푼다 — 따라가는
+                    // 카메라와 손가락이 서로 지도를 잡아당기지 않게. 추적이 만드는 카메라 이동은
+                    // REASON_DEVELOPER_ANIMATION/REASON_API_ANIMATION이라 여기서 걸리지 않는다.
+                    map.addOnCameraMoveStartedListener { reason ->
+                        if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
+                            state.stopFollowingCurrentLocation()
+                        }
+                    }
                     map.addOnMapClickListener { latLng ->
                         state.lastMapClick = LatLon(latLng.latitude, latLng.longitude)
                         true
                     }
                     map.setStyle(MapConfig.STYLE_URL) { loadedStyle ->
                         style = loadedStyle
-                        // 베이스 스타일 레이어 스냅샷이 필요해서 다른 레이어를 추가하기 전에 가장 먼저 호출한다.
-                        BaseMapDimmer.applyAtStyleLoad(loadedStyle)
-                        BaseStyleDarkCorrection.applyAtStyleLoad(loadedStyle)
+                        // 베이스 스타일 레이어 스냅샷이 필요해서 다른 레이어를 추가하기 전에 가장 먼저
+                        // 기억해 둔다 — 실제 딤·색 보정은 아래 LaunchedEffect가 화면에 맞춰 적용한다.
+                        baseMapDimmer.rememberBaseLayers(loadedStyle)
                         // 도로 색을 바꾸기 전의 원래 색을 기억해 둬야 "안 가본 길" 토글을 끌 때 되돌릴 수 있다.
                         baseStyleRoadFocus.rememberOriginalColors(loadedStyle)
                         // 현재 위치 점은 여기서 켜지 않는다 — 이 블록은 스타일 로드 때 한 번만 도는데
@@ -188,6 +199,14 @@ internal fun MapLibreMapView(
         }
     }
 
+    // 베이스 지도 밝기·색 보정. 홈 지도에서는 줌에 따라 바뀌고(줌아웃=동 뷰는 흐리게), 홈이 아닌
+    // 지도 화면(코스 추천·러닝 중)에서는 줌과 무관하게 "줌인 상태"로 고정한다 — 그 화면들은 동
+    // 오버레이를 안 띄우니 흐리게 할 이유가 없고, 줌아웃하면 길이 안 보여 코스를 가늠할 수 없다.
+    LaunchedEffect(style, keepZoomedInStyle) {
+        val currentStyle = style ?: return@LaunchedEffect
+        baseMapDimmer.apply(currentStyle, keepZoomedInStyle)
+        BaseStyleDarkCorrection.apply(currentStyle, keepZoomedInStyle)
+    }
     // "안 가본 길" 보기를 켠 동안만 베이스 지도 도로를 그 색으로 덮고, 끄면 원래 색으로 되돌린다.
     val unexploredRoadFocus = state.unexploredRoadFocus
     LaunchedEffect(style, unexploredRoadFocus, mapColors) {
@@ -256,6 +275,34 @@ internal fun MapLibreMapView(
         CurrentLocationLayer.activate(context, currentMap, currentStyle, mapColors.currentLocation)
     }
 
+    // 현재 위치 추적(러닝 중) — 마지막 명령을 그대로 반영한다. 위치 컴포넌트가 아직 안 켜져 있으면
+    // 추적 요청이 조용히 무시되므로, 그걸 켜는 조건(권한·스타일)도 키에 둔다 — 러닝 시작이 스타일
+    // 로드보다 빨라도 켜지는 순간 다시 적용된다(위 activate 블록이 먼저 돈다).
+    val followCommand = state.followCommand
+    val followBottomInset = state.followBottomInset
+    LaunchedEffect(followCommand, liveMap, style, locationPermissionGranted) {
+        val map = liveMap ?: return@LaunchedEffect
+        when (followCommand) {
+            null -> Unit
+            is FollowCurrentLocationCommand.Stop ->
+                CurrentLocationLayer.stopFollowing(map, resetAnchor = followCommand.resetAnchor)
+            is FollowCurrentLocationCommand.Start ->
+                CurrentLocationLayer.startFollowing(
+                    map = map,
+                    zoom = followCommand.zoom,
+                    // 호출 시점이 아니라 쓰는 시점의 값을 읽는다 — 러닝 시작 직후엔 패널 높이를 아직
+                    // 재기 전이라 0이고, 추적 전환이 끝날 즈음엔 측정이 끝나 있다.
+                    bottomPaddingPx = { with(density) { state.followBottomInset.toPx() }.toDouble() },
+                )
+        }
+    }
+    // 가리는 패널 높이가 바뀌면 여백만 다시 맞춘다 — 추적 중일 때만. 줌은 다시 건드리지 않는다
+    // (사용자가 조절해 둔 배율이 패널 높이 변화에 되돌아가면 안 된다).
+    LaunchedEffect(followBottomInset, followCommand, liveMap) {
+        if (followCommand !is FollowCurrentLocationCommand.Start) return@LaunchedEffect
+        val map = liveMap ?: return@LaunchedEffect
+        CurrentLocationLayer.applyFollowBottomPadding(map, with(density) { followBottomInset.toPx() }.toDouble())
+    }
     // 0은 초기값(= 아직 요청 안 함) — 위 activate()가 이미 최초 1회 추적을 돈다. 그 이후 값이 바뀔 때만
     // "내 위치" 버튼 요청으로 보고 다시 추적한다.
     LaunchedEffect(state.recenterRequestId, liveMap) {

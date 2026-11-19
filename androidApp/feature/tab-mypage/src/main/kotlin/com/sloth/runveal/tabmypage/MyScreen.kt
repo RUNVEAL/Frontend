@@ -42,7 +42,6 @@ import com.sloth.runveal.designsystem.component.overlay.RunvealToast
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.tabmypage.R
 import com.sloth.runveal.permission.openAppSettings
-import com.sloth.runveal.permission.rememberHealthConnectPermissionGate
 import com.sloth.runveal.permission.rememberLocationPermissionState
 import com.sloth.runveal.tabmypage.component.ProfileSummaryCard
 import com.sloth.runveal.tabmypage.contract.MyEffect
@@ -104,14 +103,6 @@ fun MyScreen(
             locationPermissionState.request()
         }
     }
-
-    // Health Connect로 가는 입구마다 권한을 확인한다 — 여기서 받아 두면 안내 화면의 불러오기
-    // 버튼에서 다시 묻지 않고 바로 넘어간다(안 받으면 그 버튼이 한 번 더 요청한다).
-    val onImportRecordsItemClick = rememberHealthConnectPermissionGate(
-        onGranted = onImportRecordsClick,
-        onUnavailable = { viewModel.onIntent(MyIntent.ToastRequested(MyToast.HEALTH_CONNECT_UNAVAILABLE)) },
-        onDenied = { viewModel.onIntent(MyIntent.ToastRequested(MyToast.HEALTH_CONNECT_PERMISSION_DENIED)) },
-    )
 
     // 토스트는 3초만 띄운다 — 사라지는 타이머는 띄우는 쪽이 맡는다(RunvealToast 주석, HomeScreen과 같은 방식).
     LaunchedEffect(state.toast) {
@@ -176,7 +167,7 @@ fun MyScreen(
                     SettingsSection(
                         isLocationPermissionGranted = locationPermissionState.isGranted,
                         onLocationPermissionClick = onLocationPermissionClick,
-                        onImportRecordsClick = onImportRecordsItemClick,
+                        onImportRecordsClick = onImportRecordsClick,
                         onIntent = viewModel::onIntent,
                     )
                     TermsPolicySection(onItemClick = onTermsItemClick)
@@ -230,6 +221,9 @@ private fun SettingsSection(
         //     onClick = { onIntent(MyIntent.NicknameChangeClicked) },
         //     trailing = RunvealListItemTrailing.Chevron,
         // )
+        // 여기선 Health Connect 권한을 묻지 않고 안내 화면으로만 넘긴다 — 무엇을 가져오는지
+        // 읽기도 전에 권한 창이 뜨면 맥락 없이 거부하게 된다. 권한은 그 화면의 "Health Connect에서
+        // 불러오기"를 누른 뒤에 요청한다([ImportRecordsScreen]).
         RunvealListItem(
             title = stringResource(R.string.my_menu_import_records),
             onClick = onImportRecordsClick,
@@ -325,6 +319,4 @@ private fun AccountSection(onIntent: (MyIntent) -> Unit) {
 private val MyToast.messageRes: Int
     get() = when (this) {
         MyToast.NOT_READY -> R.string.my_not_ready_toast
-        MyToast.HEALTH_CONNECT_UNAVAILABLE -> R.string.import_records_unavailable
-        MyToast.HEALTH_CONNECT_PERMISSION_DENIED -> R.string.import_records_permission_denied
     }

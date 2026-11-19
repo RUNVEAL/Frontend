@@ -91,7 +91,7 @@ fun RunvealButtonGroupSecondaryPrimary(
     }
 }
 
-/** 같은 너비 둘(보조 1/2, 주 1/2). */
+/** 같은 너비 둘(보조 1/2, 주 1/2). [enabled]는 주 버튼(오른쪽)에만 걸린다 — 취소는 늘 눌려야 한다. */
 @Composable
 fun RunvealButtonGroupEqual(
     firstLabel: String,
@@ -99,6 +99,7 @@ fun RunvealButtonGroupEqual(
     secondLabel: String,
     onSecondClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8)) {
         RunvealButton(
@@ -113,6 +114,7 @@ fun RunvealButtonGroupEqual(
             onClick = onSecondClick,
             style = RunvealButtonStyle.Gold,
             fillWidth = true,
+            enabled = enabled,
             modifier = Modifier.weight(1f),
         )
     }
