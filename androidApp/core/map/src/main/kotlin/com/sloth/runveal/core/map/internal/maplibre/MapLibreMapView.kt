@@ -58,6 +58,7 @@ internal fun MapLibreMapView(
     sigunguOverlay: SigunguOverlayGeoJson?,
     sidoOverlay: SidoOverlayGeoJson?,
     locationPermissionGranted: Boolean,
+    keepZoomedInStyle: Boolean,
 ) {
     val mapView = rememberMapViewWithLifecycle()
     val context = LocalContext.current
@@ -72,6 +73,7 @@ internal fun MapLibreMapView(
     val dongGlowProvider = remember { DongGlowProvider(context) { glowAssetReadyTick++ } }
     val dongGlowImageLayer = remember { DongGlowImageLayer(dongGlowProvider) }
     val baseStyleRoadFocus = remember { BaseStyleRoadFocus() }
+    val baseMapDimmer = remember { BaseMapDimmer() }
     DisposableEffect(Unit) { onDispose { dongGlowProvider.dispose() } }
     val colors = RunvealTheme.colors
     val mapColors = remember(colors) {
@@ -129,9 +131,9 @@ internal fun MapLibreMapView(
                     }
                     map.setStyle(MapConfig.STYLE_URL) { loadedStyle ->
                         style = loadedStyle
-                        // 베이스 스타일 레이어 스냅샷이 필요해서 다른 레이어를 추가하기 전에 가장 먼저 호출한다.
-                        BaseMapDimmer.applyAtStyleLoad(loadedStyle)
-                        BaseStyleDarkCorrection.applyAtStyleLoad(loadedStyle)
+                        // 베이스 스타일 레이어 스냅샷이 필요해서 다른 레이어를 추가하기 전에 가장 먼저
+                        // 기억해 둔다 — 실제 딤·색 보정은 아래 LaunchedEffect가 화면에 맞춰 적용한다.
+                        baseMapDimmer.rememberBaseLayers(loadedStyle)
                         // 도로 색을 바꾸기 전의 원래 색을 기억해 둬야 "안 가본 길" 토글을 끌 때 되돌릴 수 있다.
                         baseStyleRoadFocus.rememberOriginalColors(loadedStyle)
                         // 현재 위치 점은 여기서 켜지 않는다 — 이 블록은 스타일 로드 때 한 번만 도는데
@@ -188,6 +190,14 @@ internal fun MapLibreMapView(
         }
     }
 
+    // 베이스 지도 밝기·색 보정. 홈 지도에서는 줌에 따라 바뀌고(줌아웃=동 뷰는 흐리게), 홈이 아닌
+    // 지도 화면(코스 추천·러닝 중)에서는 줌과 무관하게 "줌인 상태"로 고정한다 — 그 화면들은 동
+    // 오버레이를 안 띄우니 흐리게 할 이유가 없고, 줌아웃하면 길이 안 보여 코스를 가늠할 수 없다.
+    LaunchedEffect(style, keepZoomedInStyle) {
+        val currentStyle = style ?: return@LaunchedEffect
+        baseMapDimmer.apply(currentStyle, keepZoomedInStyle)
+        BaseStyleDarkCorrection.apply(currentStyle, keepZoomedInStyle)
+    }
     // "안 가본 길" 보기를 켠 동안만 베이스 지도 도로를 그 색으로 덮고, 끄면 원래 색으로 되돌린다.
     val unexploredRoadFocus = state.unexploredRoadFocus
     LaunchedEffect(style, unexploredRoadFocus, mapColors) {
