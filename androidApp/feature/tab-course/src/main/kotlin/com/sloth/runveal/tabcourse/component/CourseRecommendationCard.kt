@@ -160,7 +160,7 @@ private fun CourseRecommendationCardPreview() {
             tag = "순환",
             newRoadLabel = "새 길 1.3km",
             notRunLabel = "아직 안달림",
-            onMoreClick = null,
+            onMoreClick = {},
             onStartClick = {},
         )
     }

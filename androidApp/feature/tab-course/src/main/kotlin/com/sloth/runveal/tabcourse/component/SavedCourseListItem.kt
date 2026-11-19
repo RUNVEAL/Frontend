@@ -139,7 +139,7 @@ private fun SavedCourseListItemPreview() {
             tag = "순환",
             runCountLabel = "2회 달림",
             lastRunLabel = "최근 10.31",
-            onMoreClick = null,
+            onMoreClick = {},
             onClick = {},
             onStartClick = {},
         )

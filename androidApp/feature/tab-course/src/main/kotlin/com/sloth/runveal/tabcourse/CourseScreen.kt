@@ -41,6 +41,8 @@ import com.sloth.runveal.tabcourse.component.SavedCourseSectionHeader
 import com.sloth.runveal.tabcourse.contract.CourseListIntent
 import com.sloth.runveal.tabcourse.contract.CourseListState
 import com.sloth.runveal.tabcourse.contract.SavedCourseUiModel
+import com.sloth.runveal.ui.toast.NotReadyToastHost
+import com.sloth.runveal.ui.toast.rememberNotReadyToastState
 
 @Composable
 fun CourseScreen(
@@ -77,8 +79,11 @@ private fun CourseListContent(
 ) {
     val colors = RunvealTheme.colors
     val hasSavedCourses = courses.isNotEmpty()
+    val notReadyToast = rememberNotReadyToastState()
 
     Box(modifier = modifier.fillMaxSize().background(colors.bg.canvas)) {
+        NotReadyToastHost(notReadyToast)
+
         // statusBar 영역까지 포함해서 화면 맨 위부터 깔리는 히어로 이미지 — 원본 비율(1920:544)대로 보여준다.
         Image(
             painter = painterResource(R.drawable.my_course),
@@ -115,8 +120,9 @@ private fun CourseListContent(
                     tag = featured.tagLabel,
                     newRoadLabel = featured.newRoadLabel,
                     notRunLabel = featured.notRunLabel,
-                    // TODO: 더보기 메뉴(이름 바꾸기·삭제 등) — 메뉴가 생기면 람다를 주면 아이콘이 돌아온다.
-                    onMoreClick = null,
+                    // TODO: 더보기 메뉴(이름 바꾸기·삭제 등) — 메뉴가 붙기 전까지는 "개발 중"
+                    //  안내만 띄운다(아이콘은 시안 자리를 그대로 지킨다).
+                    onMoreClick = notReadyToast::show,
                     onStartClick = { onStartCourse(featured) },
                     thumbnailRequest = featured.snapshotRequest,
                     modifier = Modifier
@@ -153,7 +159,7 @@ private fun CourseListContent(
                             runCountLabel = course.notRunLabel,
                             lastRunLabel = "",
                             // TODO: 위 카드와 같은 더보기 메뉴.
-                            onMoreClick = null,
+                            onMoreClick = notReadyToast::show,
                             onClick = { onCourseClick(course) },
                             onStartClick = { onStartCourse(course) },
                             thumbnailRequest = course.snapshotRequest,
