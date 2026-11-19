@@ -12,6 +12,7 @@ import com.sloth.runveal.home.navigation.homeGraph
 import com.sloth.runveal.navigation.RunVealNavigator
 import com.sloth.runveal.navigation.RunVealRoute
 import com.sloth.runveal.navigation.rememberRunVealNavigator
+import com.sloth.runveal.onboarding.navigation.onboardingGraph
 import com.sloth.runveal.sign.signin.navigation.signInGraph
 import com.sloth.runveal.sign.signup.navigation.nicknameGraph
 import com.sloth.runveal.sign.signup.navigation.termsGraph
@@ -33,6 +34,7 @@ internal fun App(
                 startDestination = RunVealRoute.Main.Splash,
             ) {
                 splashGraph(navigator = navigator)
+                onboardingGraph(navigator = navigator)
                 signInGraph(navigator = navigator)
                 termsGraph(navigator = navigator)
                 nicknameGraph(navigator = navigator)

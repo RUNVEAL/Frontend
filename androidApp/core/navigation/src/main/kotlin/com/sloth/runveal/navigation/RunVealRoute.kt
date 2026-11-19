@@ -7,6 +7,10 @@ sealed interface RunVealRoute : Route {
     sealed interface Main : RunVealRoute {
         @Serializable
         data object Splash : Main
+
+        /** 첫 실행에 한 번 보여주는 온보딩(3단계). 스플래시가 "아직 안 봤다"를 보고 여기로 보낸다. */
+        @Serializable
+        data object Onboarding : Main
     }
 
     /** 로그인 + 신규 가입 흐름. 신규면 [SignIn] → [Terms] → [Nickname]을 거쳐 홈으로 간다. */

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="onboarding_skip">건너뛰기</string>
+    <string name="onboarding_next">다음</string>
+    <!-- 마지막 장의 버튼 — 누르면 온보딩이 끝나고 홈으로 간다. -->
+    <string name="onboarding_start">시작하기</string>
+    <string name="onboarding_step1_title">매일 달리는 길이\n나만의 탐험 지도가 돼요</string>
+    <string name="onboarding_step2_title">안 가본 길로 코스를\n추천해요</string>
+    <string name="onboarding_step3_title">달릴수록 우리 동네의\n탐험률이 높아져요</string>
+</resources>
