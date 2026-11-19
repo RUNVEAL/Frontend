@@ -29,19 +29,26 @@ struct SplashScreen: View {
     @State private var overlayWarmUpFinished = false
 
     var body: some View {
-        VStack(spacing: RunvealSpacing.space24) {
-            RunvealImages.splash
-                .resizable()
-                .scaledToFit()
-                .frame(width: 210, height: 140)
-            Text(SplashStrings.tagline)
-                .runvealTextStyle(RunvealTheme.typography.heading2)
-                .foregroundStyle(RunvealTheme.colors.text.primary)
-                .multilineTextAlignment(.center)
+        ZStack(alignment: .bottom) {
+            VStack(spacing: RunvealSpacing.space24) {
+                RunvealImages.splash
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 210, height: 140)
+                Text(SplashStrings.tagline)
+                    .runvealTextStyle(RunvealTheme.typography.heading2)
+                    .foregroundStyle(RunvealTheme.colors.text.primary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, RunvealLayout.marginScreen)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(RunvealTheme.colors.bg.canvas)
+
+            // 임시 진단 패널 — 테스터 화면 녹화로 멈춘 지점을 읽는다. 홈으로 넘어가면 스플래시와
+            // 함께 사라지므로, 이 패널이 "홈으로 전환 호출"을 띄운 채 남아 있으면 전환은 됐는데
+            // 홈이 안 그려진 것이다. 원인을 찾으면 지운다(RunvealTrace.swift).
+            RunvealTraceOverlay()
         }
-        .padding(.horizontal, RunvealLayout.marginScreen)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(RunvealTheme.colors.bg.canvas)
         .task { await bootstrap() }
     }
 
