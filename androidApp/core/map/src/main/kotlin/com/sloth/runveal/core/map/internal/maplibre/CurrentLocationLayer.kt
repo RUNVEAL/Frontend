@@ -65,13 +65,13 @@ internal object CurrentLocationLayer {
      * ([CameraMode.TRACKING_GPS_NORTH]) — 달리는 방향으로 지도가 돌면 길을 알아보기 어렵다.
      *
      * [zoom]을 주면 그 줌으로 맞추고, null이면 지금 줌을 그대로 둔다("내 위치" 버튼·러닝 재개).
-     * [topPaddingPx]/[bottomPaddingPx]는 현재 위치를 화면 가운데가 아닌 자리에 두기 위한 카메라
-     * 여백이다 — 여백을 뺀 영역의 가운데가 카메라 중심이 된다.
+     * [bottomPaddingPx]는 지도 아래쪽이 패널에 가려지는 높이 — 그만큼 카메라 아래 여백을 줘서 현재
+     * 위치가 "보이는 영역의 가운데"에 오게 한다(여백을 뺀 영역의 가운데가 카메라 중심이다).
      *
      * 줌·여백은 추적 모드에서만 반영되므로([LocationComponent.zoomWhileTracking] 등 모드가
      * [CameraMode.NONE]이면 조용히 무시) 모드를 바꾼 **뒤에** 준다.
      */
-    fun startFollowing(map: MapLibreMap, zoom: Double?, topPaddingPx: Double, bottomPaddingPx: Double) {
+    fun startFollowing(map: MapLibreMap, zoom: Double?, bottomPaddingPx: Double) {
         val locationComponent = map.locationComponent
         if (!locationComponent.isLocationComponentActivated) return
 
@@ -83,7 +83,14 @@ internal object CurrentLocationLayer {
             null, // tilt — 기울이지 않는다.
             null,
         )
-        locationComponent.paddingWhileTracking(doubleArrayOf(0.0, topPaddingPx, 0.0, bottomPaddingPx))
+        applyFollowBottomPadding(map, bottomPaddingPx)
+    }
+
+    /** 추적 중 아래 여백만 다시 맞춘다 — 가리는 패널 높이가 바뀔 때. 추적 중이 아니면 무시된다. */
+    fun applyFollowBottomPadding(map: MapLibreMap, bottomPaddingPx: Double) {
+        val locationComponent = map.locationComponent
+        if (!locationComponent.isLocationComponentActivated) return
+        locationComponent.paddingWhileTracking(doubleArrayOf(0.0, 0.0, 0.0, bottomPaddingPx))
     }
 
     /**

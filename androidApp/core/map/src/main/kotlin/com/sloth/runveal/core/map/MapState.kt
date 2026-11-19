@@ -30,8 +30,7 @@ data class MapPin(val location: LatLon, val type: RunvealMapMarkerType)
 internal sealed interface FollowCurrentLocationCommand {
     val id: Int
 
-    data class Start(override val id: Int, val zoom: Double?, val verticalAnchor: Double) :
-        FollowCurrentLocationCommand
+    data class Start(override val id: Int, val zoom: Double?) : FollowCurrentLocationCommand
 
     data class Stop(override val id: Int, val resetAnchor: Boolean) : FollowCurrentLocationCommand
 }
@@ -106,6 +105,15 @@ class MapState(
 
     private var followCommandCount = 0
 
+    /**
+     * 추적 중 지도 아래쪽이 가려지는 높이(러닝 패널 등) — 그만큼 카메라 여백을 줘서 현재 위치가
+     * **가려지지 않고 보이는 영역의 가운데**에 오게 한다([focusOnBounds]의 `extraBottomPadding`과 같은 뜻).
+     *
+     * 추적 on/off와 별개인 상태다 — 패널 높이가 바뀌면 추적 중일 때만 다시 반영되고, 지도를 드래그해
+     * 추적이 풀린 동안에는 이 값이 바뀌어도 추적이 다시 켜지지 않는다.
+     */
+    var followBottomInset: Dp by mutableStateOf(0.dp)
+
     /** "내 위치" 버튼 등에서 호출 — 위치 권한/서비스가 꺼져 있으면 [CurrentLocationLayer]가 조용히
      * 무시한다. 현재 위치로 한 번 옮기기만 하고 계속 따라가지는 않는다 —
      * 러닝 중처럼 따라가야 할 땐 [startFollowingCurrentLocation]을 쓴다. */
@@ -121,26 +129,22 @@ class MapState(
      * 버튼에서 이 함수를 다시 불러 복귀한다. 지도는 화면보다 오래 살아 있으니, 켠 화면은 나갈 때
      * [stopFollowingCurrentLocation]으로 꼭 꺼 준다.
      *
+     * 현재 위치를 둘 자리는 [followBottomInset]이 정한다.
+     *
      * @param zoom 켜면서 맞출 줌. null이면 지금 줌을 그대로 둔다("내 위치" 버튼·러닝 재개).
-     * @param verticalAnchor 현재 위치를 지도 세로 어디에 둘지(0 = 맨 위, 1 = 맨 아래). 가로는 항상 가운데.
      */
-    fun startFollowingCurrentLocation(zoom: Double? = null, verticalAnchor: Double = 0.5) {
+    fun startFollowingCurrentLocation(zoom: Double? = null) {
         followCommandCount++
-        followCommand = FollowCurrentLocationCommand.Start(
-            id = followCommandCount,
-            zoom = zoom,
-            verticalAnchor = verticalAnchor.coerceIn(0.0, 1.0),
-        )
+        followCommand = FollowCurrentLocationCommand.Start(id = followCommandCount, zoom = zoom)
     }
 
     /**
      * 추적을 끈다. 카메라는 지금 보이는 자리에 그대로 둔다 — 러닝 일시정지나 지도 드래그처럼
      * "따라가기만 멈추는" 경우다. 특히 드래그로 풀 때 [resetAnchor]까지 하면 손가락을 대는 순간
-     * 지도가 anchor만큼 튀어 오른다.
+     * 지도가 여백만큼 튀어 오른다.
      *
-     * @param resetAnchor [startFollowingCurrentLocation]의 `verticalAnchor`로 준 카메라 여백까지
-     *  되돌릴지 — 러닝 화면을 나갈 때처럼 이 지도를 다른 화면에 돌려줄 때만 true로 둔다(그대로 두면
-     *  다음 화면에서도 지도가 계속 치우쳐 보인다).
+     * @param resetAnchor [followBottomInset]으로 준 카메라 여백까지 되돌릴지 — 러닝 화면을 나갈 때처럼
+     *  이 지도를 다른 화면에 돌려줄 때만 true로 둔다(그대로 두면 다음 화면에서도 지도가 계속 치우쳐 보인다).
      */
     fun stopFollowingCurrentLocation(resetAnchor: Boolean = false) {
         followCommandCount++

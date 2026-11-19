@@ -39,9 +39,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -151,20 +154,27 @@ fun RecordingScreen(
     LaunchedEffect(state.phase) {
         when (state.phase) {
             RecordingPhase.RECORDING -> {
-                mapState.startFollowingCurrentLocation(
-                    zoom = if (isFirstStart) MapConfig.RECORDING_ZOOM else null,
-                    verticalAnchor = MapConfig.RECORDING_LOCATION_VERTICAL_ANCHOR,
-                )
+                mapState.startFollowingCurrentLocation(zoom = if (isFirstStart) MapConfig.RECORDING_ZOOM else null)
                 isFirstStart = false
             }
             RecordingPhase.PAUSED -> mapState.stopFollowingCurrentLocation()
             RecordingPhase.IDLE -> Unit
         }
     }
+    // 하단 패널이 지도를 가리는 높이를 지도에 알려준다 — 현재 위치가 화면 가운데가 아니라 **패널 위
+    // 보이는 영역의 가운데**에 오게 한다. 패널 높이는 기록/일시정지·코스 진행 표시 유무로 달라져서
+    // 실제로 재서(onSizeChanged) 넘긴다.
+    var panelHeight by remember { mutableStateOf(0.dp) }
+    LaunchedEffect(panelHeight) { mapState.followBottomInset = panelHeight }
     // 지도(Map Shell)는 이 화면보다 오래 살아 있다 — 나갈 때 끄지 않으면 홈 지도가 계속 현재 위치를
-    // 따라다닌다. 현재 위치를 아래쪽에 두던 카메라 여백도 이때 같이 되돌린다(러닝 중에는 그대로 둬야
+    // 따라다닌다. 패널만큼 아래를 비워 두던 카메라 여백도 이때 같이 되돌린다(러닝 중에는 그대로 둬야
     // 일시정지·드래그 때 지도가 튀지 않는다 — stopFollowingCurrentLocation KDoc).
-    DisposableEffect(Unit) { onDispose { mapState.stopFollowingCurrentLocation(resetAnchor = true) } }
+    DisposableEffect(Unit) {
+        onDispose {
+            mapState.stopFollowingCurrentLocation(resetAnchor = true)
+            mapState.followBottomInset = 0.dp
+        }
+    }
 
     // "이 코스로 러닝 시작"으로 들어왔으면(selectedCoursePath) 그 코스를 흰 점선 안내선으로 그린다.
     // 안내선은 현위치와 무관하게 추천 코스 **전체**를 그대로 유지한다 — MVP 1차에서는 현위치에 따라
@@ -232,6 +242,7 @@ fun RecordingScreen(
             RecordingPhase.IDLE -> Unit
             RecordingPhase.RECORDING -> RecordingOverlay(
                 state = state,
+                onPanelHeightChange = { panelHeight = it },
                 courseProgress = courseProgress,
                 modifier = Modifier.align(Alignment.BottomCenter),
             ) {
@@ -239,6 +250,7 @@ fun RecordingScreen(
             }
             RecordingPhase.PAUSED -> RecordingOverlay(
                 state = state,
+                onPanelHeightChange = { panelHeight = it },
                 courseProgress = courseProgress,
                 modifier = Modifier.align(Alignment.BottomCenter),
             ) {
@@ -281,14 +293,20 @@ private fun NewRoadBadge(distanceLabel: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** 범례+내 위치 줄 + 패널(16dp 간격) — 기록 중/일시정지 공통. */
+/** 범례+내 위치 줄 + 패널(16dp 간격) — 기록 중/일시정지 공통.
+ *
+ * [onPanelHeightChange]로 패널(지도를 실제로 가리는 불투명한 부분)의 높이를 알려준다 — 러닝 중
+ * 카메라가 현재 위치를 "패널 위 보이는 영역의 가운데"에 두는 데 쓴다. 범례·내 위치 줄은 지도가
+ * 그대로 보이는 자리라 높이에서 뺀다. */
 @Composable
 private fun RecordingOverlay(
     state: RecordingState,
+    onPanelHeightChange: (Dp) -> Unit,
     courseProgress: CourseProgress? = null,
     modifier: Modifier = Modifier,
     action: @Composable () -> Unit,
 ) {
+    val density = LocalDensity.current
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space16),
@@ -296,15 +314,16 @@ private fun RecordingOverlay(
         val mapState = LocalMapState.current
         MapLegendRow(
             // 현재 줌은 그대로 두고 위치로 복귀하면서 추적을 다시 켠다(드래그·핀치로 풀린 뒤 복귀하는 길).
-            onLocateClick = {
-                mapState.startFollowingCurrentLocation(
-                    verticalAnchor = MapConfig.RECORDING_LOCATION_VERTICAL_ANCHOR,
-                )
-            },
+            onLocateClick = { mapState.startFollowingCurrentLocation() },
             showCourseGuide = state.selectedCoursePath != null,
             modifier = Modifier.padding(horizontal = RunvealTheme.layout.marginScreen),
         )
-        RecordingPanel(state = state, courseProgress = courseProgress, action = action)
+        RecordingPanel(
+            state = state,
+            courseProgress = courseProgress,
+            action = action,
+            modifier = Modifier.onSizeChanged { onPanelHeightChange(with(density) { it.height.toDp() }) },
+        )
     }
 }
 
@@ -556,6 +575,7 @@ private fun RecordingOverlayRecordingPreview() {
             Box(Modifier.fillMaxSize()) {
                 RecordingOverlay(
                     state = RecordingState(phase = RecordingPhase.RECORDING, elapsedLabel = "14:08", distanceLabel = "2.34", paceLabel = "6'02″"),
+                    onPanelHeightChange = {},
                     modifier = Modifier.align(Alignment.BottomCenter),
                 ) {
                     RunvealRunPauseButton(onClick = {})
@@ -573,6 +593,7 @@ private fun RecordingOverlayPausedPreview() {
             Box(Modifier.fillMaxSize()) {
                 RecordingOverlay(
                     state = RecordingState(phase = RecordingPhase.PAUSED, elapsedLabel = "14:08", distanceLabel = "2.34", paceLabel = "6'02″"),
+                    onPanelHeightChange = {},
                     modifier = Modifier.align(Alignment.BottomCenter),
                 ) {
                     RunvealButtonGroupEqual(

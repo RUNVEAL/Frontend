@@ -18,12 +18,6 @@ object MapConfig {
     /** 러닝을 시작할 때 맞추는 줌 — 지금 달리는 길과 다음 갈림길이 같이 보이는 정도. */
     const val RECORDING_ZOOM: Double = 16.5
 
-    /**
-     * 러닝 중 현재 위치 마커를 지도 세로 어디에 둘지(0 = 맨 위, 1 = 맨 아래). 앞으로 갈 길이 더
-     * 보이게 가운데보다 아래에 둔다. 가로는 항상 가운데(50%)다.
-     */
-    const val RECORDING_LOCATION_VERTICAL_ANCHOR: Double = 0.7
-
     val KOREA_BOUNDS_NORTH_WEST: LatLon = LatLon(lat = 38.7, lon = 124.5)
     val KOREA_BOUNDS_SOUTH_EAST: LatLon = LatLon(lat = 33.0, lon = 131.0)
     const val MIN_ZOOM_PREFERENCE: Double = 6.0

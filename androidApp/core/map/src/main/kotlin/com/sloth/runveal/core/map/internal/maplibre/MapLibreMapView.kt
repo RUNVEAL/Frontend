@@ -113,10 +113,7 @@ internal fun MapLibreMapView(
         }
     }
 
-    // 현재 위치를 세로 몇 %에 둘지(추적 모드 카메라 여백)를 px로 바꾸려면 지도 높이가 필요하다.
-    var mapSize by remember { mutableStateOf(IntSize.Zero) }
-
-    Box(modifier = modifier.onSizeChanged { mapSize = it }) {
+    Box(modifier = modifier) {
         AndroidView(modifier = Modifier.fillMaxSize(), factory = { mapView }) { view ->
             view.getMapAsync { map ->
                 liveMap = map
@@ -268,31 +265,31 @@ internal fun MapLibreMapView(
         CurrentLocationLayer.activate(context, currentMap, currentStyle, mapColors.currentLocation)
     }
 
-    // 현재 위치 추적(러닝 중) — 마지막 명령을 그대로 반영한다. 지도 높이가 바뀌면(회전·분할 화면)
-    // 세로 비율에 맞춘 카메라 여백을 다시 계산해야 해서 [mapSize]도 키에 넣는다. 위치 컴포넌트가
-    // 아직 안 켜져 있으면 추적 요청이 조용히 무시되므로, 그걸 켜는 조건(권한·스타일)도 키에 둔다 —
-    // 러닝 시작이 스타일 로드보다 빠른 경우에도 켜지는 순간 다시 적용된다(위 activate 블록이 먼저 돈다).
+    // 현재 위치 추적(러닝 중) — 마지막 명령을 그대로 반영한다. 위치 컴포넌트가 아직 안 켜져 있으면
+    // 추적 요청이 조용히 무시되므로, 그걸 켜는 조건(권한·스타일)도 키에 둔다 — 러닝 시작이 스타일
+    // 로드보다 빨라도 켜지는 순간 다시 적용된다(위 activate 블록이 먼저 돈다).
     val followCommand = state.followCommand
-    LaunchedEffect(followCommand, liveMap, style, locationPermissionGranted, mapSize) {
+    val followBottomInset = state.followBottomInset
+    LaunchedEffect(followCommand, liveMap, style, locationPermissionGranted) {
         val map = liveMap ?: return@LaunchedEffect
         when (followCommand) {
             null -> Unit
             is FollowCurrentLocationCommand.Stop ->
                 CurrentLocationLayer.stopFollowing(map, resetAnchor = followCommand.resetAnchor)
-            is FollowCurrentLocationCommand.Start -> {
-                if (mapSize.height == 0) return@LaunchedEffect
-                // 카메라 중심은 "여백을 뺀 영역"의 가운데다. 그래서 현재 위치를 가운데보다
-                // 아래(anchor > 0.5)에 두려면 그만큼 위쪽에 여백을 준다(위라면 아래쪽에).
-                // 0.7이면 위 여백 = 높이의 40%.
-                val offsetFromCenterPx = (followCommand.verticalAnchor - 0.5) * 2.0 * mapSize.height
+            is FollowCurrentLocationCommand.Start ->
                 CurrentLocationLayer.startFollowing(
                     map = map,
                     zoom = followCommand.zoom,
-                    topPaddingPx = offsetFromCenterPx.coerceAtLeast(0.0),
-                    bottomPaddingPx = (-offsetFromCenterPx).coerceAtLeast(0.0),
+                    bottomPaddingPx = with(density) { followBottomInset.toPx() }.toDouble(),
                 )
-            }
         }
+    }
+    // 가리는 패널 높이가 바뀌면 여백만 다시 맞춘다 — 추적 중일 때만. 줌은 다시 건드리지 않는다
+    // (사용자가 조절해 둔 배율이 패널 높이 변화에 되돌아가면 안 된다).
+    LaunchedEffect(followBottomInset, followCommand, liveMap) {
+        if (followCommand !is FollowCurrentLocationCommand.Start) return@LaunchedEffect
+        val map = liveMap ?: return@LaunchedEffect
+        CurrentLocationLayer.applyFollowBottomPadding(map, with(density) { followBottomInset.toPx() }.toDouble())
     }
     // 0은 초기값(= 아직 요청 안 함) — 위 activate()가 이미 최초 1회 추적을 돈다. 그 이후 값이 바뀔 때만
     // "내 위치" 버튼 요청으로 보고 다시 추적한다.
