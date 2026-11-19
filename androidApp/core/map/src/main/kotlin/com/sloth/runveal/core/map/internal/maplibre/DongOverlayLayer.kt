@@ -77,6 +77,11 @@ internal object DongOverlayLayer {
                 PropertyFactory.textSize(LABEL_SIZE_SP),
                 PropertyFactory.textColor(colors.dongLabelPrimary),
                 PropertyFactory.textJustify(Property.TEXT_JUSTIFY_CENTER),
+                // 겹쳐서 하나만 남을 때 탐험률 높은 동을 살린다 — sortKey가 낮은 라벨이 먼저 배치돼
+                // 자리를 차지하므로 탐험률에 -1을 곱한다([SigunguOverlayLayer]와 같은 규칙).
+                PropertyFactory.symbolSortKey(
+                    Expression.product(Expression.literal(-1f), Expression.get("percent")),
+                ),
             )
             layer.minZoom = MapConfig.SIGUNGU_SWITCH_ZOOM.toFloat()
             layer.maxZoom = MapConfig.ZOOM_IN_THRESHOLD.toFloat()
