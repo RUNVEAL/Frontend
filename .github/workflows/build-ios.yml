@@ -31,26 +31,13 @@ on:
           - firebase     # + Firebase App Distribution 업로드
         default: compile
 
-  # iOS가 깨지는 걸 머지 전에 잡는다. macOS 러너는 분당 10배로 과금되므로
-  # **iOS에 영향 있는 경로가 바뀔 때만** 돌린다 — 아래 paths가 그 목록이다.
+  # 로컬에 Mac이 없어 이 워크플로우가 iOS의 유일한 컴파일러이므로, dev-ios에 커밋하면
+  # Swift 오류를 바로 보도록 push에 걸어둔다. dev(Android)에는 걸지 않는다.
   #
-  # dev는 Android용, dev-ios는 iOS 작업용 통합 브랜치다(iOS는 dev-ios에서 확인한 뒤 dev로 머지).
-  # dev로 가는 PR: dev-ios → dev 머지 전 마지막 확인.
-  # dev-ios로 가는 PR: feature → dev-ios 머지 전 확인.
-  pull_request:
-    branches: [ dev, dev-ios ]
-    paths:
-      - 'iosApp/**'
-      - 'sharedLogic/**'
-      - 'gradle/runveal-tokens-swift.gradle.kts'
-      - 'gradle/runveal-icons-swift.gradle.kts'
-      - 'gradle/runveal-images-swift.gradle.kts'
-      - 'gradle/runveal-bundle-assets-ios.gradle.kts'
-      - 'design/**'
-      - '.github/workflows/build-ios.yml'
-
-  # 로컬에 Mac이 없어 이 워크플로우가 iOS의 유일한 컴파일러이므로, dev-ios에 직접 커밋해도
-  # Swift 오류를 바로 보도록 push에도 걸어둔다. dev(Android)에는 걸지 않는다.
+  # PR에는 걸지 않는다 — macOS 러너는 분당 10배로 과금돼서, Android PR까지 iOS 빌드를
+  # 끌고 가면 비용만 든다. iOS는 dev-ios push에서 확인하고 dev로 머지한다.
+  #
+  # macOS 러너 비용 때문에 **iOS에 영향 있는 경로가 바뀔 때만** 돌린다 — 아래 paths가 그 목록이다.
   push:
     branches: [ dev-ios ]
     paths:
@@ -71,7 +58,7 @@ jobs:
   # ──────────────────── Swift 컴파일 검사 ────────────────────
   compile:
     name: Swift 컴파일 검사 (시뮬레이터 · 서명 없음)
-    # push·pull_request는 항상, workflow_dispatch는 mode가 compile일 때만.
+    # push는 항상, workflow_dispatch는 mode가 compile일 때만.
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode == 'compile' }}
     # macos-15는 Apple Silicon이다. KMP 타깃이 iosArm64 + iosSimulatorArm64뿐이라
     # Intel 러너(macos-13)에서는 시뮬레이터용 프레임워크가 만들어지지 않는다.
