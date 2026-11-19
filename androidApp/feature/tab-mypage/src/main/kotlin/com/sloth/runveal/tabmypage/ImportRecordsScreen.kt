@@ -52,9 +52,10 @@ private const val TOAST_DURATION_MILLIS = 3000L
  * Health Connect 기록 불러오기 안내(디자인 `A4-1`). 무엇을 가져오고 무엇이 안 되는지 먼저 알리고
  * 동의를 받는 화면이라, 실제 가져오기는 "불러오기"를 누른 뒤에 시작한다.
  *
- * "불러오기"를 누르면 권한부터 확인한다 — 다 갖춰졌을 때만 [onReadyToImport]로 진행 화면으로
- * 넘긴다. 모자라면 Health Connect 권한 화면을 띄우고, 거기서도 못 받으면 안내만 하고 머문다.
- * 권한은 Activity/런처에 묶여 있어 ViewModel이 아니라 화면이 직접 다룬다(MyScreen과 같은 방식).
+ * Health Connect 권한을 묻는 자리는 여기 하나다 — 마이페이지의 "기록 불러오기"는 이 화면으로만
+ * 넘기고, 권한은 안내를 읽고 "불러오기"를 누른 뒤에 요청한다. 다 갖춰졌을 때만 [onReadyToImport]로
+ * 진행 화면으로 넘기고, 모자라면 Health Connect 권한 화면을 띄운다 — 거기서도 못 받으면 안내만
+ * 하고 머문다. 권한은 Activity/런처에 묶여 있어 ViewModel이 아니라 화면이 직접 다룬다.
  */
 @Composable
 internal fun ImportRecordsScreen(
@@ -65,9 +66,9 @@ internal fun ImportRecordsScreen(
 ) {
     var toastMessageRes by remember { mutableStateOf<Int?>(null) }
 
-    // 권한은 Activity/런처에 묶여 있어 ViewModel이 아니라 화면이 직접 다룬다(MyScreen과 같은 방식).
-    // 마이페이지에서 이미 한 번 거쳤어도 여기서 다시 본다 — 그 사이 Health Connect 앱에서 권한을
-    // 끄고 돌아왔을 수 있다.
+    // 권한은 Activity/런처에 묶여 있어 ViewModel이 아니라 화면이 직접 다룬다(MyScreen의 위치
+    // 권한과 같은 방식). 들어올 때 미리 확인하지 않고 이 버튼을 누른 순간 확인한다 — 그 사이
+    // Health Connect 앱에서 권한을 끄고 돌아왔을 수도 있다.
     val onImportClick = rememberHealthConnectPermissionGate(
         onGranted = onReadyToImport,
         // TODO: Play 스토어의 Health Connect 설치 화면으로 보낸다.
