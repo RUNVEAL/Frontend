@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.sloth.runveal.designsystem.RunvealIcons
@@ -74,7 +75,15 @@ fun RunvealMenuItem(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(imageVector = icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(20.dp))
-        Text(label, style = RunvealTheme.typography.bodyMRegular, color = contentColor)
+        Text(
+            label,
+            style = RunvealTheme.typography.bodyMRegular,
+            color = contentColor,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            // 라벨이 길어도 메뉴 폭(184)을 밀어내지 않게 남는 자리를 라벨이 가져간다.
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 

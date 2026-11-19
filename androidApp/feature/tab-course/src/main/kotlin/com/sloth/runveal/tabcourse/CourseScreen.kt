@@ -16,31 +16,42 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sloth.runveal.designsystem.RunvealIcons
 import com.sloth.runveal.designsystem.component.list.RunvealEmptyState
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarLarge
+import com.sloth.runveal.designsystem.component.overlay.RunvealDialog
+import com.sloth.runveal.designsystem.component.overlay.RunvealDialogType
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.tabcourse.R
+import com.sloth.runveal.tabcourse.component.CourseMoreMenuActions
+import com.sloth.runveal.tabcourse.component.CourseRenameSheet
 import com.sloth.runveal.tabcourse.component.CourseRecommendationCard
 import com.sloth.runveal.tabcourse.component.SavedCourseListItem
 import com.sloth.runveal.tabcourse.component.SavedCourseSectionHeader
 import com.sloth.runveal.tabcourse.contract.CourseListIntent
 import com.sloth.runveal.tabcourse.contract.CourseListState
 import com.sloth.runveal.tabcourse.contract.SavedCourseUiModel
+import com.sloth.runveal.ui.toast.NotReadyToastHost
+import com.sloth.runveal.ui.toast.rememberNotReadyToastState
 
 @Composable
 fun CourseScreen(
@@ -60,6 +71,14 @@ fun CourseScreen(
         onCreateCourseClick = onCreateCourseClick,
         onCourseClick = { viewModel.onIntent(CourseListIntent.SelectCourse(it.id)) },
         onStartCourse = onStartCourse,
+        onDeleteCourseClick = { viewModel.onIntent(CourseListIntent.DeleteCourseClicked(it.id)) },
+        isDeleteDialogVisible = readyState?.pendingDeleteCourseId != null,
+        onDeleteConfirm = { viewModel.onIntent(CourseListIntent.DeleteConfirmed) },
+        onDeleteDismiss = { viewModel.onIntent(CourseListIntent.DeleteDismissed) },
+        onRenameCourseClick = { viewModel.onIntent(CourseListIntent.RenameCourseClicked(it.id)) },
+        renamingCourseName = readyState?.pendingRenameCourse?.title,
+        onRenameConfirm = { viewModel.onIntent(CourseListIntent.RenameConfirmed(it)) },
+        onRenameDismiss = { viewModel.onIntent(CourseListIntent.RenameDismissed) },
         modifier = modifier,
     )
 }
@@ -73,12 +92,35 @@ private fun CourseListContent(
     onCreateCourseClick: () -> Unit,
     onCourseClick: (SavedCourseUiModel) -> Unit,
     onStartCourse: (SavedCourseUiModel) -> Unit,
+    /** 더보기 메뉴에서 "삭제"를 골랐다 — 바로 지우지 않고 확인 다이얼로그를 띄운다. */
+    onDeleteCourseClick: (SavedCourseUiModel) -> Unit,
+    isDeleteDialogVisible: Boolean,
+    onDeleteConfirm: () -> Unit,
+    onDeleteDismiss: () -> Unit,
+    /** 더보기 메뉴에서 "이름 수정"을 골랐다 — 입력 시트를 띄운다. */
+    onRenameCourseClick: (SavedCourseUiModel) -> Unit,
+    /** 이름 수정 시트에 채워 둘 지금 이름. null이면 시트를 띄우지 않는다. */
+    renamingCourseName: String?,
+    onRenameConfirm: (String) -> Unit,
+    onRenameDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = RunvealTheme.colors
     val hasSavedCourses = courses.isNotEmpty()
+    val notReadyToast = rememberNotReadyToastState()
+    // 코스마다 "그 코스를" 고치고 지우므로 메뉴도 코스 단위로 만든다.
+    // TODO: GPX 내보내기는 아직 할 일이 없어 "개발 중" 안내만 띄운다.
+    val moreMenuFor = { course: SavedCourseUiModel ->
+        CourseMoreMenuActions(
+            onRename = { onRenameCourseClick(course) },
+            onExportGpx = notReadyToast::show,
+            onDelete = { onDeleteCourseClick(course) },
+        )
+    }
 
     Box(modifier = modifier.fillMaxSize().background(colors.bg.canvas)) {
+        NotReadyToastHost(notReadyToast)
+
         // statusBar 영역까지 포함해서 화면 맨 위부터 깔리는 히어로 이미지 — 원본 비율(1920:544)대로 보여준다.
         Image(
             painter = painterResource(R.drawable.my_course),
@@ -115,8 +157,7 @@ private fun CourseListContent(
                     tag = featured.tagLabel,
                     newRoadLabel = featured.newRoadLabel,
                     notRunLabel = featured.notRunLabel,
-                    // TODO: 더보기 메뉴(이름 바꾸기·삭제 등) — 메뉴가 생기면 람다를 주면 아이콘이 돌아온다.
-                    onMoreClick = null,
+                    moreMenu = moreMenuFor(featured),
                     onStartClick = { onStartCourse(featured) },
                     thumbnailRequest = featured.snapshotRequest,
                     modifier = Modifier
@@ -152,8 +193,7 @@ private fun CourseListContent(
                             tag = course.tagLabel,
                             runCountLabel = course.notRunLabel,
                             lastRunLabel = "",
-                            // TODO: 위 카드와 같은 더보기 메뉴.
-                            onMoreClick = null,
+                            moreMenu = moreMenuFor(course),
                             onClick = { onCourseClick(course) },
                             onStartClick = { onStartCourse(course) },
                             thumbnailRequest = course.snapshotRequest,
@@ -161,6 +201,30 @@ private fun CourseListContent(
                     }
                 }
             }
+        }
+
+        // RunvealDialog는 내용만 그리는 컴포넌트다(그 KDoc 참고) — Compose의 Dialog로 감싸
+        // 바깥 탭·뒤로가기로 닫히게 한다(MyScreen의 로그아웃 다이얼로그와 같은 방식).
+        if (isDeleteDialogVisible) {
+            Dialog(onDismissRequest = onDeleteDismiss) {
+                RunvealDialog(
+                    title = stringResource(R.string.tab_course_delete_dialog_title),
+                    description = stringResource(R.string.tab_course_delete_dialog_description),
+                    confirmLabel = stringResource(R.string.tab_course_delete_dialog_confirm),
+                    cancelLabel = stringResource(R.string.tab_course_delete_dialog_cancel),
+                    onConfirm = onDeleteConfirm,
+                    onCancel = onDeleteDismiss,
+                    type = RunvealDialogType.Destructive,
+                )
+            }
+        }
+
+        if (renamingCourseName != null) {
+            CourseRenameModalSheet(
+                courseName = renamingCourseName,
+                onConfirm = onRenameConfirm,
+                onDismiss = onRenameDismiss,
+            )
         }
 
         if (!hasSavedCourses && !isLoading) {
@@ -200,6 +264,26 @@ private fun CourseTopBarActionButton(onClick: () -> Unit, modifier: Modifier = M
     }
 }
 
+/** 이름 수정 시트 — 필터 시트(`FilterBottomSheet`)와 같은 방식으로 띄운다: 모양은
+ * [CourseRenameSheet]가 그리고 ModalBottomSheet는 scrim·드래그 닫기만 맡는다(그래서 배경은
+ * 투명, 드래그 핸들은 시트가 직접 그린다). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CourseRenameModalSheet(
+    courseName: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Color.Transparent,
+        dragHandle = null,
+    ) {
+        CourseRenameSheet(initialName = courseName, onConfirm = onConfirm, onCancel = onDismiss)
+    }
+}
+
 @Preview
 @Composable
 private fun CourseListContentPreview() {
@@ -224,6 +308,14 @@ private fun CourseListContentPreview() {
             isLoading = false,
             onCreateCourseClick = {},
             onStartCourse = {},
+            onDeleteCourseClick = {},
+            isDeleteDialogVisible = false,
+            onDeleteConfirm = {},
+            onDeleteDismiss = {},
+            onRenameCourseClick = {},
+            renamingCourseName = null,
+            onRenameConfirm = {},
+            onRenameDismiss = {},
         )
     }
 }
@@ -239,6 +331,14 @@ private fun CourseListContentEmptyPreview() {
             isLoading = false,
             onCreateCourseClick = {},
             onStartCourse = {},
+            onDeleteCourseClick = {},
+            isDeleteDialogVisible = false,
+            onDeleteConfirm = {},
+            onDeleteDismiss = {},
+            onRenameCourseClick = {},
+            renamingCourseName = null,
+            onRenameConfirm = {},
+            onRenameDismiss = {},
         )
     }
 }

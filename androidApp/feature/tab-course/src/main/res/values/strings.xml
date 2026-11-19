@@ -8,4 +8,17 @@
     <string name="tab_course_empty_title">아직 저장한 코스가 없어요</string>
     <string name="tab_course_empty_description">만든 코스를 저장하면\n여기서 바로 달릴 수 있어요</string>
     <string name="tab_course_empty_action">코스 만들기</string>
+    <string name="tab_course_more_content_description">더보기</string>
+    <string name="tab_course_more_rename">이름 수정</string>
+    <string name="tab_course_more_export_gpx">GPX 내보내기</string>
+    <string name="tab_course_more_delete">삭제</string>
+    <string name="tab_course_delete_dialog_title">코스를 삭제할까요?</string>
+    <string name="tab_course_delete_dialog_description">삭제하면 되돌릴 수 없어요</string>
+    <string name="tab_course_delete_dialog_confirm">삭제</string>
+    <string name="tab_course_delete_dialog_cancel">취소</string>
+    <string name="tab_course_rename_sheet_title">코스 이름 수정</string>
+    <string name="tab_course_rename_input_label">코스 이름</string>
+    <string name="tab_course_rename_input_placeholder">코스 이름을 입력하세요</string>
+    <string name="tab_course_rename_cancel">취소</string>
+    <string name="tab_course_rename_confirm">저장</string>
 </resources>
