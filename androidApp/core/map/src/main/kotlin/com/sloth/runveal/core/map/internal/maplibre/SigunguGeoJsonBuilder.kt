@@ -31,7 +31,7 @@ internal object SigunguGeoJsonBuilder {
 
         return Result(
             lineGeoJson = buildLineGeoJson(partsByAdmCd2, percents),
-            labelGeoJson = buildLabelGeoJson(partsByAdmCd2, nameByAdmCd2),
+            labelGeoJson = buildLabelGeoJson(partsByAdmCd2, nameByAdmCd2, percents),
         )
     }
 
@@ -55,9 +55,12 @@ internal object SigunguGeoJsonBuilder {
         return FeatureCollection.fromFeatures(features).toJson()
     }
 
+    /** [percents]를 라벨에도 실어 보낸다 — 라벨끼리 겹칠 때 탐험률 높은 쪽을 살리는 데 쓴다
+     * ([SigunguOverlayLayer]의 symbolSortKey). */
     private fun buildLabelGeoJson(
         partsByAdmCd2: Map<String, List<DongPolygonPart>>,
         nameByAdmCd2: Map<String, String>,
+        percents: Map<String, Int>,
     ): String {
         val features = partsByAdmCd2.mapNotNull { (admCd2, parts) ->
             val name = nameByAdmCd2[admCd2] ?: return@mapNotNull null
@@ -66,6 +69,7 @@ internal object SigunguGeoJsonBuilder {
             Feature.fromGeometry(Point.fromLngLat(anchor.lon, anchor.lat)).apply {
                 addStringProperty("adm_cd2", admCd2)
                 addStringProperty("name", name)
+                addNumberProperty("percent", percents[admCd2] ?: 0)
             }
         }
         return FeatureCollection.fromFeatures(features).toJson()
