@@ -17,6 +17,9 @@ struct iOSApp: App {
     /// Crashlytics는 튕긴 그 순간이 아니라 **다음 실행 때** 지난 크래시를 올린다 — 튕긴 뒤 앱을
     /// 한 번 더 켜야 콘솔에 보인다.
     init() {
+        // 지난 실행이 남긴 진단 기록을 넘겨받고 파일을 비운다 — Firebase보다 먼저 해야 한다.
+        RunvealTrace.startNewSession()
+
         if Bundle.main.url(forResource: "GoogleService-Info", withExtension: "plist") != nil {
             FirebaseApp.configure()
         } else {

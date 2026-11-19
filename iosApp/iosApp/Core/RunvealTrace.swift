@@ -79,18 +79,18 @@ enum RunvealTrace {
             line += " — " + String(detail.prefix(detailLimit))
         }
         print("[RunvealTrace] \(line)")
+        // **화면보다 디스크가 먼저다.** 화면은 프레임이 커밋돼야 보이는데, 줄을 남긴 직후 죽으면
+        // 그 프레임이 커밋되지 않아 마지막 몇 줄이 녹화에 끝내 안 나온다 — 홈 전환 직전 두 줄이
+        // 그렇게 사라져 한참 엉뚱한 곳을 뒤졌다. 파일은 죽어도 남고, 다음 실행 때 보여준다.
+        appendToDisk(line)
 
-        // **화면 출력은 가능하면 동기로 한다.** `Task`로 미루면 step을 부른 직후 이어지는 코드가
-        // 죽을 때 그 줄이 화면에 끝내 안 나타나서, 멈춘 지점이 실제보다 앞으로 보인다 —
-        // 홈 전환 직전 두 줄이 통째로 사라져 한참 엉뚱한 곳을 뒤졌다.
-        if Thread.isMainThread {
-            MainActor.assumeIsolated {
-                RunvealTraceLog.shared.append(line)
-            }
-        } else {
-            Task { @MainActor in
-                RunvealTraceLog.shared.append(line)
-            }
+        // 화면은 보조다 — 순서와 마지막 줄은 위 파일이 책임진다.
+        //
+        // `MainActor.assumeIsolated`로 동기화하지 않는다. 메인 **스레드**이면서 MainActor에
+        // 격리되지 않은 자리(`nonisolated async` 함수의 await 복귀 지점)가 있고, 거기서 부르면
+        // 런타임이 그 자리에서 `fatalError`를 낸다 — 진단 코드가 앱을 죽이는 꼴이다.
+        Task { @MainActor in
+            RunvealTraceLog.shared.append(line)
         }
 
         record(step, detail: detail, elapsed: elapsed, thread: thread, memory: memory)
@@ -113,6 +113,37 @@ enum RunvealTrace {
             info["detail"] = detail
         }
         Crashlytics.crashlytics().record(error: NSError(domain: domain, code: step.rawValue, userInfo: info))
+    }
+
+    /// 지난 실행이 남긴 줄 — [startNewSession]이 채운다.
+    private(set) static var previousSessionLines: [String] = []
+
+    private static let logURL: URL? = {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        return dir?.appendingPathComponent("runveal-trace.log")
+    }()
+
+    /// 앱이 켜질 때 **가장 먼저** 한 번 — 지난 실행 기록을 메모리에 옮기고 파일을 비운다.
+    /// 이걸 안 부르면 이번 세션 줄이 지난 기록에 이어 붙어 둘을 구분할 수 없다.
+    static func startNewSession() {
+        guard let logURL else { return }
+        let text = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+        previousSessionLines = text.split(separator: "\n").map(String.init)
+        try? FileManager.default.removeItem(at: logURL)
+    }
+
+    /// 한 줄을 파일 끝에 붙이고 즉시 디스크로 내린다 — 바로 다음 순간 프로세스가 사라져도
+    /// 남아 있어야 하므로 버퍼에 두지 않는다.
+    private static func appendToDisk(_ line: String) {
+        guard let logURL, let data = (line + "\n").data(using: .utf8) else { return }
+        if let handle = try? FileHandle(forWritingTo: logURL) {
+            defer { try? handle.close() }
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+            try? handle.synchronize()
+        } else {
+            try? data.write(to: logURL, options: .atomic)
+        }
     }
 
     /// 지금 앱이 쓰는 메모리(MB).
@@ -145,12 +176,20 @@ enum RunvealTrace {
 final class RunvealTraceLog: ObservableObject {
     static let shared = RunvealTraceLog()
 
-    /// 화면에 남겨 두는 줄 수. 스플래시 단계가 열 개 남짓이라 전부 보이는 크기로 둔다.
-    private static let limit = 14
+    /// 화면에 남겨 두는 줄 수. 지난 실행 기록까지 같이 보여줘서 넉넉히 둔다.
+    private static let limit = 26
 
     @Published private(set) var entries: [Entry] = []
 
-    private init() {}
+    private init() {
+        // 지난 실행이 죽기 직전까지 남긴 줄을 먼저 보여준다 — 그 몇 줄이 바로 원인이 있는 자리다.
+        for line in RunvealTrace.previousSessionLines {
+            entries.append(Entry(text: "· " + line))
+        }
+        if !entries.isEmpty {
+            entries.append(Entry(text: "──── 지난 실행 끝 / 이번 실행 시작 ────"))
+        }
+    }
 
     struct Entry: Identifiable {
         let id = UUID()
