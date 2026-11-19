@@ -64,6 +64,7 @@ struct SplashScreen: View {
         Task {
             await warmUpDongOverlay()
             overlayWarmUpFinished = true
+            RunvealTrace.step(.overlayFlagSet)
         }
         let metaSucceeded = await fetchMeta()
         RunvealTrace.step(metaSucceeded ? .metaDone : .metaFailed)

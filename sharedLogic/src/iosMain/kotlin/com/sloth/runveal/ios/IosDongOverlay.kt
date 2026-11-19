@@ -216,9 +216,12 @@ object IosDongOverlayBuilder {
     ): DongOverlayGeoJsonBundle {
         val hierarchy = com.sloth.runveal.dong.region.RegionHierarchyParser.parse(regionHierarchyJson)
 
-        val dongBoundaries = DongBoundaryParser.parse(dongBoundaryGeoJson)
         val dongParts = DongBoundaryParser.parsePolygonParts(dongBoundaryGeoJson)
-        val dongNames = dongBoundaries.associate { it.admCd2 to it.name }
+        // 이름만 쓰고 결과는 바로 버린다 — `parse`는 전국 동의 ring을 통째로 들고 있어서, 변수에
+        // 담아 두면 `parsePolygonParts` 결과와 **전국 정점을 두 벌** 메모리에 올린 채로 아래
+        // GeoJSON 조립까지 간다. iOS는 메모리 한계를 넘으면 크래시 리포트도 없이 프로세스를 죽인다.
+        val dongNames = DongBoundaryParser.parse(dongBoundaryGeoJson)
+            .associate { it.admCd2 to it.name }
 
         val sigunguPercents = aggregateBySigungu(dongPercents, hierarchy)
         val sidoPercents = aggregateBySido(sigunguPercents, hierarchy)
@@ -249,9 +252,10 @@ object IosDongOverlayBuilder {
 
     /** 시군구·시도는 입력(경계 원본, percents)만 다르고 만드는 모양이 완전히 같다 — fill은 안 만든다. */
     private fun buildRegionOverlay(rawGeoJson: String, percents: Map<String, Int>): RegionOverlay {
-        val boundaries = DongBoundaryParser.parse(rawGeoJson)
         val parts = DongBoundaryParser.parsePolygonParts(rawGeoJson)
-        val names = boundaries.associate { it.admCd2 to it.name }
+        // 동 쪽과 같은 이유로 이름만 뽑고 버린다([build] 주석).
+        val names = DongBoundaryParser.parse(rawGeoJson)
+            .associate { it.admCd2 to it.name }
         return RegionOverlay(
             lineGeoJson = buildLineGeoJson(parts, percents),
             labelGeoJson = buildNameLabelGeoJson(parts, names),
