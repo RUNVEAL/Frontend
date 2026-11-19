@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
@@ -18,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -25,12 +27,18 @@ import com.sloth.runveal.designsystem.RunvealIcons
 import com.sloth.runveal.designsystem.component.button.RunvealButton
 import com.sloth.runveal.designsystem.component.button.RunvealButtonSize
 import com.sloth.runveal.designsystem.component.button.RunvealButtonStyle
+import com.sloth.runveal.designsystem.component.button.RunvealIconButton
 import com.sloth.runveal.designsystem.component.input.RunvealChipCondition
 import com.sloth.runveal.designsystem.component.input.RunvealChipConditionIcon
 import com.sloth.runveal.designsystem.component.input.RunvealChipDropdown
 import com.sloth.runveal.designsystem.theme.RunvealTheme
+import com.sloth.runveal.feature.courserecommend.R
 
-/** 홈 하단에 뜨는 코스 만들기 패널 — 출발/도착 설정, 거리·조건 칩, 경로 추천 받기 버튼. */
+/**
+ * 홈 하단에 뜨는 코스 만들기 패널 — 출발/도착 설정, 거리·조건 칩, 경로 추천 받기 버튼.
+ * [onMyLocationClick]을 주면 패널 우측 상단 바로 위에 "내 위치" 아이콘 버튼이 떠 있는 형태로 추가된다
+ * (`RunvealHomeBottomPanel`과 같은 자리·같은 방식 — 패널 바깥, 위로 띄운다).
+ */
 @Composable
 fun MakeCoursePanel(
     startLocation: String,
@@ -47,67 +55,82 @@ fun MakeCoursePanel(
     endLocationIsDefault: Boolean = true,
     selectedFilterCount: Int = 0,
     recommendEnabled: Boolean = true,
+    onMyLocationClick: (() -> Unit)? = null,
 ) {
     val colors = RunvealTheme.colors
     val shape = RunvealTheme.shapes.radius32
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(colors.surface.default, shape)
-            .border(1.dp, colors.border.default, shape)
-            .padding(start = 6.dp, top = RunvealTheme.spacing.space16, end = 6.dp, bottom = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space16),
-    ) {
+    Box(modifier = modifier) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 10.dp),
+                .clip(shape)
+                .background(colors.surface.default, shape)
+                .border(1.dp, colors.border.default, shape)
+                .padding(start = 6.dp, top = RunvealTheme.spacing.space16, end = 6.dp, bottom = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space16),
         ) {
-            RouteSettingRow(
-                label = "출발",
-                location = startLocation,
-                locationColor = colors.text.primary,
-                onClick = onStartLocationClick,
-            )
-            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(colors.border.default))
-            RouteSettingRow(
-                label = "도착",
-                location = endLocation,
-                locationColor = if (endLocationIsDefault) colors.text.secondary else colors.text.primary,
-                onClick = onEndLocationClick,
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp),
+            ) {
+                RouteSettingRow(
+                    label = "출발",
+                    location = startLocation,
+                    locationColor = colors.text.primary,
+                    onClick = onStartLocationClick,
+                )
+                Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(colors.border.default))
+                RouteSettingRow(
+                    label = "도착",
+                    location = endLocation,
+                    locationColor = if (endLocationIsDefault) colors.text.secondary else colors.text.primary,
+                    onClick = onEndLocationClick,
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
+            ) {
+                RunvealChipDropdown(label = distanceLabel, onClick = onDistanceClick)
+                RunvealChipCondition(
+                    checked = avoidVisitedPreferred,
+                    onCheckedChange = onAvoidVisitedPreferredChange,
+                    label = "안 가본 길 우선",
+                )
+                RunvealChipCondition(
+                    checked = selectedFilterCount > 0,
+                    onCheckedChange = { onFilterClick() },
+                    icon = RunvealChipConditionIcon.Filter,
+                    label = if (selectedFilterCount > 0) selectedFilterCount.toString() else null,
+                )
+            }
+
+            RunvealButton(
+                label = "경로 추천 받기",
+                onClick = onRecommendClick,
+                style = RunvealButtonStyle.Gold,
+                size = RunvealButtonSize.L,
+                fillWidth = true,
+                enabled = recommendEnabled,
             )
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
-        ) {
-            RunvealChipDropdown(label = distanceLabel, onClick = onDistanceClick)
-            RunvealChipCondition(
-                checked = avoidVisitedPreferred,
-                onCheckedChange = onAvoidVisitedPreferredChange,
-                label = "안 가본 길 우선",
-            )
-            RunvealChipCondition(
-                checked = selectedFilterCount > 0,
-                onCheckedChange = { onFilterClick() },
-                icon = RunvealChipConditionIcon.Filter,
-                label = if (selectedFilterCount > 0) selectedFilterCount.toString() else null,
+        if (onMyLocationClick != null) {
+            RunvealIconButton(
+                icon = RunvealIcons.Locate,
+                contentDescription = stringResource(R.string.course_create_my_location_content_description),
+                onClick = onMyLocationClick,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(y = -(RunvealTheme.layout.sizeIconButtonL + RunvealTheme.spacing.space12))
+                    .padding(end = RunvealTheme.spacing.space4),
             )
         }
-
-        RunvealButton(
-            label = "경로 추천 받기",
-            onClick = onRecommendClick,
-            style = RunvealButtonStyle.Gold,
-            size = RunvealButtonSize.L,
-            fillWidth = true,
-            enabled = recommendEnabled,
-        )
     }
 }
 
@@ -126,6 +149,7 @@ private fun MakeCoursePanelPreview() {
             onAvoidVisitedPreferredChange = {},
             onFilterClick = {},
             onRecommendClick = {},
+            onMyLocationClick = {},
             modifier = Modifier.padding(16.dp),
         )
     }
