@@ -339,8 +339,7 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
                 await self.glowLayer.refresh(
                     style: style,
                     mapView: mapView,
-                    levels: overlay?.dongLevels ?? [:],
-                    polygonParts: overlay?.glowPolygonParts ?? [:],
+                    query: overlay?.query,
                     boundarySourceKey: overlay?.boundarySourceKey ?? ""
                 )
             }

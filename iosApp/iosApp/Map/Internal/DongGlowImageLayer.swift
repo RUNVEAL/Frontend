@@ -18,19 +18,19 @@ final class DongGlowImageLayer {
         self.provider = provider
     }
 
-    /// [levels](행정동 코드 → 단계)에서 단계 ≥ 1이고 화면에 보이는 동만 추려 빛 이미지를 요청한다.
-    /// 화면 중심에 가까운 순으로 부르고, 더 이상 보이지 않는 동은 레이어를 지우고 대기 중인 생성
-    /// 작업도 취소한다.
+    /// 단계 ≥ 1이고 화면에 보이는 동만 추려 빛 이미지를 요청한다 — **추리는 일은 Kotlin
+    /// [DongOverlayQuery]가 한다.** 전국 폴리곤을 Swift로 넘겨 여기서 훑으면 좌표 하나하나가
+    /// ObjC 브리지를 타서 메인 스레드가 길게 잡힌다. 화면 중심에 가까운 순으로 돌려받아 그 순서대로
+    /// 부르고, 더 이상 보이지 않는 동은 레이어를 지우고 대기 중인 생성 작업도 취소한다.
     func refresh(
         style: MLNStyle,
         mapView: MLNMapView,
-        levels: [String: Int],
-        polygonParts: [String: [DongPolygonPart]],
+        query: DongOverlayQuery?,
         boundarySourceKey: String
     ) async {
-        // 러닝 기록 중·코스 추천 중처럼 동 오버레이를 숨길 때는 parts/levels가 비어서 들어온다. 그냥
+        // 러닝 기록 중·코스 추천 중처럼 동 오버레이를 숨길 때는 nil이거나 빈 창구가 들어온다. 그냥
         // 돌아가면 테두리·라벨만 사라지고 이미 올라간 빛 이미지는 지도에 그대로 남는다 — 같이 내린다.
-        if polygonParts.isEmpty || levels.isEmpty {
+        guard let query, !query.isEmpty else {
             removeAllDongs(style: style)
             return
         }
@@ -38,14 +38,14 @@ final class DongGlowImageLayer {
         let visibleBounds = mapView.visibleCoordinateBounds
         let cameraCenter = mapView.centerCoordinate
 
-        var candidates: [(admCd2: String, level: Int, distanceSq: Double)] = []
-        for (admCd2, level) in levels where level >= 1 {
-            guard let parts = polygonParts[admCd2], let bounds = boundsOf(parts) else { continue }
-            guard intersects(visible: visibleBounds, bounds: bounds) else { continue }
-            candidates.append((admCd2, level, distanceSq(from: cameraCenter, to: bounds)))
-        }
-        // 화면 중심에 가까운 동부터.
-        candidates.sort { $0.distanceSq < $1.distanceSq }
+        let candidates = query.glowCandidates(
+            minLat: visibleBounds.sw.latitude,
+            minLon: visibleBounds.sw.longitude,
+            maxLat: visibleBounds.ne.latitude,
+            maxLon: visibleBounds.ne.longitude,
+            centerLat: cameraCenter.latitude,
+            centerLon: cameraCenter.longitude
+        )
 
         if candidates.count > Self.visibleCountWarningThreshold {
             print("[DongGlowImageLayer] 한 번에 \(candidates.count)개 동 빛 이미지가 화면에 걸림 "
@@ -53,7 +53,10 @@ final class DongGlowImageLayer {
         }
 
         provider.cancelExcept(
-            stillWantedKeys: Set(candidates.map { DongGlowProvider.jobKey(admCd2: $0.admCd2, level: $0.level) })
+            stillWantedKeys: Set(candidates.map {
+                // Kotlin `Int`는 Swift에 `Int32`로 넘어온다.
+                DongGlowProvider.jobKey(admCd2: $0.admCd2, level: Int($0.level))
+            })
         )
 
         let target = Set(candidates.map(\.admCd2))
@@ -63,10 +66,12 @@ final class DongGlowImageLayer {
         }
 
         for candidate in candidates {
-            guard let parts = polygonParts[candidate.admCd2] else { continue }
+            // 이미지를 실제로 그릴 동만 폴리곤을 꺼낸다 — 전국이 아니라 화면에 걸린 수십 개뿐이다.
+            let parts = query.polygonParts(admCd2: candidate.admCd2)
+            guard !parts.isEmpty else { continue }
             guard let asset = await provider.asset(
                 admCd2: candidate.admCd2,
-                level: candidate.level,
+                level: Int(candidate.level),
                 parts: parts,
                 boundarySourceKey: boundarySourceKey
             ) else { continue }
@@ -130,45 +135,4 @@ final class DongGlowImageLayer {
 
     private static func sourceId(_ admCd2: String) -> String { "dong-glow-img-src-\(admCd2)" }
     private static func layerId(_ admCd2: String) -> String { "dong-glow-img-\(admCd2)" }
-
-    private struct LatLonBounds {
-        let minLat: Double
-        let maxLat: Double
-        let minLon: Double
-        let maxLon: Double
-    }
-
-    private func boundsOf(_ parts: [DongPolygonPart]) -> LatLonBounds? {
-        var minLat = Double.greatestFiniteMagnitude
-        var maxLat = -Double.greatestFiniteMagnitude
-        var minLon = Double.greatestFiniteMagnitude
-        var maxLon = -Double.greatestFiniteMagnitude
-        var any = false
-        for part in parts {
-            for point in part.exterior {
-                any = true
-                minLat = min(minLat, point.lat)
-                maxLat = max(maxLat, point.lat)
-                minLon = min(minLon, point.lon)
-                maxLon = max(maxLon, point.lon)
-            }
-        }
-        guard any else { return nil }
-        return LatLonBounds(minLat: minLat, maxLat: maxLat, minLon: minLon, maxLon: maxLon)
-    }
-
-    private func intersects(visible: MLNCoordinateBounds, bounds: LatLonBounds) -> Bool {
-        bounds.minLon <= visible.ne.longitude
-            && bounds.maxLon >= visible.sw.longitude
-            && bounds.minLat <= visible.ne.latitude
-            && bounds.maxLat >= visible.sw.latitude
-    }
-
-    private func distanceSq(from center: CLLocationCoordinate2D, to bounds: LatLonBounds) -> Double {
-        let centerLat = (bounds.minLat + bounds.maxLat) / 2
-        let centerLon = (bounds.minLon + bounds.maxLon) / 2
-        let deltaLat = center.latitude - centerLat
-        let deltaLon = center.longitude - centerLon
-        return deltaLat * deltaLat + deltaLon * deltaLon
-    }
 }

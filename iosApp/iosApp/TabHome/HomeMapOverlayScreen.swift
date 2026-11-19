@@ -74,17 +74,18 @@ struct HomeMapOverlayScreen: View {
     // 안 빛나는 상태가 된다. 동 코드를 아직 못 받았거나 그 동이 집계에 없으면 0으로 둔다.
     private var ratePercent: Int {
         guard let code = currentDong?.code else { return 0 }
-        return overlayHolder.bundle?.dongPercents[code] ?? 0
+        // Kotlin `Int`는 Swift에 `Int32`로 넘어온다.
+        return Int(overlayHolder.bundle?.query.percentOf(admCd2: code) ?? 0)
     }
 
     private var exploredKm: Double {
         guard let code = currentDong?.code else { return 0 }
-        return (overlayHolder.bundle?.walkedLengthsByDong[code] ?? 0) / 1000.0
+        return (overlayHolder.bundle?.query.walkedMetersOf(admCd2: code) ?? 0) / 1000.0
     }
 
     private var totalKm: Double {
         guard let code = currentDong?.code else { return 0 }
-        return (overlayHolder.bundle?.totalLengthsByDong[code] ?? 0) / 1000.0
+        return (overlayHolder.bundle?.query.totalMetersOf(admCd2: code) ?? 0) / 1000.0
     }
 
     private var unexploredRoadFocus: Bool {
