@@ -39,6 +39,11 @@ enum RunvealTrace {
         case homeShellInit = 15
         case onboardingShown = 16
         case onboardingCheckFailed = 17
+        case mapViewCreated = 18
+        case mapStyleLoaded = 19
+        case mapRegionOverlayStart = 20
+        case mapRegionOverlayDone = 21
+        case glowRefreshDone = 22
 
         /// 화면과 Crashlytics 콘솔에 보이는 이름.
         var name: String {
@@ -60,6 +65,11 @@ enum RunvealTrace {
             case .homeShellInit: return "홈 셸 생성"
             case .onboardingShown: return "온보딩 표시됨"
             case .onboardingCheckFailed: return "온보딩 여부 확인 실패"
+            case .mapViewCreated: return "지도 뷰 생성"
+            case .mapStyleLoaded: return "지도 스타일 로드"
+            case .mapRegionOverlayStart: return "전국 경계 올리기 시작"
+            case .mapRegionOverlayDone: return "전국 경계 올림"
+            case .glowRefreshDone: return "빛 이미지 갱신 완료"
             }
         }
     }
@@ -98,6 +108,17 @@ enum RunvealTrace {
         }
 
         record(step, detail: detail, elapsed: elapsed, thread: thread, memory: memory)
+    }
+
+    /// 이미 남긴 단계 — [once]가 본다.
+    private static var recordedOnce: Set<Int> = []
+
+    /// 같은 단계를 **한 번만** 남긴다. 지도의 `apply`처럼 화면이 갱신될 때마다 불리는 자리에서
+    /// 그냥 [step]을 쓰면 같은 줄이 쌓여 정작 중요한 앞부분이 화면 밖으로 밀려난다.
+    static func once(_ step: Step, _ detail: String? = nil) {
+        guard !recordedOnce.contains(step.rawValue) else { return }
+        recordedOnce.insert(step.rawValue)
+        self.step(step, detail)
     }
 
     /// Firebase가 초기화된 경우에만 비치명적 이벤트를 남긴다.
