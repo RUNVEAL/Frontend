@@ -2,7 +2,6 @@ package com.sloth.runveal.tabcourse.component
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -38,11 +36,8 @@ fun CourseRecommendationCard(
     tag: String,
     newRoadLabel: String,
     notRunLabel: String,
-    /**
-     * 더보기(점 세 개). null이면 **아이콘 자체를 그리지 않는다** — 열 메뉴가 없는데 아이콘만
-     * 달려 있으면 눌러 보게 되고, 눌러도 아무 일이 없어 고장으로 보인다.
-     */
-    onMoreClick: (() -> Unit)?,
+    /** 더보기(점 세 개) 메뉴 — null이면 아이콘 자체를 그리지 않는다([CourseMoreMenuIcon]). */
+    moreMenu: CourseMoreMenuActions?,
     onStartClick: () -> Unit,
     modifier: Modifier = Modifier,
     thumbnailRequest: SnapshotRequest? = null,
@@ -126,14 +121,7 @@ fun CourseRecommendationCard(
                         }
                     }
                 }
-                if (onMoreClick != null) {
-                    Icon(
-                        imageVector = RunvealIcons.More,
-                        contentDescription = "더보기",
-                        tint = colors.icon.tertiary,
-                        modifier = Modifier.size(24.dp).clickable(onClick = onMoreClick),
-                    )
-                }
+                CourseMoreMenuIcon(actions = moreMenu)
             }
 
             RunvealButton(
@@ -160,7 +148,7 @@ private fun CourseRecommendationCardPreview() {
             tag = "순환",
             newRoadLabel = "새 길 1.3km",
             notRunLabel = "아직 안달림",
-            onMoreClick = {},
+            moreMenu = CourseMoreMenuActions(onRename = {}, onExportGpx = {}, onDelete = {}),
             onStartClick = {},
         )
     }

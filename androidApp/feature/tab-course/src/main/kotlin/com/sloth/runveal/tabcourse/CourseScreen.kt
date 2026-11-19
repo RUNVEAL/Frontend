@@ -35,6 +35,7 @@ import com.sloth.runveal.designsystem.component.list.RunvealEmptyState
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarLarge
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.tabcourse.R
+import com.sloth.runveal.tabcourse.component.CourseMoreMenuActions
 import com.sloth.runveal.tabcourse.component.CourseRecommendationCard
 import com.sloth.runveal.tabcourse.component.SavedCourseListItem
 import com.sloth.runveal.tabcourse.component.SavedCourseSectionHeader
@@ -80,6 +81,13 @@ private fun CourseListContent(
     val colors = RunvealTheme.colors
     val hasSavedCourses = courses.isNotEmpty()
     val notReadyToast = rememberNotReadyToastState()
+    // TODO: 더보기 메뉴의 세 항목(이름 수정·GPX 내보내기·삭제)은 아직 할 일이 없어 "개발 중" 안내만
+    //  띄운다. 기능이 붙으면 코스별로 다른 동작을 줘야 하니 그때 코스 단위로 만든다.
+    val moreMenu = CourseMoreMenuActions(
+        onRename = notReadyToast::show,
+        onExportGpx = notReadyToast::show,
+        onDelete = notReadyToast::show,
+    )
 
     Box(modifier = modifier.fillMaxSize().background(colors.bg.canvas)) {
         NotReadyToastHost(notReadyToast)
@@ -120,9 +128,7 @@ private fun CourseListContent(
                     tag = featured.tagLabel,
                     newRoadLabel = featured.newRoadLabel,
                     notRunLabel = featured.notRunLabel,
-                    // TODO: 더보기 메뉴(이름 바꾸기·삭제 등) — 메뉴가 붙기 전까지는 "개발 중"
-                    //  안내만 띄운다(아이콘은 시안 자리를 그대로 지킨다).
-                    onMoreClick = notReadyToast::show,
+                    moreMenu = moreMenu,
                     onStartClick = { onStartCourse(featured) },
                     thumbnailRequest = featured.snapshotRequest,
                     modifier = Modifier
@@ -158,8 +164,7 @@ private fun CourseListContent(
                             tag = course.tagLabel,
                             runCountLabel = course.notRunLabel,
                             lastRunLabel = "",
-                            // TODO: 위 카드와 같은 더보기 메뉴.
-                            onMoreClick = notReadyToast::show,
+                            moreMenu = moreMenu,
                             onClick = { onCourseClick(course) },
                             onStartClick = { onStartCourse(course) },
                             thumbnailRequest = course.snapshotRequest,
