@@ -249,5 +249,8 @@ struct RunvealTraceOverlay: View {
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.black.opacity(0.6))
+        // **터치를 먹지 않는다.** 이 패널은 화면 맨 아래를 덮는데, 거기가 온보딩의 "다음/시작하기"와
+        // 홈 탭바 자리다 — 배경이 깔린 채로 두면 그 버튼들을 누를 수 없다.
+        .allowsHitTesting(false)
     }
 }
