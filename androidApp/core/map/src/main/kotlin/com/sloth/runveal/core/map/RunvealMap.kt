@@ -25,6 +25,10 @@ fun RunvealMap(
      * 위에 안내 시트를 띄운다) 허용은 그 뒤에 일어나므로, 이 값이 true로 바뀌는 순간을 보고 현재
      * 위치 점을 켠다. 기본값이 false라 안 넘기면 내 위치가 안 뜬다. */
     locationPermissionGranted: Boolean = false,
+    /** 줌과 무관하게 지도 밝기를 "줌인 상태"로 고정할지 — 홈이 아닌 지도 화면(코스 추천·러닝 중)에서
+     * true로 준다. 홈은 줌아웃하면 동 경계가 주인공이라 베이스 지도를 흐리게 깔지만, 그 화면들은
+     * 동 오버레이를 안 띄우므로 줌아웃해도 도로·건물이 또렷해야 한다. */
+    keepZoomedInStyle: Boolean = false,
 ) {
     MapLibreMapView(
         modifier = modifier,
@@ -35,5 +39,6 @@ fun RunvealMap(
         sigunguOverlay = sigunguOverlay,
         sidoOverlay = sidoOverlay,
         locationPermissionGranted = locationPermissionGranted,
+        keepZoomedInStyle = keepZoomedInStyle,
     )
 }
