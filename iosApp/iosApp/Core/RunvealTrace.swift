@@ -35,6 +35,8 @@ enum RunvealTrace {
         case navigatingHome = 11
         case homeShellAppeared = 12
         case overlayFlagSet = 13
+        case homeMapDataInit = 14
+        case homeShellInit = 15
 
         /// 화면과 Crashlytics 콘솔에 보이는 이름.
         var name: String {
@@ -52,6 +54,8 @@ enum RunvealTrace {
             case .navigatingHome: return "홈으로 전환 호출"
             case .homeShellAppeared: return "홈 표시됨"
             case .overlayFlagSet: return "대기 플래그 설정"
+            case .homeMapDataInit: return "홈 지도 모델 생성"
+            case .homeShellInit: return "홈 셸 생성"
             }
         }
     }
@@ -76,8 +80,17 @@ enum RunvealTrace {
         }
         print("[RunvealTrace] \(line)")
 
-        Task { @MainActor in
-            RunvealTraceLog.shared.append(line)
+        // **화면 출력은 가능하면 동기로 한다.** `Task`로 미루면 step을 부른 직후 이어지는 코드가
+        // 죽을 때 그 줄이 화면에 끝내 안 나타나서, 멈춘 지점이 실제보다 앞으로 보인다 —
+        // 홈 전환 직전 두 줄이 통째로 사라져 한참 엉뚱한 곳을 뒤졌다.
+        if Thread.isMainThread {
+            MainActor.assumeIsolated {
+                RunvealTraceLog.shared.append(line)
+            }
+        } else {
+            Task { @MainActor in
+                RunvealTraceLog.shared.append(line)
+            }
         }
 
         record(step, detail: detail, elapsed: elapsed, thread: thread, memory: memory)

@@ -28,6 +28,7 @@ final class HomeMapDataModel: ObservableObject {
             RunvealMapConfig.sourceLiveRunNew: IosHomeMapData.shared.emptyGeoJson,
         ]
         overlay = RunvealDongOverlayHolder.shared.bundle
+        RunvealTrace.step(.homeMapDataInit)
     }
 
     func start() {

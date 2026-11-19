@@ -22,6 +22,10 @@ struct RunvealRootView: View {
             // 둔다 — 앱바의 뒤로가기로 닫으면 원래 화면으로 돌아간다(NetworkErrorOverlay 주석).
             NetworkErrorOverlay(state: networkState)
         }
+        // 임시 진단 패널 — **스플래시가 아니라 여기 둔다.** 스플래시에 붙이면 홈으로 넘어가는
+        // 순간 같이 사라져서, 정작 보고 싶은 "전환 이후"를 못 본다. 원인을 찾으면 지운다
+        // (RunvealTrace.swift).
+        .overlay(alignment: .bottom) { RunvealTraceOverlay() }
         // 다크 모드 단일 테마 — Info.plist의 `UIUserInterfaceStyle`과 함께 시스템 설정과 무관하게 고정.
         .preferredColorScheme(.dark)
     }

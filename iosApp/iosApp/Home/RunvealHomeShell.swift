@@ -24,6 +24,12 @@ struct RunvealHomeShell: View {
 
     @State private var toastMessage: String?
 
+    /// 임시 진단 — `@StateObject` 프로퍼티들이 전부 만들어진 뒤에 불린다. 여기까지 찍히면 홈의
+    /// 모델 생성은 끝난 것이고, 그다음 멈추면 `body`(지도 포함)를 그리는 쪽이다.
+    init() {
+        RunvealTrace.step(.homeShellInit)
+    }
+
     /**
      러닝을 시작하기 전에 위치가 준비됐는지 보고, 안 됐으면 그 자리에서 안내 시트를 띄운다.
      여기에 담긴 동작은 권한·위치 서비스가 갖춰지면 이어서 실행된다.
