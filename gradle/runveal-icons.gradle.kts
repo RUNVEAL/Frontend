@@ -1,7 +1,7 @@
 /*
  * Runveal 아이콘 코드 생성
  *
- * design/icons 안의 svg 파일(전부 24x24, <path>/<circle>만 쓰는 단순한 stroke/fill 아이콘)을 읽어서
+ * design/icons 안의 svg 파일(<path>/<circle>만 쓰는 단순한 stroke/fill 아이콘)을 읽어서
  * androidApp/core/designsystem에 두 가지를 만든다.
  *  - Android Vector Drawable XML (build/generated/runvealIcons/res/drawable/ic_<name>.xml)
  *  - RunvealIcons.kt (build/generated/runvealIcons/kotlin) — 아이콘마다
@@ -79,7 +79,7 @@ object RunvealIconParser {
         val strokeLineJoin: String?,
     )
 
-    data class Icon(val key: String, val layers: List<Layer>)
+    data class Icon(val key: String, val layers: List<Layer>, val width: String, val height: String)
 
     fun parse(file: File): Icon {
         val doc = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
@@ -101,7 +101,12 @@ object RunvealIconParser {
                 else -> error("${file.name}: 지원하지 않는 SVG 엘리먼트 <${node.tagName}> — path/circle만 지원")
             }
         }
-        return Icon(key = file.nameWithoutExtension, layers = layers)
+        // viewBox("0 0 W H")를 그대로 캔버스 크기로 쓴다 — 대부분 24x24지만 그렇지 않은 아이콘도 있다
+        // (지도 위 방향 화살표 polygon2는 16x15). 없으면 width/height, 그것도 없으면 24.
+        val viewBox = doc.documentElement.getAttribute("viewBox").trim().split(Regex("[ ,]+"))
+        val width = viewBox.getOrNull(2) ?: doc.documentElement.getAttribute("width").ifBlank { "24" }
+        val height = viewBox.getOrNull(3) ?: doc.documentElement.getAttribute("height").ifBlank { "24" }
+        return Icon(key = file.nameWithoutExtension, layers = layers, width = width, height = height)
     }
 
     private fun layerOf(node: Element, pathData: String) = Layer(
@@ -135,10 +140,10 @@ object RunvealIconParser {
             |<?xml version="1.0" encoding="utf-8"?>
             |<!-- 자동 생성 파일 - 직접 수정하지 마세요. 원본: design/icons/${icon.key}.svg -->
             |<vector xmlns:android="http://schemas.android.com/apk/res/android"
-            |    android:width="24dp"
-            |    android:height="24dp"
-            |    android:viewportWidth="24"
-            |    android:viewportHeight="24">
+            |    android:width="${icon.width}dp"
+            |    android:height="${icon.height}dp"
+            |    android:viewportWidth="${icon.width}"
+            |    android:viewportHeight="${icon.height}">
             |$paths
             |</vector>
             |
