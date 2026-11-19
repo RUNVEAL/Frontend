@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -111,6 +112,7 @@ fun RecordingScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val mapState = LocalMapState.current
 
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
@@ -142,16 +144,37 @@ fun RecordingScreen(
     // 뒤로가기로 화면을 못 벗어나게 한다 — 종료는 반드시 "종료하기" 버튼으로.
     BackHandler(enabled = true) {}
 
+    // 러닝 중 지도 카메라 — 달리는 동안엔 현재 위치를 계속 따라가고(북쪽 고정), 일시정지하면 멈춘다.
+    // 줌은 **시작할 때 한 번만** 맞춘다: 재개할 때 다시 맞추면 그 사이 사용자가 보려고 조절해 둔
+    // 배율이 멋대로 되돌아간다("내 위치" 버튼도 같은 이유로 줌을 안 건드린다).
+    var isFirstStart by remember { mutableStateOf(true) }
+    LaunchedEffect(state.phase) {
+        when (state.phase) {
+            RecordingPhase.RECORDING -> {
+                mapState.startFollowingCurrentLocation(
+                    zoom = if (isFirstStart) MapConfig.RECORDING_ZOOM else null,
+                    verticalAnchor = MapConfig.RECORDING_LOCATION_VERTICAL_ANCHOR,
+                )
+                isFirstStart = false
+            }
+            RecordingPhase.PAUSED -> mapState.stopFollowingCurrentLocation()
+            RecordingPhase.IDLE -> Unit
+        }
+    }
+    // 지도(Map Shell)는 이 화면보다 오래 살아 있다 — 나갈 때 끄지 않으면 홈 지도가 계속 현재 위치를
+    // 따라다닌다. 현재 위치를 아래쪽에 두던 카메라 여백도 이때 같이 되돌린다(러닝 중에는 그대로 둬야
+    // 일시정지·드래그 때 지도가 튀지 않는다 — stopFollowingCurrentLocation KDoc).
+    DisposableEffect(Unit) { onDispose { mapState.stopFollowingCurrentLocation(resetAnchor = true) } }
+
     // "이 코스로 러닝 시작"으로 들어왔으면(selectedCoursePath) 그 코스를 흰 점선 안내선으로 그린다.
     // 안내선은 현위치와 무관하게 추천 코스 **전체**를 그대로 유지한다 — MVP 1차에서는 현위치에 따라
     // 코스를 바꾸지 않는다. 매초 남은 거리·진행률([CourseProgress])만 따로 계산해서 패널에 넘긴다.
     val selectedCoursePath = state.selectedCoursePath
     var courseProgress by remember { mutableStateOf<CourseProgress?>(null) }
     if (selectedCoursePath != null && selectedCoursePath.size >= 2) {
-        val mapState = LocalMapState.current
-        // 러닝이 시작되는 시점에 한 번 코스 전체가 보이게 카메라를 맞춘다 — 이후 위치가 움직여도
-        // 다시 맞추지 않는다(계속 다시 맞추면 러닝 중 카메라가 제멋대로 움직이는 것처럼 보인다).
-        LaunchedEffect(selectedCoursePath) { mapState.focusOnBounds(selectedCoursePath) }
+        // 코스 전체가 보이게 카메라를 맞추지는 않는다 — 러닝 중 카메라는 현재 위치를 따라가는 게
+        // 우선이라(위 추적 블록) 코스에 맞춰 봐도 곧 현재 위치로 끌려간다. 코스는 안내선으로만
+        // 보여주고, 전체 모양을 보고 싶으면 지도를 직접 줌아웃하면 된다(그때 추적도 풀린다).
 
         // 출발·도착 핀 — 코스 상세/추천 결과 화면과 같은 규칙으로, 순환 코스는 도착이 곧 출발이라
         // 같은 자리에 마커가 겹치지 않게 출발만 띄운다.
@@ -272,7 +295,12 @@ private fun RecordingOverlay(
     ) {
         val mapState = LocalMapState.current
         MapLegendRow(
-            onLocateClick = { mapState.recenterToCurrentLocation() },
+            // 현재 줌은 그대로 두고 위치로 복귀하면서 추적을 다시 켠다(드래그·핀치로 풀린 뒤 복귀하는 길).
+            onLocateClick = {
+                mapState.startFollowingCurrentLocation(
+                    verticalAnchor = MapConfig.RECORDING_LOCATION_VERTICAL_ANCHOR,
+                )
+            },
             showCourseGuide = state.selectedCoursePath != null,
             modifier = Modifier.padding(horizontal = RunvealTheme.layout.marginScreen),
         )

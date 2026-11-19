@@ -20,6 +20,22 @@ import com.sloth.runveal.map.MapConfig
 /** 지도 위에 떠 있는 마커 하나(출발/도착 등 위치 + 종류). */
 data class MapPin(val location: LatLon, val type: RunvealMapMarkerType)
 
+/**
+ * 현재 위치 추적 명령 하나 — [MapState.startFollowingCurrentLocation]/
+ * [MapState.stopFollowingCurrentLocation] 호출 한 번이 하나를 만들고 [MapLibreMapView]가 적용한다.
+ *
+ * [id]는 같은 내용으로 다시 불렀을 때도("내 위치" 버튼 재탭) 새 명령으로 보이게 하는 구분자다 —
+ * 값이 같으면 LaunchedEffect가 다시 돌지 않아 카메라가 복귀하지 않는다.
+ */
+internal sealed interface FollowCurrentLocationCommand {
+    val id: Int
+
+    data class Start(override val id: Int, val zoom: Double?, val verticalAnchor: Double) :
+        FollowCurrentLocationCommand
+
+    data class Stop(override val id: Int, val resetAnchor: Boolean) : FollowCurrentLocationCommand
+}
+
 /** 지도의 초기 카메라(중심 좌표 + 줌), 현재 줌, 하위 화면이 선언한 레이어([MapLayers])를 들고 있다. */
 @Stable
 class MapState(
@@ -84,10 +100,51 @@ class MapState(
         _layers.remove(id)
     }
 
+    /** 마지막 현재 위치 추적 명령 — null이면 아직 아무도 추적을 요청하지 않았다. */
+    internal var followCommand: FollowCurrentLocationCommand? by mutableStateOf(null)
+        private set
+
+    private var followCommandCount = 0
+
     /** "내 위치" 버튼 등에서 호출 — 위치 권한/서비스가 꺼져 있으면 [CurrentLocationLayer]가 조용히
-     * 무시한다. */
+     * 무시한다. 현재 위치로 한 번 옮기기만 하고 계속 따라가지는 않는다 —
+     * 러닝 중처럼 따라가야 할 땐 [startFollowingCurrentLocation]을 쓴다. */
     fun recenterToCurrentLocation() {
         recenterRequestId++
+    }
+
+    /**
+     * 현재 위치를 계속 따라가는 카메라 추적을 켠다(러닝 중 지도). 방위는 북쪽으로 고정이다 —
+     * 달리는 방향으로 지도가 돌면 길을 알아보기 어렵다.
+     *
+     * 지도를 드래그·핀치하면 추적이 자동으로 꺼진다([MapLibreMapView]) — 그 뒤엔 "내 위치"
+     * 버튼에서 이 함수를 다시 불러 복귀한다. 지도는 화면보다 오래 살아 있으니, 켠 화면은 나갈 때
+     * [stopFollowingCurrentLocation]으로 꼭 꺼 준다.
+     *
+     * @param zoom 켜면서 맞출 줌. null이면 지금 줌을 그대로 둔다("내 위치" 버튼·러닝 재개).
+     * @param verticalAnchor 현재 위치를 지도 세로 어디에 둘지(0 = 맨 위, 1 = 맨 아래). 가로는 항상 가운데.
+     */
+    fun startFollowingCurrentLocation(zoom: Double? = null, verticalAnchor: Double = 0.5) {
+        followCommandCount++
+        followCommand = FollowCurrentLocationCommand.Start(
+            id = followCommandCount,
+            zoom = zoom,
+            verticalAnchor = verticalAnchor.coerceIn(0.0, 1.0),
+        )
+    }
+
+    /**
+     * 추적을 끈다. 카메라는 지금 보이는 자리에 그대로 둔다 — 러닝 일시정지나 지도 드래그처럼
+     * "따라가기만 멈추는" 경우다. 특히 드래그로 풀 때 [resetAnchor]까지 하면 손가락을 대는 순간
+     * 지도가 anchor만큼 튀어 오른다.
+     *
+     * @param resetAnchor [startFollowingCurrentLocation]의 `verticalAnchor`로 준 카메라 여백까지
+     *  되돌릴지 — 러닝 화면을 나갈 때처럼 이 지도를 다른 화면에 돌려줄 때만 true로 둔다(그대로 두면
+     *  다음 화면에서도 지도가 계속 치우쳐 보인다).
+     */
+    fun stopFollowingCurrentLocation(resetAnchor: Boolean = false) {
+        followCommandCount++
+        followCommand = FollowCurrentLocationCommand.Stop(id = followCommandCount, resetAnchor = resetAnchor)
     }
 
     /** [points]가 전부 화면에 보이게 카메라를 옮긴다(추천 코스 전체가 보이게 포커싱 등). 2개 미만이면
