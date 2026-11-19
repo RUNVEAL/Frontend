@@ -21,6 +21,13 @@ struct SplashScreen: View {
     /// 홀더를 통해 지도에 얹힌다 — 동이 늦게 뜨는 건 참을 만하지만 스플래시에 오래 잡아 두는 건 아니다.
     private static let overlayWarmUpTimeout: Duration = .seconds(8)
 
+    /// 사전 생성이 끝났는지 되묻는 간격 — 상한만 지키면 되니 촘촘할 필요가 없다.
+    private static let overlayWarmUpPollInterval: Duration = .milliseconds(100)
+
+    /// 동 오버레이 사전 생성이 끝났는가(성공·실패 둘 다). 상한까지만 기다리는 데 쓴다 —
+    /// `waitForOverlayWarmUp()` 주석 참고.
+    @State private var overlayWarmUpFinished = false
+
     var body: some View {
         VStack(spacing: RunvealSpacing.space24) {
             RunvealImages.splash
@@ -39,23 +46,41 @@ struct SplashScreen: View {
     }
 
     private func bootstrap() async {
-        let overlayWarmUp = Task { await warmUpDongOverlay() }
+        // 홈이 홀더로 받아 쓰니 스플래시를 넘어가도 계속 돌아야 한다 — 그래서 구조적 자식이 아니라
+        // 별도 Task로 띄우고, 상한은 "기다리는 쪽"에만 둔다.
+        Task {
+            await warmUpDongOverlay()
+            overlayWarmUpFinished = true
+        }
         let metaSucceeded = await fetchMeta()
 
         if !metaSucceeded {
             try? await Task.sleep(for: Self.minimumVisibleDuration)
         }
         // 오버레이가 준비될 때까지(상한까지) 기다렸다 홈으로 넘어간다.
-        _ = await withTaskGroup(of: Void.self) { group in
-            group.addTask { _ = await overlayWarmUp.value }
-            group.addTask { try? await Task.sleep(for: Self.overlayWarmUpTimeout) }
-            await group.next()
-            group.cancelAll()
-        }
+        await waitForOverlayWarmUp()
 
         // TODO: 로그인 여부 확인 후 로그인 화면/홈으로 분기. 로그인 기능 구현 전까지는 항상 홈으로 이동
         //  (Android도 같은 TODO 상태다).
         onFinished()
+    }
+
+    /// 오버레이 사전 생성을 [overlayWarmUpTimeout]까지만 기다린다.
+    ///
+    /// `Task.value`를 기다리면 안 된다 — 취소에 반응하지 않아서, 그걸 자식 태스크로 감싸
+    /// `Task.sleep`과 `withTaskGroup` 레이스를 걸면 상한 쪽이 먼저 끝나도 그룹이 **남은 자식을
+    /// 계속 기다려** 리턴하지 않는다. 그래서 상한이 무의미해지고, 전국 경계 파싱이 끝날 때까지
+    /// 스플래시에서 홈으로 넘어가지 못했다. 완료 플래그를 짧게 되묻는 쪽이 상한을 실제로 지킨다.
+    private func waitForOverlayWarmUp() async {
+        let deadline = ContinuousClock.now.advanced(by: Self.overlayWarmUpTimeout)
+        while !overlayWarmUpFinished && ContinuousClock.now < deadline {
+            do {
+                try await Task.sleep(for: Self.overlayWarmUpPollInterval)
+            } catch {
+                // 화면이 사라져 `.task`가 취소된 것 — 더 기다릴 이유가 없다.
+                return
+            }
+        }
     }
 
     private func warmUpDongOverlay() async {
