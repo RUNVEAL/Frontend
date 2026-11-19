@@ -12,10 +12,8 @@ enum OnboardingStrings {
 
 /// 온보딩 한 장 — 제목과 그래픽만 다르고 나머지 구성은 같다. Android `OnboardingStep`.
 ///
-/// 그래픽 원본은 `design/images/onboarding{1,2,3}.png`로, Gradle이 Android drawable과 iOS 번들에
-/// 같이 복사한다. **아직 저장소에 들어오지 않았다** — 그래서 생성 코드(`RunvealImages`)의 심볼
-/// 대신 [RunvealBundleImage]로 이름을 직접 찾는다. 파일이 없으면 그 자리가 빈 칸으로 남을 뿐
-/// 컴파일은 깨지지 않고, 원본이 들어오면 코드를 고치지 않아도 그대로 뜬다.
+/// 그래픽 원본은 `design/images/onboarding{1,2,3}.png` 하나로, Gradle이 Android drawable과 iOS
+/// 번들에 같이 복사한다(`RunvealImages`는 그때 함께 만들어지는 생성 코드다).
 private enum OnboardingStep: Int, CaseIterable {
     case exploreMap = 0
     case courseRecommend = 1
@@ -29,11 +27,11 @@ private enum OnboardingStep: Int, CaseIterable {
         }
     }
 
-    var imageName: String {
+    var image: Image {
         switch self {
-        case .exploreMap: return "onboarding1"
-        case .courseRecommend: return "onboarding2"
-        case .dongRate: return "onboarding3"
+        case .exploreMap: return RunvealImages.onboarding1
+        case .courseRecommend: return RunvealImages.onboarding2
+        case .dongRate: return RunvealImages.onboarding3
         }
     }
 }
@@ -145,7 +143,7 @@ struct OnboardingScreen: View {
 
     /// 단계별 그래픽(시안 `Graphic/Onboarding/1~3`) — 좌우 여백을 뺀 정사각형 자리에 원본 비율 그대로.
     private func graphic(for step: OnboardingStep) -> some View {
-        RunvealBundleImage.image(step.imageName, "png")
+        step.image
             .resizable()
             .scaledToFit()
             .frame(maxWidth: .infinity)
