@@ -20,6 +20,7 @@ dependencies {
     implementation(project(":androidApp:core:map"))
     implementation(project(":androidApp:core:navigation"))
     implementation(project(":androidApp:feature:home"))
+    implementation(project(":androidApp:feature:onboarding"))
     implementation(project(":androidApp:feature:sign"))
     implementation(project(":sharedLogic"))
 

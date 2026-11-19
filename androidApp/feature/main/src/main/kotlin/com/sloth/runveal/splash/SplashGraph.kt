@@ -11,12 +11,16 @@ import androidx.navigation.navOptions
 // import com.sloth.runveal.auth.state.AuthState
 import com.sloth.runveal.core.map.DongOverlayHolder
 import com.sloth.runveal.core.map.loadDongOverlayBundle
+import com.sloth.runveal.data.local.RunvealDatabaseProvider
 import com.sloth.runveal.navigation.RunVealNavigator
 import com.sloth.runveal.navigation.RunVealRoute
 import com.sloth.runveal.network.meta.MetaApi
 import com.sloth.runveal.network.meta.MetaHolder
+import com.sloth.runveal.onboarding.OnboardingStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 private const val SPLASH_DURATION_MILLIS = 2000L
@@ -48,6 +52,8 @@ internal fun NavGraphBuilder.splashGraph(navigator: RunVealNavigator) {
             // 어디로 보낼지는 /meta보다 먼저 정해 둔다 — 서버가 죽어 있으면 /meta가 타임아웃까지
             // 10초를 쓰는데, 그 뒤에 판정하면 그만큼 늦어진다.
             val startDestination = resolveStartDestination()
+            // 바로 홈으로 갈 때만 지도 오버레이를 기다린다 — 온보딩·로그인을 거쳐 갈 거면 그 사이에
+            // 만들어진다.
             val goingHome = startDestination == RunVealRoute.Home.Main
 
             // 앱 실행 시 1번 — docs/api/API.md §3.1/§9. 지도 버전 비교·재다운로드는 로컬에 버전을
@@ -99,6 +105,12 @@ internal fun NavGraphBuilder.splashGraph(navigator: RunVealNavigator) {
  *  끼어들지 않는다.
  */
 private suspend fun resolveStartDestination(): RunVealRoute {
+    // 온보딩을 아직 안 봤으면 홈보다 먼저 보여준다(끝내거나 건너뛰면 "봤다"로 적힌다).
+    val onboardingCompleted = withContext(Dispatchers.IO) {
+        OnboardingStore(RunvealDatabaseProvider.database).isCompleted()
+    }
+    if (!onboardingCompleted) return RunVealRoute.Main.Onboarding
+
     return RunVealRoute.Home.Main
 
     // if (AuthProvider.session.resolveLocalSession() != AuthState.LoggedIn) return RunVealRoute.Sign.SignIn
