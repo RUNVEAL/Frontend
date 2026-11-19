@@ -82,6 +82,7 @@ enum RunvealDongOverlayLoader {
             sidoGeoJson: try RunvealBundleAsset.text(RunvealBundleAsset.koreaSidoGeoJson),
             regionHierarchyJson: try RunvealBundleAsset.text(RunvealBundleAsset.koreaRegionHierarchy)
         )
+        RunvealTrace.step(.bundleAssetsRead)
         let bundle = try await IosDongOverlayLoader.shared.load(assets: assets)
         return RunvealDongOverlayBundle(bundle: bundle, builtForTrackId: builtForTrackId)
     }

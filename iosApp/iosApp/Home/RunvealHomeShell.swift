@@ -109,7 +109,10 @@ struct RunvealHomeShell: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .environment(\.runvealMapOverlayBottomInset, isLocationBannerNeeded ? Self.locationBannerExtraInset : 0)
         .requireLocationPermission(permissionState)
-        .onAppear { mapData.start() }
+        .onAppear {
+            RunvealTrace.step(.homeShellAppeared)
+            mapData.start()
+        }
         .onDisappear { mapData.stop() }
         // "내 코스" 탭에서 코스를 바로 시작하면(탭 화면은 내비게이터를 직접 못 만진다) 여기서 받아
         // 기록 흐름으로 넘어간다 — 코스 자체는 `SelectedCourseHolder`에 이미 담겨 있다.
