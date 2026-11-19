@@ -45,6 +45,11 @@ struct SplashScreen: View {
         .task { await bootstrap() }
     }
 
+    /// **메인 액터에서 돈다.** `onFinished()`가 `RunvealAppNavigator`(`@MainActor`)의 `@Published`
+    /// route를 바꾸는데, 비격리 `async` 함수는 호출자의 액터를 물려받지 않고 글로벌 풀로 넘어가서
+    /// (SE-0338) 그 변경이 메인 아닌 스레드에서 일어난다 — SwiftUI가 화면을 갈아 끼우지 않아
+    /// 스플래시가 그대로 남는다. `@State` 플래그를 읽고 쓰는 쪽도 같은 이유로 여기 묶는다.
+    @MainActor
     private func bootstrap() async {
         // 홈이 홀더로 받아 쓰니 스플래시를 넘어가도 계속 돌아야 한다 — 그래서 구조적 자식이 아니라
         // 별도 Task로 띄우고, 상한은 "기다리는 쪽"에만 둔다.
@@ -71,6 +76,7 @@ struct SplashScreen: View {
     /// `Task.sleep`과 `withTaskGroup` 레이스를 걸면 상한 쪽이 먼저 끝나도 그룹이 **남은 자식을
     /// 계속 기다려** 리턴하지 않는다. 그래서 상한이 무의미해지고, 전국 경계 파싱이 끝날 때까지
     /// 스플래시에서 홈으로 넘어가지 못했다. 완료 플래그를 짧게 되묻는 쪽이 상한을 실제로 지킨다.
+    @MainActor
     private func waitForOverlayWarmUp() async {
         let deadline = ContinuousClock.now.advanced(by: Self.overlayWarmUpTimeout)
         while !overlayWarmUpFinished && ContinuousClock.now < deadline {
@@ -83,10 +89,14 @@ struct SplashScreen: View {
         }
     }
 
-    private func warmUpDongOverlay() async {
+    /// **메인 액터 밖에서 돈다**(`nonisolated`). 전국 경계 파싱과 Kotlin Map → Swift Dictionary
+    /// 변환(동 3천여 개의 폴리곤)이 무거워서, 메인에서 돌리면 그 동안 화면이 멈추는 건 물론
+    /// 상한을 재는 `waitForOverlayWarmUp()`까지 같이 멈춰 상한이 무의미해진다.
+    private nonisolated func warmUpDongOverlay() async {
         do {
             let bundle = try await RunvealDongOverlayLoader.load(builtForTrackId: nil)
-            RunvealDongOverlayHolder.shared.publish(bundle)
+            // 홀더는 `@MainActor`다 — 비격리 컨텍스트에서 부르니 await로 넘긴다.
+            await RunvealDongOverlayHolder.shared.publish(bundle)
         } catch {
             // 홈에서 다시 시도한다.
             print("[Splash] 동 오버레이 사전 생성 실패 — 홈에서 다시 시도한다: \(error)")
@@ -94,7 +104,7 @@ struct SplashScreen: View {
     }
 
     /// 앱 실행 시 1번 — `docs/api/API.md` §3.1/§9. 받아서 `MetaHolder`에만 둔다.
-    private func fetchMeta() async -> Bool {
+    private nonisolated func fetchMeta() async -> Bool {
         do {
             // MetaApi 생성자에 기본 인자가 있어 Swift에서 init()이 막힌다 — iosMain 래퍼를 쓴다.
             try await IosMeta.shared.fetchAndPublish()
