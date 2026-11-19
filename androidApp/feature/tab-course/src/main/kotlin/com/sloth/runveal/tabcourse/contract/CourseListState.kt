@@ -12,6 +12,13 @@ sealed interface CourseListIntent : UiIntent {
 
     /** 목록에서 코스를 골랐다 — 위 큰 카드가 그 코스로 바뀐다. */
     data class SelectCourse(val courseId: String) : CourseListIntent
+
+    /** 더보기 메뉴에서 "삭제"를 골랐다 — 되돌릴 수 없는 일이라 바로 지우지 않고 한 번 더 묻는다. */
+    data class DeleteCourseClicked(val courseId: String) : CourseListIntent
+
+    data object DeleteConfirmed : CourseListIntent
+
+    data object DeleteDismissed : CourseListIntent
 }
 
 /** 저장한 코스 목록의 한 항목. */
@@ -41,6 +48,8 @@ sealed interface CourseListState : UiState {
     data class Ready(
         val courses: List<SavedCourseUiModel>,
         val selectedCourseId: String? = null,
+        /** 삭제 확인 다이얼로그를 띄워 둔 코스 — null이면 다이얼로그가 떠 있지 않다. */
+        val pendingDeleteCourseId: String? = null,
     ) : CourseListState {
         /** 큰 카드에 띄울 코스. 고른 게 없으면 가장 최근에 저장한 코스다. */
         val featuredCourse: SavedCourseUiModel?

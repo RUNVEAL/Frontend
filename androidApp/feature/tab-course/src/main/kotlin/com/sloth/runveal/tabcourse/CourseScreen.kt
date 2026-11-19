@@ -27,12 +27,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sloth.runveal.designsystem.RunvealIcons
 import com.sloth.runveal.designsystem.component.list.RunvealEmptyState
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarLarge
+import com.sloth.runveal.designsystem.component.overlay.RunvealDialog
+import com.sloth.runveal.designsystem.component.overlay.RunvealDialogType
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.tabcourse.R
 import com.sloth.runveal.tabcourse.component.CourseMoreMenuActions
@@ -63,6 +66,10 @@ fun CourseScreen(
         onCreateCourseClick = onCreateCourseClick,
         onCourseClick = { viewModel.onIntent(CourseListIntent.SelectCourse(it.id)) },
         onStartCourse = onStartCourse,
+        onDeleteCourseClick = { viewModel.onIntent(CourseListIntent.DeleteCourseClicked(it.id)) },
+        isDeleteDialogVisible = readyState?.pendingDeleteCourseId != null,
+        onDeleteConfirm = { viewModel.onIntent(CourseListIntent.DeleteConfirmed) },
+        onDeleteDismiss = { viewModel.onIntent(CourseListIntent.DeleteDismissed) },
         modifier = modifier,
     )
 }
@@ -76,18 +83,26 @@ private fun CourseListContent(
     onCreateCourseClick: () -> Unit,
     onCourseClick: (SavedCourseUiModel) -> Unit,
     onStartCourse: (SavedCourseUiModel) -> Unit,
+    /** 더보기 메뉴에서 "삭제"를 골랐다 — 바로 지우지 않고 확인 다이얼로그를 띄운다. */
+    onDeleteCourseClick: (SavedCourseUiModel) -> Unit,
+    isDeleteDialogVisible: Boolean,
+    onDeleteConfirm: () -> Unit,
+    onDeleteDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = RunvealTheme.colors
     val hasSavedCourses = courses.isNotEmpty()
     val notReadyToast = rememberNotReadyToastState()
-    // TODO: 더보기 메뉴의 세 항목(이름 수정·GPX 내보내기·삭제)은 아직 할 일이 없어 "개발 중" 안내만
-    //  띄운다. 기능이 붙으면 코스별로 다른 동작을 줘야 하니 그때 코스 단위로 만든다.
-    val moreMenu = CourseMoreMenuActions(
-        onRename = notReadyToast::show,
-        onExportGpx = notReadyToast::show,
-        onDelete = notReadyToast::show,
-    )
+    // 코스마다 "그 코스를" 지우므로 메뉴도 코스 단위로 만든다.
+    // TODO: 이름 수정은 입력 다이얼로그가 필요해서(renameCourse 쿼리는 이미 있다) 아직 "개발 중"
+    //  안내만 띄운다. GPX 내보내기도 마찬가지.
+    val moreMenuFor = { course: SavedCourseUiModel ->
+        CourseMoreMenuActions(
+            onRename = notReadyToast::show,
+            onExportGpx = notReadyToast::show,
+            onDelete = { onDeleteCourseClick(course) },
+        )
+    }
 
     Box(modifier = modifier.fillMaxSize().background(colors.bg.canvas)) {
         NotReadyToastHost(notReadyToast)
@@ -128,7 +143,7 @@ private fun CourseListContent(
                     tag = featured.tagLabel,
                     newRoadLabel = featured.newRoadLabel,
                     notRunLabel = featured.notRunLabel,
-                    moreMenu = moreMenu,
+                    moreMenu = moreMenuFor(featured),
                     onStartClick = { onStartCourse(featured) },
                     thumbnailRequest = featured.snapshotRequest,
                     modifier = Modifier
@@ -164,13 +179,29 @@ private fun CourseListContent(
                             tag = course.tagLabel,
                             runCountLabel = course.notRunLabel,
                             lastRunLabel = "",
-                            moreMenu = moreMenu,
+                            moreMenu = moreMenuFor(course),
                             onClick = { onCourseClick(course) },
                             onStartClick = { onStartCourse(course) },
                             thumbnailRequest = course.snapshotRequest,
                         )
                     }
                 }
+            }
+        }
+
+        // RunvealDialog는 내용만 그리는 컴포넌트다(그 KDoc 참고) — Compose의 Dialog로 감싸
+        // 바깥 탭·뒤로가기로 닫히게 한다(MyScreen의 로그아웃 다이얼로그와 같은 방식).
+        if (isDeleteDialogVisible) {
+            Dialog(onDismissRequest = onDeleteDismiss) {
+                RunvealDialog(
+                    title = stringResource(R.string.tab_course_delete_dialog_title),
+                    description = stringResource(R.string.tab_course_delete_dialog_description),
+                    confirmLabel = stringResource(R.string.tab_course_delete_dialog_confirm),
+                    cancelLabel = stringResource(R.string.tab_course_delete_dialog_cancel),
+                    onConfirm = onDeleteConfirm,
+                    onCancel = onDeleteDismiss,
+                    type = RunvealDialogType.Destructive,
+                )
             }
         }
 
@@ -235,6 +266,10 @@ private fun CourseListContentPreview() {
             isLoading = false,
             onCreateCourseClick = {},
             onStartCourse = {},
+            onDeleteCourseClick = {},
+            isDeleteDialogVisible = false,
+            onDeleteConfirm = {},
+            onDeleteDismiss = {},
         )
     }
 }
@@ -250,6 +285,10 @@ private fun CourseListContentEmptyPreview() {
             isLoading = false,
             onCreateCourseClick = {},
             onStartCourse = {},
+            onDeleteCourseClick = {},
+            isDeleteDialogVisible = false,
+            onDeleteConfirm = {},
+            onDeleteDismiss = {},
         )
     }
 }

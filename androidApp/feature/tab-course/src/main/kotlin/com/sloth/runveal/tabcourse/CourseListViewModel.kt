@@ -1,5 +1,7 @@
 package com.sloth.runveal.tabcourse
 
+import com.sloth.runveal.auth.AndroidAppContextHolder
+import com.sloth.runveal.core.map.CourseSnapshotRenderer
 import com.sloth.runveal.data.local.RunvealDatabaseProvider
 import com.sloth.runveal.db.SelectAllCourses
 import com.sloth.runveal.map.LatLon
@@ -15,12 +17,29 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
+/** Compose 컨텍스트가 없는 ViewModel이라 `RunvealTheme.colors`를 못 읽어서 디자인 토큰을 ARGB로
+ * 직접 옮겨 둔다(CourseDetailViewModel과 같은 값) — 여기서는 캐시를 **지우는** 데만 쓰므로 색이
+ * 실제로 쓰이지는 않지만, 썸네일 렌더러를 만들려면 넘겨야 한다. */
+private const val SNAPSHOT_ROUTE_COLOR = 0xFFF2E096.toInt()
+private const val SNAPSHOT_ENDPOINT_COLOR = 0xFF4286E0.toInt()
+private const val SNAPSHOT_ENDPOINT_STROKE_COLOR = 0xFFF4EEEA.toInt()
+
 /** 탭 전환은 `restoreState`로 화면만 다시 구성하고 이 ViewModel 자체는 살아있으므로, `init`에서 한 번만
  * 불러오면 탭을 나갔다 온 사이 새로 저장한 코스가 안 보인다 — 화면이 들어올 때마다 [CourseListIntent.Load]를
  * 보내 매번 다시 불러오게 한다. Effect 타입 인자는 [Nothing]. */
 class CourseListViewModel : MviViewModel<CourseListIntent, CourseListState, Nothing>(initialState = CourseListState.Loading) {
     private val database = RunvealDatabaseProvider.database
     private val json = Json
+
+    /** 코스를 지울 때 그 썸네일 캐시도 같이 지운다([CourseSnapshotRenderer.delete]). */
+    private val snapshotRenderer = CourseSnapshotRenderer(
+        context = AndroidAppContextHolder.context,
+        routeColor = SNAPSHOT_ROUTE_COLOR,
+        endpointColor = SNAPSHOT_ENDPOINT_COLOR,
+        endpointStrokeColor = SNAPSHOT_ENDPOINT_STROKE_COLOR,
+        newRoadColor = SNAPSHOT_ROUTE_COLOR,
+        todayRoadColor = SNAPSHOT_ROUTE_COLOR,
+    )
 
     override suspend fun handleIntent(intent: CourseListIntent) {
         when (intent) {
@@ -30,7 +49,28 @@ class CourseListViewModel : MviViewModel<CourseListIntent, CourseListState, Noth
                     // 목록을 다시 불러오는 중이면(Loading) 고를 대상이 없다 — 그대로 둔다.
                     (this as? CourseListState.Ready)?.copy(selectedCourseId = intent.courseId) ?: this
                 }
+
+            is CourseListIntent.DeleteCourseClicked ->
+                setState {
+                    (this as? CourseListState.Ready)?.copy(pendingDeleteCourseId = intent.courseId) ?: this
+                }
+
+            CourseListIntent.DeleteDismissed ->
+                setState { (this as? CourseListState.Ready)?.copy(pendingDeleteCourseId = null) ?: this }
+
+            CourseListIntent.DeleteConfirmed -> deleteCourse()
         }
+    }
+
+    /** 확인 다이얼로그에서 "삭제"를 누른 뒤 — 코스 행과 그 썸네일 캐시를 지우고 목록을 다시 읽는다.
+     * 다시 읽으면서 [CourseListState.Ready]가 새로 만들어지므로 다이얼로그도 같이 닫힌다. */
+    private suspend fun deleteCourse() {
+        val courseId = (currentState as? CourseListState.Ready)?.pendingDeleteCourseId ?: return
+        withContext(Dispatchers.IO) {
+            database.courseQueries.deleteCourse(courseId)
+            snapshotRenderer.delete(courseId)
+        }
+        reload()
     }
 
     private suspend fun reload() {
