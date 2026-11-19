@@ -15,6 +15,9 @@ object MapConfig {
      */
     const val ZOOM_IN_THRESHOLD: Double = 14.0
 
+    /** 러닝을 시작할 때 맞추는 줌 — 지금 달리는 길과 다음 갈림길이 같이 보이는 정도. */
+    const val RECORDING_ZOOM: Double = 16.5
+
     val KOREA_BOUNDS_NORTH_WEST: LatLon = LatLon(lat = 38.7, lon = 124.5)
     val KOREA_BOUNDS_SOUTH_EAST: LatLon = LatLon(lat = 33.0, lon = 131.0)
     const val MIN_ZOOM_PREFERENCE: Double = 6.0
