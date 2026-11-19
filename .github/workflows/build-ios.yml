@@ -10,6 +10,10 @@ name: build-ios
 #   archive  — 아카이브 → Ad Hoc IPA를 아티팩트로만 남긴다(업로드 없음). 서명 시험용.
 #   firebase — + Firebase App Distribution 업로드.
 #
+# **dev-ios에 푸시하면 firebase 모드와 같은 일을 한다** — 고친 걸 아이폰에 바로 설치해 보는 게
+# 목적이라 IPA를 아티팩트로만 남기면 쓸 수 없다. 그때 compile 잡은 건너뛴다(distribute가 Release
+# 전량을 컴파일하므로 Swift 오류는 거기서 같이 잡히고, macOS 러너를 두 개 쓸 이유가 없다).
+#
 # **Ad Hoc 프로파일을 쓴다.** App Store 프로파일로 만든 IPA는 기기에 바로 설치할 수 없고,
 # Firebase는 Apple을 거치지 않고 IPA를 직접 내려주므로 테스터 기기 UDID가 등록된 Ad Hoc이 필요하다.
 #
@@ -49,8 +53,9 @@ on:
       - 'design/**'
       - '.github/workflows/build-ios.yml'
 
-  # 로컬에 Mac이 없어 이 워크플로우가 iOS의 유일한 컴파일러이므로, dev-ios에 직접 커밋해도
-  # Swift 오류를 바로 보도록 push에도 걸어둔다. dev(Android)에는 걸지 않는다.
+  # 로컬에 Mac이 없어 이 워크플로우가 iOS의 유일한 컴파일러다 — dev-ios에 직접 커밋하면
+  # 컴파일부터 Firebase 배포까지 한 번에 돌려서 아이폰에서 바로 확인한다.
+  # dev(Android)에는 걸지 않는다.
   push:
     branches: [ dev-ios ]
     paths:
@@ -71,8 +76,10 @@ jobs:
   # ──────────────────── Swift 컴파일 검사 ────────────────────
   compile:
     name: Swift 컴파일 검사 (시뮬레이터 · 서명 없음)
-    # push·pull_request는 항상, workflow_dispatch는 mode가 compile일 때만.
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.mode == 'compile' }}
+    # PR은 항상, workflow_dispatch는 mode가 compile일 때만.
+    # push(dev-ios)에서는 돌지 않는다 — distribute가 같은 소스를 Release로 전량 컴파일하니
+    # Swift 오류는 거기서 같이 잡힌다. 분당 10배인 macOS 러너를 두 개 띄울 값이 없다.
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'compile') }}
     # macos-15는 Apple Silicon이다. KMP 타깃이 iosArm64 + iosSimulatorArm64뿐이라
     # Intel 러너(macos-13)에서는 시뮬레이터용 프레임워크가 만들어지지 않는다.
     runs-on: macos-15
@@ -153,7 +160,8 @@ jobs:
 
           # 컴파일 오류(error:)뿐 아니라 링커 오류도 잡는다 — "Undefined symbols" 블록에는
           # error: 가 없어서 전에 놓쳤다.
-          ERRORS=$(grep -E "error: |Undefined symbol|symbol\(s\) not found|^ld: " "$LOG" \n            | sort -u | head -80)
+          ERRORS=$(grep -E "error: |Undefined symbol|symbol\(s\) not found|^ld: " "$LOG" \
+            | sort -u | head -80)
 
           {
             echo "### Swift 컴파일 오류"
@@ -173,10 +181,14 @@ jobs:
   # ──────────────────── 아카이브 → Ad Hoc IPA → Firebase ────────────────────
   distribute:
     name: 아카이브 · Ad Hoc IPA · Firebase 배포
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.mode != 'compile' }}
+    # dev-ios 푸시는 항상 Firebase까지 간다. workflow_dispatch는 고른 모드를 따른다.
+    if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'compile') }}
     runs-on: macos-15
     timeout-minutes: 120
     env:
+      # 이 잡이 어디까지 갈지. push에는 inputs가 없어서 firebase로 고정한다 —
+      # 아래 단계들은 inputs.mode가 아니라 이 값만 본다.
+      MODE: ${{ github.event_name == 'push' && 'firebase' || inputs.mode }}
       BUNDLE_ID: com.sloth.runveal
       NETWORK_BASE_URL: ${{ secrets.NETWORK_BASE_URL || vars.NETWORK_BASE_URL }}
       # 식별자라 비밀이 아니다 — Variables에 둬도 된다.
@@ -212,7 +224,7 @@ jobs:
         run: |
           required="NETWORK_BASE_URL IOS_TEAM_ID IOS_DIST_CERT_P12_BASE64 IOS_DIST_CERT_PASSWORD
                     IOS_PROVISIONING_PROFILE_ADHOC_BASE64"
-          case "${{ inputs.mode }}" in
+          case "$MODE" in
             firebase) required="$required FIREBASE_APP_ID_IOS FIREBASE_SERVICE_ACCOUNT" ;;
           esac
 
@@ -339,7 +351,7 @@ jobs:
           retention-days: 30
 
       - name: Firebase App Distribution 업로드
-        if: ${{ inputs.mode == 'firebase' }}
+        if: ${{ env.MODE == 'firebase' }}
         run: |
           # Android 잡과 같은 CLI·같은 서비스 계정 시크릿을 쓴다. iOS 앱이 Firebase SDK를 쓰지
           # 않으므로 GoogleService-Info.plist는 필요 없다 — 업로드는 앱 ID와 자격증명만 본다.
@@ -367,7 +379,8 @@ jobs:
           # 같은 오류가 타깃·아키텍처마다 반복되므로 중복을 걷어낸다.
           # 컴파일 오류(error:)뿐 아니라 링커 오류도 잡는다 — "Undefined symbols" 블록에는
           # error: 가 없어서 전에 놓쳤다.
-          ERRORS=$(grep -E "error: |Undefined symbol|symbol\(s\) not found|^ld: " "$LOG" \n            | sort -u | head -80)
+          ERRORS=$(grep -E "error: |Undefined symbol|symbol\(s\) not found|^ld: " "$LOG" \
+            | sort -u | head -80)
 
           {
             echo "### 빌드 오류"
@@ -397,7 +410,7 @@ jobs:
           {
             echo "### iOS QA 빌드 ${{ github.run_number }}"
             echo ""
-            echo "- 모드: \`${{ inputs.mode }}\`"
+            echo "- 모드: \`$MODE\`"
             echo "- 배포: Firebase App Distribution (Ad Hoc)"
             echo "- 빌드 번호: \`${{ github.run_number }}\`"
             echo "- 커밋: \`${{ github.sha }}\`"
