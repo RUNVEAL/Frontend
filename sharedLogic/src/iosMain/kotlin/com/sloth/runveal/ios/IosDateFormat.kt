@@ -121,11 +121,25 @@ internal object IosDateFormat {
     /** "6'05″" 형태 — km당 분'초″. */
     fun paceLabel(elapsedMs: Long, distanceMeters: Double): String {
         if (distanceMeters <= 0.0) return "0'00″"
-        val paceSecondsPerKm = (elapsedMs / 1000.0) / (distanceMeters / 1000.0)
+        return paceSecondsLabel((elapsedMs / 1000.0) / (distanceMeters / 1000.0))
+    }
+
+    /** "6'05″" 형태 — km당 분'초″. 구간 기록은 이미 초/km로 계산돼 있어 이쪽을 바로 쓴다. */
+    fun paceSecondsLabel(paceSecondsPerKm: Double): String {
         val minutes = (paceSecondsPerKm / 60).toInt()
         val seconds = (paceSecondsPerKm % 60).toInt()
         return "$minutes'${pad2(seconds.toLong())}″"
     }
+
+    /** "2026.11.20 12:34" — 기록 상세 상단. */
+    fun dateTimeLabel(epochMs: Long): String {
+        val parts = components(epochMs)
+        return "${parts.year}." + pad2(parts.month) + "." + pad2(parts.day) +
+            " " + pad2(parts.hour) + ":" + pad2(parts.minute)
+    }
+
+    /** 지금 epoch ms — 이름 수정·삭제가 기록에 남기는 시각. */
+    fun nowEpochMs(): Long = (NSDate().timeIntervalSince1970 * 1000).toLong()
 
     private fun pad2(value: Long): String = if (value < 10) "0$value" else "$value"
 }
