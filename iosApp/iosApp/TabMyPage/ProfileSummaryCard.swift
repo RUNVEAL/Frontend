@@ -21,6 +21,12 @@ struct ProfileSummaryCard: View {
             )
             .frame(maxWidth: .infinity)
 
+            // 두 수치를 가르는 선(시안 `Stat Divider`) — 높이 48, 1px, 60% 투명.
+            Rectangle()
+                .fill(RunvealTheme.colors.border.default)
+                .frame(width: 1, height: 48)
+                .opacity(0.6)
+
             RunvealStat(
                 value: totalDistanceLabel,
                 label: MyStrings.statTotalDistanceLabel,
