@@ -104,6 +104,9 @@ private const val TOAST_DURATION_MS = 3000L
  */
 private val LOCATION_BANNER_EXTRA_INSET = 56.dp
 
+/** 홈 하단 패널의 좌우 여백 — 화면 여백(16)의 예외. 위 주석 참고. */
+private val HOME_PANEL_SIDE_MARGIN = 10.dp
+
 /**
  * 홈 탭 화면 — Map Shell. 지도(`RunvealMap`)는 여기서 하나만 그리고, 탭 화면과 지도 위 흐름(홈 지도,
  * 코스 추천)은 전부 이 아래 단일 NavHost로 조립한다. 탭바 노출 규칙도 여기 한 곳에만 둔다.
@@ -422,8 +425,10 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                     .align(Alignment.BottomCenter)
                     .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
                     .padding(
-                        start = RunvealTheme.layout.marginScreen,
-                        end = RunvealTheme.layout.marginScreen,
+                        // 패널만 화면 좌우 여백(16)의 예외다 — 시안은 10이다. 패널이 탭바를 좌우 6씩
+                        // 감싸는 구조라, 10이어야 탭바가 다른 탭(좌우 16, 너비 328)과 같은 자리에 선다.
+                        start = HOME_PANEL_SIDE_MARGIN,
+                        end = HOME_PANEL_SIDE_MARGIN,
                         top = RunvealTheme.spacing.space8,
                         bottom = RunvealTheme.spacing.space8 - HOME_BOTTOM_PANEL_INNER_INSET,
                     )

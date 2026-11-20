@@ -26,6 +26,9 @@ import androidx.compose.ui.unit.dp
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.tabhome.R
 
+/** 상태바 아래 헤더까지의 거리 — 시안(A3-1)의 y=89에서 상태바 52를 뺀 값. 토큰에 없는 수치다. */
+private val HEADER_TOP_GAP = 37.dp
+
 @Composable
 fun HomeMapOverlay(locationName: String, modifier: Modifier = Modifier) {
     val lightImageFade = Brush.verticalGradient(
@@ -63,7 +66,7 @@ fun HomeMapOverlay(locationName: String, modifier: Modifier = Modifier) {
                 .align(Alignment.TopStart)
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(start = RunvealTheme.spacing.space24, top = 48.dp, end = RunvealTheme.layout.marginScreen),
+                .padding(start = RunvealTheme.spacing.space24, top = HEADER_TOP_GAP, end = RunvealTheme.layout.marginScreen),
         ) {
             CurrentLocationLabel(locationName = locationName)
             Spacer(modifier = Modifier.height(10.dp))
