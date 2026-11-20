@@ -284,7 +284,10 @@ final class RunvealTraceLog: ObservableObject {
         let info = Bundle.main.infoDictionary
         let version = info?["CFBundleShortVersionString"] as? String ?? "?"
         let build = info?["CFBundleVersion"] as? String ?? "?"
-        entries.append(Entry(text: "빌드 \(version) (\(build))"))
+        // Firebase가 실제로 켜졌는지도 같이 — 콘솔이 "SDK 추가" 화면에 머물러 있으면 보통
+        // GoogleService-Info.plist가 번들에 안 들어가 `configure()`를 건너뛴 것이다.
+        let firebase = FirebaseApp.app() != nil ? "Firebase 켜짐" : "Firebase 꺼짐(plist 없음)"
+        entries.append(Entry(text: "빌드 \(version) (\(build)) · \(firebase)"))
 
         // 지난 실행이 죽기 직전까지 남긴 줄을 먼저 보여준다 — 그 몇 줄이 바로 원인이 있는 자리다.
         for line in RunvealTrace.previousSessionLines {
