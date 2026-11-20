@@ -89,11 +89,10 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         RunvealTrace.once(.mapViewConfigured)
 
         // **카메라는 여기서 세우지 않는다.** `makeUIView`는 SwiftUI가 레이아웃하기 전이라 뷰가
-        // 1pt짜리다. MapLibre는 카메라를 뷰 크기와 `contentInset`(안전 영역)으로 계산하는데, 크기가
-        // 패딩보다 작으면 그 계산이 성립하지 않고 그 자리에서 앱이 죽는다. 크기가 잡힌 뒤에
-        // 한 번만 세운다 — 아래 `onLayout`과 [updateUIView] 둘 중 먼저 오는 쪽이 처리한다.
+        // 1pt짜리다. 크기가 잡힌 뒤에 한 번만 세운다 — 아래 `onLayout`과 [updateUIView] 둘 중
+        // 먼저 오는 쪽이 예약한다.
         mapView.onLayout = { [weak coordinator = context.coordinator] laidOutMapView in
-            coordinator?.applyInitialCameraIfNeeded(laidOutMapView)
+            coordinator?.scheduleInitialCameraIfNeeded(laidOutMapView)
         }
 
         let tap = UITapGestureRecognizer(
@@ -107,7 +106,7 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
     }
 
     func updateUIView(_ mapView: MLNMapView, context: Context) {
-        context.coordinator.applyInitialCameraIfNeeded(mapView)
+        context.coordinator.scheduleInitialCameraIfNeeded(mapView)
         context.coordinator.apply(state: state, overlay: overlay)
     }
 
@@ -135,8 +134,11 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         private var appliedBoundsFocusRequestId = 0
         private var pendingRecenter = false
 
-        /// 초기 카메라를 이미 세웠는가 — 뷰 크기가 잡힌 뒤 딱 한 번만 한다.
-        private var didApplyInitialCamera = false
+        /// 초기 카메라를 이미 예약했는가 — 뷰 크기가 잡힌 뒤 딱 한 번만 한다.
+        private var didScheduleInitialCamera = false
+
+        /// 최소 줌 제한을 이미 걸었는가 — 스타일 로드 뒤 딱 한 번만 한다.
+        private var didApplyMinimumZoom = false
 
         private var lastOverlayBoundarySourceKey: String?
         private var glowRefreshTask: Task<Void, Never>?
@@ -164,35 +166,42 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
             roadFocus.rememberOriginalColors(style: style)
             BaseStyleLabels.hide(style: style)
             mapView.showsUserLocation = true
+            applyMinimumZoomIfNeeded(mapView)
 
             apply(state: state, overlay: currentOverlay)
         }
 
         // MARK: 카메라
 
-        /// 지도가 실제 크기를 갖게 된 뒤 초기 위치·최소 줌을 세운다.
+        /// 뷰가 실제 크기를 갖게 되면 초기 카메라 적용을 **예약**한다.
         ///
-        /// `makeUIView`에서 하면 안 된다 — 그때는 SwiftUI가 아직 레이아웃을 안 해 뷰가 1pt고,
-        /// MapLibre가 뷰 크기와 안전 영역 패딩으로 카메라를 계산하다 죽는다. 레이아웃 직후
-        /// ([RunvealMapLibreView.onLayout])와 `updateUIView`에서 모두 불러, 먼저 온 쪽이 처리한다.
-        func applyInitialCameraIfNeeded(_ mapView: MLNMapView) {
-            guard !didApplyInitialCamera else { return }
-            // 패딩보다 큰 크기가 될 때까지 기다린다 — 1pt짜리 뷰가 바로 그 터지는 조건이다.
+        /// 레이아웃 직후([RunvealMapLibreView.onLayout])와 `updateUIView`에서 모두 불리며,
+        /// 먼저 온 쪽이 한 번만 예약한다.
+        func scheduleInitialCameraIfNeeded(_ mapView: MLNMapView) {
+            guard !didScheduleInitialCamera else { return }
             let size = mapView.bounds.size
             guard size.width >= 64, size.height >= 64 else { return }
-            // 이 안에서 일어나는 레이아웃이 다시 들어오지 못하게 먼저 올린다.
-            didApplyInitialCamera = true
-            // 여기서 죽는다면 어느 호출이었는지 바로 알 수 있게 한 줄씩 끊어 찍는다. 크기와
-            // 패딩을 같이 남기는 건 "패딩이 크기보다 크다"는 그 조건을 눈으로 확인하려는 것.
+            didScheduleInitialCamera = true
+
             let inset = mapView.contentInset
             RunvealTrace.once(
                 .mapViewLaidOut,
                 "\(Int(size.width))x\(Int(size.height)) 패딩 \(Int(inset.top))/\(Int(inset.bottom))"
             )
 
-            mapView.minimumZoomLevel = RunvealMapConfig.minZoomPreference
-            RunvealTrace.once(.mapCameraMinZoomSet)
+            // **`layoutSubviews` 호출 스택 안에서 카메라를 건드리지 않는다.** 그 안은 MapLibre가
+            // 바뀐 뷰 크기를 렌더러에 반영하는 중이라, 같은 스택에서 transform을 바꾸면 크기와
+            // 카메라가 서로 어긋난 상태로 계산이 들어간다. 한 턴 미뤄 배치가 끝난 뒤에 세운다.
+            Task { @MainActor [weak self, weak mapView] in
+                guard let self, let mapView else { return }
+                self.applyInitialCamera(mapView)
+            }
+        }
 
+        /// 초기 위치를 세운다. 배치가 끝난 다음 턴에 딱 한 번 불린다.
+        ///
+        /// 최소 줌은 여기서 걸지 않는다 — [applyMinimumZoomIfNeeded] 참고.
+        private func applyInitialCamera(_ mapView: MLNMapView) {
             // `setCenter`가 내부에서 먼저 하는 일이 추적 모드 해제다 — 그 경로(위치 서비스 확인)와
             // 카메라 계산을 가르기 위해 미리 따로 부른다. 이미 `.none`이라 동작은 바뀌지 않는다.
             mapView.userTrackingMode = .none
@@ -204,6 +213,18 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
                 animated: false
             )
             RunvealTrace.once(.mapViewCentered)
+        }
+
+        /// 최소 줌 제한을 건다. **스타일이 다 올라온 뒤**에 한 번만 한다.
+        ///
+        /// 실제로 앱이 죽은 자리가 이 줄이었다. 최소 줌을 걸면 MapLibre는 현재 카메라를 그 제약에 맞추려고
+        /// 재투영하는데, 그때 카메라가 아직 기본값(0,0 · 줌 0)이고 스타일도 없으면 끌어올릴 기준이
+        /// 없다. 서울·줌 13이 서고 스타일까지 올라온 뒤에는 당겨 올릴 것이 없어 사실상 값만 기록된다.
+        private func applyMinimumZoomIfNeeded(_ mapView: MLNMapView) {
+            guard !didApplyMinimumZoom else { return }
+            didApplyMinimumZoom = true
+            mapView.minimumZoomLevel = RunvealMapConfig.minZoomPreference
+            RunvealTrace.once(.mapCameraMinZoomSet)
         }
 
         func mapView(_ mapView: MLNMapView, regionDidChangeAnimated animated: Bool) {
