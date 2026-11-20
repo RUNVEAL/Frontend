@@ -57,8 +57,12 @@ object IosRecordDetail {
     /** 칼로리는 아직 어디에도 저장하지 않는다 — 값이 생기기 전까지 자리만 지킨다. */
     private const val CALORIES_PLACEHOLDER = "-"
 
-    /** 가장 느린 구간이라도 막대가 보이게 두는 최소 길이 비율. */
-    private const val MIN_SPLIT_BAR_RATIO = 0.08
+    /**
+     * **가장 느린 구간의 막대 길이**(시안 `구간기록 Graph Guide`). 가장 빠른 구간이 100%, 가장 느린
+     * 구간이 이 값이고 나머지는 그 사이에 페이스대로 놓인다 — "보이게 하는 하한"이 아니라 눈금의
+     * 아래쪽 끝이다.
+     */
+    private const val SLOWEST_SPLIT_BAR_RATIO = 0.3
 
     /** 이 차이 이내면 같은 페이스로 본다(km당 초) — 라벨도 막대도 구분이 안 가는 수준이다. */
     private const val PACE_EQUAL_TOLERANCE_SECONDS = 1.0
@@ -131,11 +135,14 @@ object IosRecordDetail {
      * 1km 구간별 페이스. 저장해 둔 GPX를 읽어([IosGpxPoints]) 공용 계산([RunSplits])에 넘긴다 —
      * 거리는 `track.distance_meters`가 아니라 점 사이를 다시 재서 쌓으므로 구간 경계가 실제 경로를 따른다.
      *
-     * 막대 길이는 **가장 빠른 구간을 1로 둔 비율**이다(느릴수록 짧다). 0에 가까워 안 보이는 일이
-     * 없게 최소 길이를 둔다 — 그래서 전 구간 페이스가 같으면 전부 꽉 찬다.
+     * 막대 길이는 **그 기록 안의 최고·최저 페이스를 양 끝으로 둔 상대 비교**다(시안
+     * `구간기록 Graph Guide`) — 가장 빠른 구간이 100%, 가장 느린 구간이 30%, 나머지는 그 사이에
+     * 페이스대로 놓인다. 고정된 페이스 값을 기준으로 쓰지 않으므로 눈금은 기록마다 달라진다.
+     * "가장 빠른 구간 대비 몇 %"로 재면 5~6분대 페이스에서는 차이가 몇 %에 그쳐 막대가 전부 비슷해
+     * 보인다 — 그래서 양 끝을 벌려 둔다.
      *
-     * 강조(가장 빠른 구간)는 **구간들 사이에 차이가 있을 때만** 켠다 — 다 같은 페이스면 "가장 빠른
-     * 구간"이랄 게 없다. 구간이 하나뿐이면 그 줄이 곧 가장 빠른 구간이라 켠다.
+     * 예외는 가이드에 적힌 그대로다. 구간이 하나뿐이면 100%에 강조까지, 전 구간 페이스가 같으면
+     * 전부 100%지만 **강조는 넣지 않는다**("가장 빠른 구간"이랄 게 없다).
      */
     private fun loadSplits(trackId: String): List<RecordDetailSplitRow> {
         val gpx = store.filteredGpx(trackId) ?: return emptyList()
@@ -143,14 +150,20 @@ object IosRecordDetail {
         if (splits.isEmpty()) return emptyList()
         val paces = splits.map { it.paceSecondsPerKm }
         val fastestPace = paces.min().takeIf { it > 0.0 } ?: return emptyList()
-        val hasFasterSplit = splits.size == 1 ||
-            (paces.max() - fastestPace) > PACE_EQUAL_TOLERANCE_SECONDS
+        val paceSpan = paces.max() - fastestPace
+        // 구간이 하나뿐이거나 전부 같은 페이스면 눈금을 만들 수 없다 — 전부 100%로 둔다.
+        val hasFasterSplit = splits.size == 1 || paceSpan > PACE_EQUAL_TOLERANCE_SECONDS
+        val isFlat = paceSpan <= PACE_EQUAL_TOLERANCE_SECONDS
         return splits.map { split ->
+            val ratio = if (isFlat) {
+                1.0
+            } else {
+                1.0 - (1.0 - SLOWEST_SPLIT_BAR_RATIO) * (split.paceSecondsPerKm - fastestPace) / paceSpan
+            }
             RecordDetailSplitRow(
                 label = "${split.index}km",
                 paceLabel = IosDateFormat.paceSecondsLabel(split.paceSecondsPerKm),
-                barRatio = (fastestPace / split.paceSecondsPerKm)
-                    .coerceIn(MIN_SPLIT_BAR_RATIO, 1.0),
+                barRatio = ratio.coerceIn(SLOWEST_SPLIT_BAR_RATIO, 1.0),
                 isFastest = hasFasterSplit &&
                     (split.paceSecondsPerKm - fastestPace) <= PACE_EQUAL_TOLERANCE_SECONDS,
             )
