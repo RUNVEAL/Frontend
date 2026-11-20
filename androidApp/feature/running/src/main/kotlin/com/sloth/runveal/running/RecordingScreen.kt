@@ -282,7 +282,13 @@ fun RecordingScreen(
             val willSave = finishDialog.willSaveRecord
             Dialog(onDismissRequest = { viewModel.onIntent(RecordingIntent.StopDismissed) }) {
                 RunvealDialog(
-                    title = stringResource(R.string.recording_finish_dialog_title),
+                    title = stringResource(
+                        if (willSave) {
+                            R.string.recording_finish_dialog_title
+                        } else {
+                            R.string.recording_finish_dialog_unsaved_title
+                        },
+                    ),
                     description = stringResource(
                         if (willSave) {
                             R.string.recording_finish_dialog_description

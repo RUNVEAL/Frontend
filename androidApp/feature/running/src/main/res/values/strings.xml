@@ -18,6 +18,7 @@
 탐험 지도에 반영돼요.</string>
     <string name="recording_finish_dialog_confirm">끝내기</string>
     <string name="recording_finish_dialog_cancel">취소</string>
+    <string name="recording_finish_dialog_unsaved_title">러닝 기록이 너무 짧아요</string>
     <string name="recording_finish_dialog_unsaved_description">100m 또는 1분 미만은 저장되지 않아요.</string>
     <string name="recording_finish_dialog_unsaved_confirm">저장 없이 종료</string>
     <string name="recording_finish_dialog_unsaved_cancel">계속 달리기</string>
