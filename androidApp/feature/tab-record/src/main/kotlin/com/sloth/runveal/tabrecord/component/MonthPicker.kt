@@ -23,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -108,7 +107,8 @@ internal fun MonthPicker(
 @Composable
 private fun MonthCell(month: Int, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = RunvealTheme.colors
-    val shape = if (selected) RunvealTheme.shapes.radius8 else RectangleShape
+    // 고른 달이든 아니든 칸 모양은 같다(시안) — 고른 칸만 안을 채운다.
+    val shape = RunvealTheme.shapes.radius8
     Box(
         modifier = modifier
             .width(MONTH_CELL_WIDTH)
