@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -475,7 +476,12 @@ private fun SplitBar(ratio: Float, isFastest: Boolean, modifier: Modifier = Modi
     }
 }
 
-/** 막대와 같은 폭으로 깔리는 번짐 한 겹. 높이·블러만 바꿔 두 번 겹친다. */
+/**
+ * 막대와 같은 폭으로 깔리는 번짐 한 겹. 높이·블러만 바꿔 두 번 겹친다.
+ *
+ * [BlurredEdgeTreatment.Unbounded]가 핵심이다 — 기본값(Rectangle)은 번진 결과를 **자기 영역 안으로
+ * 잘라내서**, 빛이 막대 밖으로 못 나가고 안에서만 흐려진다(= 글로우가 거의 안 보인다).
+ */
 @Composable
 private fun BoxScope.SplitBarGlow(widthRatio: Float, height: Dp, blur: Dp) {
     Box(
@@ -483,7 +489,7 @@ private fun BoxScope.SplitBarGlow(widthRatio: Float, height: Dp, blur: Dp) {
             .fillMaxWidth(widthRatio)
             .height(height)
             .align(Alignment.CenterStart)
-            .blur(blur)
+            .blur(blur, BlurredEdgeTreatment.Unbounded)
             .background(
                 RunvealTheme.colors.accent.glow.copy(alpha = SPLIT_GLOW_ALPHA),
                 RunvealTheme.shapes.full,
