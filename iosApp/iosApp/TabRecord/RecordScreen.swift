@@ -15,6 +15,42 @@ enum TabRecordStrings {
     static let emptyTitle = "아직 달린 기록이 없어요"
     static let emptyDescription = "코스를 만들고 첫 길을 밝혀보세요"
     static let emptyAction = "러닝 시작하기"
+
+    // MARK: 기록 상세
+
+    /// 요약의 "새로 탐험한 길"과 달리 상세는 수치 옆 짧은 라벨이라 따로 둔다.
+    static let detailNewRoadLabel = "새 길"
+    static let elapsedLabel = "러닝 시간"
+    static let paceLabel = "평균 페이스"
+    static let caloriesLabel = "칼로리"
+    static let mapLabel = "이 러닝의 경로 지도"
+    static let legendNew = "새로 탐험한 길"
+    static let legendToday = "오늘 달린 길"
+    static let dongRateTitle = "탐험률 변화"
+    static let dongRateEmpty = "이 러닝으로 집계된 동네가 없어요"
+    static let splitsTitle = "구간 기록"
+    static let splitsEmpty = "1km를 넘겨야 구간 기록이 생겨요"
+    static let rateArrow = "→"
+    static func percent(_ value: Int) -> String { "\(value)%" }
+
+    static let moreLabel = "더보기"
+    static let moreRename = "이름 수정"
+    static let moreExportGpx = "GPX 내보내기"
+    static let moreDelete = "삭제"
+
+    static let renameSheetTitle = "기록 이름 수정"
+    static let renameInputLabel = "기록 이름"
+    static let renameInputPlaceholder = "기록 이름을 입력하세요"
+    static let renameCancel = "취소"
+    static let renameConfirm = "저장"
+
+    static let deleteDialogTitle = "러닝을 기록을 삭제할까요?"
+    static let deleteDialogDescription = "삭제하면 해당 러닝이 목록에서 사라져요."
+    static let deleteDialogConfirm = "삭제"
+    static let deleteDialogCancel = "취소"
+
+    /// 아직 기능이 안 붙은 버튼을 눌렀을 때 — 붙는 대로 해당 호출부에서 제거한다.
+    static let notReady = "아직 개발 중입니다"
 }
 
 /// "기록" 탭 — Android `RecordScreen` + `RecordViewModel`에 해당한다.
@@ -22,6 +58,9 @@ enum TabRecordStrings {
 /// 러닝을 끝내면 최종 매칭 후 결과가 `TrackResultHolder`에 publish된다 — 그걸 구독해 그때마다 DB를
 /// 다시 읽어, 방금 끝낸 러닝이 목록과 월간 요약에 바로 올라오게 한다.
 struct RecordScreen: View {
+    /// 목록에서 기록 하나를 눌렀다 — 상세로 올리는 건 홈 셸이 맡는다(탭 화면은 내비게이터를 모른다).
+    let onRecordClick: (String) -> Void
+
     @State private var summary: MonthlyRecordSummary?
     @State private var isLoading = true
     @State private var subscription: FlowSubscription?
@@ -77,6 +116,8 @@ struct RecordScreen: View {
                         VStack(spacing: -12) {
                             ForEach(items, id: \.trackId) { item in
                                 RecordListItemRow(item: item)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { onRecordClick(item.trackId) }
                             }
                         }
                         .padding(.horizontal, RunvealLayout.marginScreen)

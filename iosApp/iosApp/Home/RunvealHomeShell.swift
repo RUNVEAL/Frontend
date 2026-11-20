@@ -171,7 +171,7 @@ struct RunvealHomeShell: View {
         case .course:
             CourseScreen(onCreateCourseClick: { navigator.push(.courseRecommend) })
         case .record:
-            RecordScreen()
+            RecordScreen(onRecordClick: { trackId in navigator.push(.recordDetail(trackId: trackId)) })
         case .my:
             MyScreen(
                 permissionState: permissionState,
@@ -219,6 +219,8 @@ struct RunvealHomeShell: View {
             )
         case .result:
             ResultScreen(onClose: { navigator.popToTab() })
+        case .recordDetail(let trackId):
+            RecordDetailScreen(trackId: trackId, onBack: { navigator.pop() })
         case .termsDetail(let item):
             TermsDetailScreen(item: item, onBack: { navigator.pop() })
         }

@@ -35,6 +35,9 @@ enum RunvealHomeOverlayRoute: Hashable {
     /// 기록 종료 후 러닝 결과 화면 — 배경이 불투명이라 지도는 안 보이지만, 탭바 숨김 흐름은
     /// [recording]/[courseRecommend]와 같다.
     case result
+    /// 기록 탭에서 들어가는 러닝 기록 상세. 탭 안에서 열지만 **탭바까지 덮는 전체 화면**이라
+    /// 탭바를 숨긴다(Android도 기록 상세를 그렇게 띄운다).
+    case recordDetail(trackId: String)
     /// MY 탭에서 들어가는 약관 한 건. 탭 안에서 열지만 그 자체로 전체 화면이라 탭바를 숨긴다 —
     /// Android도 `TermsDetail`을 탭바 숨김 흐름(`isTermsFlow`)에 넣는다.
     case termsDetail(item: TermsPolicyItem)
