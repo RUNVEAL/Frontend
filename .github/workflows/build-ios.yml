@@ -182,6 +182,8 @@ jobs:
       # 식별자라 비밀이 아니다 — Variables에 둬도 된다.
       IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID || vars.IOS_TEAM_ID }}
       FIREBASE_APP_ID_IOS: ${{ secrets.FIREBASE_APP_ID_IOS || vars.FIREBASE_APP_ID_IOS }}
+      # 앱 번들에 들어가는 Firebase 설정 파일. 저장소에는 .gitignore로 없어서 여기서 되살린다.
+      GOOGLE_SERVICE_INFO_PLIST: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST }}
       # 아래는 Secrets 전용.
       IOS_DIST_CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
       IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
@@ -224,6 +226,32 @@ jobs:
             echo "::error::다음 값이 비어 있습니다 —$missing (Actions Secrets 또는 Variables에 추가하세요)"
             exit 1
           fi
+
+      - name: GoogleService-Info.plist 복원
+        # **저장소에 없는 파일이다**(.gitignore). 없으면 앱이 `FirebaseApp.configure()`를 건너뛰고
+        # (iOSApp.init), Crashlytics 콘솔은 이벤트를 한 번도 못 받아 "SDK 추가" 화면에 머문다.
+        # dSYM을 올릴 때도 이 파일로 인증한다.
+        #
+        # 시크릿이 base64인지 평문 XML인지 모르므로 둘 다 받는다 — 디코드해서 plist로 읽히면
+        # base64, 아니면 내용을 그대로 쓴 것으로 본다.
+        run: |
+          DEST=iosApp/iosApp/GoogleService-Info.plist
+          if [ -z "$GOOGLE_SERVICE_INFO_PLIST" ]; then
+            echo "::warning::GOOGLE_SERVICE_INFO_PLIST가 비어 있습니다 — Crashlytics 없이 빌드됩니다."
+            exit 0
+          fi
+
+          if echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > "$DEST" 2>/dev/null \
+             && plutil -lint "$DEST" > /dev/null 2>&1; then
+            echo "base64로 복원했습니다."
+          else
+            printf '%s' "$GOOGLE_SERVICE_INFO_PLIST" > "$DEST"
+            plutil -lint "$DEST"
+            echo "평문으로 복원했습니다."
+          fi
+
+          # 값 자체는 찍지 않는다 — 번들 ID만 확인해서 Firebase 앱과 맞는지 본다.
+          /usr/libexec/PlistBuddy -c "Print :BUNDLE_ID" "$DEST"
 
       - name: 서명 키체인 구성
         run: |
