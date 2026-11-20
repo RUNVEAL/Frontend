@@ -27,7 +27,7 @@ struct RunvealHomeShell: View {
     /// 홈에 들어가면 `MLNMapView` 생성 자리에서 죽는데, 그게 MapLibre 때문인지 홈의 다른 부분까지
     /// 문제인지 가르려고 둔다. 여기를 `false`로 되돌리면 원래대로 지도가 뜬다 — 원인을 찾으면
     /// 이 상수와 아래 분기를 지운다.
-    private static let mapDisabledForDiagnosis = true
+    private static let mapDisabledForDiagnosis = false
 
     @State private var toastMessage: String?
 

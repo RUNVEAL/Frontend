@@ -75,7 +75,10 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         let styleURL = RunvealMapConfig.styleURL
         RunvealTrace.once(.mapViewCreating, styleURL?.absoluteString ?? "styleURL이 nil")
 
-        let mapView = MLNMapView(frame: .zero, styleURL: styleURL)
+        // **`.zero`로 만들지 않는다.** MapLibre 6은 Metal 렌더러라 생성 시점에 `CAMetalLayer`를
+        // 세우는데, 그때 크기가 0이면 drawable을 만들 수 없다. SwiftUI는 곧 실제 크기로 다시
+        // 레이아웃하므로 여기 값 자체는 중요하지 않고, 0만 아니면 된다.
+        let mapView = MLNMapView(frame: CGRect(x: 0, y: 0, width: 1, height: 1), styleURL: styleURL)
         RunvealTrace.once(.mapViewAllocated)
 
         mapView.delegate = context.coordinator
