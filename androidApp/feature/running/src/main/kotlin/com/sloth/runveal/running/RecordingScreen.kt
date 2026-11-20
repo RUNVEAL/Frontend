@@ -62,6 +62,7 @@ import com.sloth.runveal.designsystem.RunvealIcons
 import com.sloth.runveal.designsystem.component.button.RunvealButtonGroupEqual
 import com.sloth.runveal.designsystem.component.button.RunvealRunPauseButton
 import com.sloth.runveal.designsystem.component.map.RunvealMapMarkerType
+import com.sloth.runveal.designsystem.component.map.RunvealNavigationBanner
 import com.sloth.runveal.designsystem.component.overlay.RunvealDialog
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.running.R
@@ -239,13 +240,25 @@ fun RecordingScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         if (state.phase != RecordingPhase.IDLE) {
-            NewRoadBadge(
-                distanceLabel = state.newRoadLabel,
+            Column(
                 modifier = Modifier
                     .align(Alignment.TopStart)
+                    .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(start = RunvealTheme.layout.marginScreen, top = RunvealTheme.spacing.space16),
-            )
+                    .padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space16),
+                verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
+            ) {
+                // 일시정지 중에는 기록이 멈췄다는 걸 지도 위에서도 알린다(시안 C0-1) — 하단 패널의
+                // 숫자가 멈춘 것만으로는 멈췄는지 느린지 알기 어렵다.
+                if (state.phase == RecordingPhase.PAUSED) {
+                    RunvealNavigationBanner(
+                        icon = RunvealIcons.Pause,
+                        instruction = stringResource(R.string.recording_paused_banner_title),
+                        description = stringResource(R.string.recording_paused_banner_description),
+                    )
+                }
+                NewRoadBadge(distanceLabel = state.newRoadLabel)
+            }
         }
         when (state.phase) {
             // 시작 직후 TrackRecorder.state가 아직 안 바뀐 찰나 — 그릴 게 없다.
