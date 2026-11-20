@@ -17,7 +17,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,19 +32,28 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sloth.runveal.core.map.CourseSnapshotImage
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
+import com.sloth.runveal.designsystem.component.overlay.RunvealDialog
+import com.sloth.runveal.designsystem.component.overlay.RunvealDialogType
 import com.sloth.runveal.designsystem.component.stat.RunvealStat
 import com.sloth.runveal.designsystem.component.stat.RunvealStatType
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.tabrecord.R
 import com.sloth.runveal.map.snapshot.SnapshotRequest
+import com.sloth.runveal.tabrecord.component.RecordMoreMenuIcon
+import com.sloth.runveal.tabrecord.component.RecordRenameSheet
 import com.sloth.runveal.tabrecord.contract.RecordDetailDongStat
+import com.sloth.runveal.tabrecord.contract.RecordDetailEffect
 import com.sloth.runveal.tabrecord.contract.RecordDetailIntent
 import com.sloth.runveal.tabrecord.contract.RecordDetailState
+import com.sloth.runveal.ui.mvi.CollectEffect
+import com.sloth.runveal.ui.toast.NotReadyToastHost
+import com.sloth.runveal.ui.toast.rememberNotReadyToastState
 
 /** 시안의 지도 영역 높이. */
 private val MAP_HEIGHT = 291.dp
@@ -78,7 +90,14 @@ fun RecordDetailScreen(
     // 목록으로 돌려보낸다.
     LaunchedEffect(state) { if (state is RecordDetailState.NotFound) onBack() }
 
+    CollectEffect(viewModel.effect) { effect ->
+        when (effect) {
+            RecordDetailEffect.NavigateBack -> onBack()
+        }
+    }
+
     val readyState = state as? RecordDetailState.Ready
+    val notReadyToast = rememberNotReadyToastState()
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -93,6 +112,20 @@ fun RecordDetailScreen(
                 leading = RunvealTopAppBarLeading.Back,
                 onLeadingClick = onBack,
                 title = readyState?.title.orEmpty(),
+                // 읽을 기록이 있을 때만 더보기를 단다 — 빈 화면에 메뉴만 떠 있을 이유가 없다.
+                action = if (readyState != null) {
+                    {
+                        RecordMoreMenuIcon(
+                            onRenameClick = { viewModel.onIntent(RecordDetailIntent.RenameClicked) },
+                            // TODO: GPX 파일은 이미 저장돼 있다(track.gpx_filtered_path) — 공유 시트로
+                            //  내보내는 길만 붙이면 된다. 그때까지는 "개발 중" 안내만 띄운다.
+                            onExportGpxClick = notReadyToast::show,
+                            onDeleteClick = { viewModel.onIntent(RecordDetailIntent.DeleteClicked) },
+                        )
+                    }
+                } else {
+                    null
+                },
             )
 
             if (readyState != null) {
@@ -113,6 +146,48 @@ fun RecordDetailScreen(
                 }
             }
         }
+
+        NotReadyToastHost(notReadyToast)
+
+        if (readyState?.isRenameSheetVisible == true) {
+            RecordRenameModalSheet(
+                recordName = readyState.title,
+                onConfirm = { viewModel.onIntent(RecordDetailIntent.RenameConfirmed(it)) },
+                onDismiss = { viewModel.onIntent(RecordDetailIntent.RenameDismissed) },
+            )
+        }
+
+        // RunvealDialog는 내용만 그리는 컴포넌트라(그 KDoc 참고) Compose의 Dialog로 감싼다 —
+        // 바깥을 누르거나 뒤로가기로 닫히는 동작을 거기서 얻는다(기록 탭에 있던 그대로다).
+        if (readyState?.isDeleteDialogVisible == true) {
+            Dialog(onDismissRequest = { viewModel.onIntent(RecordDetailIntent.DeleteDismissed) }) {
+                RunvealDialog(
+                    title = stringResource(R.string.record_delete_dialog_title),
+                    description = stringResource(R.string.record_delete_dialog_description),
+                    confirmLabel = stringResource(R.string.record_delete_dialog_confirm),
+                    cancelLabel = stringResource(R.string.record_delete_dialog_cancel),
+                    onConfirm = { viewModel.onIntent(RecordDetailIntent.DeleteConfirmed) },
+                    onCancel = { viewModel.onIntent(RecordDetailIntent.DeleteDismissed) },
+                    // 되돌릴 수 없는 동작이라 확인 버튼을 빨갛게 둔다.
+                    type = RunvealDialogType.Destructive,
+                )
+            }
+        }
+    }
+}
+
+/** 이름 수정 시트 — 모양은 [RecordRenameSheet]가 그리고 ModalBottomSheet는 scrim·드래그 닫기만
+ * 맡는다(그래서 배경은 투명, 드래그 핸들은 시트가 직접 그린다). */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RecordRenameModalSheet(recordName: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Color.Transparent,
+        dragHandle = null,
+    ) {
+        RecordRenameSheet(initialName = recordName, onConfirm = onConfirm, onCancel = onDismiss)
     }
 }
 

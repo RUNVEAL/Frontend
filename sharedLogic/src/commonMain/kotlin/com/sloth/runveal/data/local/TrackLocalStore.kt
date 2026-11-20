@@ -273,6 +273,14 @@ class TrackLocalStore(
                 )
             }
 
+    /**
+     * 기록 이름을 사용자가 지은 이름으로 바꾼다(`place_name`). `place_lookup_attempted`가 같이 켜져
+     * 역지오코딩이 나중에 덮어쓰지 않는다 — 직접 지은 이름이 더 세다.
+     */
+    fun renameTrack(id: String, name: String, nowEpochMs: Long) {
+        database.trackQueries.updatePlaceName(place_name = name, updated_at_epoch_ms = nowEpochMs, id = id)
+    }
+
     /** 기록 한 건이 **처음 밟은** 길이(m) — 상세 화면 "새 길". [newRoadMetersBetween]과 같은 재생을
      * 쓰되 트랙 하나만 센다. */
     fun newRoadMetersForTrack(trackId: String): Double {

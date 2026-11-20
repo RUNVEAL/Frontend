@@ -10,6 +10,7 @@ import com.sloth.runveal.map.snapshot.SnapshotVariant
 import com.sloth.runveal.map.snapshot.toSnapshotRequest
 import com.sloth.runveal.result.DongRateChanges
 import com.sloth.runveal.tabrecord.contract.RecordDetailDongStat
+import com.sloth.runveal.tabrecord.contract.RecordDetailEffect
 import com.sloth.runveal.tabrecord.contract.RecordDetailIntent
 import com.sloth.runveal.tabrecord.contract.RecordDetailState
 import com.sloth.runveal.ui.mvi.MviViewModel
@@ -25,19 +26,56 @@ private const val TAG = "RecordDetail"
 /** 칼로리는 아직 어디에도 저장하지 않는다 — 값이 생기기 전까지 자리만 지킨다. */
 private const val CALORIES_PLACEHOLDER = "-"
 
-/** 효과가 필요 없는 화면이라 Effect 타입 인자는 [Nothing]. */
 class RecordDetailViewModel(
     private val store: TrackLocalStore = TrackLocalStore(RunvealDatabaseProvider.database, FileStore()),
     private val zoneId: ZoneId = ZoneId.systemDefault(),
-) : MviViewModel<RecordDetailIntent, RecordDetailState, Nothing>(initialState = RecordDetailState.Loading) {
+) : MviViewModel<RecordDetailIntent, RecordDetailState, RecordDetailEffect>(initialState = RecordDetailState.Loading) {
+
+    /** 지금 보고 있는 기록 — 삭제할 때 다시 쓴다(상태는 화면에 찍을 라벨만 들고 있다). */
+    private var trackId: String? = null
 
     override suspend fun handleIntent(intent: RecordDetailIntent) {
         when (intent) {
             is RecordDetailIntent.Load -> load(intent.trackId)
+            RecordDetailIntent.RenameClicked ->
+                setState { (this as? RecordDetailState.Ready)?.copy(isRenameSheetVisible = true) ?: this }
+            RecordDetailIntent.RenameDismissed ->
+                setState { (this as? RecordDetailState.Ready)?.copy(isRenameSheetVisible = false) ?: this }
+            is RecordDetailIntent.RenameConfirmed -> rename(intent.name)
+            RecordDetailIntent.DeleteClicked ->
+                setState { (this as? RecordDetailState.Ready)?.copy(isDeleteDialogVisible = true) ?: this }
+            RecordDetailIntent.DeleteDismissed ->
+                setState { (this as? RecordDetailState.Ready)?.copy(isDeleteDialogVisible = false) ?: this }
+            RecordDetailIntent.DeleteConfirmed -> deleteTrack()
         }
     }
 
+    /** 이름을 바꾸고 화면을 다시 읽는다 — 상단 제목이 바로 갈린다. 공백만 들어오면 아무것도 하지
+     * 않는다(시트의 "저장" 버튼도 같은 조건으로 꺼진다). */
+    private suspend fun rename(name: String) {
+        val id = trackId ?: return
+        val newName = name.trim()
+        if (newName.isEmpty()) return
+        setState { (this as? RecordDetailState.Ready)?.copy(isRenameSheetVisible = false) ?: this }
+        withContext(Dispatchers.IO) { store.renameTrack(id, newName, System.currentTimeMillis()) }
+        load(id)
+    }
+
+    /**
+     * 기록 한 건을 지운다. [TrackLocalStore.deleteTrack]이 GPX 파일까지 같이 지우고
+     * `explored_segment` 커버리지를 남은 기록만으로 다시 만든다 — 그래서 **지운 러닝이 밝혀 둔 길과
+     * 탐험률도 같이 줄어든다**. 그 캐시를 다시 만드는 비용이 있어 IO로 넘긴다(기록 탭에 있던 처리를
+     * 그대로 옮겨 왔다).
+     */
+    private suspend fun deleteTrack() {
+        val id = trackId ?: return
+        setState { (this as? RecordDetailState.Ready)?.copy(isDeleteDialogVisible = false) ?: this }
+        withContext(Dispatchers.IO) { store.deleteTrack(id, System.currentTimeMillis()) }
+        sendEffect(RecordDetailEffect.NavigateBack)
+    }
+
     private suspend fun load(trackId: String) {
+        this.trackId = trackId
         val track = withContext(Dispatchers.IO) { store.trackSummary(trackId) }
         if (track == null) {
             setState { RecordDetailState.NotFound }

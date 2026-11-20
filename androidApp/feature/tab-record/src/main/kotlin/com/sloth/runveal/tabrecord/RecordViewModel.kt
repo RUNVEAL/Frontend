@@ -23,7 +23,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * 기록 탭. 월 선택·기록 상세는 아직 TODO라, 지금 받는 의도는 기록 삭제뿐이다.
+ * 기록 탭. 월 선택은 아직 TODO다. 기록 삭제는 상세 화면의 더보기 메뉴로 옮겼다 — 여기서 받는
+ * 의도는 "목록 다시 읽기"뿐이다.
  *
  * 러닝을 끝내면 `TrackingService`가 최종 매칭 후 [TrackResultHolder]에 결과를 publish한다 — 그걸
  * 구독해 그때마다 DB를 다시 읽어, 방금 끝낸 러닝이 목록과 월간 요약에 바로 올라오게 한다. StateFlow라
@@ -49,27 +50,10 @@ class RecordViewModel(
 
     override suspend fun handleIntent(intent: RecordIntent) {
         when (intent) {
-            is RecordIntent.DeleteRequested -> setState { copy(deleteTargetTrackId = intent.trackId) }
-            RecordIntent.DeleteDismissed -> setState { copy(deleteTargetTrackId = null) }
-            RecordIntent.DeleteConfirmed -> deleteTarget()
+            RecordIntent.Load -> loadThisMonth()
         }
     }
 
-    /**
-     * 기록 한 건을 지운다. [TrackLocalStore.deleteTrack]이 GPX 파일까지 같이 지우고
-     * `explored_segment` 커버리지를 남은 기록만으로 다시 만든다 — 그래서 **지운 러닝이 밝혀 둔
-     * 길과 탐험률도 같이 줄어든다**. 그 캐시를 다시 만드는 비용이 있어 IO로 넘긴다.
-     *
-     * 지운 뒤 [TrackResultHolder]를 건드리지 않고 직접 다시 읽는다 — 홀더는 "방금 끝낸 러닝"을
-     * 알리는 자리라 삭제와 뜻이 맞지 않는다. 대신 홈 지도는 다음에 오버레이를 다시 만들 때
-     * 반영된다.
-     */
-    private suspend fun deleteTarget() {
-        val trackId = currentState.deleteTargetTrackId ?: return
-        setState { copy(deleteTargetTrackId = null) }
-        withContext(Dispatchers.IO) { store.deleteTrack(trackId, System.currentTimeMillis()) }
-        loadThisMonth()
-    }
 
     private suspend fun loadThisMonth() {
         val month = YearMonth.now(zoneId)
