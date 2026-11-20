@@ -180,33 +180,14 @@ struct RecordDetailScreen: View {
         ZStack(alignment: .bottomLeading) {
             RunvealTheme.colors.bg.map
             CourseSnapshotImage(request: request, accessibilityLabel: TabRecordStrings.mapLabel)
-            HStack(spacing: RunvealSpacing.space12) {
-                legendItem(color: RunvealTheme.colors.map.roadNew,
-                           label: TabRecordStrings.legendNew,
-                           halo: RunvealTheme.colors.map.roadNewHalo)
-                legendItem(color: RunvealTheme.colors.map.roadToday,
-                           label: TabRecordStrings.legendToday,
-                           halo: nil)
-            }
-            .padding(RunvealSpacing.space16)
+            // 지도 범례는 디자인시스템 컴포넌트를 쓴다 — swatch 14x3, 항목 간격 12, "새로 탐험한 길"만
+            // glow-gold가 붙는 규칙이 거기 들어 있다. 가장자리에서 12 띄우는 것도 컴포넌트 가이드다.
+            RunvealLegend(items: [.new, .today])
+                .padding(RunvealSpacing.space12)
         }
         .frame(maxWidth: .infinity)
         .frame(height: Self.mapHeight)
         .clipped()
-    }
-
-    private func legendItem(color: Color, label: String, halo: Color?) -> some View {
-        HStack(spacing: 6) {
-            ZStack {
-                if let halo {
-                    Capsule().fill(halo).frame(width: 16, height: 10).blur(radius: 4)
-                }
-                Capsule().fill(color).frame(width: 16, height: 3)
-            }
-            Text(label)
-                .runvealTextStyle(RunvealTheme.typography.captionMRegular)
-                .foregroundStyle(RunvealTheme.colors.text.secondary)
-        }
     }
 
     /**
@@ -216,7 +197,7 @@ struct RecordDetailScreen: View {
      "이번 기록만 비는 것"인지 알 수 없다.
      */
     private func dongRateSection(_ dongStats: [RecordDetailDongRow]) -> some View {
-        section(title: TabRecordStrings.dongRateTitle, spacing: RunvealSpacing.space8) {
+        section(title: TabRecordStrings.dongRateTitle, spacing: RunvealSpacing.space4) {
             if dongStats.isEmpty {
                 emptyLine(TabRecordStrings.dongRateEmpty)
             }
@@ -273,9 +254,7 @@ struct RecordDetailScreen: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: RunvealSpacing.space12) {
-            Text(title)
-                .runvealTextStyle(RunvealTheme.typography.bodyLSemibold)
-                .foregroundStyle(RunvealTheme.colors.text.primary)
+            RunvealSectionHeader(title: title)
             VStack(alignment: .leading, spacing: spacing) {
                 content()
             }
@@ -297,22 +276,17 @@ struct RecordDetailScreen: View {
 }
 
 /**
- 트랙 위에 [ratio]만큼 채운 막대. 채움은 진행 바 색, **가장 빠른 구간만** 강조 색으로 그리고 글로우를 얹는다.
+ 트랙 위에 [ratio]만큼 채운 막대. 채움은 `progress/filled`, **가장 빠른 구간만** `progress/gained`로
+ 그리고 `effect/glow-gold`를 얹는다(시안 `구간 기록`).
 
- 글로우는 홈 지도의 "가본 길"과 같은 방식이다 — 그림자 대신 **같은 색을 두 겹 번지게 깔고 그 위에
- 막대를 얹는다**(바깥은 넓고 연하게, 안쪽은 좁고 진하게). 6pt짜리 가는 막대에 그림자만 주면 번짐이
- 거의 안 보여서, 지도가 굵은 선으로 내는 두께감을 같은 구조로 흉내 낸다.
+ Android는 같은 자리에 색을 두 겹 번지게 깔아 두께감을 냈는데, Compose의 blur가 6dp 막대에서는
+ 거의 안 보였기 때문이다. iOS는 그림자가 그대로 먹으므로 시안대로 디자인시스템 효과 토큰을 쓴다.
  */
 private struct SplitBar: View {
     let ratio: Double
     let isFastest: Bool
 
     private static let height: CGFloat = 6
-    private static let glowOuterHeight: CGFloat = 20
-    private static let glowOuterBlur: CGFloat = 10
-    private static let glowInnerHeight: CGFloat = 12
-    private static let glowInnerBlur: CGFloat = 5
-    private static let glowAlpha: Double = 0.45
 
     var body: some View {
         let colors = RunvealTheme.colors
@@ -322,24 +296,14 @@ private struct SplitBar: View {
             ZStack(alignment: .leading) {
                 Capsule()
                     .fill(colors.progress.track)
-                    .frame(height: Self.height)
-                if isFastest {
-                    glow(width: width, height: Self.glowOuterHeight, blur: Self.glowOuterBlur, color: fillColor)
-                    glow(width: width, height: Self.glowInnerHeight, blur: Self.glowInnerBlur, color: fillColor)
-                }
                 Capsule()
                     .fill(fillColor)
-                    .frame(width: width, height: Self.height)
+                    .frame(width: width)
+                    .runvealDropShadow(isFastest ? RunvealEffects.glowGold : [])
             }
+            .frame(height: Self.height)
             .frame(height: geometry.size.height, alignment: .center)
         }
-        .frame(height: Self.glowOuterHeight)
-    }
-
-    private func glow(width: CGFloat, height: CGFloat, blur: CGFloat, color: Color) -> some View {
-        Capsule()
-            .fill(color.opacity(Self.glowAlpha))
-            .frame(width: width, height: height)
-            .blur(radius: blur)
+        .frame(height: Self.height)
     }
 }
