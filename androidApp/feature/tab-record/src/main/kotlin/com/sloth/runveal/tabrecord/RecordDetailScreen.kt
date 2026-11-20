@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -34,6 +35,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -46,7 +48,6 @@ import com.sloth.runveal.designsystem.component.overlay.RunvealDialogType
 import com.sloth.runveal.designsystem.component.stat.RunvealStat
 import com.sloth.runveal.designsystem.component.stat.RunvealStatType
 import com.sloth.runveal.designsystem.theme.RunvealTheme
-import com.sloth.runveal.designsystem.theme.runvealDropShadow
 import com.sloth.runveal.feature.tabrecord.R
 import com.sloth.runveal.map.snapshot.SnapshotRequest
 import com.sloth.runveal.tabrecord.component.RecordMoreMenuIcon
@@ -69,6 +70,14 @@ private val NEW_ROAD_STAT_WIDTH = 80.dp
 /** 구간 기록 한 줄 — "1km" 라벨 폭과 막대 두께(시안 값). */
 private val SPLIT_LABEL_WIDTH = 28.dp
 private val SPLIT_BAR_HEIGHT = 6.dp
+
+/** 가장 빠른 구간 막대의 번짐 두 겹 — 홈 지도 "가본 길"의 비율(코어:바깥 ≈ 1:5, 안쪽은 그 절반)을
+ * 6dp 막대에 맞춰 줄인 값이다. 불투명도도 지도와 같은 0.45. */
+private val SPLIT_GLOW_OUTER_HEIGHT = 20.dp
+private val SPLIT_GLOW_OUTER_BLUR = 10.dp
+private val SPLIT_GLOW_INNER_HEIGHT = 12.dp
+private val SPLIT_GLOW_INNER_BLUR = 5.dp
+private const val SPLIT_GLOW_ALPHA = 0.45f
 
 /** 범례 선 스와치 — `ResultScreen`/`RecordingScreen`의 같은 모양. */
 private val LEGEND_SWATCH_WIDTH = 16.dp
@@ -431,9 +440,12 @@ private fun SplitsSection(splits: List<RecordDetailSplit>, modifier: Modifier = 
 }
 
 /**
- * 트랙 위에 [ratio]만큼 채운 막대. 채움은 `progress/filled`, **가장 빠른 구간만** `progress/gained`에
- * 글로우를 얹는다. 글로우는 `effect/glow-gold-strong` — 6dp짜리 가는 막대라 진행 바가 쓰는
- * `glow-gold`(블러 8, 한 겹)로는 거의 안 보인다(블러 16 + 4 두 겹).
+ * 트랙 위에 [ratio]만큼 채운 막대. 채움은 `progress/filled`, **가장 빠른 구간만** `progress/gained`로
+ * 그리고 글로우를 얹는다.
+ *
+ * 글로우는 홈 지도의 "가본 길"과 같은 방식이다([VisitedRoadLayer]) — drop shadow 대신 **같은 색을
+ * 두 겹 번지게 깔고 그 위에 막대를 얹는다**(바깥은 넓고 연하게, 안쪽은 좁고 진하게). 6dp짜리 가는
+ * 막대에 그림자만 주면 번짐이 거의 안 보여서, 지도가 굵은 선으로 내는 두께감을 같은 구조로 흉내 낸다.
  *
  * [RunvealProgressBar]를 쓰지 않는 건 그쪽이 "기존 + 이번에 늘어난" 두 토막을 겹쳐 그리는 컴포넌트라
  * 한 토막만 필요한 여기와 모양이 다르기 때문이다.
@@ -442,21 +454,41 @@ private fun SplitsSection(splits: List<RecordDetailSplit>, modifier: Modifier = 
 private fun SplitBar(ratio: Float, isFastest: Boolean, modifier: Modifier = Modifier) {
     val colors = RunvealTheme.colors
     val shape = RunvealTheme.shapes.full
-    Box(
-        modifier = modifier
-            .height(SPLIT_BAR_HEIGHT)
-            .clip(shape)
-            .background(colors.progress.track, shape),
-    ) {
+    val fillRatio = ratio.coerceIn(0f, 1f)
+
+    // 글로우가 막대 위아래로 번져 나가야 해서 바깥 Box에는 clip을 주지 않는다 — 트랙만 따로 자른다.
+    Box(modifier = modifier.height(SPLIT_BAR_HEIGHT), contentAlignment = Alignment.CenterStart) {
+        Box(Modifier.fillMaxSize().clip(shape).background(colors.progress.track, shape))
+
+        if (isFastest) {
+            SplitBarGlow(widthRatio = fillRatio, height = SPLIT_GLOW_OUTER_HEIGHT, blur = SPLIT_GLOW_OUTER_BLUR)
+            SplitBarGlow(widthRatio = fillRatio, height = SPLIT_GLOW_INNER_HEIGHT, blur = SPLIT_GLOW_INNER_BLUR)
+        }
+
         Box(
             modifier = Modifier
-                .fillMaxWidth(ratio.coerceIn(0f, 1f))
+                .fillMaxWidth(fillRatio)
                 .height(SPLIT_BAR_HEIGHT)
-                .then(if (isFastest) Modifier.runvealDropShadow(shape, RunvealTheme.effects.glowGoldStrong) else Modifier)
                 .clip(shape)
                 .background(if (isFastest) colors.progress.gained else colors.progress.filled, shape),
         )
     }
+}
+
+/** 막대와 같은 폭으로 깔리는 번짐 한 겹. 높이·블러만 바꿔 두 번 겹친다. */
+@Composable
+private fun BoxScope.SplitBarGlow(widthRatio: Float, height: Dp, blur: Dp) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth(widthRatio)
+            .height(height)
+            .align(Alignment.CenterStart)
+            .blur(blur)
+            .background(
+                RunvealTheme.colors.accent.glow.copy(alpha = SPLIT_GLOW_ALPHA),
+                RunvealTheme.shapes.full,
+            ),
+    )
 }
 
 /** 범례 한 칸 — `ResultScreen`·`RecordingScreen`에 같은 모양이 있다. 세 번째 쓰임이라 디자인시스템으로
