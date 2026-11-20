@@ -46,6 +46,7 @@ import com.sloth.runveal.designsystem.component.overlay.RunvealDialogType
 import com.sloth.runveal.designsystem.component.stat.RunvealStat
 import com.sloth.runveal.designsystem.component.stat.RunvealStatType
 import com.sloth.runveal.designsystem.theme.RunvealTheme
+import com.sloth.runveal.designsystem.theme.runvealDropShadow
 import com.sloth.runveal.feature.tabrecord.R
 import com.sloth.runveal.map.snapshot.SnapshotRequest
 import com.sloth.runveal.tabrecord.component.RecordMoreMenuIcon
@@ -421,7 +422,7 @@ private fun SplitsSection(splits: List<RecordDetailSplit>, modifier: Modifier = 
                         color = colors.text.secondary,
                         modifier = Modifier.width(SPLIT_LABEL_WIDTH),
                     )
-                    SplitBar(ratio = split.barRatio, modifier = Modifier.weight(1f))
+                    SplitBar(ratio = split.barRatio, isFastest = split.isFastest, modifier = Modifier.weight(1f))
                     Text(split.paceLabel, style = RunvealTheme.typography.bodyMRegular, color = colors.text.secondary)
                 }
             }
@@ -429,9 +430,15 @@ private fun SplitsSection(splits: List<RecordDetailSplit>, modifier: Modifier = 
     }
 }
 
-/** 트랙 위에 [ratio]만큼 채운 막대. 탐험률 진행 바(`RunvealProgressBar`)는 금색 2단 구성이라 여기엔 안 맞는다. */
+/**
+ * 트랙 위에 [ratio]만큼 채운 막대. 채움은 `progress/filled`, **가장 빠른 구간만** `progress/gained`에
+ * 글로우를 얹는다(탐험률 진행 바가 "이번에 늘어난 만큼"을 강조하는 것과 같은 색·같은 효과).
+ *
+ * [RunvealProgressBar]를 쓰지 않는 건 그쪽이 "기존 + 이번에 늘어난" 두 토막을 겹쳐 그리는 컴포넌트라
+ * 한 토막만 필요한 여기와 모양이 다르기 때문이다.
+ */
 @Composable
-private fun SplitBar(ratio: Float, modifier: Modifier = Modifier) {
+private fun SplitBar(ratio: Float, isFastest: Boolean, modifier: Modifier = Modifier) {
     val colors = RunvealTheme.colors
     val shape = RunvealTheme.shapes.full
     Box(
@@ -444,8 +451,9 @@ private fun SplitBar(ratio: Float, modifier: Modifier = Modifier) {
             modifier = Modifier
                 .fillMaxWidth(ratio.coerceIn(0f, 1f))
                 .height(SPLIT_BAR_HEIGHT)
+                .then(if (isFastest) Modifier.runvealDropShadow(shape, RunvealTheme.effects.glowGold) else Modifier)
                 .clip(shape)
-                .background(colors.icon.primary, shape),
+                .background(if (isFastest) colors.progress.gained else colors.progress.filled, shape),
         )
     }
 }
@@ -501,9 +509,9 @@ private fun RecordDetailContentPreview() {
                 caloriesLabel = "-",
                 dongStats = listOf(RecordDetailDongStat("성수동", 37, 39)),
                 splits = listOf(
-                    RecordDetailSplit("1km", "6'12″", 0.95f),
-                    RecordDetailSplit("2km", "6'01″", 1f),
-                    RecordDetailSplit("3km", "6'40″", 0.8f),
+                    RecordDetailSplit("1km", "6'12″", 0.95f, isFastest = false),
+                    RecordDetailSplit("2km", "6'01″", 1f, isFastest = true),
+                    RecordDetailSplit("3km", "6'40″", 0.8f, isFastest = false),
                 ),
                 mapSnapshotRequest = null,
             )

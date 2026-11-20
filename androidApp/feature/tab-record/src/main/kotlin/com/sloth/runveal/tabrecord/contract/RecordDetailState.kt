@@ -32,9 +32,15 @@ sealed interface RecordDetailEffect : UiEffect {
 
 /**
  * "구간 기록" 한 줄 — 1km마다 끊은 페이스. [barRatio]는 막대 길이(0~1)로, **빠른 구간일수록 길다**
- * (가장 빠른 구간이 꽉 찬다).
+ * (가장 빠른 구간이 꽉 찬다). [isFastest]면 막대를 강조해 그린다 — 구간들의 페이스가 모두 같으면
+ * 강조할 "가장 빠른 구간"이 없으므로 아무 줄에도 켜지 않는다(구간이 하나뿐이면 그 줄은 켠다).
  */
-data class RecordDetailSplit(val label: String, val paceLabel: String, val barRatio: Float)
+data class RecordDetailSplit(
+    val label: String,
+    val paceLabel: String,
+    val barRatio: Float,
+    val isFastest: Boolean,
+)
 
 /** "탐험률 변화" 한 줄 — 이 러닝 직전과 직후의 동네 탐험률(%). */
 data class RecordDetailDongStat(val name: String, val beforePercent: Int, val afterPercent: Int)

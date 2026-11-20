@@ -31,6 +31,9 @@ private const val CALORIES_PLACEHOLDER = "-"
 /** 가장 느린 구간이라도 막대가 보이게 두는 최소 길이 비율. */
 private const val MIN_SPLIT_BAR_RATIO = 0.08f
 
+/** 이 차이 이내면 같은 페이스로 본다(km당 초) — 라벨도 막대도 구분이 안 가는 수준이다. */
+private const val PACE_EQUAL_TOLERANCE_SECONDS = 1.0
+
 class RecordDetailViewModel(
     private val store: TrackLocalStore = TrackLocalStore(RunvealDatabaseProvider.database, FileStore()),
     private val zoneId: ZoneId = ZoneId.systemDefault(),
@@ -122,19 +125,28 @@ class RecordDetailViewModel(
      * `track.distance_meters`가 아니라 점 사이를 다시 재서 쌓으므로 구간 경계가 실제 경로를 따른다.
      *
      * 막대 길이는 **가장 빠른 구간을 1로 둔 비율**이다(느릴수록 짧다). 0에 가까워 안 보이는 일이
-     * 없게 최소 길이를 둔다.
+     * 없게 최소 길이를 둔다 — 그래서 전 구간 페이스가 같으면 전부 꽉 찬다.
+     *
+     * 강조(가장 빠른 구간)는 **구간들 사이에 차이가 있을 때만** 켠다 — 다 같은 페이스면 "가장 빠른
+     * 구간"이랄 게 없다. 구간이 하나뿐이면 그 줄이 곧 가장 빠른 구간이라 켠다. 페이스는 실수라
+     * 딱 떨어지게 같을 일이 드물어, 눈에도 라벨에도 차이가 없는 [PACE_EQUAL_TOLERANCE_SECONDS]
+     * 이내는 같은 것으로 본다.
      */
     private fun loadSplits(trackId: String): List<RecordDetailSplit> {
         val gpx = store.filteredGpx(trackId) ?: return emptyList()
         val splits = RunSplits.of(GpxPoints.parse(gpx))
         if (splits.isEmpty()) return emptyList()
-        val fastestPace = splits.minOf { it.paceSecondsPerKm }.takeIf { it > 0.0 } ?: return emptyList()
+        val paces = splits.map { it.paceSecondsPerKm }
+        val fastestPace = paces.min().takeIf { it > 0.0 } ?: return emptyList()
+        val hasFasterSplit = splits.size == 1 || (paces.max() - fastestPace) > PACE_EQUAL_TOLERANCE_SECONDS
         return splits.map { split ->
             RecordDetailSplit(
                 label = "${split.index}km",
                 paceLabel = formatPaceSeconds(split.paceSecondsPerKm),
                 barRatio = (fastestPace / split.paceSecondsPerKm).toFloat()
                     .coerceIn(MIN_SPLIT_BAR_RATIO, 1f),
+                isFastest = hasFasterSplit &&
+                    (split.paceSecondsPerKm - fastestPace) <= PACE_EQUAL_TOLERANCE_SECONDS,
             )
         }
     }
