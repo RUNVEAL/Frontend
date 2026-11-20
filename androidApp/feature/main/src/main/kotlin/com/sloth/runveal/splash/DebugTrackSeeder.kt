@@ -1,7 +1,5 @@
 package com.sloth.runveal.splash
 
-import android.content.Context
-import android.content.pm.ApplicationInfo
 import android.util.Log
 import com.sloth.runveal.data.local.FileStore
 import com.sloth.runveal.data.local.RunvealDatabaseProvider
@@ -36,17 +34,16 @@ private val SEED_CENTER = LatLon(lat = 37.5445, lon = 127.0557)
  * **개발용 더미 러닝 기록**. 기록 탭·기록 상세를 눈으로 확인하려면 기록이 있어야 하는데, 실제로
  * 달리지 않고는 만들 수가 없어서 둔다.
  *
- * 디버그 빌드에서만, 그리고 **이번 달 기록이 하나도 없을 때만** 한 번 넣는다 — 실제로 달린 기록이
- * 있으면 아무것도 하지 않는다. 지우는 건 기록 상세의 더보기 → 삭제로 하면 된다(그때 적립한
- * 커버리지도 같이 걷힌다).
+ * **이번 달 기록이 하나도 없을 때만** 한 번 넣는다 — 실제로 달린 기록이 있으면 아무것도 하지 않는다.
+ * 지우는 건 기록 상세의 더보기 → 삭제로 하면 된다(그때 적립한 커버리지도 같이 걷힌다).
  *
- * TODO: 실제 기록으로 확인할 수 있게 되면 이 파일과 [splashGraph]의 호출을 지운다.
+ * ⚠️ **머지 전에 반드시 지울 것** — 이 파일과 [splashGraph]의 호출. 테스트 기기에 릴리즈 빌드만
+ * 올리는 상황이라 디버그 빌드 가드를 뺐다. 그래서 지금 이 코드는 **릴리즈에서도 돌아간다** —
+ * 이대로 배포하면 실제 사용자 기기에 더미 기록 5건이 들어간다.
  */
 internal object DebugTrackSeeder {
 
-    fun seedIfEmpty(context: Context, zoneId: ZoneId = ZoneId.systemDefault()) {
-        if (!context.isDebuggable()) return
-
+    fun seedIfEmpty(zoneId: ZoneId = ZoneId.systemDefault()) {
         val store = TrackLocalStore(RunvealDatabaseProvider.database, FileStore())
         val now = System.currentTimeMillis()
         val monthStart = YearMonth.now(zoneId).atDay(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
@@ -54,7 +51,7 @@ internal object DebugTrackSeeder {
 
         runCatching {
             repeat(SEED_COUNT) { index -> seedOne(store, index, now) }
-            Log.i(TAG, "더미 기록 ${SEED_COUNT}건을 넣었다(디버그 빌드 전용)")
+            Log.i(TAG, "더미 기록 ${SEED_COUNT}건을 넣었다 — 머지 전에 이 코드를 지울 것")
         }.onFailure { Log.w(TAG, "더미 기록 넣기 실패 — 그냥 넘어간다", it) }
     }
 
@@ -148,9 +145,6 @@ internal object DebugTrackSeeder {
         }
         append("    </trkseg>\n  </trk>\n</gpx>\n")
     }
-
-    private fun Context.isDebuggable(): Boolean =
-        (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
 
     /** 커버리지 비트 수 — 실제 값은 구간마다 다시 맞춰지므로 아무 값이나 꽉 채우기만 하면 된다. */
     private const val FULL_MASK_SIZE = 8
