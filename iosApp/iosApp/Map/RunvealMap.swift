@@ -78,7 +78,7 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         // **`.zero`로 만들지 않는다.** MapLibre 6은 Metal 렌더러라 생성 시점에 `CAMetalLayer`를
         // 세우는데, 그때 크기가 0이면 drawable을 만들 수 없다. SwiftUI는 곧 실제 크기로 다시
         // 레이아웃하므로 여기 값 자체는 중요하지 않고, 0만 아니면 된다.
-        let mapView = MLNMapView(frame: CGRect(x: 0, y: 0, width: 1, height: 1), styleURL: styleURL)
+        let mapView = RunvealMapLibreView(frame: CGRect(x: 0, y: 0, width: 1, height: 1), styleURL: styleURL)
         RunvealTrace.once(.mapViewAllocated)
 
         mapView.delegate = context.coordinator
@@ -86,11 +86,15 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         mapView.attributionButton.isHidden = true
         mapView.compassView.isHidden = true
         mapView.tintColor = RunvealMapColors.default.currentLocation
-        mapView.minimumZoomLevel = RunvealMapConfig.minZoomPreference
         RunvealTrace.once(.mapViewConfigured)
 
-        mapView.setCenter(state.initialCenter.coordinate, zoomLevel: state.initialZoom, animated: false)
-        RunvealTrace.once(.mapViewCentered)
+        // **카메라는 여기서 세우지 않는다.** `makeUIView`는 SwiftUI가 레이아웃하기 전이라 뷰가
+        // 1pt짜리다. MapLibre는 카메라를 뷰 크기와 `contentInset`(안전 영역)으로 계산하는데, 크기가
+        // 패딩보다 작으면 그 계산이 성립하지 않고 그 자리에서 앱이 죽는다. 크기가 잡힌 뒤에
+        // 한 번만 세운다 — 아래 `onLayout`과 [updateUIView] 둘 중 먼저 오는 쪽이 처리한다.
+        mapView.onLayout = { [weak coordinator = context.coordinator] laidOutMapView in
+            coordinator?.applyInitialCameraIfNeeded(laidOutMapView)
+        }
 
         let tap = UITapGestureRecognizer(
             target: context.coordinator,
@@ -103,6 +107,7 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
     }
 
     func updateUIView(_ mapView: MLNMapView, context: Context) {
+        context.coordinator.applyInitialCameraIfNeeded(mapView)
         context.coordinator.apply(state: state, overlay: overlay)
     }
 
@@ -129,6 +134,9 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         private var appliedRecenterRequestId = 0
         private var appliedBoundsFocusRequestId = 0
         private var pendingRecenter = false
+
+        /// 초기 카메라를 이미 세웠는가 — 뷰 크기가 잡힌 뒤 딱 한 번만 한다.
+        private var didApplyInitialCamera = false
 
         private var lastOverlayBoundarySourceKey: String?
         private var glowRefreshTask: Task<Void, Never>?
@@ -161,6 +169,42 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         }
 
         // MARK: 카메라
+
+        /// 지도가 실제 크기를 갖게 된 뒤 초기 위치·최소 줌을 세운다.
+        ///
+        /// `makeUIView`에서 하면 안 된다 — 그때는 SwiftUI가 아직 레이아웃을 안 해 뷰가 1pt고,
+        /// MapLibre가 뷰 크기와 안전 영역 패딩으로 카메라를 계산하다 죽는다. 레이아웃 직후
+        /// ([RunvealMapLibreView.onLayout])와 `updateUIView`에서 모두 불러, 먼저 온 쪽이 처리한다.
+        func applyInitialCameraIfNeeded(_ mapView: MLNMapView) {
+            guard !didApplyInitialCamera else { return }
+            // 패딩보다 큰 크기가 될 때까지 기다린다 — 1pt짜리 뷰가 바로 그 터지는 조건이다.
+            let size = mapView.bounds.size
+            guard size.width >= 64, size.height >= 64 else { return }
+            // 이 안에서 일어나는 레이아웃이 다시 들어오지 못하게 먼저 올린다.
+            didApplyInitialCamera = true
+            // 여기서 죽는다면 어느 호출이었는지 바로 알 수 있게 한 줄씩 끊어 찍는다. 크기와
+            // 패딩을 같이 남기는 건 "패딩이 크기보다 크다"는 그 조건을 눈으로 확인하려는 것.
+            let inset = mapView.contentInset
+            RunvealTrace.once(
+                .mapViewLaidOut,
+                "\(Int(size.width))x\(Int(size.height)) 패딩 \(Int(inset.top))/\(Int(inset.bottom))"
+            )
+
+            mapView.minimumZoomLevel = RunvealMapConfig.minZoomPreference
+            RunvealTrace.once(.mapCameraMinZoomSet)
+
+            // `setCenter`가 내부에서 먼저 하는 일이 추적 모드 해제다 — 그 경로(위치 서비스 확인)와
+            // 카메라 계산을 가르기 위해 미리 따로 부른다. 이미 `.none`이라 동작은 바뀌지 않는다.
+            mapView.userTrackingMode = .none
+            RunvealTrace.once(.mapCameraTrackingCleared)
+
+            mapView.setCenter(
+                state.initialCenter.coordinate,
+                zoomLevel: state.initialZoom,
+                animated: false
+            )
+            RunvealTrace.once(.mapViewCentered)
+        }
 
         func mapView(_ mapView: MLNMapView, regionDidChangeAnimated animated: Bool) {
             state.updateZoom(mapView.zoomLevel)
