@@ -29,4 +29,11 @@
     <string name="record_detail_rename_input_placeholder">기록 이름을 입력하세요</string>
     <string name="record_detail_rename_cancel">취소</string>
     <string name="record_detail_rename_confirm">저장</string>
+    <string name="record_month_picker_year_format">%1$d년</string>
+    <string name="record_month_picker_month_format">%1$d월</string>
+    <string name="record_month_picker_previous_year">이전 해</string>
+    <string name="record_month_picker_next_year">다음 해</string>
+    <string name="record_month_picker_content_description">달 선택</string>
+    <!-- 요약 줄 앞머리 — 이번 달이면 "이번 달", 다른 달이면 "10월"처럼 그 달을 가리킨다. -->
+    <string name="record_summary_run_count_format">%1$s 러닝</string>
 </resources>
