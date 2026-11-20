@@ -14,17 +14,20 @@ import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.Point
 
-/** 앱 지도와 같은 스타일([MapConfig.STYLE_URL]) 위에 경로 선 + (RESULT_CARD면) 시작·끝 점 레이어를
- * 얹는다. [VisitedRoadLayer]와 같은 패턴(`PropertyFactory` + 둥근 cap/join)이지만, 스냅샷은 줌 보간이
+/** 앱 지도와 같은 스타일([MapConfig.STYLE_URL]) 위에 경로 선 + 끝점 레이어를 얹는다
+ * (RESULT_CARD는 출발·도착 두 점, 썸네일은 출발지 한 점). [VisitedRoadLayer]와 같은 패턴(`PropertyFactory` + 둥근 cap/join)이지만, 스냅샷은 줌 보간이
  * 필요 없는 고정 프레임 1장이라 두께를 상수로 바로 쓴다. */
 internal object SnapshotStyleBuilder {
-    private const val ROUTE_WIDTH_DP = 3f
+    /** 썸네일은 작게 줄여 보여주는 그림이라 지도 위 선(3dp)보다 굵게 그려야 경로가 읽힌다. */
+    private const val ROUTE_WIDTH_DP = 4f
     private const val ENDPOINT_RADIUS_DP = 5f
     private const val ENDPOINT_STROKE_WIDTH_DP = 2f
 
     fun build(
         request: SnapshotRequest,
         routeColor: Int,
+        startColor: Int,
+        startStrokeColor: Int,
         endpointColor: Int,
         endpointStrokeColor: Int,
         newRoadColor: Int,
@@ -63,6 +66,27 @@ internal object SnapshotStyleBuilder {
 
         val start = request.start
         val end = request.end
+        // 코스 썸네일은 출발지 한 점만 — 디자인시스템 출발 마커와 같은 모양(금색 점 + 어두운 테두리)으로
+        // 그린다. 카드가 그림 **한가운데**에 점을 얹던 걸 대신한다(그땐 실제 출발지와 무관했다).
+        if (request.variant != SnapshotVariant.RESULT_CARD && start != null) {
+            builder
+                .withSource(
+                    GeoJsonSource(
+                        SnapshotConfig.START_SOURCE_ID,
+                        FeatureCollection.fromFeatures(
+                            listOf(Feature.fromGeometry(Point.fromLngLat(start.lon, start.lat))),
+                        ),
+                    ),
+                )
+                .withLayer(
+                    CircleLayer(SnapshotConfig.START_LAYER_ID, SnapshotConfig.START_SOURCE_ID).withProperties(
+                        PropertyFactory.circleRadius(ENDPOINT_RADIUS_DP),
+                        PropertyFactory.circleColor(startColor),
+                        PropertyFactory.circleStrokeWidth(ENDPOINT_STROKE_WIDTH_DP),
+                        PropertyFactory.circleStrokeColor(startStrokeColor),
+                    ),
+                )
+        }
         if (request.variant == SnapshotVariant.RESULT_CARD && start != null && end != null) {
             val endpoints = FeatureCollection.fromFeatures(
                 listOf(

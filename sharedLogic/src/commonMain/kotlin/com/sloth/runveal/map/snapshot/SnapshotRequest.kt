@@ -30,9 +30,9 @@ object SnapshotConfig {
     const val MIN_SPAN_METERS = 300.0
     const val MAX_ZOOM = 16.0
 
-    /** 스타일·선 디자인이 바뀌면 올려서 캐시를 무효화한다. 3 = 러닝 경로의 기본선을 "오늘 달린
-     * 길"(흰색)로 바꾸고, 기록 썸네일에도 "새로 탐험한 길"(금색) 덧그리기를 적용한 버전. */
-    const val STYLE_VERSION = 3
+    /** 스타일·선 디자인이 바뀌면 올려서 캐시를 무효화한다. 4 = 코스 썸네일에 출발지 점을 그리기
+     * 시작하고(그 전엔 카드가 썸네일 **한가운데** 점을 얹고 있었다) 경로 선을 3dp → 4dp로 굵힌 버전. */
+    const val STYLE_VERSION = 4
 
     const val ROUTE_SOURCE_ID = "snapshot-route-source"
     const val ROUTE_LAYER_ID = "snapshot-route-layer"
@@ -40,4 +40,6 @@ object SnapshotConfig {
     const val HIGHLIGHT_LAYER_ID = "snapshot-highlight-layer"
     const val ENDPOINT_SOURCE_ID = "snapshot-endpoint-source"
     const val ENDPOINT_LAYER_ID = "snapshot-endpoint-layer"
+    const val START_SOURCE_ID = "snapshot-start-source"
+    const val START_LAYER_ID = "snapshot-start-layer"
 }

@@ -37,6 +37,11 @@ private const val SNAPSHOT_ROUTE_COLOR = 0xFFF2E096.toInt()
 private const val SNAPSHOT_ENDPOINT_COLOR = 0xFF4286E0.toInt()
 private const val SNAPSHOT_ENDPOINT_STROKE_COLOR = 0xFFF4EEEA.toInt()
 
+/** 출발지 점 — accent/glow(gold200) 점에 bg/map(neutral900) 테두리. [CourseSnapshotImage]와 같은 값이라야
+ * 같은 캐시 파일을 함께 쓴다. */
+private const val SNAPSHOT_START_COLOR = 0xFFF2E096.toInt()
+private const val SNAPSHOT_START_STROKE_COLOR = 0xFF0E0E0E.toInt()
+
 /** 효과가 필요 없는 화면이라 Effect 타입 인자는 [Nothing]. */
 class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState, Nothing>(
     initialState = CourseDetailState.Loading,
@@ -46,6 +51,8 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
     private val snapshotRenderer = CourseSnapshotRenderer(
         context = AndroidAppContextHolder.context,
         routeColor = SNAPSHOT_ROUTE_COLOR,
+        startColor = SNAPSHOT_START_COLOR,
+        startStrokeColor = SNAPSHOT_START_STROKE_COLOR,
         endpointColor = SNAPSHOT_ENDPOINT_COLOR,
         endpointStrokeColor = SNAPSHOT_ENDPOINT_STROKE_COLOR,
         // 코스 썸네일은 러닝이 아니라서(isRunRoute=false) 아래 두 색은 실제로 안 쓰인다 —
@@ -140,7 +147,11 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
     /** "내 코스" 탭 목록·추천 카드가 쓸 썸네일을 저장 시점에 같이 만들어 캐시해 둔다. 실패해도 코스
      * 저장 자체는 이미 끝났으니 조용히 무시한다 — 목록은 캐시가 없으면 플레이스홀더를 보여준다. */
     private suspend fun prerenderThumbnail(courseId: String, path: List<LatLon>) {
-        val request = path.toSnapshotRequest(ownerId = courseId, variant = SnapshotVariant.THUMBNAIL) ?: return
+        val request = path.toSnapshotRequest(
+            ownerId = courseId,
+            variant = SnapshotVariant.THUMBNAIL,
+            withStartMarker = true,
+        ) ?: return
         val density = AndroidAppContextHolder.context.resources.displayMetrics.density
         val sizePx = (THUMBNAIL_SIZE_DP * density).roundToInt()
         val file = snapshotRenderer.getOrRender(request, widthPx = sizePx, heightPx = sizePx)

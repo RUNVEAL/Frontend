@@ -44,12 +44,24 @@ fun CourseSnapshotImage(
     val context = LocalContext.current
     val colors = RunvealTheme.colors
     val routeColor = colors.map.roadExplored.toArgb()
+    // 출발지 점은 디자인시스템 출발 마커와 같은 색 — 금색 점 + 어두운 테두리(지도 바탕색).
+    val startColor = colors.accent.glow.toArgb()
+    val startStrokeColor = colors.bg.map.toArgb()
     val endpointColor = colors.map.location.toArgb()
     val endpointStrokeColor = colors.text.primary.toArgb()
     val newRoadColor = colors.map.roadNew.toArgb()
     val todayRoadColor = colors.map.roadToday.toArgb()
-    val renderer = remember(routeColor, endpointColor, endpointStrokeColor, newRoadColor, todayRoadColor) {
-        CourseSnapshotRendererImpl(context, routeColor, endpointColor, endpointStrokeColor, newRoadColor, todayRoadColor)
+    val renderer = remember(routeColor, startColor, startStrokeColor, endpointColor, endpointStrokeColor, newRoadColor, todayRoadColor) {
+        CourseSnapshotRendererImpl(
+            context = context,
+            routeColor = routeColor,
+            startColor = startColor,
+            startStrokeColor = startStrokeColor,
+            endpointColor = endpointColor,
+            endpointStrokeColor = endpointStrokeColor,
+            newRoadColor = newRoadColor,
+            todayRoadColor = todayRoadColor,
+        )
     }
 
     var sizePx by remember { mutableStateOf(IntSize.Zero) }

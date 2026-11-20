@@ -24,6 +24,11 @@ private const val SNAPSHOT_ROUTE_COLOR = 0xFFF2E096.toInt()
 private const val SNAPSHOT_ENDPOINT_COLOR = 0xFF4286E0.toInt()
 private const val SNAPSHOT_ENDPOINT_STROKE_COLOR = 0xFFF4EEEA.toInt()
 
+/** 출발지 점 — accent/glow(gold200) 점에 bg/map(neutral900) 테두리. [CourseSnapshotImage]와 같은 값이라야
+ * 같은 캐시 파일을 함께 쓴다. */
+private const val SNAPSHOT_START_COLOR = 0xFFF2E096.toInt()
+private const val SNAPSHOT_START_STROKE_COLOR = 0xFF0E0E0E.toInt()
+
 /** 탭 전환은 `restoreState`로 화면만 다시 구성하고 이 ViewModel 자체는 살아있으므로, `init`에서 한 번만
  * 불러오면 탭을 나갔다 온 사이 새로 저장한 코스가 안 보인다 — 화면이 들어올 때마다 [CourseListIntent.Load]를
  * 보내 매번 다시 불러오게 한다. Effect 타입 인자는 [Nothing]. */
@@ -35,6 +40,8 @@ class CourseListViewModel : MviViewModel<CourseListIntent, CourseListState, Noth
     private val snapshotRenderer = CourseSnapshotRenderer(
         context = AndroidAppContextHolder.context,
         routeColor = SNAPSHOT_ROUTE_COLOR,
+        startColor = SNAPSHOT_START_COLOR,
+        startStrokeColor = SNAPSHOT_START_STROKE_COLOR,
         endpointColor = SNAPSHOT_ENDPOINT_COLOR,
         endpointStrokeColor = SNAPSHOT_ENDPOINT_STROKE_COLOR,
         newRoadColor = SNAPSHOT_ROUTE_COLOR,
@@ -120,7 +127,12 @@ class CourseListViewModel : MviViewModel<CourseListIntent, CourseListState, Noth
             notRunLabel = "아직 안달림",
             path = path,
             isLoop = route_type == "LOOP",
-            snapshotRequest = path.toSnapshotRequest(ownerId = id, variant = SnapshotVariant.THUMBNAIL),
+            // 코스 썸네일엔 출발지 점을 같이 찍는다 — 카드가 그림 한가운데에 점을 얹던 걸 대신한다.
+            snapshotRequest = path.toSnapshotRequest(
+                ownerId = id,
+                variant = SnapshotVariant.THUMBNAIL,
+                withStartMarker = true,
+            ),
         )
     }
 

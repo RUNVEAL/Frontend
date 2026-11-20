@@ -59,21 +59,25 @@ fun List<LatLon>.snapshotBounds(): GeoBounds {
  * - `null` — 아직 달리지 않은 코스. 경로를 한 색으로만 그린다.
  * - 목록(비어 있어도 됨) — 러닝 기록. 경로를 "오늘 달린 길"(흰색)로 깔고, 그중 처음 간 구간을
  *   "새로 탐험한 길"(금색)로 덧그린다. 같은 길을 또 달렸으면 목록이 비고 흰색만 남는다.
+ *
+ * [withStartMarker]를 켜면 썸네일에도 **출발지 점**을 찍는다(코스 썸네일). 결과 카드는 원래 출발·도착
+ * 두 점을 다 찍으므로 이 값과 무관하다.
  */
 fun List<LatLon>.toSnapshotRequest(
     ownerId: String,
     variant: SnapshotVariant,
     newRoadPaths: List<List<LatLon>>? = null,
+    withStartMarker: Boolean = false,
 ): SnapshotRequest? {
     if (size <= 1) return null
     val highlight = newRoadPaths?.filter { it.size >= 2 }
     return SnapshotRequest(
         ownerId = ownerId,
         variant = variant,
+        start = if (variant == SnapshotVariant.RESULT_CARD || withStartMarker) first() else null,
+        end = if (variant == SnapshotVariant.RESULT_CARD) last() else null,
         routeGeoJson = toRouteGeoJson(),
         bounds = snapshotBounds(),
-        start = if (variant == SnapshotVariant.RESULT_CARD) first() else null,
-        end = if (variant == SnapshotVariant.RESULT_CARD) last() else null,
         highlightGeoJson = highlight?.takeIf { it.isNotEmpty() }?.toMultiLineGeoJson(),
         isRunRoute = newRoadPaths != null,
     )

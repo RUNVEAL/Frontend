@@ -31,9 +31,19 @@ interface CourseSnapshotRenderer {
 fun CourseSnapshotRenderer(
     context: Context,
     routeColor: Int,
+    startColor: Int,
+    startStrokeColor: Int,
     endpointColor: Int,
     endpointStrokeColor: Int,
     newRoadColor: Int,
     todayRoadColor: Int,
-): CourseSnapshotRenderer =
-    CourseSnapshotRendererImpl(context, routeColor, endpointColor, endpointStrokeColor, newRoadColor, todayRoadColor)
+): CourseSnapshotRenderer = CourseSnapshotRendererImpl(
+    context = context,
+    routeColor = routeColor,
+    startColor = startColor,
+    startStrokeColor = startStrokeColor,
+    endpointColor = endpointColor,
+    endpointStrokeColor = endpointStrokeColor,
+    newRoadColor = newRoadColor,
+    todayRoadColor = todayRoadColor,
+)

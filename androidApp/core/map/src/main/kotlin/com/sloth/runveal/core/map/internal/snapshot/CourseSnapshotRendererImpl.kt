@@ -32,6 +32,8 @@ private const val SNAPSHOT_TIMEOUT_MS = 15_000L
 internal class CourseSnapshotRendererImpl(
     private val context: Context,
     private val routeColor: Int,
+    private val startColor: Int,
+    private val startStrokeColor: Int,
     private val endpointColor: Int,
     private val endpointStrokeColor: Int,
     private val newRoadColor: Int,
@@ -83,7 +85,7 @@ internal class CourseSnapshotRendererImpl(
     private suspend fun snapshot(request: SnapshotRequest, widthPx: Int, heightPx: Int): Bitmap? =
         withContext(Dispatchers.Main.immediate) {
             suspendCancellableCoroutine { continuation ->
-                val styleBuilder = SnapshotStyleBuilder.build(request, routeColor, endpointColor, endpointStrokeColor, newRoadColor, todayRoadColor)
+                val styleBuilder = SnapshotStyleBuilder.build(request, routeColor, startColor, startStrokeColor, endpointColor, endpointStrokeColor, newRoadColor, todayRoadColor)
                 val options = MapSnapshotter.Options(widthPx, heightPx)
                     .withPixelRatio(density)
                     .withLogo(false)
