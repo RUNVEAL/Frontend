@@ -450,10 +450,6 @@ jobs:
             echo "- dSYMs 폴더가 없습니다 — Release 구성의 DEBUG_INFORMATION_FORMAT을 확인하세요." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          if [ ! -f "$PLIST" ]; then
-            echo "- \`GoogleService-Info.plist\`가 없어 인증할 수 없습니다(GOOGLE_SERVICE_INFO_PLIST 시크릿 확인)." >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
 
           # dSYM마다 UUID를 찍어 둔다 — 콘솔이 "누락"이라고 가리키는 UUID와 맞춰 볼 수 있다.
           {
@@ -480,10 +476,24 @@ jobs:
           echo "upload-symbols: $UPLOAD"
           chmod +x "$UPLOAD"
 
-          if "$UPLOAD" -gsp "$PLIST" -p ios "$DSYMS"; then
-            echo "- 업로드 성공" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "- **업로드 실패** — 아티팩트 \`runveal-ios-dsyms-build${{ github.run_number }}\`를 내려받아 Crashlytics 콘솔에 직접 올려 주세요." >> "$GITHUB_STEP_SUMMARY"
+          # 인증은 두 가지다 — plist(-gsp)가 1순위고, 그게 없거나 실패하면 앱 ID(-ai)로 한 번 더
+          # 해 본다. 심볼이 plist 복원 성패에 통째로 묶이지 않게 한다.
+          OK=0
+          if [ -f "$PLIST" ] && "$UPLOAD" -gsp "$PLIST" -p ios "$DSYMS"; then
+            OK=1
+            echo "- 업로드 성공 (plist 인증)" >> "$GITHUB_STEP_SUMMARY"
+          elif [ -n "$FIREBASE_APP_ID_IOS" ] && "$UPLOAD" -ai "$FIREBASE_APP_ID_IOS" -p ios "$DSYMS"; then
+            OK=1
+            echo "- 업로드 성공 (앱 ID 인증)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [ "$OK" = "0" ]; then
+            {
+              echo "- **업로드 실패** — 아티팩트 \`runveal-ios-dsyms-build${{ github.run_number }}\`를 내려받아"
+              echo "  Crashlytics 콘솔(앱 → 설정 → dSYM 업로드)에 직접 올려 주세요."
+              echo "- 심볼이 올라가야 **보류 중인 크래시가 이슈 목록에 나타납니다** — dSYM은 빌드마다"
+              echo "  다르므로, 이 빌드의 dSYM은 이 빌드에서 난 크래시만 해석합니다."
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: 실패 시 오류만 추려 보기
