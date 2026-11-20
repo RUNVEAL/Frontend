@@ -32,6 +32,7 @@ internal object SnapshotStyleBuilder {
         endpointStrokeColor: Int,
         newRoadColor: Int,
         todayRoadColor: Int,
+        startRadiusDp: Float,
     ): Style.Builder {
         // 러닝 기록은 "오늘 달린 길"(흰색) 위에 "새로 탐험한 길"(금색)을 덧그려 둘을 구분한다 —
         // 결과 화면 범례가 그 두 색으로 설명하고 있어서 기본선도 범례와 같아야 한다. 아직 달리지
@@ -80,7 +81,7 @@ internal object SnapshotStyleBuilder {
                 )
                 .withLayer(
                     CircleLayer(SnapshotConfig.START_LAYER_ID, SnapshotConfig.START_SOURCE_ID).withProperties(
-                        PropertyFactory.circleRadius(ENDPOINT_RADIUS_DP),
+                        PropertyFactory.circleRadius(startRadiusDp),
                         PropertyFactory.circleColor(startColor),
                         PropertyFactory.circleStrokeWidth(ENDPOINT_STROKE_WIDTH_DP),
                         PropertyFactory.circleStrokeColor(startStrokeColor),

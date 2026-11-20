@@ -23,6 +23,13 @@ import org.maplibre.android.snapshotter.MapSnapshotter
 
 private const val SNAPSHOT_TIMEOUT_MS = 15_000L
 
+/** 출발지 점 반지름 = 그림 높이 x 이 비율. 160dp 카드에서 7dp(테두리 2dp를 더해 지름 18dp)가 되도록 잡았다. */
+private const val START_RADIUS_RATIO = 7f / 160f
+
+/** 아주 작은 썸네일에서도 점이 보이게, 반대로 큰 그림에서 과하게 커지지 않게 두는 한계. */
+private const val MIN_START_RADIUS_DP = 4.5f
+private const val MAX_START_RADIUS_DP = 8f
+
 /**
  * [CourseSnapshotRenderer] 구현. [routeColor]/[endpointColor]/[endpointStrokeColor]는 Compose 컨텍스트가
  * 없는 이 레이어에 Composable 쪽([CourseSnapshotImage])이 [MapColors]와 같은 패턴으로 미리 변환해
@@ -81,11 +88,31 @@ internal class CourseSnapshotRendererImpl(
         }
     }
 
+    /**
+     * 출발지 점 반지름(dp) — 그림 높이에 비례시킨다. 같은 dp로 고정하면 160dp 카드에선 작아 보이고
+     * 72dp 줄 썸네일에선 그림을 다 덮는다. 디자인시스템 출발 마커(지름 18dp, 테두리 2dp 포함)가
+     * 카드 기준이라 그 크기가 나오도록 비율을 잡았다.
+     */
+    private fun startRadiusDp(heightPx: Int): Float {
+        val heightDp = heightPx / density
+        return (heightDp * START_RADIUS_RATIO).coerceIn(MIN_START_RADIUS_DP, MAX_START_RADIUS_DP)
+    }
+
     /** `MapSnapshotter`는 메인 스레드에서 만들고 시작해야 한다. */
     private suspend fun snapshot(request: SnapshotRequest, widthPx: Int, heightPx: Int): Bitmap? =
         withContext(Dispatchers.Main.immediate) {
             suspendCancellableCoroutine { continuation ->
-                val styleBuilder = SnapshotStyleBuilder.build(request, routeColor, startColor, startStrokeColor, endpointColor, endpointStrokeColor, newRoadColor, todayRoadColor)
+                val styleBuilder = SnapshotStyleBuilder.build(
+                    request = request,
+                    routeColor = routeColor,
+                    startColor = startColor,
+                    startStrokeColor = startStrokeColor,
+                    endpointColor = endpointColor,
+                    endpointStrokeColor = endpointStrokeColor,
+                    newRoadColor = newRoadColor,
+                    todayRoadColor = todayRoadColor,
+                    startRadiusDp = startRadiusDp(heightPx),
+                )
                 val options = MapSnapshotter.Options(widthPx, heightPx)
                     .withPixelRatio(density)
                     .withLogo(false)
