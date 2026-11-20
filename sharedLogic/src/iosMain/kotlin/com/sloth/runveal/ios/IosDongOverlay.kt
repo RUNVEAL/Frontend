@@ -258,7 +258,7 @@ object IosDongOverlayBuilder {
             .associate { it.admCd2 to it.name }
         return RegionOverlay(
             lineGeoJson = buildLineGeoJson(parts, percents),
-            labelGeoJson = buildNameLabelGeoJson(parts, names),
+            labelGeoJson = buildNameLabelGeoJson(parts, names, percents),
         )
     }
 
@@ -326,6 +326,9 @@ object IosDongOverlayBuilder {
                 put("name", name)
                 put("level", levelOf(percent))
                 put("percentValue", percent.toString())
+                // 라벨끼리 겹칠 때 탐험률 높은 쪽을 살리는 데 쓴다(라벨 레이어의 symbolSortKey).
+                // 표시용 `percentValue`는 문자열이라 계산에 못 쓴다.
+                put("percent", percent)
                 // iOS 라벨 레이어는 `Expression.format`(토큰마다 다른 색)을 쓸 수 없어서 한 레이어에
                 // 문자열 하나만 넣는다 — 두 줄 라벨을 여기서 미리 만들어 둔다.
                 put("label", name + "\n" + percent + "%")
@@ -334,9 +337,11 @@ object IosDongOverlayBuilder {
         return featureCollection(features)
     }
 
+    /** [percents]를 라벨에도 실어 보낸다 — 겹칠 때 탐험률 높은 쪽을 살리는 데 쓴다(symbolSortKey). */
     private fun buildNameLabelGeoJson(
         partsByCode: Map<String, List<DongPolygonPart>>,
         namesByCode: Map<String, String>,
+        percents: Map<String, Int>,
     ): String {
         val features = partsByCode.mapNotNull { (code, parts) ->
             val name = namesByCode[code] ?: return@mapNotNull null
@@ -344,6 +349,7 @@ object IosDongOverlayBuilder {
             pointFeature(anchor) {
                 put("adm_cd2", code)
                 put("name", name)
+                put("percent", percents[code] ?: 0)
             }
         }
         return featureCollection(features)

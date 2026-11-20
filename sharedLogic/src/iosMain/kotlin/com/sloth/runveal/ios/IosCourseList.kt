@@ -49,7 +49,15 @@ object IosCourseList {
                 notRunLabel = "아직 안달림",
                 path = path,
                 isLoop = row.route_type == "LOOP",
-                snapshotRequest = IosSnapshot.request(path, row.id, SnapshotVariant.THUMBNAIL),
+                // 코스 썸네일엔 출발·도착 점을 같이 찍는다 — 순환 코스는 도착이 곧 출발이라
+                // 출발 점만 남는다(`toSnapshotRequest`가 같은 자리면 도착을 뺀다).
+                snapshotRequest = IosSnapshot.request(
+                    points = path,
+                    ownerId = row.id,
+                    variant = SnapshotVariant.THUMBNAIL,
+                    withStartMarker = true,
+                    withEndMarker = row.route_type != "LOOP",
+                ),
             )
         }
 

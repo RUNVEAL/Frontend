@@ -76,7 +76,14 @@ struct RecordingScreen: View {
             }
             await focusCourseAndTrackProgress()
         }
-        .onDisappear { viewModel.onDisappear() }
+        // 러닝 중에는 내 위치 마커에 지금 바라보는 방향을 화살표로 띄운다.
+        .onAppear { mapState.showsHeadingIndicator = true }
+        .onDisappear {
+            // 지도(Map Shell)는 이 화면보다 오래 산다 — 나갈 때 끄지 않으면 홈 지도에도 화살표가
+            // 계속 붙어 있다(Android `RecordingScreen`의 DisposableEffect와 같은 이유).
+            mapState.showsHeadingIndicator = false
+            viewModel.onDisappear()
+        }
     }
 
     // MARK: - 코스 안내선

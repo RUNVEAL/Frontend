@@ -55,6 +55,8 @@ enum DongOverlayLayer {
             layer.textFontNames = NSExpression(forConstantValue: labelFontNames)
             layer.textFontSize = NSExpression(forConstantValue: labelSize)
             layer.textColor = NSExpression(forConstantValue: colors.dongLabelPrimary)
+            // 겹쳐서 하나만 남을 때 탐험률 높은 동을 살린다.
+            layer.symbolSortKey = MapExpressions.labelSortKeyByPercent
             layer.minimumZoomLevel = Float(RunvealMapConfig.sigunguSwitchZoom)
             layer.maximumZoomLevel = Float(RunvealMapConfig.zoomInThreshold)
             style.addLayer(layer)
@@ -81,6 +83,9 @@ enum SigunguOverlayLayer {
             labelLayerId: RunvealMapConfig.layerSigunguLabel,
             lineWidth: lineWidth,
             labelSize: labelSize,
+            // 줌아웃할수록 시군구가 촘촘해져서 다 띄우면 이름이 서로 겹쳐 읽을 수 없다 —
+            // 겹치면 숨기고, 누가 남을지는 탐험률로 정한다(동 라벨과 같은 규칙).
+            allowsLabelOverlap: false,
             minimumZoomLevel: RunvealMapConfig.sidoSwitchZoom,
             maximumZoomLevel: RunvealMapConfig.sigunguSwitchZoom
         )
@@ -103,6 +108,8 @@ enum SidoOverlayLayer {
             labelLayerId: RunvealMapConfig.layerSidoLabel,
             lineWidth: lineWidth,
             labelSize: labelSize,
+            // 17개뿐이라 겹칠 일이 거의 없다 — 항상 보이게 둔다.
+            allowsLabelOverlap: true,
             minimumZoomLevel: nil,
             maximumZoomLevel: RunvealMapConfig.sidoSwitchZoom
         )
@@ -121,6 +128,7 @@ private enum RegionOverlayLayerSupport {
         labelLayerId: String,
         lineWidth: Double,
         labelSize: Double,
+        allowsLabelOverlap: Bool,
         minimumZoomLevel: Double?,
         maximumZoomLevel: Double
     ) {
@@ -143,9 +151,13 @@ private enum RegionOverlayLayerSupport {
             layer.textFontNames = NSExpression(forConstantValue: labelFontNames)
             layer.textFontSize = NSExpression(forConstantValue: labelSize)
             layer.textColor = NSExpression(forConstantValue: colors.sigunguLabel)
-            // 고정 목록(시군구 약 250개, 시도 17개)이라 겹침 방지로 숨기지 않고 항상 보이게 한다.
-            layer.textAllowsOverlap = NSExpression(forConstantValue: true)
-            layer.textIgnoresPlacement = NSExpression(forConstantValue: true)
+            if allowsLabelOverlap {
+                layer.textAllowsOverlap = NSExpression(forConstantValue: true)
+                layer.textIgnoresPlacement = NSExpression(forConstantValue: true)
+            } else {
+                // 겹치는 라벨은 MapLibre가 숨긴다(기본값) — 살아남을 쪽을 탐험률로 정한다.
+                layer.symbolSortKey = MapExpressions.labelSortKeyByPercent
+            }
             if let minimumZoomLevel { layer.minimumZoomLevel = Float(minimumZoomLevel) }
             layer.maximumZoomLevel = Float(maximumZoomLevel)
             style.addLayer(layer)

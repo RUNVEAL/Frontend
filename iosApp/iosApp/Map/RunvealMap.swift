@@ -188,6 +188,9 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
 
         func apply(state: RunvealMapState, overlay: RunvealDongOverlayBundle?) {
             currentOverlay = overlay
+            // 방향 화살표는 스타일 레이어가 아니라 지도 뷰의 사용자 위치 표시 옵션이다 — 스타일이
+            // 아직 안 올라왔어도 걸어 둘 수 있으므로 아래 guard 앞에서 반영한다.
+            mapView?.showsUserHeadingIndicator = state.showsHeadingIndicator
             guard let style else { return }
 
             applyRoadFocus(style: style, enabled: state.unexploredRoadFocus)

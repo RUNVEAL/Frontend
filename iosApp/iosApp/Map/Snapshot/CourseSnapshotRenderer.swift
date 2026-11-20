@@ -15,8 +15,18 @@ final class CourseSnapshotRenderer {
     static let shared = CourseSnapshotRenderer()
 
     private static let routeWidth: CGFloat = 3
+    /// 러닝 결과 카드의 출발·도착 점 — 카드 크기가 고정이라 상수로 둔다.
     private static let endpointRadius: CGFloat = 5
     private static let endpointStrokeWidth: CGFloat = 2
+
+    /// 코스 썸네일의 출발·도착 점 반지름 = 그림 높이 x 이 비율. 디자인시스템 마커(지름 18) 크기로
+    /// 그려 봤더니 썸네일 안에서는 너무 작아 보여서 **지름 기준 2.5배**로 키웠다 — 160 카드에서
+    /// 반지름 17.5(지름 35). Android `ENDPOINT_RADIUS_RATIO`와 같은 값이다.
+    private static let thumbnailEndpointRadiusRatio: CGFloat = 17.5 / 160
+    /// 아주 작은 썸네일에서도 점이 보이게, 큰 그림에서 과하게 커지지 않게 두는 한계.
+    private static let thumbnailEndpointRadiusRange: ClosedRange<CGFloat> = 11.25...20
+    /// 테두리는 반지름에 비례한다 — 점을 키워도 실처럼 얇아지지 않게(Android `START_STROKE_RATIO`).
+    private static let thumbnailEndpointStrokeRatio: CGFloat = 2.0 / 7.0
     private static let timeout: TimeInterval = 15
 
     /// 같은 캐시 키에 요청이 겹치면 하나만 렌더링하고 나머지는 그 결과를 같이 기다린다.
@@ -166,20 +176,62 @@ final class CourseSnapshotRenderer {
                 stroke(SnapshotGeoJson.lines(from: highlight), color: highlightColor)
             }
 
-            if request.variant == .resultCard, let start = request.start, let end = request.end {
-                cgContext.setFillColor(endpointColor.cgColor)
-                cgContext.setStrokeColor(endpointStrokeColor.cgColor)
-                cgContext.setLineWidth(Self.endpointStrokeWidth)
-                for coordinate in [start, end] {
-                    let center = snapshot.point(for: coordinate.coordinate)
-                    let rect = CGRect(
-                        x: center.x - Self.endpointRadius,
-                        y: center.y - Self.endpointRadius,
-                        width: Self.endpointRadius * 2,
-                        height: Self.endpointRadius * 2
+            func fillCircle(at coordinate: LatLon, radius: CGFloat, strokeWidth: CGFloat,
+                            color: UIColor, strokeColor: UIColor) {
+                let center = snapshot.point(for: coordinate.coordinate)
+                let rect = CGRect(
+                    x: center.x - radius,
+                    y: center.y - radius,
+                    width: radius * 2,
+                    height: radius * 2
+                )
+                cgContext.setFillColor(color.cgColor)
+                cgContext.setStrokeColor(strokeColor.cgColor)
+                cgContext.setLineWidth(strokeWidth)
+                cgContext.fillEllipse(in: rect)
+                cgContext.strokeEllipse(in: rect)
+            }
+
+            if request.variant == .resultCard {
+                // 결과 카드는 두 점이 같은 색이다 — 코스 썸네일과 색 체계가 다르다.
+                for coordinate in [request.start, request.end].compactMap({ $0 }) {
+                    fillCircle(
+                        at: coordinate,
+                        radius: Self.endpointRadius,
+                        strokeWidth: Self.endpointStrokeWidth,
+                        color: endpointColor,
+                        strokeColor: endpointStrokeColor
                     )
-                    cgContext.fillEllipse(in: rect)
-                    cgContext.strokeEllipse(in: rect)
+                }
+            } else {
+                // 코스 썸네일은 디자인시스템 마커와 같은 색 — 출발은 금색, 도착은 흰색(둘 다 어두운
+                // 테두리). 순환 코스면 도착 점이 아예 안 실려 온다(`toSnapshotRequest`).
+                let scaled = size.height * Self.thumbnailEndpointRadiusRatio
+                let radius = min(
+                    max(scaled, Self.thumbnailEndpointRadiusRange.lowerBound),
+                    Self.thumbnailEndpointRadiusRange.upperBound
+                )
+                let strokeWidth = radius * Self.thumbnailEndpointStrokeRatio
+                let markerStrokeColor = UIColor(colors.icon.onAccent)
+
+                // 도착을 먼저 깔아 두 점이 가까울 때 출발이 위에 오게 한다 — 출발이 더 중요하다.
+                if let end = request.end {
+                    fillCircle(
+                        at: end,
+                        radius: radius,
+                        strokeWidth: strokeWidth,
+                        color: UIColor(colors.icon.primary),
+                        strokeColor: markerStrokeColor
+                    )
+                }
+                if let start = request.start {
+                    fillCircle(
+                        at: start,
+                        radius: radius,
+                        strokeWidth: strokeWidth,
+                        color: UIColor(colors.accent.glow),
+                        strokeColor: markerStrokeColor
+                    )
                 }
             }
         }
