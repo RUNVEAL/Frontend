@@ -17,12 +17,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -69,6 +69,7 @@ import com.sloth.runveal.designsystem.component.map.RunvealMapMarkerType
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarStyle
+import com.sloth.runveal.designsystem.component.overlay.RunvealLoading
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.courserecommend.R
 import com.sloth.runveal.map.MapConfig
@@ -77,6 +78,9 @@ import kotlinx.coroutines.launch
 import com.sloth.runveal.designsystem.R as DesignSystemR
 
 /** [RunvealCourseCard]의 고정 너비(240dp)와 맞춰야 캐러셀 가운데 정렬 계산이 들어맞는다. */
+/** 공용 로딩 모션 크기(시안 Z0의 80). */
+private val LOADING_SIZE = 80.dp
+
 private val COURSE_CARD_WIDTH = 240.dp
 
 /** B1 — `/api/v1/routes` 응답을 지도 위 오버레이로 보여주는 결과 화면. 지도(Map Shell)는 그대로 보이고
@@ -147,7 +151,8 @@ fun CourseRecommendResultScreen(
         }
 
         when (val current = state) {
-            is CourseRecommendResultState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            is CourseRecommendResultState.Loading ->
+                RunvealLoading(modifier = Modifier.align(Alignment.Center).size(LOADING_SIZE))
             is CourseRecommendResultState.Ready -> {
                 if (current.emptyMessage != null) {
                     EmptyResult(

@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,6 +42,7 @@ import com.sloth.runveal.core.map.CourseSnapshotImage
 import com.sloth.runveal.designsystem.component.button.RunvealButtonGroupEqual
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
+import com.sloth.runveal.designsystem.component.overlay.RunvealLoading
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.running.R
 import com.sloth.runveal.map.snapshot.SnapshotRequest
@@ -50,6 +50,9 @@ import com.sloth.runveal.running.contract.ResultDongStat
 import com.sloth.runveal.running.contract.ResultState
 import com.sloth.runveal.ui.toast.NotReadyToastHost
 import com.sloth.runveal.ui.toast.rememberNotReadyToastState
+
+/** 공용 로딩 모션 크기(시안 Z0의 80). */
+private val LOADING_SIZE = 80.dp
 
 private val MAP_CARD_HEIGHT = 268.dp
 private val RESULT_GLOW_WIDTH = 480.dp
@@ -95,7 +98,7 @@ fun ResultScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewModel: 
 
             when (val current = state) {
                 is ResultState.Loading -> Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    RunvealLoading(modifier = Modifier.align(Alignment.Center).size(LOADING_SIZE))
                 }
                 is ResultState.Ready -> ResultContent(
                     state = current,
