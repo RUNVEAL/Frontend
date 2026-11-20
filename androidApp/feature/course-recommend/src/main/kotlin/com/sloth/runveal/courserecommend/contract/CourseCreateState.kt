@@ -7,6 +7,18 @@ internal val DistanceOptions = listOf("3km", "5km", "7km", "10km")
 internal const val DefaultDistance = "5km"
 internal val FilterOptions = listOf("신호/횡단보도 적은 길", "완만한 길", "공원 지나가기", "하천길 따라가기")
 
+/**
+ * 필터 칩 라벨 → `POST /api/v1/routes`의 `filters` 코드(`docs/api/API.md` §3.3.1).
+ *
+ * "신호/횡단보도 적은 길"은 **서버에 대응 코드가 없어 빠져 있다** — 고르면 화면에는 켜진 것으로
+ * 남지만 추천 결과는 달라지지 않는다. 서버가 코드를 추가하면 여기에 한 줄 넣으면 된다.
+ */
+internal val FilterServerCodes = mapOf(
+    "완만한 길" to "GENTLE_SLOPE",
+    "공원 지나가기" to "PARK",
+    "하천길 따라가기" to "RIVERSIDE",
+)
+
 /** 1km ~ 42km, 0.5km 단위. 인덱스 22 = "12" (휠 피커 기본값). */
 internal val CustomDistanceValues = (2..84).map { step ->
     val km = step / 2.0

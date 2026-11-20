@@ -65,7 +65,12 @@ class CourseRecommendResultViewModel : MviViewModel<CourseRecommendResultIntent,
         val draft = ready.filterDraft ?: return
         setState { if (this is CourseRecommendResultState.Ready) copy(filterDraft = null, isReloading = true) else this }
         viewModelScope.launch {
-            CourseRecommendResultHolder.publish(recommender.recommend(draft, fallbackStart = null))
+            val result = recommender.recommend(draft, fallbackStart = null)
+            // 홀더에도 올려 둔다 — 코스 상세가 여기서 routeId로 코스를 찾는다.
+            CourseRecommendResultHolder.publish(result)
+            // 그리고 상태를 직접 갈아 끼운다. 조건만 바꾸고 결과가 **똑같이** 오면 StateFlow가
+            // 같은 값이라 보고 흘리지 않아서, 위 구독만 믿으면 로딩이 영영 안 걷힌다.
+            setState { toReadyState(result) }
         }
     }
 

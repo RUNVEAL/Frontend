@@ -1,6 +1,7 @@
 package com.sloth.runveal.courserecommend
 
 import android.util.Log
+import com.sloth.runveal.courserecommend.contract.FilterServerCodes
 import com.sloth.runveal.data.local.RunvealDatabaseProvider
 import com.sloth.runveal.dong.SegmentCoverageMatcher
 import com.sloth.runveal.map.LatLon
@@ -23,8 +24,7 @@ private fun LatLon.toRoutesLatLng(): LatLng = LatLng(lat = lat, lng = lon)
  * `docs/api/API.md` §3.3 — 조건대로 `/api/v1/routes`를 부른다. 코스 만들기(B0)와 추천 결과 화면
  * (B1, 필터를 바꿔 다시 받기)이 **같은 경로**로 요청하도록 한곳에 모아 뒀다.
  *
- * `selectedFilters`는 화면 라벨(한글)이라 서버 필터 코드(`PARK`/`RIVERSIDE`/`GENTLE_SLOPE`)와 1:1로
- * 안 맞아서 아직 요청에 싣지 않는다 — 칩 표시와 "조건을 바꿨다"는 신호로만 쓴다.
+ * 화면 라벨(한글)은 [FilterServerCodes]로 서버 코드(`PARK`/`RIVERSIDE`/`GENTLE_SLOPE`)로 바꿔 싣는다.
  */
 internal class CourseRecommender {
     private val routesApi = RoutesApi()
@@ -46,6 +46,8 @@ internal class CourseRecommender {
                 end = settings.endLatLon?.toRoutesLatLng(),
                 distanceM = parseDistanceMeters(settings.distanceLabel),
                 preferUnexplored = settings.avoidVisitedPreferred,
+                // 대응 코드가 없는 칩("신호/횡단보도 적은 길")은 빠진다([FilterServerCodes] 주석).
+                filters = settings.selectedFilters.mapNotNull(FilterServerCodes::get).takeIf { it.isNotEmpty() },
                 exploredSegmentIds = loadExploredSegmentIds(meta.limits.routes.maxExploredSegmentIds),
             ),
         )
