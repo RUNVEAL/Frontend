@@ -56,6 +56,8 @@ import com.sloth.runveal.ui.toast.rememberNotReadyToastState
 @Composable
 fun CourseScreen(
     onCreateCourseClick: () -> Unit,
+    /** 목록에서 한 건을 눌렀다 — 코스 상세로 간다. */
+    onCourseClick: (SavedCourseUiModel) -> Unit,
     onStartCourse: (SavedCourseUiModel) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: CourseListViewModel = viewModel(),
@@ -69,7 +71,7 @@ fun CourseScreen(
         featured = readyState?.featuredCourse,
         isLoading = state is CourseListState.Loading,
         onCreateCourseClick = onCreateCourseClick,
-        onCourseClick = { viewModel.onIntent(CourseListIntent.SelectCourse(it.id)) },
+        onCourseClick = onCourseClick,
         onStartCourse = onStartCourse,
         onDeleteCourseClick = { viewModel.onIntent(CourseListIntent.DeleteCourseClicked(it.id)) },
         isDeleteDialogVisible = readyState?.pendingDeleteCourseId != null,
@@ -86,7 +88,7 @@ fun CourseScreen(
 @Composable
 private fun CourseListContent(
     courses: List<SavedCourseUiModel>,
-    /** 위 큰 카드에 띄울 코스 — 목록에서 고른 것, 없으면 가장 최근 코스. */
+    /** 위 큰 카드에 띄울 코스 — 가장 최근에 저장한 코스. */
     featured: SavedCourseUiModel?,
     isLoading: Boolean,
     onCreateCourseClick: () -> Unit,

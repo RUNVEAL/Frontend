@@ -31,12 +31,6 @@ class CourseListViewModel : MviViewModel<CourseListIntent, CourseListState, Noth
     override suspend fun handleIntent(intent: CourseListIntent) {
         when (intent) {
             CourseListIntent.Load -> reload()
-            is CourseListIntent.SelectCourse ->
-                setState {
-                    // 목록을 다시 불러오는 중이면(Loading) 고를 대상이 없다 — 그대로 둔다.
-                    (this as? CourseListState.Ready)?.copy(selectedCourseId = intent.courseId) ?: this
-                }
-
             is CourseListIntent.DeleteCourseClicked ->
                 setState {
                     (this as? CourseListState.Ready)?.copy(pendingDeleteCourseId = intent.courseId) ?: this
@@ -85,10 +79,7 @@ class CourseListViewModel : MviViewModel<CourseListIntent, CourseListState, Noth
         val courses = withContext(Dispatchers.IO) {
             database.courseQueries.selectAllCourses().executeAsList().map { it.toUiModel() }
         }
-        // 고른 코스는 목록을 다시 읽어도 유지한다 — 지워져서 목록에 없으면 featuredCourse가
-        // 알아서 맨 위 코스로 떨어진다.
-        val selectedCourseId = (currentState as? CourseListState.Ready)?.selectedCourseId
-        setState { CourseListState.Ready(courses = courses, selectedCourseId = selectedCourseId) }
+        setState { CourseListState.Ready(courses = courses) }
     }
 
     private fun SelectAllCourses.toUiModel(): SavedCourseUiModel {

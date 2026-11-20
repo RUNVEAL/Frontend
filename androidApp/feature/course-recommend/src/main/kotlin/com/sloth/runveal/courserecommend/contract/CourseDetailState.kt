@@ -23,8 +23,12 @@ sealed interface CourseDetailState : UiState {
     data object NotFound : CourseDetailState
 
     data class Ready(
-        /** "코스 A", "코스 B" ... 라벨의 글자 부분. 전체 문구는 화면에서 string resource로 조합한다. */
+        /** "코스 A", "코스 B" ... 라벨의 글자 부분. 전체 문구는 화면에서 string resource로 조합한다.
+         * 저장된 코스로 들어왔을 땐 쓰지 않는다 — [savedCourseName]이 있으면 그게 제목이다. */
         val courseLabel: String,
+        /** "내 코스"에서 들어왔을 때 저장해 둔 코스 이름(이름 수정으로 바뀐 이름 포함). 추천 결과에서
+         * 들어왔으면 null — 그때는 [courseLabel]로 "코스 A"처럼 조합한다. */
+        val savedCourseName: String? = null,
         val distanceValue: String,
         val distanceUnit: String,
         val timeValue: String,

@@ -43,6 +43,7 @@ import com.sloth.runveal.core.map.RecommendedRoute
 import com.sloth.runveal.core.map.buildRecommendedRouteGeoJson
 import com.sloth.runveal.courserecommend.component.ElevationChart
 import com.sloth.runveal.courserecommend.contract.CourseDetailIntent
+import com.sloth.runveal.courserecommend.contract.CourseDetailSource
 import com.sloth.runveal.courserecommend.contract.CourseDetailState
 import com.sloth.runveal.courserecommend.contract.RouteStepUiModel
 import com.sloth.runveal.designsystem.component.button.RunvealButtonGroup
@@ -61,12 +62,12 @@ import com.sloth.runveal.feature.courserecommend.R
 import com.sloth.runveal.map.MapConfig
 import com.sloth.runveal.result.SelectedCourseHolder
 
-/** B2 — 추천 코스 결과에서 카드를 눌러 들어가는 코스 상세. 지도(Map Shell)는 그대로 보이고 이 위에
- * 뒤로가기와 바텀시트만 얹는다 — 배경을 깔지 않는다. [routeId]로 [CourseRecommendResultHolder]에서
- * 코스를 다시 찾아온다(네비게이션 인자로 전체 응답을 못 넘겨서). */
+/** B2 — 코스 상세. 지도(Map Shell)는 그대로 보이고 이 위에 뒤로가기와 바텀시트만 얹는다 — 배경을
+ * 깔지 않는다. 추천 결과에서 들어온 코스와 "내 코스"에서 들어온 코스가 같은 화면을 쓰고, 어느 쪽을
+ * 어디서 읽을지는 [source]가 가른다([CourseDetailSource]). */
 @Composable
 fun CourseDetailScreen(
-    routeId: String,
+    source: CourseDetailSource,
     onBack: () -> Unit,
     onStartRunning: () -> Unit,
     modifier: Modifier = Modifier,
@@ -80,14 +81,14 @@ fun CourseDetailScreen(
     // 포커싱을 다시 맞춘다.
     var bottomSheetHeightPx by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(routeId) { viewModel.onIntent(CourseDetailIntent.Load(routeId)) }
+    LaunchedEffect(source) { viewModel.onIntent(CourseDetailIntent.Load(source)) }
 
     val readyState = state as? CourseDetailState.Ready
     if (readyState != null) {
         MapLayers(
             MapLayerSpec(
                 MapConfig.SOURCE_COURSE_DETAIL_ROUTE,
-                buildRecommendedRouteGeoJson(listOf(RecommendedRoute(id = routeId, points = readyState.path, selected = true))),
+                buildRecommendedRouteGeoJson(listOf(RecommendedRoute(id = source.id, points = readyState.path, selected = true))),
             ),
         )
     }
@@ -144,7 +145,10 @@ fun CourseDetailScreen(
                             .onSizeChanged { bottomSheetHeightPx = it.height },
                         header = {
                             Text(
-                                stringResource(R.string.course_recommend_result_course_name, current.courseLabel),
+                                // 저장된 코스는 저장해 둔 이름을 그대로 쓴다 — "코스 {이름}"으로
+                                // 조합하면 "코스 코스 A"가 된다.
+                                current.savedCourseName
+                                    ?: stringResource(R.string.course_recommend_result_course_name, current.courseLabel),
                                 style = RunvealTheme.typography.heading2,
                                 color = RunvealTheme.colors.text.primary,
                             )

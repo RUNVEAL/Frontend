@@ -52,6 +52,7 @@ import com.sloth.runveal.core.map.rememberMapState
 import com.sloth.runveal.courserecommend.navigation.courseDetailOverlay
 import com.sloth.runveal.courserecommend.navigation.courseRecommendOverlay
 import com.sloth.runveal.courserecommend.navigation.courseRecommendResultOverlay
+import com.sloth.runveal.courserecommend.navigation.savedCourseDetailOverlay
 import com.sloth.runveal.data.local.RunvealDatabaseProvider
 import com.sloth.runveal.data.local.FileStore
 import com.sloth.runveal.data.local.TrackLocalStore
@@ -160,14 +161,18 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.HomeMap>() == true -> 0
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() == true -> 0
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Course>() == true -> 1
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.SavedCourseDetail>() == true -> 1
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Record>() == true -> 2
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.RecordDetail>() == true -> 2
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.My>() == true -> 3
         else -> 0
     }
-    val isCourseRecommendFlow = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() == true ||
+    // 지도를 깔고 그 위에 올라가는 코스 흐름 — 추천(만들기·결과·상세)과 "내 코스"에서 들어가는
+    // 코스 상세. 어느 쪽이든 탭바를 숨기고 동 경계·라벨을 걷어 코스에만 집중하게 한다.
+    val isCourseFlowOverMap = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() == true ||
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommendResult>() == true ||
-        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseDetail>() == true
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseDetail>() == true ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.SavedCourseDetail>() == true
     // 약관 및 정책은 탭 안에서 들어가지만 그 자체로 전체 화면이라 탭바를 숨긴다 — 뒤로가기로
     // 목록·MY 탭으로 돌아온다.
     val isTermsFlow = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Terms>() == true ||
@@ -179,7 +184,7 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     val isRecordDetail = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.RecordDetail>() == true
     // 지도 위 흐름(코스 추천, 코스 추천 결과, 코스 상세, 러닝 기록, 러닝 결과)과 약관 흐름,
     // 기록 상세에 들어가 있을 때만 탭바를 완전히 숨긴다.
-    val showTabBar = !isCourseRecommendFlow &&
+    val showTabBar = !isCourseFlowOverMap &&
         !isTermsFlow &&
         !isRecordDetail &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() != true &&
@@ -190,7 +195,7 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     // HomeMap이라 덮지 않는다.
     val isMapDestination = currentDestination == null ||
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.HomeMap>() == true ||
-        isCourseRecommendFlow ||
+        isCourseFlowOverMap ||
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() == true
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
 
@@ -258,7 +263,7 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
             HomeMapLayer(
                 mapState = mapState,
                 locationPermissionState = locationPermissionState,
-                hideRegionOverlays = isCourseRecommendFlow,
+                hideRegionOverlays = isCourseFlowOverMap,
                 modifier = Modifier.fillMaxSize(),
             )
 
@@ -318,6 +323,16 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                     resultOverlay(onClose = tabNavigator::popBackStack)
                 }
                 courseGraph(tabNavigator)
+                savedCourseDetailOverlay(
+                    onBack = tabNavigator::popBackStack,
+                    onStartRunning = {
+                        requireLocationForRun {
+                            // 상세를 먼저 떼어낸다 — 러닝이 끝나고 돌아올 자리는 "내 코스" 목록이다.
+                            tabNavigator.popBackStack()
+                            tabNavigator.navigate(RunVealRoute.HomeTab.Recording)
+                        }
+                    },
+                )
                 recordGraph(tabNavigator)
                 myGraph(
                     tabNavigator,
