@@ -49,6 +49,10 @@ internal fun NavGraphBuilder.splashGraph(navigator: RunVealNavigator) {
                 }
             }
 
+            // 개발용 더미 기록 — 디버그 빌드에서 이번 달 기록이 하나도 없을 때만 한 번 넣는다
+            // (DebugTrackSeeder 주석). 릴리스 빌드에서는 그 안에서 바로 돌아간다.
+            withContext(Dispatchers.IO) { DebugTrackSeeder.seedIfEmpty(context) }
+
             // 어디로 보낼지는 /meta보다 먼저 정해 둔다 — 서버가 죽어 있으면 /meta가 타임아웃까지
             // 10초를 쓰는데, 그 뒤에 판정하면 그만큼 늦어진다.
             val startDestination = resolveStartDestination()
