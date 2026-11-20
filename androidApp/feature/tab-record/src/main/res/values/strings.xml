@@ -13,6 +13,8 @@
     <string name="record_detail_legend_new">새로 탐험한 길</string>
     <string name="record_detail_legend_today">오늘 달린 길</string>
     <string name="record_detail_dong_rate_title">탐험률 변화</string>
+    <!-- 그 러닝이 적립한 구간이 없거나(짧은 러닝·매칭 실패) 도로 구간 인덱스가 아직 없을 때. -->
+    <string name="record_detail_dong_rate_empty">이 러닝으로 집계된 동네가 없어요</string>
     <string name="record_detail_percent_format">%1$d%%</string>
     <string name="record_detail_rate_arrow">→</string>
     <string name="record_detail_more_content_description">더보기</string>

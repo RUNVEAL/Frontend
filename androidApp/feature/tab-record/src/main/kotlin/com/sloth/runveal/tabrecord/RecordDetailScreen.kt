@@ -154,9 +154,7 @@ fun RecordDetailScreen(
                 ) {
                     RunningSummary(state = readyState)
                     RouteSummaryCard(state = readyState)
-                    if (readyState.dongStats.isNotEmpty()) {
-                        DongRateSection(dongStats = readyState.dongStats)
-                    }
+                    DongRateSection(dongStats = readyState.dongStats)
                 }
             }
         }
@@ -303,7 +301,13 @@ private fun RouteMap(request: SnapshotRequest?, modifier: Modifier = Modifier) {
     }
 }
 
-/** 이 러닝으로 동네 탐험률이 얼마나 올랐는지 — 결과 화면(`ResultScreen`)의 같은 줄과 같은 숫자다. */
+/**
+ * 이 러닝으로 동네 탐험률이 얼마나 올랐는지 — 결과 화면(`ResultScreen`)의 같은 줄과 같은 숫자다.
+ *
+ * 빈 경우에도 섹션을 숨기지 않고 이유를 한 줄로 알린다 — 섹션이 통째로 사라지면 "원래 없는 화면"인지
+ * "이번 기록만 비는 것"인지 알 수 없다. 적립된 구간이 없거나(아주 짧은 러닝·매칭 실패) 그 지역 도로
+ * 구간 인덱스가 아직 안 들어왔으면 빈다.
+ */
 @Composable
 private fun DongRateSection(dongStats: List<RecordDetailDongStat>, modifier: Modifier = Modifier) {
     val colors = RunvealTheme.colors
@@ -326,6 +330,13 @@ private fun DongRateSection(dongStats: List<RecordDetailDongStat>, modifier: Mod
                 .padding(RunvealTheme.spacing.space16),
             verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
         ) {
+            if (dongStats.isEmpty()) {
+                Text(
+                    stringResource(R.string.record_detail_dong_rate_empty),
+                    style = RunvealTheme.typography.bodyMRegular,
+                    color = colors.text.tertiary,
+                )
+            }
             dongStats.forEach { dongStat ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
