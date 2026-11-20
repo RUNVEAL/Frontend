@@ -30,6 +30,12 @@ sealed interface RecordDetailEffect : UiEffect {
     data object NavigateBack : RecordDetailEffect
 }
 
+/**
+ * "구간 기록" 한 줄 — 1km마다 끊은 페이스. [barRatio]는 막대 길이(0~1)로, **빠른 구간일수록 길다**
+ * (가장 빠른 구간이 꽉 찬다).
+ */
+data class RecordDetailSplit(val label: String, val paceLabel: String, val barRatio: Float)
+
 /** "탐험률 변화" 한 줄 — 이 러닝 직전과 직후의 동네 탐험률(%). */
 data class RecordDetailDongStat(val name: String, val beforePercent: Int, val afterPercent: Int)
 
@@ -50,6 +56,7 @@ sealed interface RecordDetailState : UiState {
         /** 칼로리는 아직 저장하는 값이 없어 "-"로 둔다 — 자리는 시안대로 지킨다. */
         val caloriesLabel: String,
         val dongStats: List<RecordDetailDongStat>,
+        val splits: List<RecordDetailSplit>,
         /** 매칭 경로가 없으면(매칭 실패·점 부족) null이라 지도 자리에 플레이스홀더만 보인다. */
         val mapSnapshotRequest: SnapshotRequest?,
         /** 삭제 확인 다이얼로그가 떠 있는지. */

@@ -53,6 +53,7 @@ import com.sloth.runveal.tabrecord.component.RecordRenameSheet
 import com.sloth.runveal.tabrecord.contract.RecordDetailDongStat
 import com.sloth.runveal.tabrecord.contract.RecordDetailEffect
 import com.sloth.runveal.tabrecord.contract.RecordDetailIntent
+import com.sloth.runveal.tabrecord.contract.RecordDetailSplit
 import com.sloth.runveal.tabrecord.contract.RecordDetailState
 import com.sloth.runveal.ui.mvi.CollectEffect
 import com.sloth.runveal.ui.toast.NotReadyToastHost
@@ -63,6 +64,10 @@ private val MAP_HEIGHT = 291.dp
 
 /** "새 길" 칸 너비 — 거리와 한 줄에 놓이는 작은 수치라 시안 값대로 고정한다. */
 private val NEW_ROAD_STAT_WIDTH = 80.dp
+
+/** 구간 기록 한 줄 — "1km" 라벨 폭과 막대 두께(시안 값). */
+private val SPLIT_LABEL_WIDTH = 28.dp
+private val SPLIT_BAR_HEIGHT = 6.dp
 
 /** 범례 선 스와치 — `ResultScreen`/`RecordingScreen`의 같은 모양. */
 private val LEGEND_SWATCH_WIDTH = 16.dp
@@ -155,6 +160,7 @@ fun RecordDetailScreen(
                     RunningSummary(state = readyState)
                     RouteSummaryCard(state = readyState)
                     DongRateSection(dongStats = readyState.dongStats)
+                    SplitsSection(splits = readyState.splits)
                 }
             }
         }
@@ -370,6 +376,80 @@ private fun DongRateSection(dongStats: List<RecordDetailDongStat>, modifier: Mod
     }
 }
 
+/**
+ * 1km 구간별 페이스. 막대는 **가장 빠른 구간이 꽉 차는** 길이라, 긴 줄이 더 빨리 달린 구간이다.
+ * 1km를 못 채운 러닝은 나눌 구간이 없어 안내 한 줄만 둔다(탐험률 변화와 같은 규칙).
+ */
+@Composable
+private fun SplitsSection(splits: List<RecordDetailSplit>, modifier: Modifier = Modifier) {
+    val colors = RunvealTheme.colors
+    val shape = RunvealTheme.shapes.radius16
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
+    ) {
+        Text(
+            stringResource(R.string.record_detail_splits_title),
+            style = RunvealTheme.typography.bodyLSemibold,
+            color = colors.text.primary,
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(shape)
+                .background(colors.surface.default, shape)
+                .border(1.dp, colors.border.default, shape)
+                .padding(RunvealTheme.spacing.space16),
+            verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
+        ) {
+            if (splits.isEmpty()) {
+                Text(
+                    stringResource(R.string.record_detail_splits_empty),
+                    style = RunvealTheme.typography.bodyMRegular,
+                    color = colors.text.tertiary,
+                )
+            }
+            splits.forEach { split ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        split.label,
+                        style = RunvealTheme.typography.bodyMRegular,
+                        color = colors.text.secondary,
+                        modifier = Modifier.width(SPLIT_LABEL_WIDTH),
+                    )
+                    SplitBar(ratio = split.barRatio, modifier = Modifier.weight(1f))
+                    Text(split.paceLabel, style = RunvealTheme.typography.bodyMRegular, color = colors.text.secondary)
+                }
+            }
+        }
+    }
+}
+
+/** 트랙 위에 [ratio]만큼 채운 막대. 탐험률 진행 바(`RunvealProgressBar`)는 금색 2단 구성이라 여기엔 안 맞는다. */
+@Composable
+private fun SplitBar(ratio: Float, modifier: Modifier = Modifier) {
+    val colors = RunvealTheme.colors
+    val shape = RunvealTheme.shapes.full
+    Box(
+        modifier = modifier
+            .height(SPLIT_BAR_HEIGHT)
+            .clip(shape)
+            .background(colors.progress.track, shape),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(ratio.coerceIn(0f, 1f))
+                .height(SPLIT_BAR_HEIGHT)
+                .clip(shape)
+                .background(colors.icon.primary, shape),
+        )
+    }
+}
+
 /** 범례 한 칸 — `ResultScreen`·`RecordingScreen`에 같은 모양이 있다. 세 번째 쓰임이라 디자인시스템으로
  * 올릴 때가 됐지만, 그건 세 화면을 같이 고치는 일이라 이 화면 범위와 분리한다. */
 @Composable
@@ -420,11 +500,17 @@ private fun RecordDetailContentPreview() {
                 paceLabel = "6'05″",
                 caloriesLabel = "-",
                 dongStats = listOf(RecordDetailDongStat("성수동", 37, 39)),
+                splits = listOf(
+                    RecordDetailSplit("1km", "6'12″", 0.95f),
+                    RecordDetailSplit("2km", "6'01″", 1f),
+                    RecordDetailSplit("3km", "6'40″", 0.8f),
+                ),
                 mapSnapshotRequest = null,
             )
             RunningSummary(state = state)
             RouteSummaryCard(state = state)
             DongRateSection(dongStats = state.dongStats)
+            SplitsSection(splits = state.splits)
         }
     }
 }

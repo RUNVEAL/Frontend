@@ -273,6 +273,12 @@ class TrackLocalStore(
                 )
             }
 
+    /** 기록의 필터된 GPX 원문 — 구간 기록(km별 페이스)을 계산할 때 읽는다. 파일이 없으면 null. */
+    fun filteredGpx(trackId: String): String? {
+        val path = database.trackQueries.selectById(trackId).executeAsOneOrNull()?.gpx_filtered_path ?: return null
+        return fileStore.read(path)
+    }
+
     /**
      * 기록 이름을 사용자가 지은 이름으로 바꾼다(`place_name`). `place_lookup_attempted`가 같이 켜져
      * 역지오코딩이 나중에 덮어쓰지 않는다 — 직접 지은 이름이 더 세다.

@@ -8,10 +8,12 @@ import com.sloth.runveal.data.local.RunvealDatabaseProvider
 import com.sloth.runveal.data.local.TrackLocalStore
 import com.sloth.runveal.map.snapshot.SnapshotVariant
 import com.sloth.runveal.map.snapshot.toSnapshotRequest
+import com.sloth.runveal.recording.RunSplits
 import com.sloth.runveal.result.DongRateChanges
 import com.sloth.runveal.tabrecord.contract.RecordDetailDongStat
 import com.sloth.runveal.tabrecord.contract.RecordDetailEffect
 import com.sloth.runveal.tabrecord.contract.RecordDetailIntent
+import com.sloth.runveal.tabrecord.contract.RecordDetailSplit
 import com.sloth.runveal.tabrecord.contract.RecordDetailState
 import com.sloth.runveal.ui.mvi.MviViewModel
 import java.time.Instant
@@ -25,6 +27,9 @@ private const val TAG = "RecordDetail"
 
 /** 칼로리는 아직 어디에도 저장하지 않는다 — 값이 생기기 전까지 자리만 지킨다. */
 private const val CALORIES_PLACEHOLDER = "-"
+
+/** 가장 느린 구간이라도 막대가 보이게 두는 최소 길이 비율. */
+private const val MIN_SPLIT_BAR_RATIO = 0.08f
 
 class RecordDetailViewModel(
     private val store: TrackLocalStore = TrackLocalStore(RunvealDatabaseProvider.database, FileStore()),
@@ -88,6 +93,7 @@ class RecordDetailViewModel(
         val newRoadPaths = withContext(Dispatchers.IO) { store.newRoadPathsForTracks(listOf(trackId))[trackId].orEmpty() }
         val newRoadMeters = withContext(Dispatchers.IO) { store.newRoadMetersForTrack(trackId) }
         val dongStats = withContext(Dispatchers.IO) { loadDongStats(trackId) }
+        val splits = withContext(Dispatchers.IO) { loadSplits(trackId) }
 
         val startedAt = Instant.ofEpochMilli(track.startedAtEpochMs).atZone(zoneId)
         setState {
@@ -101,11 +107,34 @@ class RecordDetailViewModel(
                 paceLabel = formatPace(track.elapsedMs, track.distanceMeters),
                 caloriesLabel = CALORIES_PLACEHOLDER,
                 dongStats = dongStats,
+                splits = splits,
                 mapSnapshotRequest = route.toSnapshotRequest(
                     ownerId = trackId,
                     variant = SnapshotVariant.RESULT_CARD,
                     newRoadPaths = newRoadPaths,
                 ),
+            )
+        }
+    }
+
+    /**
+     * 1km 구간별 페이스. 저장해 둔 GPX를 읽어([GpxPoints]) 공용 계산([RunSplits])에 넘긴다 — 거리는
+     * `track.distance_meters`가 아니라 점 사이를 다시 재서 쌓으므로 구간 경계가 실제 경로를 따른다.
+     *
+     * 막대 길이는 **가장 빠른 구간을 1로 둔 비율**이다(느릴수록 짧다). 0에 가까워 안 보이는 일이
+     * 없게 최소 길이를 둔다.
+     */
+    private fun loadSplits(trackId: String): List<RecordDetailSplit> {
+        val gpx = store.filteredGpx(trackId) ?: return emptyList()
+        val splits = RunSplits.of(GpxPoints.parse(gpx))
+        if (splits.isEmpty()) return emptyList()
+        val fastestPace = splits.minOf { it.paceSecondsPerKm }.takeIf { it > 0.0 } ?: return emptyList()
+        return splits.map { split ->
+            RecordDetailSplit(
+                label = "${split.index}km",
+                paceLabel = formatPaceSeconds(split.paceSecondsPerKm),
+                barRatio = (fastestPace / split.paceSecondsPerKm).toFloat()
+                    .coerceIn(MIN_SPLIT_BAR_RATIO, 1f),
             )
         }
     }
@@ -155,7 +184,10 @@ class RecordDetailViewModel(
     /** "6'05″" 형태 — km당 분'초″. 기록 탭·결과 화면과 같은 공식. */
     private fun formatPace(elapsedMs: Long, distanceMeters: Double): String {
         if (distanceMeters <= 0.0) return "0'00″"
-        val paceSecondsPerKm = (elapsedMs / 1000.0) / (distanceMeters / 1000.0)
+        return formatPaceSeconds((elapsedMs / 1000.0) / (distanceMeters / 1000.0))
+    }
+
+    private fun formatPaceSeconds(paceSecondsPerKm: Double): String {
         val minutes = (paceSecondsPerKm / 60).toInt()
         val seconds = (paceSecondsPerKm % 60).toInt()
         return "$minutes'${seconds.toString().padStart(2, '0')}″"
