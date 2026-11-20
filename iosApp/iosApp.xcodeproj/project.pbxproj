@@ -412,8 +412,8 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/maplibre/maplibre-gl-native-distribution";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 6.0.0;
+				kind = exactVersion;
+				version = 7.0.0;
 			};
 		};
 		A1C0DE000000000000000002 /* XCRemoteSwiftPackageReference "lottie-ios" */ = {

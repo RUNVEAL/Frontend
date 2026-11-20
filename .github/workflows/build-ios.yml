@@ -427,6 +427,32 @@ jobs:
             echo "</details>"
             echo ""
 
+            echo "<details><summary>SPM이 실제로 고른 버전 (Package.resolved)</summary>"
+            echo ""
+            echo '```'
+            # xcodebuild 로그에는 해석 결과가 안 남는다 — DerivedData의 Package.resolved가 정답이다.
+            cat "$RUNNER_TEMP/dd/SourcePackages/Package.resolved" 2>/dev/null \
+              | grep -E '"identity"|"version"|"revision"' | head -40 \
+              || echo "Package.resolved를 못 찾았습니다."
+            echo '```'
+            echo "</details>"
+            echo ""
+
+            echo "<details><summary>MapLibre 바이너리가 빌드된 SDK</summary>"
+            echo ""
+            echo '```'
+            # MapLibre만 미리 빌드된 XCFramework다(나머지는 소스 컴파일) — 그 바이너리가 어느 SDK로
+            # 만들어졌는지가 최신 Xcode/iOS와의 호환을 가른다.
+            MLN="$APP/Frameworks/MapLibre.framework/MapLibre"
+            if [ -f "$MLN" ]; then
+              vtool -show-build "$MLN" 2>&1 | head -20
+            else
+              echo "MapLibre 바이너리를 못 찾았습니다: $MLN"
+            fi
+            echo '```'
+            echo "</details>"
+            echo ""
+
             echo "<details><summary>서명 검증</summary>"
             echo ""
             echo '```'
