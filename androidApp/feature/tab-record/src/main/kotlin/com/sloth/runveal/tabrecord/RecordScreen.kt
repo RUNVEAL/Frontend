@@ -82,7 +82,11 @@ private fun RecordScreen(
     val density = LocalDensity.current
 
     Box(modifier = modifier.fillMaxSize().background(colors.bg.canvas)) {
-        NotReadyToastHost(notReadyToast)
+        // 탭바 위에 띄운다 — 탭바는 Map Shell이 이 화면 위에 겹쳐 그린다.
+        NotReadyToastHost(
+            notReadyToast,
+            bottomInset = RunvealTheme.layout.sizeTabBar + RunvealTheme.spacing.space8,
+        )
 
         Column(
             modifier = Modifier

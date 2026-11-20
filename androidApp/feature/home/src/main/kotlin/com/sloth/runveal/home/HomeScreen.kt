@@ -360,10 +360,16 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
             toastMessage?.let { message ->
                 RunvealToast(
                     message = message,
+                    // 시안(Overlay/Toast)은 하단 — 탭바 위 8에 띄운다.
                     modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .windowInsetsPadding(WindowInsets.statusBars)
-                        .padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space16),
+                        .align(Alignment.BottomCenter)
+                        .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+                        .padding(
+                            start = RunvealTheme.layout.marginScreen,
+                            end = RunvealTheme.layout.marginScreen,
+                            bottom = RunvealTheme.spacing.space8 + RunvealTheme.layout.sizeTabBar +
+                                RunvealTheme.spacing.space8,
+                        ),
                 )
             }
 

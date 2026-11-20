@@ -121,7 +121,11 @@ private fun CourseListContent(
     }
 
     Box(modifier = modifier.fillMaxSize().background(colors.bg.canvas)) {
-        NotReadyToastHost(notReadyToast)
+        // 탭바 위에 띄운다 — 탭바는 Map Shell이 이 화면 위에 겹쳐 그린다.
+        NotReadyToastHost(
+            notReadyToast,
+            bottomInset = RunvealTheme.layout.sizeTabBar + RunvealTheme.spacing.space8,
+        )
 
         // statusBar 영역까지 포함해서 화면 맨 위부터 깔리는 히어로 이미지 — 원본 비율(1920:544)대로 보여준다.
         Image(
