@@ -50,6 +50,7 @@ enum RunvealTrace {
         case mapViewAllocated = 26
         case mapViewConfigured = 27
         case mapViewCentered = 28
+        case mapSkipped = 29
 
         /// 화면과 Crashlytics 콘솔에 보이는 이름.
         var name: String {
@@ -82,6 +83,7 @@ enum RunvealTrace {
             case .mapViewAllocated: return "지도 뷰 객체 생성됨"
             case .mapViewConfigured: return "지도 뷰 옵션 설정"
             case .mapViewCentered: return "지도 초기 위치 설정"
+            case .mapSkipped: return "지도 건너뜀(진단용)"
             }
         }
     }

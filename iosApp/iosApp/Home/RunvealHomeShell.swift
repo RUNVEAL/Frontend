@@ -22,6 +22,13 @@ struct RunvealHomeShell: View {
     @StateObject private var permissionState = RunvealLocationPermissionState()
     @ObservedObject private var pendingCourseRun = RunvealPendingCourseRun.shared
 
+    /// **임시 진단 스위치** — 지도를 빼고 나머지 UI만 그린다.
+    ///
+    /// 홈에 들어가면 `MLNMapView` 생성 자리에서 죽는데, 그게 MapLibre 때문인지 홈의 다른 부분까지
+    /// 문제인지 가르려고 둔다. 여기를 `false`로 되돌리면 원래대로 지도가 뜬다 — 원인을 찾으면
+    /// 이 상수와 아래 분기를 지운다.
+    private static let mapDisabledForDiagnosis = true
+
     @State private var toastMessage: String?
 
     /// 임시 진단 — `@StateObject` 프로퍼티들이 전부 만들어진 뒤에 불린다. 여기까지 찍히면 홈의
@@ -90,12 +97,18 @@ struct RunvealHomeShell: View {
         // 어디서 멈추는지 가른다.
         let _ = RunvealTrace.once(.homeBodyEvaluated)
         ZStack {
-            RunvealMap(
-                state: mapState,
-                overlay: mapData.visibleOverlay(hideRegionOverlays: isCourseRecommendFlow)
-            )
-            .ignoresSafeArea()
-            .runvealMapLayers(mapState, mapData.layers)
+            if Self.mapDisabledForDiagnosis {
+                // 지도 자리를 빈 바탕으로 채운다 — 그 위에 올라가는 UI 배치는 그대로 보인다.
+                let _ = RunvealTrace.once(.mapSkipped)
+                RunvealTheme.colors.bg.canvas.ignoresSafeArea()
+            } else {
+                RunvealMap(
+                    state: mapState,
+                    overlay: mapData.visibleOverlay(hideRegionOverlays: isCourseRecommendFlow)
+                )
+                .ignoresSafeArea()
+                .runvealMapLayers(mapState, mapData.layers)
+            }
 
             content
 
