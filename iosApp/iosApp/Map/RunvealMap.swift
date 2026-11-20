@@ -70,6 +70,7 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> MLNMapView {
+        RunvealTrace.once(.mapViewCreating)
         let mapView = MLNMapView(frame: .zero, styleURL: RunvealMapConfig.styleURL)
         mapView.delegate = context.coordinator
         mapView.logoView.isHidden = true

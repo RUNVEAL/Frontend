@@ -86,6 +86,9 @@ struct RunvealHomeShell: View {
     }
 
     var body: some View {
+        // `@StateObject`들이 다 만들어진 뒤 처음 그릴 때 한 번 — 모델 생성과 지도 뷰 생성 사이
+        // 어디서 멈추는지 가른다.
+        let _ = RunvealTrace.once(.homeBodyEvaluated)
         ZStack {
             RunvealMap(
                 state: mapState,

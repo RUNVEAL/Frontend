@@ -24,6 +24,7 @@ final class RunvealLocationPermissionState: NSObject, ObservableObject, CLLocati
         super.init()
         manager.delegate = self
         refresh()
+        RunvealTrace.step(.locationPermissionInit)
     }
 
     func request() {

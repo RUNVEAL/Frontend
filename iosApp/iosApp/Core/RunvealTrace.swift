@@ -44,6 +44,9 @@ enum RunvealTrace {
         case mapRegionOverlayStart = 20
         case mapRegionOverlayDone = 21
         case glowRefreshDone = 22
+        case locationPermissionInit = 23
+        case homeBodyEvaluated = 24
+        case mapViewCreating = 25
 
         /// 화면과 Crashlytics 콘솔에 보이는 이름.
         var name: String {
@@ -70,6 +73,9 @@ enum RunvealTrace {
             case .mapRegionOverlayStart: return "전국 경계 올리기 시작"
             case .mapRegionOverlayDone: return "전국 경계 올림"
             case .glowRefreshDone: return "빛 이미지 갱신 완료"
+            case .locationPermissionInit: return "위치 권한 상태 생성"
+            case .homeBodyEvaluated: return "홈 body 평가"
+            case .mapViewCreating: return "지도 뷰 만드는 중"
             }
         }
     }
