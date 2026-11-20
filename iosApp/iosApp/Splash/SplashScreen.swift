@@ -30,19 +30,35 @@ struct SplashScreen: View {
     @State private var overlayWarmUpFinished = false
 
     var body: some View {
-        VStack(spacing: RunvealSpacing.space24) {
+        VStack(spacing: RunvealSpacing.space16) {
             RunvealImages.splash
                 .resizable()
                 .scaledToFit()
                 .frame(width: 210, height: 140)
             Text(SplashStrings.tagline)
                 .runvealTextStyle(RunvealTheme.typography.heading2)
-                .foregroundStyle(RunvealTheme.colors.text.primary)
+                .foregroundStyle(RunvealTheme.colors.text.secondary)
                 .multilineTextAlignment(.center)
         }
         .padding(.horizontal, RunvealLayout.marginScreen)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(RunvealTheme.colors.bg.canvas)
+        .background {
+            ZStack {
+                RunvealTheme.colors.bg.canvas
+                // 우상단에서 번져 내려오는 금빛 — 시안 `L0-1 스플래시`의 배경 그라데이션
+                // (CSS 212.83deg = 좌하단으로 흐르므로 시작이 우상단이다). 끝 색은 투명이라
+                // 중간부터는 canvas만 남는다.
+                LinearGradient(
+                    stops: [
+                        .init(color: RunvealTheme.colors.accent.default.opacity(0.3), location: 0.035),
+                        .init(color: .clear, location: 0.626),
+                    ],
+                    startPoint: .topTrailing,
+                    endPoint: .bottomLeading
+                )
+            }
+            .ignoresSafeArea()
+        }
         .task { await bootstrap() }
     }
 
