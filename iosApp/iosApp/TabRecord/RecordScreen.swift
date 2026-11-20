@@ -3,7 +3,13 @@ import SwiftUI
 
 enum TabRecordStrings {
     static let title = "기록"
-    static let monthlyRunPrefix = "이번 달 러닝"
+    /// 요약 줄 앞머리 — 보고 있는 달이 늘 이번 달은 아니라서 그 달을 가리키는 말을 끼운다.
+    static func runCountPrefix(_ periodLabel: String) -> String { "\(periodLabel) 러닝" }
+    static let previousYear = "이전 해"
+    static let nextYear = "다음 해"
+    static let monthPicker = "달 선택"
+    static func yearLabel(_ year: Int) -> String { "\(year)년" }
+    static func monthLabel(_ month: Int) -> String { "\(month)월" }
     static let newRoadLabel = "새로 탐험한 길"
     static let distanceUnit = "km"
     static let emptyTitle = "아직 달린 기록이 없어요"
@@ -20,6 +26,13 @@ struct RecordScreen: View {
     @State private var isLoading = true
     @State private var subscription: FlowSubscription?
 
+    /// 보고 있는 달. 0이면 아직 안 골랐다는 뜻이라 이번 달을 읽는다.
+    @State private var shownYear = 0
+    @State private var shownMonth = 0
+    @State private var isMonthPickerOpen = false
+    /// 월 선택 패널을 앱바 **바로 아래**에 놓으려고 재는 값 — 앱바 높이는 글꼴·안전 영역에 따라 달라진다.
+    @State private var appBarHeight: CGFloat = 0
+
     var body: some View {
         let colors = RunvealTheme.colors
         ZStack(alignment: .top) {
@@ -31,10 +44,18 @@ struct RecordScreen: View {
                         title: TabRecordStrings.title,
                         metaLabel: summary?.monthLabel ?? "",
                         titleStyle: RunvealTheme.typography.heading1,
-                        onMetaLabelClick: {}
+                        onMetaLabelClick: { isMonthPickerOpen = true }
                     )
+                    .background {
+                        GeometryReader { geometry in
+                            Color.clear
+                                .onAppear { appBarHeight = geometry.size.height }
+                                .onChange(of: geometry.size.height) { _, height in appBarHeight = height }
+                        }
+                    }
 
                     MonthlyRunningSummary(
+                        periodLabel: summary?.periodLabel ?? "이번 달",
                         runCountLabel: summary?.runCountLabel ?? "0회",
                         totalDistanceValue: summary?.totalDistanceValue ?? "0.00",
                         newRoadValue: summary?.newRoadValue ?? "+0.00"
@@ -78,6 +99,31 @@ struct RecordScreen: View {
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, RunvealLayout.sizeTabBar + RunvealSpacing.space24)
             }
+
+            if isMonthPickerOpen {
+                // 바깥을 탭하면 닫힌다(Android Popup의 focusable과 같은 역할). 투명해도 터치를
+                // 받으려면 모양을 줘야 한다.
+                Color.clear
+                    .contentShape(Rectangle())
+                    .ignoresSafeArea()
+                    .onTapGesture { isMonthPickerOpen = false }
+
+                MonthPicker(
+                    selectedYear: Int(summary?.selectedYear ?? 0),
+                    selectedMonth: Int(summary?.selectedMonth ?? 0),
+                    onSelect: { year, month in
+                        isMonthPickerOpen = false
+                        shownYear = year
+                        shownMonth = month
+                        Task { await reload() }
+                    }
+                )
+                .accessibilityLabel(TabRecordStrings.monthPicker)
+                // 앱바 바로 아래, 화면 좌우 여백에 맞춰 왼쪽에 붙인다.
+                .padding(.leading, RunvealLayout.marginScreen)
+                .padding(.top, appBarHeight + RunvealSpacing.space4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
         }
         .onAppear { observe() }
         .onDisappear {
@@ -94,8 +140,14 @@ struct RecordScreen: View {
     }
 
     private func reload() async {
+        let year = shownYear
+        let month = shownMonth
         let loaded = await Task.detached(priority: .userInitiated) {
-            IosRecordList.shared.loadThisMonth()
+            // Kotlin `Int`는 Swift에 `Int32`로 넘어간다.
+            if year > 0 {
+                return IosRecordList.shared.load(year: Int32(year), month: Int32(month))
+            }
+            return IosRecordList.shared.loadThisMonth()
         }.value
         summary = loaded
         isLoading = false
@@ -104,6 +156,8 @@ struct RecordScreen: View {
 
 /// 기록 탭 앱바 바로 아래, 이번 달 러닝 총 거리 + 새로 탐험한 길 요약(가운데 정렬).
 private struct MonthlyRunningSummary: View {
+    /// "이번 달"처럼 어느 달인지 가리키는 앞머리 — 달을 고를 수 있어서 늘 이번 달은 아니다.
+    let periodLabel: String
     let runCountLabel: String
     let totalDistanceValue: String
     let newRoadValue: String
@@ -114,7 +168,7 @@ private struct MonthlyRunningSummary: View {
         VStack(spacing: 9) {
             VStack(spacing: RunvealSpacing.space4) {
                 HStack(spacing: RunvealSpacing.space4) {
-                    Text(TabRecordStrings.monthlyRunPrefix)
+                    Text(TabRecordStrings.runCountPrefix(periodLabel))
                         .runvealTextStyle(RunvealTheme.typography.bodyLRegular)
                         .foregroundStyle(colors.text.secondary)
                     Text(runCountLabel)

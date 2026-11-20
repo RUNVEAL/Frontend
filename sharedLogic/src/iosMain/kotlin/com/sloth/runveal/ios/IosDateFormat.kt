@@ -57,19 +57,28 @@ internal object IosDateFormat {
         else -> "토요일"
     }
 
+    /** 지금 연·월 — 월 선택의 기본값이자 "이번 달" 판정 기준. */
+    fun currentYear(): Int =
+        calendar.components(NSCalendarUnitYear, fromDate = NSDate()).year.toInt()
+
+    fun currentMonth(): Int =
+        calendar.components(NSCalendarUnitMonth, fromDate = NSDate()).month.toInt()
+
     /** 이번 달의 시작(포함)과 다음 달의 시작(제외) epoch ms. */
-    fun thisMonthRange(): Pair<Long, Long> {
+    fun thisMonthRange(): Pair<Long, Long> = monthRange(currentYear(), currentMonth())
+
+    /** [year]년 [month]월의 시작(포함)과 다음 달의 시작(제외) epoch ms. */
+    fun monthRange(year: Int, month: Int): Pair<Long, Long> {
         val now = NSDate()
-        val parts = calendar.components(NSCalendarUnitYear or NSCalendarUnitMonth, fromDate = now)
         val startComponents = NSDateComponents().apply {
-            year = parts.year
-            month = parts.month
+            this.year = year.toLong()
+            this.month = month.toLong()
             day = 1
         }
         val start = calendar.dateFromComponents(startComponents) ?: now
         val nextComponents = NSDateComponents().apply {
-            year = if (parts.month.toInt() == 12) parts.year + 1 else parts.year
-            month = if (parts.month.toInt() == 12) 1 else parts.month + 1
+            this.year = (if (month == 12) year + 1 else year).toLong()
+            this.month = (if (month == 12) 1 else month + 1).toLong()
             day = 1
         }
         val next = calendar.dateFromComponents(nextComponents) ?: now
@@ -77,9 +86,23 @@ internal object IosDateFormat {
     }
 
     /** "2026년 11월" */
-    fun currentMonthLabel(): String {
-        val parts = calendar.components(NSCalendarUnitYear or NSCalendarUnitMonth, fromDate = NSDate())
-        return "${parts.year}년 ${parts.month}월"
+    fun currentMonthLabel(): String = monthLabel(currentYear(), currentMonth())
+
+    /** "2026년 11월" — 앱바 옆 라벨. */
+    fun monthLabel(year: Int, month: Int): String = "${year}년 ${month}월"
+
+    /**
+     * 요약 줄 앞머리 — 이번 달이면 "이번 달", 다른 달이면 "10월"처럼 그 달을 가리킨다.
+     * 해가 다르면 달만 적으면 헷갈려서 연도까지 붙인다(Android `RecordViewModel.periodLabel`).
+     */
+    fun periodLabel(year: Int, month: Int): String {
+        val nowYear = currentYear()
+        val nowMonth = currentMonth()
+        return when {
+            year == nowYear && month == nowMonth -> "이번 달"
+            year == nowYear -> "${month}월"
+            else -> "${year}년 ${month}월"
+        }
     }
 
     /** 결과 화면과 달리 한 시간을 넘긴 기록도 들어오므로 1시간 이상이면 `h:mm:ss`로 늘린다. */
