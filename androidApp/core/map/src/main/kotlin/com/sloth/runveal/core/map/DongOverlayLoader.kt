@@ -1,16 +1,21 @@
 package com.sloth.runveal.core.map
 
 import android.content.Context
+import android.util.Log
 import com.sloth.runveal.data.local.RunvealDatabaseProvider
 import com.sloth.runveal.data.local.FileStore
 import com.sloth.runveal.data.local.TrackLocalStore
 import com.sloth.runveal.dong.DongExploreRate
 import com.sloth.runveal.dong.DongPolygonPart
+import com.sloth.runveal.network.meta.MetaApi
+import com.sloth.runveal.network.meta.MetaHolder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
+
+private const val OVERLAY_TAG = "DongOverlayLoader"
 
 /**
  * 홈 지도에 한 번에 얹는 동/시군구/시도 오버레이 묶음.
@@ -39,7 +44,17 @@ data class DongOverlayBundle(
      * 만들어 둔 빛 이미지가 자동으로 버려진다(안 그러면 새 테두리와 어긋난 채로 남는다). */
     val boundarySourceKey: String,
 ) {
+    /**
+     * 서버 지도 데이터를 **못 받아** 비어 있는 번들인지([empty]로 만들어졌는지). 홈이 이 값으로
+     * "데이터를 받지 못했어요" 배너를 띄운다 — 동 경계·라벨·빛이 통째로 안 보이고 탐험률이 전부
+     * 0%인 상태를, 아무 설명 없이 "원래 그런 화면"처럼 두지 않기 위해서다.
+     */
+    val isServerDataMissing: Boolean get() = boundarySourceKey == NO_BOUNDARY_SOURCE_KEY
+
     companion object {
+        /** [boundarySourceKey]가 이 값이면 동 경계가 없다는 뜻 — [isServerDataMissing] 참고. */
+        const val NO_BOUNDARY_SOURCE_KEY = "none"
+
         /** 서버 동 경계를 못 받았을 때 — 동/시군구/시도 레이어를 비워 둔다. 지도는 그대로 뜨고
          * 경계만 안 보인다. 다음에 다시 만들 때 서버가 살아 있으면 정상으로 채워진다. */
         fun empty(builtForTrackId: String?): DongOverlayBundle = DongOverlayBundle(
@@ -54,7 +69,7 @@ data class DongOverlayBundle(
             walkedLengthsByDong = emptyMap(),
             totalLengthsByDong = emptyMap(),
             builtForTrackId = builtForTrackId,
-            boundarySourceKey = "none",
+            boundarySourceKey = NO_BOUNDARY_SOURCE_KEY,
         )
     }
 }
@@ -109,3 +124,26 @@ suspend fun loadDongOverlayBundle(context: Context, builtForTrackId: String?): D
             boundarySourceKey = "server:${server.mapVersion}",
         )
     }
+
+/**
+ * 홈 배너의 "다시 시도" — 서버 지도 데이터를 처음부터 다시 받아 [DongOverlayHolder]에 올린다.
+ *
+ * `/meta`가 실패해 [MetaHolder]가 비어 있으면 거기부터 다시 받는다. 이게 없으면
+ * [DongAssetRepository.syncFromServer]가 홀더를 5초 기다렸다 그냥 포기해서, 서버가 살아난 뒤에도
+ * 앱을 다시 켜지 않는 한 영원히 빈 지도가 된다. 이미 받아 둔 지도 버전이 있으면 파일 내려받기만
+ * 다시 한다.
+ *
+ * 성공하면 번들의 `boundarySourceKey`가 채워져 배너가 저절로 사라진다. 실패하면 다시 빈 번들이
+ * 올라가 배너가 그대로 남는다 — 예외를 던지지 않으니 호출부는 결과를 따로 처리할 필요가 없다.
+ */
+suspend fun refreshDongOverlayFromServer(context: Context, builtForTrackId: String?) {
+    if (MetaHolder.state.value == null) {
+        try {
+            MetaHolder.publish(MetaApi().fetchMeta())
+        } catch (e: Exception) {
+            Log.w(OVERLAY_TAG, "GET /api/v1/meta 재시도 실패", e)
+            return
+        }
+    }
+    DongOverlayHolder.publish(loadDongOverlayBundle(context, builtForTrackId))
+}
