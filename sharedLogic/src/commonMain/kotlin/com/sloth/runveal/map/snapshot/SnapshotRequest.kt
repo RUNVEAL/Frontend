@@ -31,8 +31,9 @@ object SnapshotConfig {
     const val MAX_ZOOM = 16.0
 
     /** 스타일·선 디자인이 바뀌면 올려서 캐시를 무효화한다. 4 = 코스 썸네일에 출발지 점을 그리기
-     * 시작하고(그 전엔 카드가 썸네일 **한가운데** 점을 얹고 있었다) 경로 선을 3dp → 4dp로 굵힌 버전. */
-    const val STYLE_VERSION = 4
+     * 시작하고(그 전엔 카드가 썸네일 **한가운데** 점을 얹고 있었다) 경로 선을 3dp → 4dp로 굵힌 버전.
+     * 5 = 그 출발지 점을 지름 기준 2.5배로 키운 버전. */
+    const val STYLE_VERSION = 5
 
     const val ROUTE_SOURCE_ID = "snapshot-route-source"
     const val ROUTE_LAYER_ID = "snapshot-route-layer"

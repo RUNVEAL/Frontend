@@ -23,6 +23,10 @@ internal object SnapshotStyleBuilder {
     private const val ENDPOINT_RADIUS_DP = 5f
     private const val ENDPOINT_STROKE_WIDTH_DP = 2f
 
+    /** 출발지 점 테두리 두께 = 반지름 x 이 비율. 디자인시스템 출발 마커(반지름 7 : 테두리 2)의 비율이라,
+     * 점을 키워도 테두리가 실처럼 얇아지지 않는다. */
+    private const val START_STROKE_RATIO = 2f / 7f
+
     fun build(
         request: SnapshotRequest,
         routeColor: Int,
@@ -83,7 +87,7 @@ internal object SnapshotStyleBuilder {
                     CircleLayer(SnapshotConfig.START_LAYER_ID, SnapshotConfig.START_SOURCE_ID).withProperties(
                         PropertyFactory.circleRadius(startRadiusDp),
                         PropertyFactory.circleColor(startColor),
-                        PropertyFactory.circleStrokeWidth(ENDPOINT_STROKE_WIDTH_DP),
+                        PropertyFactory.circleStrokeWidth(startRadiusDp * START_STROKE_RATIO),
                         PropertyFactory.circleStrokeColor(startStrokeColor),
                     ),
                 )

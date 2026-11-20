@@ -23,12 +23,15 @@ import org.maplibre.android.snapshotter.MapSnapshotter
 
 private const val SNAPSHOT_TIMEOUT_MS = 15_000L
 
-/** 출발지 점 반지름 = 그림 높이 x 이 비율. 160dp 카드에서 7dp(테두리 2dp를 더해 지름 18dp)가 되도록 잡았다. */
-private const val START_RADIUS_RATIO = 7f / 160f
+/**
+ * 출발지 점 반지름 = 그림 높이 x 이 비율. 디자인시스템 출발 마커(지름 18dp) 크기로 그려 봤더니
+ * 썸네일 안에서는 너무 작아 보여서 **지름 기준 2.5배**로 키웠다 — 160dp 카드에서 반지름 17.5dp(지름 35dp).
+ */
+private const val START_RADIUS_RATIO = 17.5f / 160f
 
 /** 아주 작은 썸네일에서도 점이 보이게, 반대로 큰 그림에서 과하게 커지지 않게 두는 한계. */
-private const val MIN_START_RADIUS_DP = 4.5f
-private const val MAX_START_RADIUS_DP = 8f
+private const val MIN_START_RADIUS_DP = 11.25f
+private const val MAX_START_RADIUS_DP = 20f
 
 /**
  * [CourseSnapshotRenderer] 구현. [routeColor]/[endpointColor]/[endpointStrokeColor]는 Compose 컨텍스트가
