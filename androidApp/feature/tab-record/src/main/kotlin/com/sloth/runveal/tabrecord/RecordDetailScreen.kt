@@ -432,7 +432,8 @@ private fun SplitsSection(splits: List<RecordDetailSplit>, modifier: Modifier = 
 
 /**
  * 트랙 위에 [ratio]만큼 채운 막대. 채움은 `progress/filled`, **가장 빠른 구간만** `progress/gained`에
- * 글로우를 얹는다(탐험률 진행 바가 "이번에 늘어난 만큼"을 강조하는 것과 같은 색·같은 효과).
+ * 글로우를 얹는다. 글로우는 `effect/glow-gold-strong` — 6dp짜리 가는 막대라 진행 바가 쓰는
+ * `glow-gold`(블러 8, 한 겹)로는 거의 안 보인다(블러 16 + 4 두 겹).
  *
  * [RunvealProgressBar]를 쓰지 않는 건 그쪽이 "기존 + 이번에 늘어난" 두 토막을 겹쳐 그리는 컴포넌트라
  * 한 토막만 필요한 여기와 모양이 다르기 때문이다.
@@ -451,7 +452,7 @@ private fun SplitBar(ratio: Float, isFastest: Boolean, modifier: Modifier = Modi
             modifier = Modifier
                 .fillMaxWidth(ratio.coerceIn(0f, 1f))
                 .height(SPLIT_BAR_HEIGHT)
-                .then(if (isFastest) Modifier.runvealDropShadow(shape, RunvealTheme.effects.glowGold) else Modifier)
+                .then(if (isFastest) Modifier.runvealDropShadow(shape, RunvealTheme.effects.glowGoldStrong) else Modifier)
                 .clip(shape)
                 .background(if (isFastest) colors.progress.gained else colors.progress.filled, shape),
         )
