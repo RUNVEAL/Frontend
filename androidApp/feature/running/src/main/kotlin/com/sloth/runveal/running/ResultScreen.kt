@@ -55,7 +55,7 @@ private val MAP_CARD_HEIGHT = 268.dp
 private val RESULT_GLOW_WIDTH = 480.dp
 private val RESULT_GLOW_HEIGHT = 320.dp
 private val RESULT_TITLE_TO_EXPLORE_GAP = 40.dp
-private val LEGEND_SWATCH_WIDTH = 16.dp
+private val LEGEND_SWATCH_WIDTH = 14.dp
 private val LEGEND_SWATCH_HEIGHT = 3.dp
 private val LEGEND_SWATCH_HALO_SIZE = 10.dp
 private val LEGEND_SWATCH_HALO_PADDING = 3.dp
@@ -123,7 +123,8 @@ private fun ResultContent(
                 .weight(1f)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(top = RunvealTheme.spacing.space32)
+                // 시안(C1)의 타이틀 y=120 — 상태바 52 + 앱바 56 바로 아래 12다.
+                .padding(top = RunvealTheme.spacing.space12)
                 // 화면 기본 좌우 여백 16dp — 모든 하위 콘텐츠에 공통으로 적용된다.
                 .padding(horizontal = RunvealTheme.layout.marginScreen),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -146,7 +147,7 @@ private fun ResultContent(
                 modifier = Modifier.padding(horizontal = RunvealTheme.spacing.space24).fillMaxWidth(),
             )
 
-            Spacer(modifier = Modifier.height(RunvealTheme.spacing.space32))
+            Spacer(modifier = Modifier.height(RunvealTheme.spacing.space20))
 
             // 지도 카드 — 화면 기본 여백(16dp)만 적용, 별도 섹션 마진 없음.
             RouteMapCard(request = state.mapSnapshotRequest, modifier = Modifier.fillMaxWidth())
@@ -263,7 +264,7 @@ private fun RouteMapCard(request: SnapshotRequest?, modifier: Modifier = Modifie
         )
 
         Row(
-            modifier = Modifier.align(Alignment.BottomStart).padding(RunvealTheme.spacing.space16),
+            modifier = Modifier.align(Alignment.BottomStart).padding(RunvealTheme.spacing.space12),
             horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
         ) {
             LegendItem(
