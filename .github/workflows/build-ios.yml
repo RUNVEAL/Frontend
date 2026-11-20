@@ -414,6 +414,17 @@ jobs:
             --groups qa \
             --release-notes "${{ github.ref_name }}@${{ github.sha }}"
 
+      - name: dSYM 아티팩트 업로드
+        if: ${{ env.MODE != 'compile' }}
+        # 자동 업로드가 실패해도 **Firebase 콘솔에 직접 올릴 수 있게** 남겨 둔다
+        # (Crashlytics → dSYM 누락 → 업로드). 심볼이 없으면 스택이 주소로만 보인다.
+        uses: actions/upload-artifact@v4
+        with:
+          name: runveal-ios-dsyms-build${{ github.run_number }}
+          path: ${{ runner.temp }}/Runveal.xcarchive/dSYMs
+          if-no-files-found: warn
+          retention-days: 30
+
       - name: Crashlytics dSYM 업로드
         if: ${{ env.MODE == 'firebase' }}
         # 심볼이 없으면 Crashlytics 스택이 주소로만 보인다. Release 구성이 dwarf-with-dsym이라
@@ -424,22 +435,56 @@ jobs:
         # `upload-symbols`를 쓰고, 인증도 서비스 계정이 아니라 GoogleService-Info.plist로 한다.
         #
         # 배포 **뒤에** 두고 실패해도 넘어간다 — 심볼은 보조 정보라, 이것 때문에 앱이 테스터에게
-        # 가지 못하는 쪽이 더 나쁘다(전에 그렇게 막혔다).
+        # 가지 못하는 쪽이 더 나쁘다(전에 그렇게 막혔다). 대신 무슨 일이 있었는지는 잡 요약에 남겨
+        # 둔다 — continue-on-error 때문에 잡이 초록색으로 끝나서, 로그를 안 보면 실패를 놓친다.
         continue-on-error: true
         run: |
           DSYMS="$RUNNER_TEMP/Runveal.xcarchive/dSYMs"
-          ls -l "$DSYMS" || true
+          PLIST=iosApp/iosApp/GoogleService-Info.plist
+          {
+            echo "### Crashlytics dSYM 업로드"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
 
-          # SPM 체크아웃은 아카이브 때 쓴 derivedDataPath 아래에 있다.
-          UPLOAD=$(find "$RUNNER_TEMP/dd/SourcePackages/checkouts" -name upload-symbols -type f 2>/dev/null | head -n1)
+          if [ ! -d "$DSYMS" ]; then
+            echo "- dSYMs 폴더가 없습니다 — Release 구성의 DEBUG_INFORMATION_FORMAT을 확인하세요." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if [ ! -f "$PLIST" ]; then
+            echo "- \`GoogleService-Info.plist\`가 없어 인증할 수 없습니다(GOOGLE_SERVICE_INFO_PLIST 시크릿 확인)." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # dSYM마다 UUID를 찍어 둔다 — 콘솔이 "누락"이라고 가리키는 UUID와 맞춰 볼 수 있다.
+          {
+            echo "<details><summary>dSYM 목록과 UUID</summary>"
+            echo ""
+            echo '```'
+            for d in "$DSYMS"/*.dSYM; do
+              [ -e "$d" ] || continue
+              echo "$(basename "$d")"
+              dwarfdump --uuid "$d" 2>/dev/null || true
+            done
+            echo '```'
+            echo "</details>"
+            echo ""
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # upload-symbols는 FirebaseCrashlytics 패키지 안에 있다. 체크아웃 위치가 버전에 따라
+          # 달라져서 derivedDataPath 전체를 뒤진다.
+          UPLOAD=$(find "$RUNNER_TEMP/dd" -name upload-symbols -type f 2>/dev/null | head -n1)
           if [ -z "$UPLOAD" ]; then
-            echo "::warning::upload-symbols를 못 찾았습니다 — Crashlytics 스택이 심볼 없이 보입니다."
+            echo "- \`upload-symbols\`를 못 찾았습니다 — 아티팩트의 dSYM을 콘솔에 직접 올려 주세요." >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
           echo "upload-symbols: $UPLOAD"
-
           chmod +x "$UPLOAD"
-          "$UPLOAD" -gsp iosApp/iosApp/GoogleService-Info.plist -p ios "$DSYMS"
+
+          if "$UPLOAD" -gsp "$PLIST" -p ios "$DSYMS"; then
+            echo "- 업로드 성공" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "- **업로드 실패** — 아티팩트 \`runveal-ios-dsyms-build${{ github.run_number }}\`를 내려받아 Crashlytics 콘솔에 직접 올려 주세요." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: 실패 시 오류만 추려 보기
         # xcodebuild 로그는 수천 줄이라 Actions 화면에서 error: 줄을 찾기 어렵다. 실패했을 때만
