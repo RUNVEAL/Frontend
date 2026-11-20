@@ -9,12 +9,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.sloth.runveal.designsystem.theme.RunvealTheme
+import com.sloth.runveal.feature.tabrecord.R
 
-/** 기록 탭 TopAppBar 바로 아래, 이번 달 러닝 총 거리 + 새로 탐험한 길 요약(가운데 정렬). */
+/** 기록 탭 TopAppBar 바로 아래, 보고 있는 달의 총 거리 + 새로 탐험한 길 요약(가운데 정렬).
+ * [periodLabel]은 "이번 달"처럼 어느 달인지 가리키는 앞머리다 — 달을 고를 수 있어서 늘 이번 달은 아니다. */
 @Composable
 fun MonthlyRunningSummary(
+    periodLabel: String,
     runCountLabel: String,
     totalDistanceValue: String,
     totalDistanceUnit: String,
@@ -40,7 +44,11 @@ fun MonthlyRunningSummary(
                 horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("이번 달 러닝", style = RunvealTheme.typography.bodyLRegular, color = colors.text.secondary)
+                Text(
+                    stringResource(R.string.record_summary_run_count_format, periodLabel),
+                    style = RunvealTheme.typography.bodyLRegular,
+                    color = colors.text.secondary,
+                )
                 Text(runCountLabel, style = RunvealTheme.typography.bodyLSemibold, color = colors.text.secondary)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4)) {
@@ -88,6 +96,7 @@ fun MonthlyRunningSummary(
 private fun MonthlyRunningSummaryPreview() {
     RunvealTheme {
         MonthlyRunningSummary(
+            periodLabel = "이번 달",
             runCountLabel = "8회",
             totalDistanceValue = "32.40",
             totalDistanceUnit = "km",

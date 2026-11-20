@@ -21,6 +21,11 @@ data class RecordItem(
  */
 data class RecordState(
     val monthLabel: String = "",
+    /** 지금 보고 있는 달 — 월 선택 패널이 어디에 표시를 둘지 정하는 데 쓴다. */
+    val selectedYear: Int = 0,
+    val selectedMonth: Int = 0,
+    /** 요약 줄 앞머리("이번 달" 또는 "10월") — 보고 있는 달이 이번 달이 아닐 수 있다. */
+    val periodLabel: String = "",
     val runCountLabel: String = "0회",
     val totalDistanceValue: String = "0.00",
     val newRoadValue: String = "+0.00",
