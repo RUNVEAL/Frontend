@@ -70,6 +70,11 @@ sealed interface RunVealRoute : Route {
         @Serializable
         data object Record : HomeTab
 
+        /** 기록 탭 목록에서 한 건을 눌러 들어가는 러닝 기록 상세. 값은 [trackId]로만 넘기고 화면이
+         * 로컬 DB에서 다시 읽는다 — 경로·탐험률 같은 큰 값을 라우트에 실을 수 없다. */
+        @Serializable
+        data class RecordDetail(val trackId: String) : HomeTab
+
         @Serializable
         data object My : HomeTab
 

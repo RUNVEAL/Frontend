@@ -27,5 +27,13 @@ JOIN track t ON t.id = rs.track_id
 JOIN road_segment seg ON seg.segment_id = rs.segment_id
 ORDER BY t.started_at_epoch_ms, t.id, rs.segment_id;
 
+-- 기록 상세 "탐험률 변화" — 그 러닝이 지난 동들. 새로 덮은 게 없는 동(이미 다 가본 길만 달린 경우)도
+-- 줄에는 나와야 해서 재생 결과가 아니라 run_segment를 직접 본다.
+selectDongsForTrack:
+SELECT DISTINCT seg.adm_cd2
+FROM run_segment rs
+JOIN road_segment seg ON seg.segment_id = rs.segment_id
+WHERE rs.track_id = ?;
+
 insertRunSegment:
 INSERT OR IGNORE INTO run_segment (track_id, segment_id, covered_mask) VALUES (?, ?, ?);
