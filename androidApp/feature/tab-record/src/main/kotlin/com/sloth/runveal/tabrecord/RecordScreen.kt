@@ -43,18 +43,25 @@ import com.sloth.runveal.ui.toast.rememberNotReadyToastState
 
 @Composable
 fun RecordScreen(
+    onRecordClick: (String) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RecordViewModel = viewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    RecordScreen(state = state, onIntent = viewModel::onIntent, modifier = modifier)
+    RecordScreen(
+        state = state,
+        onIntent = viewModel::onIntent,
+        onRecordClick = onRecordClick,
+        modifier = modifier,
+    )
 }
 
 @Composable
 private fun RecordScreen(
     state: RecordState,
     onIntent: (RecordIntent) -> Unit,
+    onRecordClick: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = RunvealTheme.colors
@@ -117,6 +124,7 @@ private fun RecordScreen(
                             durationLabel = record.durationLabel,
                             paceLabel = record.paceLabel,
                             thumbnailRequest = record.thumbnailRequest,
+                            onClick = { onRecordClick(record.trackId) },
                             onLongClick = { onIntent(RecordIntent.DeleteRequested(record.trackId)) },
                         )
                     }
@@ -167,6 +175,7 @@ private fun RecordScreenPreview() {
     RunvealTheme {
         RecordScreen(
             onIntent = {},
+            onRecordClick = {},
             state = RecordState(
                 monthLabel = "2026년 11월",
                 runCountLabel = "8회",

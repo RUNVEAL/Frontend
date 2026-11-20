@@ -158,6 +158,7 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() == true -> 0
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Course>() == true -> 1
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Record>() == true -> 2
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.RecordDetail>() == true -> 2
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.My>() == true -> 3
         else -> 0
     }
