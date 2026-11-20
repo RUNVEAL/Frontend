@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
@@ -23,9 +24,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import com.sloth.runveal.core.map.LocalMapOverlayBottomInset
 import com.sloth.runveal.designsystem.RunvealIcons
@@ -33,6 +41,21 @@ import com.sloth.runveal.designsystem.component.button.RunvealIconButton
 import com.sloth.runveal.designsystem.component.button.RunvealRunStartButton
 import com.sloth.runveal.designsystem.component.navigation.RunvealSegmentedToggle
 import com.sloth.runveal.designsystem.theme.RunvealTheme
+
+/** 헤더의 보조 글자(내 동네, 누적·전체 거리)에 거는 투명도 — 시안은 색 토큰 대신 블록 투명도를 쓴다. */
+private const val HEADER_SUB_TEXT_ALPHA = 0.8f
+
+/** 지도 하단 컨트롤 줄 높이(시안) — 러닝 시작 버튼(92)보다 커서 위아래로 조금씩 남는다. */
+private val CONTROLS_HEIGHT = 100.dp
+
+/** "누적 35.1km"처럼 라벨 뒤에 거리를 붙인다. 소수 한 자리까지만 — 미터 단위 원자료를 그대로 쓰면
+ * "3.4821…km"가 된다. */
+private fun AnnotatedString.Builder.appendDistanceLine(label: String, km: Double, valueColor: Color) {
+    append("$label ")
+    withStyle(SpanStyle(color = valueColor, fontWeight = FontWeight.SemiBold)) {
+        append("%.1fkm".format(km))
+    }
+}
 
 /** 보기 전환 토글에서 "안 가본 길"의 인덱스 — 아래 옵션 목록 순서와 짝이다. */
 internal const val TOGGLE_INDEX_UNEXPLORED = 1
@@ -103,10 +126,14 @@ private fun MapActionRow(
                 end = RunvealTheme.layout.marginMapControls,
                 // 플로팅 탭바(sizeTabBar + 상하 space8) 위로 띄운다. 위치 권한/서비스 배너가 탭바 위에
                 // 얹혀 더 높아진 경우는 Map Shell이 LocalMapOverlayBottomInset으로 그 차이를 알려준다.
-                bottom = RunvealTheme.layout.sizeTabBar + RunvealTheme.spacing.space32 + LocalMapOverlayBottomInset.current,
-            ),
+                // 탭바(sizeTabBar)가 내비게이션 바 위 space8에 떠 있고, 이 줄은 그 위 space8이다(시안).
+                bottom = RunvealTheme.layout.sizeTabBar + RunvealTheme.spacing.space16 +
+                    LocalMapOverlayBottomInset.current,
+            )
+            .height(CONTROLS_HEIGHT),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Bottom,
+        // 시안은 100 높이 안에서 가운데 정렬이라, 러닝 시작(92)과 양옆 버튼의 아래가 안 맞는다.
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         MapActionButton(icon = RunvealIcons.Course, label = "코스 만들기", onClick = onCreateCourseClick)
         RunvealRunStartButton(onClick = onRunStartClick)
@@ -142,7 +169,13 @@ private fun ExploreSummaryCard(
             horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("내 동네", style = RunvealTheme.typography.bodyLRegular, color = colors.text.secondary)
+            Text(
+                "내 동네",
+                style = RunvealTheme.typography.bodyLRegular,
+                color = colors.text.secondary,
+                // 시안은 색 토큰을 바꾸지 않고 글자 블록에 투명도를 건다.
+                modifier = Modifier.alpha(HEADER_SUB_TEXT_ALPHA),
+            )
             Text(dongName, style = RunvealTheme.typography.heading3, color = colors.text.primary)
         }
 
@@ -151,7 +184,7 @@ private fun ExploreSummaryCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(verticalAlignment = Alignment.Bottom) {
+            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.Bottom) {
                 Text(
                     "$ratePercent",
                     style = RunvealTheme.typography.numL,
@@ -173,11 +206,16 @@ private fun ExploreSummaryCard(
                 )
             }
             Text(
-                // 소수 한 자리까지만 — 미터 단위 원자료를 그대로 쓰면 "3.4821…km"가 된다.
-                "누적 %.1fkm\n전체 %.1fkm".format(exploredKm, totalKm),
+                buildAnnotatedString {
+                    // 라벨("누적")과 거리의 굵기·색이 다르다 — 거리가 더 밝고 굵다(시안).
+                    appendDistanceLine(label = "누적", km = exploredKm, valueColor = colors.text.secondary)
+                    append("\n")
+                    appendDistanceLine(label = "전체", km = totalKm, valueColor = colors.text.secondary)
+                },
                 style = RunvealTheme.typography.bodyMRegular,
                 color = colors.text.tertiary,
                 textAlign = TextAlign.End,
+                modifier = Modifier.weight(1f).alpha(HEADER_SUB_TEXT_ALPHA),
             )
         }
     }
@@ -196,6 +234,6 @@ private fun MapActionButton(
         verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
     ) {
         RunvealIconButton(icon = icon, contentDescription = label, onClick = onClick)
-        Text(label, style = RunvealTheme.typography.captionSRegular, color = RunvealTheme.colors.text.secondary)
+        Text(label, style = RunvealTheme.typography.captionMRegular, color = RunvealTheme.colors.text.secondary)
     }
 }
