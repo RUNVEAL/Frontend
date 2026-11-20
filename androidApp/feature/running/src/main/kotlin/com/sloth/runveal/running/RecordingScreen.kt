@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
@@ -388,9 +389,9 @@ private fun MapLegendRow(onLocateClick: () -> Unit, showCourseGuide: Boolean, mo
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom,
     ) {
-        Column {
+        LegendChip {
             if (showCourseGuide) {
-                LegendChip {
+                Row {
                     // 지도 위 안내선([CourseGuideLayer])과 같은 색(text.primary, 흰색) · 같은 점선.
                     LegendItem(
                         swatchColor = colors.text.primary,
@@ -399,7 +400,7 @@ private fun MapLegendRow(onLocateClick: () -> Unit, showCourseGuide: Boolean, mo
                     )
                 }
             }
-            LegendChip {
+            Row(horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12)) {
                 LegendItem(swatchColor = colors.map.roadToday, label = stringResource(R.string.recording_legend_today_label))
                 LegendItem(
                     swatchColor = colors.map.roadNew,
@@ -433,12 +434,13 @@ private fun MapLegendRow(onLocateClick: () -> Unit, showCourseGuide: Boolean, mo
 /** 범례 칩 하나 — 배경(`bg.scrim`)으로 묶인 [LegendItem] 한 줄. "추천 코스"는 단독 칩으로,
  * "오늘 달린 길"/"새로 탐험한 길"은 같은 칩 안에 묶는다([MapLegendRow]). */
 @Composable
-private fun LegendChip(content: @Composable RowScope.() -> Unit) {
-    Row(
+private fun LegendChip(content: @Composable ColumnScope.() -> Unit) {
+    // 시안(C0)은 추천 코스 줄과 길 색 줄을 **한 상자** 안에 4 간격으로 쌓는다.
+    Column(
         modifier = Modifier
             .background(RunvealTheme.colors.bg.scrim, RunvealTheme.shapes.radius8)
             .padding(horizontal = RunvealTheme.spacing.space12, vertical = RunvealTheme.spacing.space8),
-        horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
+        verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
         content = content,
     )
 }
