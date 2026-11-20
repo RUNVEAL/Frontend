@@ -74,14 +74,6 @@ fun CourseRecommendationCard(
             ) {
                 Text(badgeLabel, style = RunvealTheme.typography.captionSSemibold, color = colors.text.accent)
             }
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(18.dp)
-                    .clip(RunvealTheme.shapes.full)
-                    .background(colors.accent.glow, RunvealTheme.shapes.full)
-                    .border(2.dp, colors.bg.map, RunvealTheme.shapes.full),
-            )
         }
 
         Column(

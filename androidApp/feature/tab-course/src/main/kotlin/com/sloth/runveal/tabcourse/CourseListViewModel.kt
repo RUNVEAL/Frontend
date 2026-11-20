@@ -17,13 +17,6 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 
-/** Compose 컨텍스트가 없는 ViewModel이라 `RunvealTheme.colors`를 못 읽어서 디자인 토큰을 ARGB로
- * 직접 옮겨 둔다(CourseDetailViewModel과 같은 값) — 여기서는 캐시를 **지우는** 데만 쓰므로 색이
- * 실제로 쓰이지는 않지만, 썸네일 렌더러를 만들려면 넘겨야 한다. */
-private const val SNAPSHOT_ROUTE_COLOR = 0xFFF2E096.toInt()
-private const val SNAPSHOT_ENDPOINT_COLOR = 0xFF4286E0.toInt()
-private const val SNAPSHOT_ENDPOINT_STROKE_COLOR = 0xFFF4EEEA.toInt()
-
 /** 탭 전환은 `restoreState`로 화면만 다시 구성하고 이 ViewModel 자체는 살아있으므로, `init`에서 한 번만
  * 불러오면 탭을 나갔다 온 사이 새로 저장한 코스가 안 보인다 — 화면이 들어올 때마다 [CourseListIntent.Load]를
  * 보내 매번 다시 불러오게 한다. Effect 타입 인자는 [Nothing]. */
@@ -32,14 +25,8 @@ class CourseListViewModel : MviViewModel<CourseListIntent, CourseListState, Noth
     private val json = Json
 
     /** 코스를 지울 때 그 썸네일 캐시도 같이 지운다([CourseSnapshotRenderer.delete]). */
-    private val snapshotRenderer = CourseSnapshotRenderer(
-        context = AndroidAppContextHolder.context,
-        routeColor = SNAPSHOT_ROUTE_COLOR,
-        endpointColor = SNAPSHOT_ENDPOINT_COLOR,
-        endpointStrokeColor = SNAPSHOT_ENDPOINT_STROKE_COLOR,
-        newRoadColor = SNAPSHOT_ROUTE_COLOR,
-        todayRoadColor = SNAPSHOT_ROUTE_COLOR,
-    )
+    // 여기서는 캐시를 **지우는** 데만 써서 색이 실제로 쓰이지는 않지만, 렌더러를 만들려면 넘겨야 한다.
+    private val snapshotRenderer = CourseSnapshotRenderer(context = AndroidAppContextHolder.context)
 
     override suspend fun handleIntent(intent: CourseListIntent) {
         when (intent) {
@@ -120,7 +107,14 @@ class CourseListViewModel : MviViewModel<CourseListIntent, CourseListState, Noth
             notRunLabel = "아직 안달림",
             path = path,
             isLoop = route_type == "LOOP",
-            snapshotRequest = path.toSnapshotRequest(ownerId = id, variant = SnapshotVariant.THUMBNAIL),
+            // 코스 썸네일엔 출발·도착 점을 같이 찍는다 — 카드가 그림 한가운데에 점을 얹던 걸 대신한다.
+            // 순환 코스는 도착이 곧 출발이라 출발 점만 남는다.
+            snapshotRequest = path.toSnapshotRequest(
+                ownerId = id,
+                variant = SnapshotVariant.THUMBNAIL,
+                withStartMarker = true,
+                withEndMarker = route_type != "LOOP",
+            ),
         )
     }
 
