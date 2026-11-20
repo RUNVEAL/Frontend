@@ -3,7 +3,9 @@ package com.sloth.runveal.courserecommend
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -23,7 +25,10 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -33,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -46,8 +52,12 @@ import com.sloth.runveal.core.map.MapLayers
 import com.sloth.runveal.core.map.MapPin
 import com.sloth.runveal.core.map.RecommendedRoute
 import com.sloth.runveal.core.map.buildRecommendedRouteGeoJson
+import com.sloth.runveal.courserecommend.component.FilterBottomSheet
 import com.sloth.runveal.courserecommend.contract.CourseRecommendResultIntent
 import com.sloth.runveal.courserecommend.contract.CourseRecommendResultState
+import com.sloth.runveal.courserecommend.contract.CustomDistanceValues
+import com.sloth.runveal.courserecommend.contract.DistanceOptions
+import com.sloth.runveal.courserecommend.contract.FilterOptions
 import com.sloth.runveal.courserecommend.contract.RouteCardUiModel
 import com.sloth.runveal.designsystem.RunvealIcons
 import com.sloth.runveal.designsystem.component.button.RunvealButton
@@ -128,6 +138,20 @@ fun CourseRecommendResultScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
+        // 조건을 바꿔 다시 받는 중에는 지도와 칩은 그대로 두고 로딩만 덮는다 — 화면이 비면 뒤로 간
+        // 것처럼 보인다.
+        if (readyState?.isReloading == true) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(RunvealTheme.colors.bg.scrim)
+                    // 다시 받는 동안의 탭을 먹는다(뒤의 카드·지도가 눌리면 안 된다).
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
+                contentAlignment = Alignment.Center,
+            ) {
+                RunvealLoading(modifier = Modifier.size(LOADING_SIZE))
+            }
+        }
 
         Column(
             modifier = Modifier
@@ -145,6 +169,7 @@ fun CourseRecommendResultScreen(
             if (readyState != null) {
                 SettingsSummaryRow(
                     settings = readyState.settings,
+                    onFilterClick = { viewModel.onIntent(CourseRecommendResultIntent.OpenFilterSheet) },
                     modifier = Modifier.padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space12),
                 )
             }
@@ -217,6 +242,10 @@ fun CourseRecommendResultScreen(
             }
         }
     }
+
+    readyState?.filterDraft?.let { draft ->
+        FilterSheet(draft = draft, onIntent = viewModel::onIntent)
+    }
 }
 
 /** B0에서 고른 거리·안 가본 길 우선·필터 수를 그대로 보여주는 요약 칩 — 코스 만들기 바텀 패널과 같은
@@ -225,7 +254,11 @@ fun CourseRecommendResultScreen(
  * **조회용이다.** 그래서 거리 칩도 `onClick`을 주지 않아 화살표가 없고 눌리지도 않는다 —
  * 여기서 조건을 바꾸려면 뒤로 가서 다시 고른다. */
 @Composable
-private fun SettingsSummaryRow(settings: CourseRecommendSettings, modifier: Modifier = Modifier) {
+private fun SettingsSummaryRow(
+    settings: CourseRecommendSettings,
+    onFilterClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8)) {
         RunvealChipDropdown(
             label = settings.distanceLabel,
@@ -242,7 +275,8 @@ private fun SettingsSummaryRow(settings: CourseRecommendSettings, modifier: Modi
         )
         RunvealChipCondition(
             checked = settings.selectedFilterCount > 0,
-            onCheckedChange = {},
+            // 이 칩만 누를 수 있다 — 조건을 바꾸려면 여기서 시트를 열어 다시 추천받는다.
+            onCheckedChange = { onFilterClick() },
             icon = RunvealChipConditionIcon.Filter,
             // 고른 필터가 없으면 아이콘만 — 코스 만들기 패널과 같은 규칙이다.
             label = settings.selectedFilterCount.takeIf { it > 0 }?.toString(),
@@ -360,4 +394,48 @@ private fun tagLabel(code: String): String = when (code) {
     "GENTLE_SLOPE" -> stringResource(R.string.course_recommend_tag_gentle_slope)
     "FLAT" -> stringResource(R.string.course_recommend_tag_flat)
     else -> code
+}
+
+/**
+ * 상단 필터 칩으로 여는 코스 조건 설정 시트. 코스 만들기(B0)와 **같은 시트**를 쓰고, 고치는 동안은
+ * 초안([CourseRecommendResultState.Ready.filterDraft])에만 쌓였다가 "코스 조건 적용하기"를 눌러야
+ * 실제로 다시 추천받는다.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FilterSheet(draft: CourseRecommendSettings, onIntent: (CourseRecommendResultIntent) -> Unit) {
+    fun update(block: CourseRecommendSettings.() -> CourseRecommendSettings) {
+        onIntent(CourseRecommendResultIntent.UpdateFilterDraft(draft.block()))
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = { onIntent(CourseRecommendResultIntent.CloseFilterSheet) },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Color.Transparent,
+        dragHandle = null,
+    ) {
+        FilterBottomSheet(
+            distanceOptions = DistanceOptions,
+            selectedDistance = draft.selectedDistance,
+            onDistanceSelect = { update { copy(selectedDistance = it, isCustomDistanceSelected = false) } },
+            isCustomDistanceSelected = draft.isCustomDistanceSelected,
+            customDistanceValues = CustomDistanceValues,
+            customDistanceIndex = draft.customDistanceIndex,
+            onCustomDistanceChipClick = { update { copy(isCustomDistanceSelected = true) } },
+            onCustomDistanceIndexChange = { update { copy(customDistanceIndex = it) } },
+            avoidVisitedPreferred = draft.avoidVisitedPreferred,
+            onAvoidVisitedPreferredChange = { update { copy(avoidVisitedPreferred = it) } },
+            filterOptions = FilterOptions,
+            selectedFilters = draft.selectedFilters,
+            onFilterToggle = { filter ->
+                update {
+                    val filters = if (filter in selectedFilters) selectedFilters - filter else selectedFilters + filter
+                    copy(selectedFilters = filters)
+                }
+            },
+            onBack = { onIntent(CourseRecommendResultIntent.CloseFilterSheet) },
+            onReset = { onIntent(CourseRecommendResultIntent.ResetFilterDraft) },
+            onApply = { onIntent(CourseRecommendResultIntent.ApplyFilterDraft) },
+        )
+    }
 }
