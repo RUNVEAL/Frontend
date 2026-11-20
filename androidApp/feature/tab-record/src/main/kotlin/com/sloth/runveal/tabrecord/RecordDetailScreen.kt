@@ -81,7 +81,7 @@ private val SPLIT_GLOW_INNER_BLUR = 5.dp
 private const val SPLIT_GLOW_ALPHA = 0.45f
 
 /** 범례 선 스와치 — `ResultScreen`/`RecordingScreen`의 같은 모양. */
-private val LEGEND_SWATCH_WIDTH = 16.dp
+private val LEGEND_SWATCH_WIDTH = 14.dp
 private val LEGEND_SWATCH_HEIGHT = 3.dp
 private val LEGEND_SWATCH_HALO_SIZE = 10.dp
 private val LEGEND_SWATCH_HALO_PADDING = 3.dp
@@ -305,7 +305,7 @@ private fun RouteMap(request: SnapshotRequest?, modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxSize(),
         )
         Row(
-            modifier = Modifier.align(Alignment.BottomStart).padding(RunvealTheme.spacing.space16),
+            modifier = Modifier.align(Alignment.BottomStart).padding(RunvealTheme.spacing.space12),
             horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
         ) {
             LegendItem(
@@ -345,7 +345,7 @@ private fun DongRateSection(dongStats: List<RecordDetailDongStat>, modifier: Mod
                 .background(colors.surface.default, shape)
                 .border(1.dp, colors.border.default, shape)
                 .padding(RunvealTheme.spacing.space16),
-            verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
+            verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
         ) {
             if (dongStats.isEmpty()) {
                 Text(
