@@ -177,6 +177,71 @@ enum RunvealTrace {
         }
     }
 
+    // MARK: - 죽은 이유 남기기
+
+    /// 시그널 핸들러가 쓸 파일 디스크립터. 핸들러 안에서는 파일을 열 수 없어 미리 열어 둔다.
+    private static var fatalFD: Int32 = -1
+
+    /**
+     죽는 순간의 사인을 [logURL]에 적어 둔다 — 다음 실행 때 진단 패널에 `[치명]` 줄로 보인다.
+
+     **앱이 안 죽게 만드는 장치가 아니다.** Swift의 `try/catch`는 `throws`로 선언된 에러만 잡고,
+     강제 언래핑·배열 범위·오버플로·`fatalError`·ObjC `NSException`은 언어 차원에서 가로챌 수단이
+     없다. 시그널 핸들러에서 복구를 시도하면 그 뒤가 전부 미정의 동작이라, 여기서는 **이유만 적고
+     원래대로 죽게 둔다**(`SIG_DFL` + `raise`).
+
+     Crashlytics도 같은 핸들러를 설치하므로 **`FirebaseApp.configure()` 뒤에 불러야** 이쪽이 남는다.
+     대신 Crashlytics 쪽 수집은 그만큼 불확실해지는데, 콘솔에 아무것도 안 올라오는 상황이라
+     눈앞에서 확인되는 쪽을 택했다.
+     */
+    static func installCrashHandlers() {
+        if let path = logURL?.path {
+            fatalFD = open(path, O_WRONLY | O_APPEND | O_CREAT, 0o644)
+        }
+
+        // ObjC 예외는 시그널보다 먼저 이쪽으로 온다 — 여기서는 Foundation을 써도 된다.
+        NSSetUncaughtExceptionHandler { exception in
+            let symbols = exception.callStackSymbols.prefix(10).joined(separator: " / ")
+            let text = "[치명] 예외 \(exception.name.rawValue): \(exception.reason ?? "") | \(symbols)\n"
+            RunvealTrace.writeFatal(text)
+        }
+
+        for number in [SIGSEGV, SIGABRT, SIGBUS, SIGILL, SIGTRAP, SIGFPE] {
+            signal(number, RunvealTrace.crashSignalHandler)
+        }
+    }
+
+    /// **async-signal-safe한 것만 쓴다.** 핸들러 안에서 `malloc`을 부르는 코드(Swift 문자열 보간,
+    /// Foundation 대부분)는 교착하거나 조용히 틀어진다 — 그래서 미리 만든 [StaticString]을
+    /// `write(2)`로 그대로 내보낸다.
+    private static let crashSignalHandler: @convention(c) (Int32) -> Void = { number in
+        let text: StaticString
+        switch number {
+        case SIGSEGV: text = "[치명] SIGSEGV — 잘못된 메모리 접근\n"
+        case SIGABRT: text = "[치명] SIGABRT — abort(ObjC 예외나 런타임 오류 뒤에 온다)\n"
+        case SIGBUS: text = "[치명] SIGBUS — 잘못된 주소 정렬/접근\n"
+        case SIGILL: text = "[치명] SIGILL — 잘못된 명령\n"
+        case SIGTRAP: text = "[치명] SIGTRAP — Swift 런타임 체크 실패(강제 언래핑·배열 범위·오버플로)\n"
+        case SIGFPE: text = "[치명] SIGFPE — 0 나누기 등\n"
+        default: text = "[치명] 알 수 없는 시그널\n"
+        }
+        if RunvealTrace.fatalFD >= 0 {
+            text.withUTF8Buffer { buffer in
+                _ = write(RunvealTrace.fatalFD, buffer.baseAddress, buffer.count)
+            }
+        }
+        // 복구하지 않는다 — 원래 동작으로 되돌려 그대로 죽게 둔다.
+        signal(number, SIG_DFL)
+        raise(number)
+    }
+
+    private static func writeFatal(_ text: String) {
+        guard fatalFD >= 0, let data = text.data(using: .utf8) else { return }
+        data.withUnsafeBytes { raw in
+            _ = write(fatalFD, raw.baseAddress, raw.count)
+        }
+    }
+
     /// 지금 앱이 쓰는 메모리(MB).
     ///
     /// iOS가 메모리 과다로 앱을 죽일 때(Jetsam) 보는 값이 `phys_footprint`다. 그렇게 종료되면
@@ -223,7 +288,8 @@ final class RunvealTraceLog: ObservableObject {
 
         // 지난 실행이 죽기 직전까지 남긴 줄을 먼저 보여준다 — 그 몇 줄이 바로 원인이 있는 자리다.
         for line in RunvealTrace.previousSessionLines {
-            entries.append(Entry(text: "· " + line))
+            // 사인([치명])은 접두사를 붙이지 않고 그대로 둔다 — 한눈에 찾으라고.
+            entries.append(Entry(text: line.hasPrefix("[치명]") ? line : "· " + line))
         }
         if !RunvealTrace.previousSessionLines.isEmpty {
             entries.append(Entry(text: "──── 지난 실행 끝 / 이번 실행 시작 ────"))

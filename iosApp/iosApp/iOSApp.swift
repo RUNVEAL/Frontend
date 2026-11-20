@@ -25,6 +25,9 @@ struct iOSApp: App {
         } else {
             print("[Firebase] GoogleService-Info.plist가 번들에 없어 초기화를 건너뛴다 — 크래시 리포트가 수집되지 않는다.")
         }
+
+        // Crashlytics도 같은 핸들러를 설치하므로 **configure 뒤**라야 이쪽이 남는다.
+        RunvealTrace.installCrashHandlers()
     }
 
     var body: some Scene {
