@@ -24,13 +24,18 @@ struct RecordDetailScreen: View {
             RunvealTheme.colors.bg.canvas.ignoresSafeArea()
 
             // 맨 뒤에 깔리는 배경 글로우 — 안전 영역을 무시해 상태 바 밑까지 그대로 번진다.
-            // 원본이 화면보다 길어서 가로를 꽉 채우고 넘치는 아래쪽은 잘라 낸다(MyScreen의 배경과 같은 생각).
-            RunvealImages.recordDetail
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(maxWidth: .infinity, alignment: .top)
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
+            //
+            // 원본이 화면보다 **세로로 길어서** 가로를 꽉 채우고 넘치는 아래쪽을 잘라 낸다. 가로를
+            // 직접 재서 고정하지 않으면(`.fill`만 쓰면) 세로를 덮으려고 가로가 화면 밖까지 커진다.
+            GeometryReader { geometry in
+                RunvealImages.recordDetail
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: geometry.size.width, alignment: .top)
+                    .clipped()
+            }
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
 
             VStack(spacing: 0) {
                 // `RunvealTopAppBar`는 액션 자리에 **텍스트**만 받는다(Android는 Composable을 받는다)
