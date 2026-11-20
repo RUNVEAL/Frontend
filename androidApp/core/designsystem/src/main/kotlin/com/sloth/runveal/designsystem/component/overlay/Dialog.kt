@@ -40,7 +40,10 @@ fun RunvealDialog(
 
     Column(
         modifier = modifier
-            // 시안(Overlay/Dialog)이 주는 색을 그대로 쓴다 — surface/default(#272626 50%) +
+            // 시안이 정한 고정 너비(layout/size/dialog-width = 296). 빼면 다이얼로그가 글자 길이에
+            // 따라 늘었다 줄었다 한다.
+            .width(RunvealTheme.layout.sizeDialogWidth)
+            // 색은 시안(Overlay/Dialog)이 주는 값을 그대로 쓴다 — surface/default(#272626 50%) +
             // border/default(#443F3D). [runvealGlass]를 쓰지 않는 건 그쪽이 배경 블러가 없는 걸
             // 메우려고 85%까지 올린 fallback이어서다(RunvealShadow.kt 주석). 다이얼로그는 뒤에
             // 시스템 스크림이 깔려서 50%로도 글자가 묻히지 않는다.
