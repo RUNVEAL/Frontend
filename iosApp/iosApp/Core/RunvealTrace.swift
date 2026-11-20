@@ -47,6 +47,9 @@ enum RunvealTrace {
         case locationPermissionInit = 23
         case homeBodyEvaluated = 24
         case mapViewCreating = 25
+        case mapViewAllocated = 26
+        case mapViewConfigured = 27
+        case mapViewCentered = 28
 
         /// 화면과 Crashlytics 콘솔에 보이는 이름.
         var name: String {
@@ -76,6 +79,9 @@ enum RunvealTrace {
             case .locationPermissionInit: return "위치 권한 상태 생성"
             case .homeBodyEvaluated: return "홈 body 평가"
             case .mapViewCreating: return "지도 뷰 만드는 중"
+            case .mapViewAllocated: return "지도 뷰 객체 생성됨"
+            case .mapViewConfigured: return "지도 뷰 옵션 설정"
+            case .mapViewCentered: return "지도 초기 위치 설정"
             }
         }
     }

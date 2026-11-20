@@ -28,6 +28,10 @@ struct RunvealRootView: View {
         // 순간 같이 사라져서, 정작 보고 싶은 "전환 이후"를 못 본다. 원인을 찾으면 지운다
         // (RunvealTrace.swift).
         .overlay(alignment: .bottom) { RunvealTraceOverlay() }
+        // 크래시 핸들러를 **한 번 더** 깐다. `iOSApp.init`에서 깔아도 Crashlytics가 자기 핸들러를
+        // 나중에 설치하면서 덮어쓰는지, 죽어도 `[치명]` 줄이 남지 않았다 — 화면이 뜬 뒤 다시 걸어
+        // 이쪽이 마지막이 되게 한다.
+        .task { RunvealTrace.installCrashHandlers() }
         // 다크 모드 단일 테마 — Info.plist의 `UIUserInterfaceStyle`과 함께 시스템 설정과 무관하게 고정.
         .preferredColorScheme(.dark)
     }

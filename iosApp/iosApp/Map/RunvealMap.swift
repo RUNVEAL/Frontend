@@ -70,15 +70,24 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> MLNMapView {
-        RunvealTrace.once(.mapViewCreating)
-        let mapView = MLNMapView(frame: .zero, styleURL: RunvealMapConfig.styleURL)
+        // styleURL은 Kotlin `MapConfig.STYLE_URL`에서 온다 — 값이 비어 있거나 이상하면 여기서
+        // 알아보라고 같이 찍는다.
+        let styleURL = RunvealMapConfig.styleURL
+        RunvealTrace.once(.mapViewCreating, styleURL?.absoluteString ?? "styleURL이 nil")
+
+        let mapView = MLNMapView(frame: .zero, styleURL: styleURL)
+        RunvealTrace.once(.mapViewAllocated)
+
         mapView.delegate = context.coordinator
         mapView.logoView.isHidden = true
         mapView.attributionButton.isHidden = true
         mapView.compassView.isHidden = true
         mapView.tintColor = RunvealMapColors.default.currentLocation
         mapView.minimumZoomLevel = RunvealMapConfig.minZoomPreference
+        RunvealTrace.once(.mapViewConfigured)
+
         mapView.setCenter(state.initialCenter.coordinate, zoomLevel: state.initialZoom, animated: false)
+        RunvealTrace.once(.mapViewCentered)
 
         let tap = UITapGestureRecognizer(
             target: context.coordinator,
