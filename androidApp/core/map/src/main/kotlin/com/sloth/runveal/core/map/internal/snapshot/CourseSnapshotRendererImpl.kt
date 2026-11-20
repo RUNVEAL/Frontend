@@ -3,6 +3,7 @@ package com.sloth.runveal.core.map.internal.snapshot
 import android.content.Context
 import android.graphics.Bitmap
 import com.sloth.runveal.core.map.CourseSnapshotRenderer
+import com.sloth.runveal.core.map.SnapshotColors
 import com.sloth.runveal.map.snapshot.SnapshotConfig
 import com.sloth.runveal.map.snapshot.SnapshotRequest
 import com.sloth.runveal.map.snapshot.zoomToFit
@@ -24,30 +25,22 @@ import org.maplibre.android.snapshotter.MapSnapshotter
 private const val SNAPSHOT_TIMEOUT_MS = 15_000L
 
 /**
- * 출발지 점 반지름 = 그림 높이 x 이 비율. 디자인시스템 출발 마커(지름 18dp) 크기로 그려 봤더니
+ * 출발·도착 점 반지름 = 그림 높이 x 이 비율. 디자인시스템 마커(지름 18dp) 크기로 그려 봤더니
  * 썸네일 안에서는 너무 작아 보여서 **지름 기준 2.5배**로 키웠다 — 160dp 카드에서 반지름 17.5dp(지름 35dp).
  */
-private const val START_RADIUS_RATIO = 17.5f / 160f
+private const val ENDPOINT_RADIUS_RATIO = 17.5f / 160f
 
 /** 아주 작은 썸네일에서도 점이 보이게, 반대로 큰 그림에서 과하게 커지지 않게 두는 한계. */
-private const val MIN_START_RADIUS_DP = 11.25f
-private const val MAX_START_RADIUS_DP = 20f
+private const val MIN_ENDPOINT_RADIUS_DP = 11.25f
+private const val MAX_ENDPOINT_RADIUS_DP = 20f
 
 /**
- * [CourseSnapshotRenderer] 구현. [routeColor]/[endpointColor]/[endpointStrokeColor]는 Compose 컨텍스트가
- * 없는 이 레이어에 Composable 쪽([CourseSnapshotImage])이 [MapColors]와 같은 패턴으로 미리 변환해
- * 넘긴다. 시작·끝 점은 (이전 `ResultScreen.RouteMarker`와 달리) 한 레이어에서 같은 스타일로 그려서
- * 색을 하나만 받는다 — 문서(§2)는 "디자인 토큰 사용"만 요구할 뿐 두 색을 요구하지 않는다.
+ * [CourseSnapshotRenderer] 구현. [colors]는 Compose 컨텍스트가 없는 이 레이어에 Composable 쪽
+ * ([CourseSnapshotImage])이 [MapColors]와 같은 패턴으로 미리 ARGB로 바꿔 넘긴다.
  */
 internal class CourseSnapshotRendererImpl(
     private val context: Context,
-    private val routeColor: Int,
-    private val startColor: Int,
-    private val startStrokeColor: Int,
-    private val endpointColor: Int,
-    private val endpointStrokeColor: Int,
-    private val newRoadColor: Int,
-    private val todayRoadColor: Int,
+    private val colors: SnapshotColors,
 ) : CourseSnapshotRenderer {
     private val density = context.resources.displayMetrics.density
 
@@ -92,13 +85,12 @@ internal class CourseSnapshotRendererImpl(
     }
 
     /**
-     * 출발지 점 반지름(dp) — 그림 높이에 비례시킨다. 같은 dp로 고정하면 160dp 카드에선 작아 보이고
-     * 72dp 줄 썸네일에선 그림을 다 덮는다. 디자인시스템 출발 마커(지름 18dp, 테두리 2dp 포함)가
-     * 카드 기준이라 그 크기가 나오도록 비율을 잡았다.
+     * 출발·도착 점 반지름(dp) — 그림 높이에 비례시킨다. 같은 dp로 고정하면 160dp 카드에선 작아 보이고
+     * 72dp 줄 썸네일에선 그림을 다 덮는다.
      */
-    private fun startRadiusDp(heightPx: Int): Float {
+    private fun endpointRadiusDp(heightPx: Int): Float {
         val heightDp = heightPx / density
-        return (heightDp * START_RADIUS_RATIO).coerceIn(MIN_START_RADIUS_DP, MAX_START_RADIUS_DP)
+        return (heightDp * ENDPOINT_RADIUS_RATIO).coerceIn(MIN_ENDPOINT_RADIUS_DP, MAX_ENDPOINT_RADIUS_DP)
     }
 
     /** `MapSnapshotter`는 메인 스레드에서 만들고 시작해야 한다. */
@@ -107,14 +99,8 @@ internal class CourseSnapshotRendererImpl(
             suspendCancellableCoroutine { continuation ->
                 val styleBuilder = SnapshotStyleBuilder.build(
                     request = request,
-                    routeColor = routeColor,
-                    startColor = startColor,
-                    startStrokeColor = startStrokeColor,
-                    endpointColor = endpointColor,
-                    endpointStrokeColor = endpointStrokeColor,
-                    newRoadColor = newRoadColor,
-                    todayRoadColor = todayRoadColor,
-                    startRadiusDp = startRadiusDp(heightPx),
+                    colors = colors,
+                    endpointRadiusDp = endpointRadiusDp(heightPx),
                 )
                 val options = MapSnapshotter.Options(widthPx, heightPx)
                     .withPixelRatio(density)

@@ -60,22 +60,25 @@ fun List<LatLon>.snapshotBounds(): GeoBounds {
  * - 목록(비어 있어도 됨) — 러닝 기록. 경로를 "오늘 달린 길"(흰색)로 깔고, 그중 처음 간 구간을
  *   "새로 탐험한 길"(금색)로 덧그린다. 같은 길을 또 달렸으면 목록이 비고 흰색만 남는다.
  *
- * [withStartMarker]를 켜면 썸네일에도 **출발지 점**을 찍는다(코스 썸네일). 결과 카드는 원래 출발·도착
- * 두 점을 다 찍으므로 이 값과 무관하다.
+ * [withStartMarker]/[withEndMarker]를 켜면 썸네일에도 **출발·도착 점**을 찍는다(코스 썸네일). 결과
+ * 카드는 원래 두 점을 다 찍으므로 이 값과 무관하다. 출발과 도착이 같은 자리면(순환 코스) 도착 점은
+ * 빼서 **출발 점만** 남긴다 — 같은 자리에 점 두 개를 겹쳐 그려야 할 이유가 없다.
  */
 fun List<LatLon>.toSnapshotRequest(
     ownerId: String,
     variant: SnapshotVariant,
     newRoadPaths: List<List<LatLon>>? = null,
     withStartMarker: Boolean = false,
+    withEndMarker: Boolean = false,
 ): SnapshotRequest? {
     if (size <= 1) return null
     val highlight = newRoadPaths?.filter { it.size >= 2 }
+    val isResultCard = variant == SnapshotVariant.RESULT_CARD
     return SnapshotRequest(
         ownerId = ownerId,
         variant = variant,
-        start = if (variant == SnapshotVariant.RESULT_CARD || withStartMarker) first() else null,
-        end = if (variant == SnapshotVariant.RESULT_CARD) last() else null,
+        start = if (isResultCard || withStartMarker) first() else null,
+        end = if (isResultCard || withEndMarker) last().takeIf { it != first() } else null,
         routeGeoJson = toRouteGeoJson(),
         bounds = snapshotBounds(),
         highlightGeoJson = highlight?.takeIf { it.isNotEmpty() }?.toMultiLineGeoJson(),
