@@ -43,7 +43,9 @@ struct RecordScreen: View {
 
                     RunvealImages.record
                         .resizable()
-                        .aspectRatio(1816.0 / 405.0, contentMode: .fill)
+                        // 가로를 채우고 높이는 비율로 — `.fill`은 제안 공간을 덮도록 키워서
+                        // 세로가 넉넉한 자리에선 가로로 터진다(CourseScreen 히어로 주석 참고).
+                        .aspectRatio(1816.0 / 405.0, contentMode: .fit)
                         .frame(maxWidth: .infinity)
                         .clipShape(RunvealShapes.radius16)
                         .padding(.horizontal, RunvealLayout.marginScreen)
