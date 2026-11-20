@@ -172,6 +172,7 @@ private fun RecordScreen(
                             distanceLabel = record.distanceLabel,
                             durationLabel = record.durationLabel,
                             paceLabel = record.paceLabel,
+                            newRoadLabel = record.newRoadLabel,
                             thumbnailRequest = record.thumbnailRequest,
                             // 삭제는 상세 화면의 더보기 메뉴로 옮겼다 — 길게 누르기로는 지울 수 없다.
                             onClick = { onRecordClick(record.trackId) },
