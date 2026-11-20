@@ -1,5 +1,6 @@
 package com.sloth.runveal.tabrecord
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -103,6 +106,17 @@ fun RecordDetailScreen(
             .fillMaxSize()
             .background(RunvealTheme.colors.bg.canvas),
     ) {
+        // 맨 뒤에 깔리는 배경 글로우 — statusBar 인셋을 안 받아서 그 밑까지 그대로 번진다.
+        // design/images/record_detail.png는 360x1011dp(화면보다 길다)라, 가로를 꽉 채우고 넘치는
+        // 아래쪽은 잘라 낸다(MyScreen의 mypage_bg와 같은 생각, 크기 계산만 더 단순하다).
+        Image(
+            painter = painterResource(R.drawable.record_detail),
+            contentDescription = null,
+            contentScale = ContentScale.FillWidth,
+            alignment = Alignment.TopCenter,
+            modifier = Modifier.fillMaxSize(),
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
