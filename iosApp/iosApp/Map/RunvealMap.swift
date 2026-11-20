@@ -70,24 +70,14 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> MLNMapView {
-        // styleURL은 Kotlin `MapConfig.STYLE_URL`에서 온다 — 값이 비어 있거나 이상하면 여기서
-        // 알아보라고 같이 찍는다.
-        let styleURL = RunvealMapConfig.styleURL
-        RunvealTrace.once(.mapViewCreating, styleURL?.absoluteString ?? "styleURL이 nil")
-
-        let mapView = MLNMapView(frame: .zero, styleURL: styleURL)
-        RunvealTrace.once(.mapViewAllocated)
-
+        let mapView = MLNMapView(frame: .zero, styleURL: RunvealMapConfig.styleURL)
         mapView.delegate = context.coordinator
         mapView.logoView.isHidden = true
         mapView.attributionButton.isHidden = true
         mapView.compassView.isHidden = true
         mapView.tintColor = RunvealMapColors.default.currentLocation
         mapView.minimumZoomLevel = RunvealMapConfig.minZoomPreference
-        RunvealTrace.once(.mapViewConfigured)
-
         mapView.setCenter(state.initialCenter.coordinate, zoomLevel: state.initialZoom, animated: false)
-        RunvealTrace.once(.mapViewCentered)
 
         let tap = UITapGestureRecognizer(
             target: context.coordinator,
@@ -95,7 +85,6 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         )
         mapView.addGestureRecognizer(tap)
         context.coordinator.mapView = mapView
-        RunvealTrace.once(.mapViewCreated)
         return mapView
     }
 
@@ -144,7 +133,6 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         // MARK: 스타일 로드
 
         func mapView(_ mapView: MLNMapView, didFinishLoading style: MLNStyle) {
-            RunvealTrace.once(.mapStyleLoaded)
             self.style = style
             // 베이스 스타일 레이어 스냅샷이 필요해서 다른 레이어를 추가하기 전에 가장 먼저 호출한다.
             BaseMapDimmer.applyAtStyleLoad(style: style)
@@ -204,15 +192,7 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
 
             applyRoadFocus(style: style, enabled: state.unexploredRoadFocus)
             applyLineLayers(style: style, layers: state.layers)
-            // 전국 동·시군구·시도 GeoJSON을 MapLibre 소스에 올리는 자리 — 홈 진입에서 가장 무겁다.
-            // 앞뒤 메모리를 같이 봐야 여기서 한계를 넘는지 알 수 있다.
-            if overlay != nil {
-                RunvealTrace.once(.mapRegionOverlayStart)
-            }
             applyRegionOverlays(style: style, overlay: overlay)
-            if overlay != nil {
-                RunvealTrace.once(.mapRegionOverlayDone)
-            }
             applyCommands(state: state)
             refreshMarkerPositions()
             scheduleGlowRefresh()
@@ -362,9 +342,6 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
                     query: overlay?.query,
                     boundarySourceKey: overlay?.boundarySourceKey ?? ""
                 )
-                if overlay != nil {
-                    RunvealTrace.once(.glowRefreshDone)
-                }
             }
         }
     }

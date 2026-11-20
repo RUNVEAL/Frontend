@@ -112,7 +112,6 @@ struct OnboardingScreen: View {
             case .navigateToHome: onFinished()
             }
         }
-        .onAppear { RunvealTrace.step(.onboardingShown) }
         .onDisappear { viewModel.cancelRunningTasks() }
     }
 

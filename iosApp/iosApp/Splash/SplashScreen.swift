@@ -52,13 +52,11 @@ struct SplashScreen: View {
     /// 스플래시가 그대로 남는다. `@State` 플래그를 읽고 쓰는 쪽도 같은 이유로 여기 묶는다.
     @MainActor
     private func bootstrap() async {
-        RunvealTrace.step(.bootstrapStart)
         // 홈이 홀더로 받아 쓰니 스플래시를 넘어가도 계속 돌아야 한다 — 그래서 구조적 자식이 아니라
         // 별도 Task로 띄우고, 상한은 "기다리는 쪽"에만 둔다.
         Task {
             await warmUpDongOverlay()
             overlayWarmUpFinished = true
-            RunvealTrace.step(.overlayFlagSet)
         }
         // 어디로 보낼지는 `/meta`보다 **먼저** 정해 둔다 — 서버가 죽어 있으면 `/meta`가 타임아웃까지
         // 10초를 쓰는데, 그 뒤에 판정하면 그만큼 늦어진다(Android `splashGraph`와 같다).
@@ -67,7 +65,6 @@ struct SplashScreen: View {
         let goingHome = destination == .home
 
         let metaSucceeded = await fetchMeta()
-        RunvealTrace.step(metaSucceeded ? .metaDone : .metaFailed)
 
         if !metaSucceeded {
             try? await Task.sleep(for: Self.minimumVisibleDuration)
@@ -77,7 +74,6 @@ struct SplashScreen: View {
             await waitForOverlayWarmUp()
         }
 
-        RunvealTrace.step(.navigatingNext, goingHome ? "홈" : "온보딩")
         onFinished(destination)
     }
 
@@ -98,23 +94,19 @@ struct SplashScreen: View {
                 return
             }
         }
-        RunvealTrace.step(overlayWarmUpFinished ? .overlayWaitFinished : .overlayWaitTimedOut)
     }
 
     /// **메인 액터 밖에서 돈다**(`nonisolated`). 전국 경계 파싱과 Kotlin Map → Swift Dictionary
     /// 변환(동 3천여 개의 폴리곤)이 무거워서, 메인에서 돌리면 그 동안 화면이 멈추는 건 물론
     /// 상한을 재는 `waitForOverlayWarmUp()`까지 같이 멈춰 상한이 무의미해진다.
     private nonisolated func warmUpDongOverlay() async {
-        RunvealTrace.step(.overlayWarmUpStart)
         do {
             let bundle = try await RunvealDongOverlayLoader.load(builtForTrackId: nil)
-            RunvealTrace.step(.overlayBuilt)
             // 홀더는 `@MainActor`다 — 비격리 컨텍스트에서 부르니 await로 넘긴다.
             await RunvealDongOverlayHolder.shared.publish(bundle)
-            RunvealTrace.step(.overlayPublished)
         } catch {
             // 홈에서 다시 시도한다.
-            RunvealTrace.step(.overlayFailed, "\(error)")
+            print("[Splash] 동 오버레이 사전 생성 실패 — 홈에서 다시 시도한다: \(error)")
         }
     }
 
@@ -134,7 +126,7 @@ struct SplashScreen: View {
         } catch {
             // 못 읽으면 홈으로 보낸다 — 온보딩을 한 번 더 보여주는 것보다, 첫 화면을 못 띄우는
             // 쪽이 나쁘다.
-            RunvealTrace.step(.onboardingCheckFailed, "\(error)")
+            print("[Splash] 온보딩 완료 여부를 못 읽었다: \(error)")
             return .home
         }
     }

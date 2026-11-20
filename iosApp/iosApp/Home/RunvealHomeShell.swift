@@ -22,20 +22,12 @@ struct RunvealHomeShell: View {
     @StateObject private var permissionState = RunvealLocationPermissionState()
     @ObservedObject private var pendingCourseRun = RunvealPendingCourseRun.shared
 
-    /// **임시 진단 스위치** — 지도를 빼고 나머지 UI만 그린다.
-    ///
-    /// 홈에 들어가면 `MLNMapView` 생성 자리에서 죽는데, 그게 MapLibre 때문인지 홈의 다른 부분까지
-    /// 문제인지 가르려고 둔다. 여기를 `false`로 되돌리면 원래대로 지도가 뜬다 — 원인을 찾으면
-    /// 이 상수와 아래 분기를 지운다.
-    private static let mapDisabledForDiagnosis = true
+    /// **지도를 끈 채로 둔다.** 지금 `MLNMapView`를 만들면 그 자리에서 앱이 죽어서(원인은
+    /// `ios-feature/map-crash` 브랜치에서 따로 잡는 중) 지도를 켜면 UI를 볼 수가 없다.
+    /// 지도 문제가 해결되면 `false`로 바꾸고 이 상수와 아래 분기를 지운다.
+    private static let mapDisabled = true
 
     @State private var toastMessage: String?
-
-    /// 임시 진단 — `@StateObject` 프로퍼티들이 전부 만들어진 뒤에 불린다. 여기까지 찍히면 홈의
-    /// 모델 생성은 끝난 것이고, 그다음 멈추면 `body`(지도 포함)를 그리는 쪽이다.
-    init() {
-        RunvealTrace.step(.homeShellInit)
-    }
 
     /**
      러닝을 시작하기 전에 위치가 준비됐는지 보고, 안 됐으면 그 자리에서 안내 시트를 띄운다.
@@ -93,13 +85,9 @@ struct RunvealHomeShell: View {
     }
 
     var body: some View {
-        // `@StateObject`들이 다 만들어진 뒤 처음 그릴 때 한 번 — 모델 생성과 지도 뷰 생성 사이
-        // 어디서 멈추는지 가른다.
-        let _ = RunvealTrace.once(.homeBodyEvaluated)
         ZStack {
-            if Self.mapDisabledForDiagnosis {
+            if Self.mapDisabled {
                 // 지도 자리를 빈 바탕으로 채운다 — 그 위에 올라가는 UI 배치는 그대로 보인다.
-                let _ = RunvealTrace.once(.mapSkipped)
                 RunvealTheme.colors.bg.canvas.ignoresSafeArea()
             } else {
                 RunvealMap(
@@ -131,10 +119,7 @@ struct RunvealHomeShell: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .environment(\.runvealMapOverlayBottomInset, isLocationBannerNeeded ? Self.locationBannerExtraInset : 0)
         .requireLocationPermission(permissionState)
-        .onAppear {
-            RunvealTrace.step(.homeShellAppeared)
-            mapData.start()
-        }
+        .onAppear { mapData.start() }
         .onDisappear { mapData.stop() }
         // "내 코스" 탭에서 코스를 바로 시작하면(탭 화면은 내비게이터를 직접 못 만진다) 여기서 받아
         // 기록 흐름으로 넘어간다 — 코스 자체는 `SelectedCourseHolder`에 이미 담겨 있다.
