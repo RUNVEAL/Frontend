@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -89,8 +89,8 @@ private val LEGEND_SWATCH_HALO_BLUR = 4.dp
 private val LEGEND_SWATCH_LABEL_GAP = 6.dp
 
 /**
- * 러닝 기록 상세(디자인 `D2`). 기록 탭 목록에서 한 건을 눌러 들어온다 — 탭 안의 화면이라 하단 탭바는
- * 그대로 보이고([com.sloth.runveal.home.HomeScreen]이 그린다), 그만큼 아래 여백을 둔다.
+ * 러닝 기록 상세(디자인 `D2`). 기록 탭 목록에서 한 건을 눌러 들어온다 — 탭 안에서 열리지만 그 자체로
+ * 전체 화면이라 하단 탭바까지 덮는다([com.sloth.runveal.home.HomeScreen]의 `showTabBar`).
  *
  * 칼로리는 아직 저장하는 값이 없어 "-"로 둔다. 시안의 "구간 기록"(km별 페이스)은 이번 범위 밖 —
  * 필터된 GPX의 시각을 읽어 계산해야 한다.
@@ -136,7 +136,8 @@ fun RecordDetailScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .windowInsetsPadding(WindowInsets.statusBars),
+                // 탭바를 덮는 전체 화면이라 위아래 시스템 바만 피하면 된다(뒤 배경 글로우는 그 밑까지 번진다).
+                .windowInsetsPadding(WindowInsets.systemBars),
         ) {
             RunvealTopAppBar(
                 leading = RunvealTopAppBarLeading.Back,
@@ -164,8 +165,7 @@ fun RecordDetailScreen(
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = RunvealTheme.layout.marginScreen)
-                        // 하단 탭바는 이 화면 위에 떠 있다 — 마지막 카드가 그 뒤로 들어가지 않게 띄운다.
-                        .padding(bottom = RunvealTheme.layout.sizeTabBar + RunvealTheme.spacing.space24),
+                        .padding(bottom = RunvealTheme.spacing.space24),
                     verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space24),
                 ) {
                     RunningSummary(state = readyState)
