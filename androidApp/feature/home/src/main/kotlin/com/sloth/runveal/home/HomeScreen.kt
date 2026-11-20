@@ -158,6 +158,7 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() == true -> 0
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Course>() == true -> 1
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Record>() == true -> 2
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.RecordDetail>() == true -> 2
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.My>() == true -> 3
         else -> 0
     }
@@ -171,10 +172,13 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.ImportRecords>() == true ||
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.ImportRecordsProgress>() == true ||
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.ImportRecordsResult>() == true
-    // 지도 위 흐름(코스 추천, 코스 추천 결과, 코스 상세, 러닝 기록, 러닝 결과)과 약관 흐름에
-    // 들어가 있을 때만 탭바를 완전히 숨긴다.
+    // 기록 상세는 기록 탭 안에서 들어가지만 그 자체로 전체 화면이다 — 탭바까지 덮는다.
+    val isRecordDetail = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.RecordDetail>() == true
+    // 지도 위 흐름(코스 추천, 코스 추천 결과, 코스 상세, 러닝 기록, 러닝 결과)과 약관 흐름,
+    // 기록 상세에 들어가 있을 때만 탭바를 완전히 숨긴다.
     val showTabBar = !isCourseRecommendFlow &&
         !isTermsFlow &&
+        !isRecordDetail &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() != true &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Result>() != true
     // 지도가 보여야 하는 목적지인지. 지도는 항상 그려 두고(끄면 MapLibre가 매번 스타일을 다시

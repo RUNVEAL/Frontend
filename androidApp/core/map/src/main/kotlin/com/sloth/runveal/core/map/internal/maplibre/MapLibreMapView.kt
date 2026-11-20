@@ -81,7 +81,6 @@ internal fun MapLibreMapView(
         MapColors(
             visitedRoadGlow = colors.accent.glow.toArgb(),
             visitedRoadCore = colors.map.roadExplored.toArgb(),
-            currentLocation = colors.map.location.toArgb(),
             dongLabelPrimary = colors.text.primary.toArgb(),
             dongLabelSecondary = colors.text.secondary.toArgb(),
             sigunguLabel = colors.text.secondary.toArgb(),
@@ -272,9 +271,16 @@ internal fun MapLibreMapView(
         if (!locationPermissionGranted) return@LaunchedEffect
         val currentStyle = style ?: return@LaunchedEffect
         val currentMap = liveMap ?: return@LaunchedEffect
-        CurrentLocationLayer.activate(context, currentMap, currentStyle, mapColors.currentLocation)
+        CurrentLocationLayer.activate(context, currentMap, currentStyle)
     }
 
+    // 바라보는 방향 화살표(러닝 중). 위치 컴포넌트가 켜진 **뒤에** 걸어야 해서 위 activate와 같은
+    // 조건(권한·스타일)을 키에 둔다 — 켜지는 순간 다시 적용된다.
+    val showsHeadingIndicator = state.showsHeadingIndicator
+    LaunchedEffect(showsHeadingIndicator, liveMap, style, locationPermissionGranted) {
+        val map = liveMap ?: return@LaunchedEffect
+        CurrentLocationLayer.setHeadingIndicatorVisible(map, showsHeadingIndicator)
+    }
     // 현재 위치 추적(러닝 중) — 마지막 명령을 그대로 반영한다. 위치 컴포넌트가 아직 안 켜져 있으면
     // 추적 요청이 조용히 무시되므로, 그걸 켜는 조건(권한·스타일)도 키에 둔다 — 러닝 시작이 스타일
     // 로드보다 빨라도 켜지는 순간 다시 적용된다(위 activate 블록이 먼저 돈다).

@@ -8,7 +8,6 @@ package com.sloth.runveal.core.map.internal.maplibre
 internal data class MapColors(
     val visitedRoadGlow: Int,
     val visitedRoadCore: Int,
-    val currentLocation: Int,
     val dongLabelPrimary: Int,
     val dongLabelSecondary: Int,
     val sigunguLabel: Int,

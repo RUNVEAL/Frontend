@@ -5,12 +5,14 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import com.sloth.runveal.core.map.R
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.location.LocationComponent
 import org.maplibre.android.location.LocationComponentActivationOptions
 import org.maplibre.android.location.LocationComponentOptions
 import org.maplibre.android.location.OnLocationCameraTransitionListener
 import org.maplibre.android.location.modes.CameraMode
+import org.maplibre.android.location.modes.RenderMode
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
 
@@ -32,15 +34,20 @@ internal object CurrentLocationLayer {
 
     /** 바로 위에서 수동으로 권한을 확인하고 없으면 return하는데, lint가 이 가드를 추론하지 못해 억제한다. */
     @SuppressLint("MissingPermission")
-    fun activate(context: Context, map: MapLibreMap, style: Style, tintColor: Int) {
+    fun activate(context: Context, map: MapLibreMap, style: Style) {
         val granted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED
         if (!granted) return
         // 권한을 늦게 허용하면 다시 불리는 함수다 — 이미 켜 뒀으면 아무것도 하지 않는다.
         if (map.locationComponent.isLocationComponentActivated) return
 
+        // 점·화살표 모두 색을 품은 벡터라 tint는 주지 않는다 — 디자인시스템 마커와 같은 색을 그대로 쓴다.
         val options = LocationComponentOptions.builder(context)
-            .foregroundTintColor(tintColor)
+            .foregroundDrawable(R.drawable.map_location_dot)
+            // 위치가 오래됐을 때도 같은 점으로 둔다 — 디자인에 "오래된 위치" 모양이 따로 없다.
+            .foregroundDrawableStale(R.drawable.map_location_dot)
+            // 바라보는 방향 화살표(나침반 모드에서만 보인다).
+            .bearingDrawable(R.drawable.map_location_bearing)
             .build()
         val activationOptions = LocationComponentActivationOptions.builder(context, style)
             .locationComponentOptions(options)
@@ -126,6 +133,19 @@ internal object CurrentLocationLayer {
         if (!locationComponent.isLocationComponentActivated) return
         locationComponent.cameraMode = CameraMode.NONE
         if (resetAnchor) map.moveCamera(CameraUpdateFactory.paddingTo(0.0, 0.0, 0.0, 0.0))
+    }
+
+    /**
+     * 현재 위치 마커에 바라보는 방향 화살표를 켜고 끈다.
+     *
+     * [RenderMode.COMPASS]는 위치 점 둘레에 기기 나침반을 따라 도는 삼각형을 띄운다(SDK 기본 에셋
+     * `maplibre_user_bearing_icon`). [RenderMode.GPS]와 달리 **달리는 방향이 아니라 기기가 향한
+     * 쪽**이라, 멈춰 서서 두리번거려도 화살표가 따라 돈다 — "내가 바라보는 방향"은 이쪽이다.
+     */
+    fun setHeadingIndicatorVisible(map: MapLibreMap, visible: Boolean) {
+        val locationComponent = map.locationComponent
+        if (!locationComponent.isLocationComponentActivated) return
+        locationComponent.renderMode = if (visible) RenderMode.COMPASS else RenderMode.NORMAL
     }
 
     private fun trackOnce(locationComponent: LocationComponent) {

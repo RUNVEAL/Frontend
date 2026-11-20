@@ -90,6 +90,9 @@ internal object DongGeoJsonBuilder {
                 addStringProperty("name", name)
                 addNumberProperty("level", RunvealDong.levelOf(percent))
                 addStringProperty("percentValue", "$percent")
+                // 라벨끼리 겹칠 때 탐험률 높은 쪽을 살리는 데 쓴다([DongOverlayLayer]의 symbolSortKey).
+                // 표시용 percentValue는 문자열이라 계산에 못 쓴다.
+                addNumberProperty("percent", percent)
             }
         }
         return FeatureCollection.fromFeatures(features).toJson()

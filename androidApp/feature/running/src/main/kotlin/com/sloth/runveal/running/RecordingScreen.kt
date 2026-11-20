@@ -170,7 +170,10 @@ fun RecordingScreen(
     // 따라다닌다. 패널만큼 아래를 비워 두던 카메라 여백도 이때 같이 되돌린다(러닝 중에는 그대로 둬야
     // 일시정지·드래그 때 지도가 튀지 않는다 — stopFollowingCurrentLocation KDoc).
     DisposableEffect(Unit) {
+        // 러닝 중에는 내 위치 마커에 지금 바라보는 방향을 화살표로 띄운다.
+        mapState.showsHeadingIndicator = true
         onDispose {
+            mapState.showsHeadingIndicator = false
             mapState.stopFollowingCurrentLocation(resetAnchor = true)
             mapState.followBottomInset = 0.dp
         }

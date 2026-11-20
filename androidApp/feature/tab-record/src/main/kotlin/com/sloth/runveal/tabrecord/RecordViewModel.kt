@@ -22,8 +22,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** 이번 달을 보고 있을 때 요약 줄 앞머리 — 다른 달이면 "10월"처럼 그 달을 적는다(이 파일의 다른
+ * 날짜 라벨과 같이 여기서 만든다). */
+private const val THIS_MONTH_LABEL = "이번 달"
+
 /**
- * 기록 탭. 월 선택·기록 상세는 아직 TODO라, 지금 받는 의도는 기록 삭제뿐이다.
+ * 기록 탭. 상단 라벨의 화살표로 달을 고를 수 있고(`SelectMonth`), 고른 달은 화면이 살아 있는 동안
+ * 유지된다. 기록 삭제는 상세 화면의 더보기 메뉴로 옮겼다.
  *
  * 러닝을 끝내면 `TrackingService`가 최종 매칭 후 [TrackResultHolder]에 결과를 publish한다 — 그걸
  * 구독해 그때마다 DB를 다시 읽어, 방금 끝낸 러닝이 목록과 월간 요약에 바로 올라오게 한다. StateFlow라
@@ -38,41 +43,34 @@ class RecordViewModel(
     private val zoneId: ZoneId = ZoneId.systemDefault(),
 ) : MviViewModel<RecordIntent, RecordState, Nothing>(
     // 달 라벨은 DB와 무관하니 조회 전부터 보여준다 — 안 그러면 상단바 라벨이 한 프레임 비어 보인다.
-    initialState = RecordState(monthLabel = monthLabel(YearMonth.now(zoneId))),
+    initialState = RecordState(
+        monthLabel = monthLabel(YearMonth.now(zoneId)),
+        selectedYear = YearMonth.now(zoneId).year,
+        selectedMonth = YearMonth.now(zoneId).monthValue,
+    ),
 ) {
+    /** 지금 보고 있는 달. 기본은 이번 달이고, 고른 달이 있으면 그 달이다. */
+    private var selectedMonth: YearMonth = YearMonth.now(zoneId)
 
     init {
         viewModelScope.launch {
-            TrackResultHolder.state.collect { loadThisMonth() }
+            TrackResultHolder.state.collect { load() }
         }
     }
 
     override suspend fun handleIntent(intent: RecordIntent) {
         when (intent) {
-            is RecordIntent.DeleteRequested -> setState { copy(deleteTargetTrackId = intent.trackId) }
-            RecordIntent.DeleteDismissed -> setState { copy(deleteTargetTrackId = null) }
-            RecordIntent.DeleteConfirmed -> deleteTarget()
+            RecordIntent.Load -> load()
+            is RecordIntent.SelectMonth -> {
+                selectedMonth = YearMonth.of(intent.year, intent.month)
+                load()
+            }
         }
     }
 
-    /**
-     * 기록 한 건을 지운다. [TrackLocalStore.deleteTrack]이 GPX 파일까지 같이 지우고
-     * `explored_segment` 커버리지를 남은 기록만으로 다시 만든다 — 그래서 **지운 러닝이 밝혀 둔
-     * 길과 탐험률도 같이 줄어든다**. 그 캐시를 다시 만드는 비용이 있어 IO로 넘긴다.
-     *
-     * 지운 뒤 [TrackResultHolder]를 건드리지 않고 직접 다시 읽는다 — 홀더는 "방금 끝낸 러닝"을
-     * 알리는 자리라 삭제와 뜻이 맞지 않는다. 대신 홈 지도는 다음에 오버레이를 다시 만들 때
-     * 반영된다.
-     */
-    private suspend fun deleteTarget() {
-        val trackId = currentState.deleteTargetTrackId ?: return
-        setState { copy(deleteTargetTrackId = null) }
-        withContext(Dispatchers.IO) { store.deleteTrack(trackId, System.currentTimeMillis()) }
-        loadThisMonth()
-    }
 
-    private suspend fun loadThisMonth() {
-        val month = YearMonth.now(zoneId)
+    private suspend fun load() {
+        val month = selectedMonth
         val from = month.atDay(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
         val to = month.plusMonths(1).atDay(1).atStartOfDay(zoneId).toInstant().toEpochMilli()
 
@@ -88,6 +86,9 @@ class RecordViewModel(
         setState {
             RecordState(
                 monthLabel = monthLabel(month),
+                selectedYear = month.year,
+                selectedMonth = month.monthValue,
+                periodLabel = periodLabel(month),
                 runCountLabel = "${tracks.size}회",
                 totalDistanceValue = "%.2f".format(totalDistanceMeters / 1000.0),
                 newRoadValue = "+%.2f".format(newRoadMeters / 1000.0),
@@ -117,6 +118,17 @@ class RecordViewModel(
                 newRoadPaths = newRoadPaths,
             ),
         )
+    }
+
+    /** 요약 줄 앞머리 — 이번 달이면 "이번 달", 다른 달이면 "10월"처럼 그 달을 가리킨다. 해가 다르면
+     * 달만 적으면 헷갈려서 연도까지 붙인다. */
+    private fun periodLabel(month: YearMonth): String {
+        val now = YearMonth.now(zoneId)
+        return when {
+            month == now -> THIS_MONTH_LABEL
+            month.year == now.year -> "${month.monthValue}월"
+            else -> "${month.year}년 ${month.monthValue}월"
+        }
     }
 
     private fun dayOfWeekLabel(dateTime: ZonedDateTime): String = when (dateTime.dayOfWeek) {

@@ -21,12 +21,14 @@ data class RecordItem(
  */
 data class RecordState(
     val monthLabel: String = "",
+    /** 지금 보고 있는 달 — 월 선택 패널이 어디에 표시를 둘지 정하는 데 쓴다. */
+    val selectedYear: Int = 0,
+    val selectedMonth: Int = 0,
+    /** 요약 줄 앞머리("이번 달" 또는 "10월") — 보고 있는 달이 이번 달이 아닐 수 있다. */
+    val periodLabel: String = "",
     val runCountLabel: String = "0회",
     val totalDistanceValue: String = "0.00",
     val newRoadValue: String = "+0.00",
     val records: List<RecordItem> = emptyList(),
     val isLoading: Boolean = true,
-    /** 삭제 확인 다이얼로그를 띄울 기록. null이면 다이얼로그가 떠 있지 않다. 되돌릴 수 없는
-     * 동작이라 길게 누른 즉시 지우지 않고 한 번 더 묻는다. */
-    val deleteTargetTrackId: String? = null,
 ) : UiState

@@ -30,29 +30,13 @@ private const val TAG = "CourseDetailDebug"
 /** 코스 목록(저장된 코스) 썸네일 자리 크기 — [CourseSnapshotRenderer]의 코스 목록 72dp 컨벤션과 맞춘다. */
 private const val THUMBNAIL_SIZE_DP = 72
 
-/** Compose 컨텍스트가 없는 ViewModel이라 `RunvealTheme.colors`를 못 읽어서, [CourseSnapshotImage]와
- * 같은 디자인 토큰을 ARGB로 직접 옮겨 둔다 — map.roadExplored(gold200)/map.location(blue500)/
- * text.primary(neutral50). */
-private const val SNAPSHOT_ROUTE_COLOR = 0xFFF2E096.toInt()
-private const val SNAPSHOT_ENDPOINT_COLOR = 0xFF4286E0.toInt()
-private const val SNAPSHOT_ENDPOINT_STROKE_COLOR = 0xFFF4EEEA.toInt()
-
 /** 효과가 필요 없는 화면이라 Effect 타입 인자는 [Nothing]. */
 class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState, Nothing>(
     initialState = CourseDetailState.Loading,
 ) {
     private val database = RunvealDatabaseProvider.database
     private val json = Json
-    private val snapshotRenderer = CourseSnapshotRenderer(
-        context = AndroidAppContextHolder.context,
-        routeColor = SNAPSHOT_ROUTE_COLOR,
-        endpointColor = SNAPSHOT_ENDPOINT_COLOR,
-        endpointStrokeColor = SNAPSHOT_ENDPOINT_STROKE_COLOR,
-        // 코스 썸네일은 러닝이 아니라서(isRunRoute=false) 아래 두 색은 실제로 안 쓰인다 —
-        // 러닝 경로에서만 쓰는 값이라 경로 색을 그대로 넘긴다.
-        newRoadColor = SNAPSHOT_ROUTE_COLOR,
-        todayRoadColor = SNAPSHOT_ROUTE_COLOR,
-    )
+    private val snapshotRenderer = CourseSnapshotRenderer(context = AndroidAppContextHolder.context)
 
     /** [load]가 찾아 둔 원본 — [CourseDetailIntent.SaveCourse]가 DB에 쓸 때 다시 쓴다(화면 상태는
      * 포맷된 문자열뿐이라 원본 숫자/배열이 필요하다). */
@@ -133,14 +117,21 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
             segment_ids = json.encodeToString(ListSerializer(Long.serializer()), route.segmentIds),
             milestones = json.encodeToString(ListSerializer(MilestoneDto.serializer()), route.milestones),
         )
-        prerenderThumbnail(courseId, ready.path)
+        prerenderThumbnail(courseId, ready.path, isLoop = route.type == "LOOP")
         setState { if (this is CourseDetailState.Ready) copy(isSaved = true) else this }
     }
 
     /** "내 코스" 탭 목록·추천 카드가 쓸 썸네일을 저장 시점에 같이 만들어 캐시해 둔다. 실패해도 코스
      * 저장 자체는 이미 끝났으니 조용히 무시한다 — 목록은 캐시가 없으면 플레이스홀더를 보여준다. */
-    private suspend fun prerenderThumbnail(courseId: String, path: List<LatLon>) {
-        val request = path.toSnapshotRequest(ownerId = courseId, variant = SnapshotVariant.THUMBNAIL) ?: return
+    private suspend fun prerenderThumbnail(courseId: String, path: List<LatLon>, isLoop: Boolean) {
+        // 목록("내 코스" 탭)이 만드는 요청과 **같아야** 미리 만든 캐시를 그대로 쓴다 — 캐시 키에
+        // 점 정보가 안 들어가서, 한쪽만 도착 점을 켜면 먼저 그린 그림이 그대로 보인다.
+        val request = path.toSnapshotRequest(
+            ownerId = courseId,
+            variant = SnapshotVariant.THUMBNAIL,
+            withStartMarker = true,
+            withEndMarker = !isLoop,
+        ) ?: return
         val density = AndroidAppContextHolder.context.resources.displayMetrics.density
         val sizePx = (THUMBNAIL_SIZE_DP * density).roundToInt()
         val file = snapshotRenderer.getOrRender(request, widthPx = sizePx, heightPx = sizePx)
