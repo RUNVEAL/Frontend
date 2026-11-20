@@ -63,7 +63,9 @@ struct MonthPicker: View {
         .frame(height: Self.yearRowHeight)
     }
 
-    /// 고른 달만 채워 그린다(밝은 면 + 어두운 글자). 나머지는 테두리만.
+    /// 고른 달만 채워 그린다(밝은 면 + 어두운 글자). 나머지는 테두리만 — **모서리는 열두 칸이
+    /// 모두 radius/8이다**(시안 `Overlay/Month Picker`). Android는 선택 안 된 칸을 각지게 두는데
+    /// 시안과 다르다.
     private func monthCell(_ month: Int) -> some View {
         let colors = RunvealTheme.colors
         let selected = shownYear == selectedYear && month == selectedMonth
@@ -77,12 +79,7 @@ struct MonthPicker: View {
                 }
             }
             .overlay {
-                // 고른 달만 모서리를 둥글린다 — 나머지는 각진 테두리로 격자를 이룬다.
-                if selected {
-                    RunvealShapes.radius8.stroke(colors.border.default, lineWidth: 1)
-                } else {
-                    Rectangle().stroke(colors.border.default, lineWidth: 1)
-                }
+                RunvealShapes.radius8.stroke(colors.border.default, lineWidth: 1)
             }
             .contentShape(Rectangle())
             .onTapGesture { onSelect(shownYear, month) }
