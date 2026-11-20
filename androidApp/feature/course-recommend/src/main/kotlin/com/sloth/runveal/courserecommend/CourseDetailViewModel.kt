@@ -4,6 +4,7 @@ import android.util.Log
 import com.sloth.runveal.auth.AndroidAppContextHolder
 import com.sloth.runveal.core.map.CourseSnapshotRenderer
 import com.sloth.runveal.courserecommend.contract.CourseDetailIntent
+import com.sloth.runveal.courserecommend.contract.CourseDetailSource
 import com.sloth.runveal.courserecommend.contract.CourseDetailState
 import com.sloth.runveal.courserecommend.contract.ElevationPointUiModel
 import com.sloth.runveal.courserecommend.contract.RouteStepUiModel
@@ -48,7 +49,10 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
 
     override suspend fun handleIntent(intent: CourseDetailIntent) {
         when (intent) {
-            is CourseDetailIntent.Load -> load(intent.routeId)
+            is CourseDetailIntent.Load -> when (val source = intent.source) {
+                is CourseDetailSource.Recommended -> load(source.id)
+                is CourseDetailSource.Saved -> loadSavedCourse(source.id)
+            }
             CourseDetailIntent.SaveCourse -> saveCourse()
         }
     }
@@ -65,6 +69,65 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
         currentNewRoadMeters = resolveNewRoadMeters(route)
         setState { route.toDetailState(courseLabel = ('A' + index).toString(), newRoadMeters = currentNewRoadMeters) }
     }
+
+    /**
+     * "내 코스"에서 들어온 코스 — 저장할 때 추천 응답을 컬럼에 그대로 넣어 뒀으니 그걸 다시 읽어
+     * 추천 결과와 같은 화면을 만든다. 러닝 기록을 승격한 코스는 추천 전용 컬럼(시간·고도·경유지)이
+     * 전부 비어 있어서, 그 칸들은 빈 값으로 둔다([CourseDetailState.Ready] 주석의 "공란" 규칙).
+     *
+     * 이미 저장된 코스라 다시 저장할 일이 없으므로 `currentRoute`는 비워 둔다 — "저장됨" 버튼을
+     * 눌러도 [saveCourse]가 그 자리에서 빠져나온다.
+     */
+    private suspend fun loadSavedCourse(courseId: String) {
+        val course = withContext(Dispatchers.IO) {
+            database.courseQueries.selectCourseById(courseId).executeAsOneOrNull()
+        }
+        if (course == null) {
+            Log.w(TAG, "저장된 코스를 못 찾았다 — courseId=$courseId")
+            setState { CourseDetailState.NotFound }
+            return
+        }
+        val durationMinutes = course.duration_sec?.let { it / 60 }
+        val elevationGain = course.elevation_gain_m
+        setState {
+            CourseDetailState.Ready(
+                courseLabel = "",
+                savedCourseName = course.name,
+                distanceValue = "%.1f".format(course.distance_meters / 1000.0),
+                distanceUnit = "km",
+                timeValue = durationMinutes?.toString() ?: "",
+                timeUnit = if (durationMinutes != null) "분" else "",
+                elevationValue = elevationGain?.let { "+$it" } ?: "",
+                elevationUnit = if (elevationGain != null) "m" else "",
+                newRoadValue = "%.1f".format((course.new_road_m ?: 0L) / 1000.0),
+                newRoadUnit = "km",
+                elevationProfile = course.elevation_profile?.let { decodeElevationProfile(it) } ?: emptyList(),
+                routeSteps = buildRouteSteps(
+                    milestones = course.milestones?.let { decodeMilestones(it) } ?: emptyList(),
+                    distanceMeters = course.distance_meters,
+                    isLoop = course.route_type == "LOOP",
+                ),
+                path = decodeCoordinates(course.coordinates),
+                isLoop = course.route_type == "LOOP",
+                isSaved = true,
+            )
+        }
+    }
+
+    /** `course.coordinates`("[[lon,lat],…]", 저장할 때 인코딩한 형식)를 되돌린다 — GeoJSON 좌표
+     * 순서라 [lng, lat]여서 LatLon은 반대로 매핑한다("내 코스" 탭과 같은 처리). */
+    private fun decodeCoordinates(raw: String): List<LatLon> =
+        json.decodeFromString(ListSerializer(ListSerializer(Double.serializer())), raw)
+            .map { LatLon(lat = it[1], lon = it[0]) }
+
+    private fun decodeElevationProfile(raw: String): List<ElevationPointUiModel> =
+        json.decodeFromString(ListSerializer(ListSerializer(Double.serializer())), raw)
+            .mapNotNull { point ->
+                if (point.size >= 2) ElevationPointUiModel(cumulativeDistanceM = point[0], elevationM = point[1]) else null
+            }
+
+    private fun decodeMilestones(raw: String): List<MilestoneDto> =
+        json.decodeFromString(ListSerializer(MilestoneDto.serializer()), raw)
 
     /** 서버가 `newRoadM`을 줬으면 그대로 쓰고, 안 줬으면(요청에 `exploredSegmentIds`를 못 보냈거나
      * 서버가 아직 안 채워 줄 때 — `docs/api/API.md` §3.3.1) 로컬 `explored_segment`로 추정한다. */
@@ -166,7 +229,15 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
     }
 
     /** "출발"·중간 경유지(milestones)·"도착" 순서로 경로 정보 목록을 만든다. */
-    private fun RouteDto.buildRouteSteps(): List<RouteStepUiModel> {
+    private fun RouteDto.buildRouteSteps(): List<RouteStepUiModel> =
+        buildRouteSteps(milestones = milestones, distanceMeters = distanceM.toDouble(), isLoop = type == "LOOP")
+
+    /** 출발 — 경유지들 — 도착. 추천 응답과 저장된 코스가 같은 모양으로 보이게 한 곳에서 만든다. */
+    private fun buildRouteSteps(
+        milestones: List<MilestoneDto>,
+        distanceMeters: Double,
+        isLoop: Boolean,
+    ): List<RouteStepUiModel> {
         val steps = mutableListOf<RouteStepUiModel>()
         steps += RouteStepUiModel(
             place = "출발",
@@ -177,8 +248,8 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
         steps += milestones.map { it.toRouteStep() }
         steps += RouteStepUiModel(
             place = "도착",
-            note = if (type == "LOOP") "출발지" else null,
-            distanceLabel = "%.1fkm".format(distanceM / 1000.0),
+            note = if (isLoop) "출발지" else null,
+            distanceLabel = "%.1fkm".format(distanceMeters / 1000.0),
             type = RunvealRouteStepType.End,
         )
         return steps
