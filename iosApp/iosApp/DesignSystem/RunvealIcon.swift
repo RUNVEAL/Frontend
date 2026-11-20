@@ -114,12 +114,15 @@ struct RunvealIcon: View {
             ForEach(spec.layers.indices, id: \.self) { index in
                 let layer = spec.layers[index]
                 let shape = RunvealIconLayerShape(layer: layer)
-                if let fill = tint ?? layer.fill {
-                    shape.fill(fill)
+                // **tint는 색만 덮어쓴다 — 칠할지 그을지는 레이어가 정한다.**
+                // `tint ?? layer.fill`로 쓰면 tint가 있을 때 원래 fill이 없는(선 전용) 레이어까지
+                // 채워져, 외곽선 아이콘이 전부 덩어리로 칠해진다.
+                if let fill = layer.fill {
+                    shape.fill(tint ?? fill)
                 }
-                if let stroke = tint ?? layer.stroke {
+                if let stroke = layer.stroke {
                     shape.stroke(
-                        stroke,
+                        tint ?? stroke,
                         style: StrokeStyle(
                             lineWidth: layer.strokeWidth * scale,
                             lineCap: layer.lineCap,
