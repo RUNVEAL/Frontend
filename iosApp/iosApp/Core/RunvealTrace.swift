@@ -213,11 +213,19 @@ final class RunvealTraceLog: ObservableObject {
     @Published private(set) var entries: [Entry] = []
 
     private init() {
+        // 어느 빌드의 로그인지 먼저 박아 둔다. 빌드가 50분 넘게 걸려서, 녹화를 받아도 그게 어느
+        // 커밋인지 몰라 "이 단계가 없다"가 정보인지 아닌지를 가릴 수 없었다. 빌드 번호는 CI가
+        // `CURRENT_PROJECT_VERSION`에 넣는 Actions run 번호라 거기서 커밋을 바로 찾을 수 있다.
+        let info = Bundle.main.infoDictionary
+        let version = info?["CFBundleShortVersionString"] as? String ?? "?"
+        let build = info?["CFBundleVersion"] as? String ?? "?"
+        entries.append(Entry(text: "빌드 \(version) (\(build))"))
+
         // 지난 실행이 죽기 직전까지 남긴 줄을 먼저 보여준다 — 그 몇 줄이 바로 원인이 있는 자리다.
         for line in RunvealTrace.previousSessionLines {
             entries.append(Entry(text: "· " + line))
         }
-        if !entries.isEmpty {
+        if !RunvealTrace.previousSessionLines.isEmpty {
             entries.append(Entry(text: "──── 지난 실행 끝 / 이번 실행 시작 ────"))
         }
     }
