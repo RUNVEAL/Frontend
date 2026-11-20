@@ -32,6 +32,8 @@ data class RecordState(
     val runCountLabel: String = "0회",
     val totalDistanceValue: String = "0.00",
     val newRoadValue: String = "+0.00",
+    /** 이번 달에 처음 간 길이 있는지 — 요약 줄의 금색 강조를 켤지 정한다(시안: 0이면 강조 없음). */
+    val hasNewRoad: Boolean = false,
     val records: List<RecordItem> = emptyList(),
     val isLoading: Boolean = true,
 ) : UiState

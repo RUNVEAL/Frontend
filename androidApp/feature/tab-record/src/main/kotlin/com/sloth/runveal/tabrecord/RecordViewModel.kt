@@ -96,6 +96,7 @@ class RecordViewModel(
                 runCountLabel = "${tracks.size}회",
                 totalDistanceValue = "%.2f".format(totalDistanceMeters / 1000.0),
                 newRoadValue = "+%.2f".format(newRoadMeters / 1000.0),
+                hasNewRoad = newRoadMeters > 0,
                 records = tracks.map {
                     toRecordItem(
                         track = it,

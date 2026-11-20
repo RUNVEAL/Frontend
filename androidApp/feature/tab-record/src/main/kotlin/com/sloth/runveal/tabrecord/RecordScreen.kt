@@ -137,6 +137,7 @@ private fun RecordScreen(
                 newRoadLabel = "새로 탐험한 길",
                 newRoadValue = state.newRoadValue,
                 newRoadUnit = "km",
+                hasNewRoad = state.hasNewRoad,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = SUMMARY_TOP_GAP)
