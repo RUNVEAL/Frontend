@@ -389,6 +389,59 @@ jobs:
             -exportPath "$RUNNER_TEMP/export-adhoc" 2>&1 | tee -a "$RUNNER_TEMP/xcodebuild.log"
           ls -lh "$RUNNER_TEMP/export-adhoc"
 
+      - name: IPA 점검 (임베드 프레임워크·서명)
+        # 홈에서 `MLNMapView`를 만드는 순간 죽는데, MapLibre는 **동적 프레임워크**라 dyld가 첫 심볼을
+        # 쓰는 그 시점에 로드한다 — 스플래시까지는 멀쩡하다가 지도에서만 죽는 모습과 맞는다.
+        # 그래서 **export가 끝난 IPA를 열어** 프레임워크가 실제로 들어갔는지, 서명이 유효한지 본다.
+        # 아카이브는 CODE_SIGNING_ALLOWED=NO로 만들고 export가 서명하는 구조라, 아카이브가 아니라
+        # 이쪽을 봐야 진짜 결과물을 보는 것이다.
+        continue-on-error: true
+        run: |
+          IPA=$(ls "$RUNNER_TEMP"/export-adhoc/*.ipa | head -n1)
+          WORK="$RUNNER_TEMP/ipa-check"
+          rm -rf "$WORK" && mkdir -p "$WORK"
+          unzip -q "$IPA" -d "$WORK"
+          APP=$(ls -d "$WORK"/Payload/*.app | head -n1)
+
+          {
+            echo "### IPA 점검"
+            echo ""
+            echo "<details><summary>임베드 프레임워크</summary>"
+            echo ""
+            echo '```'
+            if [ -d "$APP/Frameworks" ]; then
+              ls -1 "$APP/Frameworks"
+            else
+              echo "Frameworks 폴더가 없습니다 — 동적 프레임워크가 하나도 임베드되지 않았습니다."
+            fi
+            echo '```'
+            echo "</details>"
+            echo ""
+
+            echo "<details><summary>앱 바이너리가 참조하는 동적 라이브러리</summary>"
+            echo ""
+            echo '```'
+            otool -L "$APP/$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Info.plist")" \
+              | grep -iE "rpath|maplibre|lottie|Firebase" | head -30
+            echo '```'
+            echo "</details>"
+            echo ""
+
+            echo "<details><summary>서명 검증</summary>"
+            echo ""
+            echo '```'
+            echo "--- 앱 ---"
+            codesign --verify --strict --verbose=2 "$APP" 2>&1 | head -20
+            echo ""
+            for fw in "$APP"/Frameworks/*; do
+              [ -e "$fw" ] || continue
+              echo "--- $(basename "$fw") ---"
+              codesign --verify --strict --verbose=2 "$fw" 2>&1 | head -5
+            done
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: IPA 아티팩트 업로드
         uses: actions/upload-artifact@v4
         with:
