@@ -1,5 +1,7 @@
 package com.sloth.runveal.designsystem.component.overlay
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,7 +16,6 @@ import androidx.compose.ui.unit.dp
 import com.sloth.runveal.designsystem.component.button.RunvealButton
 import com.sloth.runveal.designsystem.component.button.RunvealButtonStyle
 import com.sloth.runveal.designsystem.theme.RunvealTheme
-import com.sloth.runveal.designsystem.theme.runvealGlass
 
 /** Default=확인 Gold, Destructive=확인 Danger. */
 enum class RunvealDialogType { Default, Destructive }
@@ -39,9 +40,13 @@ fun RunvealDialog(
 
     Column(
         modifier = modifier
-            .width(RunvealTheme.layout.sizeDialogWidth)
+            // 시안(Overlay/Dialog)이 주는 색을 그대로 쓴다 — surface/default(#272626 50%) +
+            // border/default(#443F3D). [runvealGlass]를 쓰지 않는 건 그쪽이 배경 블러가 없는 걸
+            // 메우려고 85%까지 올린 fallback이어서다(RunvealShadow.kt 주석). 다이얼로그는 뒤에
+            // 시스템 스크림이 깔려서 50%로도 글자가 묻히지 않는다.
             .clip(shape)
-            .runvealGlass(shape)
+            .background(colors.surface.default, shape)
+            .border(1.dp, colors.border.default, shape)
             .padding(RunvealTheme.spacing.space16),
         verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space16),
     ) {
