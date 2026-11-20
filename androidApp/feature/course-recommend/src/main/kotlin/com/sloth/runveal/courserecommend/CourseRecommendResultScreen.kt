@@ -232,23 +232,22 @@ private fun SettingsSummaryRow(settings: CourseRecommendSettings, modifier: Modi
             onClick = null,
             usage = RunvealChipDropdownUsage.OnMap,
         )
-        if (settings.avoidVisitedPreferred) {
-            RunvealChipCondition(
-                checked = true,
-                onCheckedChange = {},
-                label = stringResource(R.string.course_recommend_result_avoid_visited_label),
-                usage = RunvealChipConditionUsage.OnMap,
-            )
-        }
-        if (settings.selectedFilterCount > 0) {
-            RunvealChipCondition(
-                checked = true,
-                onCheckedChange = {},
-                icon = RunvealChipConditionIcon.Filter,
-                label = settings.selectedFilterCount.toString(),
-                usage = RunvealChipConditionUsage.OnMap,
-            )
-        }
+        // 코스 만들기 패널과 같은 칩 세 개를 **항상** 보여준다 — 켠 것만 남기면 "안 가본 길 우선을
+        // 끄고 추천받은 건지, 애초에 안 보여준 건지"를 결과 화면에서 알 수 없다.
+        RunvealChipCondition(
+            checked = settings.avoidVisitedPreferred,
+            onCheckedChange = {},
+            label = stringResource(R.string.course_recommend_result_avoid_visited_label),
+            usage = RunvealChipConditionUsage.OnMap,
+        )
+        RunvealChipCondition(
+            checked = settings.selectedFilterCount > 0,
+            onCheckedChange = {},
+            icon = RunvealChipConditionIcon.Filter,
+            // 고른 필터가 없으면 아이콘만 — 코스 만들기 패널과 같은 규칙이다.
+            label = settings.selectedFilterCount.takeIf { it > 0 }?.toString(),
+            usage = RunvealChipConditionUsage.OnMap,
+        )
     }
 }
 
