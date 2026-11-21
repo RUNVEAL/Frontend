@@ -42,7 +42,7 @@ struct RecordingScreen: View {
                     RecordingOverlay(state: viewModel.state, courseProgress: courseProgress, mapState: mapState) {
                         RunvealButtonGroupEqual(
                             firstLabel: RunningStrings.recordingStopButton,
-                            onFirstClick: { viewModel.onIntent(.stopClicked) },
+                            onFirstClick: { viewModel.onIntent(.stopRequested) },
                             secondLabel: RunningStrings.recordingResumeButton,
                             onSecondClick: { viewModel.onIntent(.resumeClicked) }
                         )
@@ -51,6 +51,31 @@ struct RecordingScreen: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // 끝내기 전에 한 번 묻는다 — 100m·1분을 못 채운 러닝은 저장되지 않으니, 그땐 문구와 버튼을
+        // "저장 없이 종료"로 바꿔 끝내기 전에 알린다(Android와 같은 분기).
+        .runvealDialog(
+            isPresented: viewModel.state.finishDialog != nil,
+            onDismiss: { viewModel.onIntent(.stopDismissed) }
+        ) {
+            let willSave = viewModel.state.finishDialog?.willSaveRecord ?? true
+            RunvealDialog(
+                title: willSave
+                    ? RunningStrings.recordingFinishDialogTitle
+                    : RunningStrings.recordingFinishDialogUnsavedTitle,
+                confirmLabel: willSave
+                    ? RunningStrings.recordingFinishDialogConfirm
+                    : RunningStrings.recordingFinishDialogUnsavedConfirm,
+                cancelLabel: willSave
+                    ? RunningStrings.recordingFinishDialogCancel
+                    : RunningStrings.recordingFinishDialogUnsavedCancel,
+                description: willSave
+                    ? RunningStrings.recordingFinishDialogDescription
+                    : RunningStrings.recordingFinishDialogUnsavedDescription,
+                // 화면 이동은 stopTracking effect를 처리한 뒤에 한다(아래 collectEffect).
+                onConfirm: { viewModel.onIntent(.stopClicked) },
+                onCancel: { viewModel.onIntent(.stopDismissed) }
+            )
+        }
         .runvealMapLayers(mapState, courseGuideLayers)
         .runvealMapDotMarkers(mapState, courseMarkers, owner: courseMarkersOwner)
         .collectEffect(viewModel.effects) { effect in

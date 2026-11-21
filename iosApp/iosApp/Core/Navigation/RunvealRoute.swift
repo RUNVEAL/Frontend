@@ -30,6 +30,10 @@ enum RunvealHomeOverlayRoute: Hashable {
     case courseRecommendResult
     /// 코스 추천 결과에서 카드를 눌러 들어가는 코스 상세.
     case courseDetail(routeId: String)
+    /// "내 코스" 목록에서 한 건을 눌러 들어가는 코스 상세. [courseDetail]과 **같은 화면**을 쓰지만
+    /// 추천 응답이 아니라 로컬 `course` 테이블에서 읽는다 — 그래서 id의 출처가 다르다
+    /// (Android `RunVealRoute.HomeTab.SavedCourseDetail`).
+    case savedCourseDetail(courseId: String)
     /// 지도를 유지한 채 탭바를 숨기고 올라가는 러닝 기록 시작/종료 흐름.
     case recording
     /// 기록 종료 후 러닝 결과 화면 — 배경이 불투명이라 지도는 안 보이지만, 탭바 숨김 흐름은

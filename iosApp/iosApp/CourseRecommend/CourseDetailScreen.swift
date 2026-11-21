@@ -6,7 +6,8 @@ import SwiftUI
 /// Android `CourseDetailScreen`에 해당한다.
 struct CourseDetailScreen: View {
     @ObservedObject var mapState: RunvealMapState
-    let routeId: String
+    /// 추천 결과에서 왔는지, "내 코스"에서 왔는지 — 읽어 오는 곳이 달라진다.
+    let source: CourseDetailSource
     let onBack: () -> Void
     let onStartRunning: () -> Void
 
@@ -46,7 +47,7 @@ struct CourseDetailScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .runvealMapLayers(mapState, routeLayers)
         .runvealMapDotMarkers(mapState, courseMarkers, owner: dotMarkersOwner)
-        .task { viewModel.onIntent(.load(routeId: routeId)) }
+        .task { viewModel.onIntent(.load(source: source)) }
         .onChange(of: sheetHeight) { _, _ in focusCourse() }
         .onChange(of: ready?.path.count) { _, _ in focusCourse() }
     }
@@ -93,7 +94,9 @@ struct CourseDetailScreen: View {
                 Spacer()
                 RunvealBottomSheet(
                     header: {
-                        Text(CourseRecommendStrings.courseName(ready.courseLabel))
+                        // 저장된 코스는 저장해 둔 이름을 그대로 쓴다 — "코스 {이름}"으로 조합하면
+                        // "코스 코스 A"가 된다.
+                        Text(ready.savedCourseName ?? CourseRecommendStrings.courseName(ready.courseLabel))
                             .runvealTextStyle(RunvealTheme.typography.heading2)
                             .foregroundStyle(RunvealTheme.colors.text.primary)
                     },

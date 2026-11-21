@@ -20,8 +20,11 @@ final class CourseDetailViewModel: MviViewModel<CourseDetailIntent, CourseDetail
 
     override func handleIntent(_ intent: CourseDetailIntent) async {
         switch intent {
-        case .load(let routeId):
-            load(routeId: routeId)
+        case .load(let source):
+            switch source {
+            case .recommended(let routeId): load(routeId: routeId)
+            case .saved(let courseId): await loadSavedCourse(courseId: courseId)
+            }
         case .saveCourse:
             await saveCourse()
         }
@@ -40,6 +43,51 @@ final class CourseDetailViewModel: MviViewModel<CourseDetailIntent, CourseDetail
             courseLabel: CourseRecommendResultViewModel.courseLabel(index: found.index),
             newRoadMeters: currentNewRoadMeters
         )
+        setState { _ in .ready(ready) }
+    }
+
+    /// "내 코스"에서 들어온, 이미 저장된 코스를 로컬 `course` 테이블에서 읽는다.
+    ///
+    /// 다시 저장할 일이 없으므로 `currentRoute`는 비워 둔다 — "저장됨" 버튼을 눌러도
+    /// [saveCourse]가 그 자리에서 빠져나온다.
+    private func loadSavedCourse(courseId: String) async {
+        // DB 한 줄을 읽는 동안 메인 스레드를 잡지 않는다 — Android도 `Dispatchers.IO`로 뺀다.
+        let found = await Task.detached(priority: .userInitiated) {
+            IosSavedCourse.shared.detail(courseId: courseId)
+        }.value
+        guard let detail = found else {
+            currentRoute = nil
+            setState { _ in .notFound }
+            return
+        }
+        currentRoute = nil
+        currentNewRoadMeters = detail.newRoadMeters
+
+        let durationMinutes = detail.durationMinutes?.intValue
+        let elevationGain = detail.elevationGainM?.intValue
+        var ready = CourseDetailReady(
+            // 제목은 저장해 둔 이름을 그대로 쓰므로 라벨은 비운다.
+            courseLabel: "",
+            distanceValue: String(format: "%.1f", detail.distanceMeters / 1000),
+            distanceUnit: "km",
+            // 값이 없으면 대체 텍스트 없이 공란 — 추천 코스 쪽과 같은 규칙이다.
+            timeValue: durationMinutes.map { "\($0)" } ?? "",
+            timeUnit: durationMinutes != nil ? "분" : "",
+            elevationValue: elevationGain.map { "+\($0)" } ?? "",
+            elevationUnit: elevationGain != nil ? "m" : "",
+            newRoadValue: String(format: "%.1f", detail.newRoadMeters / 1000),
+            newRoadUnit: "km",
+            elevationProfile: detail.elevationProfile,
+            routeSteps: Self.routeSteps(
+                milestones: detail.milestones,
+                distanceMeters: detail.distanceMeters,
+                isLoop: detail.isLoop
+            ),
+            path: detail.path,
+            isLoop: detail.isLoop
+        )
+        ready.isSaved = true
+        ready.savedCourseName = detail.name
         setState { _ in .ready(ready) }
     }
 
@@ -99,8 +147,21 @@ final class CourseDetailViewModel: MviViewModel<CourseDetailIntent, CourseDetail
         )
     }
 
-    /// "출발"·중간 경유지(milestones)·"도착" 순서로 경로 정보 목록을 만든다.
     private static func routeSteps(from route: RouteDto) -> [RouteStepUiModel] {
+        routeSteps(
+            milestones: route.milestones,
+            distanceMeters: Double(route.distanceM),
+            isLoop: route.type == "LOOP"
+        )
+    }
+
+    /// "출발"·중간 경유지(milestones)·"도착" 순서로 경로 정보 목록을 만든다. 추천 코스와 저장된
+    /// 코스가 같은 줄을 보여야 해서 둘 다 여기를 거친다.
+    private static func routeSteps(
+        milestones: [MilestoneDto],
+        distanceMeters: Double,
+        isLoop: Bool
+    ) -> [RouteStepUiModel] {
         var steps: [RouteStepUiModel] = [
             RouteStepUiModel(
                 place: CourseRecommendStrings.stepStart,
@@ -109,12 +170,12 @@ final class CourseDetailViewModel: MviViewModel<CourseDetailIntent, CourseDetail
                 type: .start
             )
         ]
-        steps += route.milestones.map(routeStep(from:))
+        steps += milestones.map(routeStep(from:))
         steps.append(
             RouteStepUiModel(
                 place: CourseRecommendStrings.stepEnd,
-                note: route.type == "LOOP" ? CourseRecommendStrings.stepEndLoopNote : nil,
-                distanceLabel: String(format: "%.1fkm", Double(route.distanceM) / 1000),
+                note: isLoop ? CourseRecommendStrings.stepEndLoopNote : nil,
+                distanceLabel: String(format: "%.1fkm", distanceMeters / 1000),
                 type: .end
             )
         )
