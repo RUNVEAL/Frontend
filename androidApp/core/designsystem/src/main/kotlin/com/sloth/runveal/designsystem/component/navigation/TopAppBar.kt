@@ -29,7 +29,11 @@ enum class RunvealTopAppBarLeading { Close, Back, None }
 /** Default=일반 화면, Map=지도 위 화면용(왼쪽 버튼이 글래스 원형 Icon Button M). */
 enum class RunvealTopAppBarStyle { Default, Map }
 
-/** 상단 앱바. 배경 투명(화면 위에 얹음). 오른쪽 Text 버튼(건너뛰기 등)은 [actionLabel]이 있을 때만 보인다. */
+/**
+ * 상단 앱바. 배경 투명(화면 위에 얹음). 오른쪽 Text 버튼(건너뛰기 등)은 [actionLabel]이 있을 때만
+ * 보이고, 글자 대신 아이콘 같은 걸 놓고 싶으면 [action] 슬롯에 직접 넣는다([RunvealTopAppBarLarge]와
+ * 같은 방식). 둘 다 주면 [action]이 이긴다.
+ */
 @Composable
 fun RunvealTopAppBar(
     leading: RunvealTopAppBarLeading,
@@ -40,6 +44,7 @@ fun RunvealTopAppBar(
     title: String? = null,
     actionLabel: String? = null,
     onActionClick: () -> Unit = {},
+    action: (@Composable () -> Unit)? = null,
 ) {
     val colors = RunvealTheme.colors
     val leadingIcon = when (leading) {
@@ -100,18 +105,20 @@ fun RunvealTopAppBar(
             }
             Spacer(Modifier.width(gap))
         }
+        val hasAction = action != null || actionLabel != null
         if (title != null) {
             Text(
                 title,
                 style = RunvealTheme.typography.heading3,
                 color = colors.text.primary,
-                modifier = if (actionLabel != null) Modifier.weight(1f) else Modifier,
+                modifier = if (hasAction) Modifier.weight(1f) else Modifier,
             )
-        } else if (actionLabel != null) {
+        } else if (hasAction) {
             Spacer(Modifier.weight(1f))
         }
-        if (actionLabel != null) {
-            RunvealButton(label = actionLabel, onClick = onActionClick, style = RunvealButtonStyle.Text)
+        when {
+            action != null -> action()
+            actionLabel != null -> RunvealButton(label = actionLabel, onClick = onActionClick, style = RunvealButtonStyle.Text)
         }
     }
 }

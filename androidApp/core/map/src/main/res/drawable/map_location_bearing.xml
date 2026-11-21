@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  현재 위치 마커 위에 떠서 "지금 바라보는 방향"을 가리키는 화살표([CurrentLocationLayer]의 나침반 모드).
+
+  MapLibre는 이 이미지를 위치 점 **중심에 놓고 중심을 축으로 회전**시킨다. 그래서 점 위에 띄우려면
+  이미지 아래쪽을 투명하게 비워 둬야 한다 — SDK 기본 에셋(maplibre_user_bearing_icon)도 44dp 캔버스
+  맨 위에 화살표만 그려 둔 같은 방식이다. 여기서는 56dp 캔버스(중심 28) 위쪽에 화살표를 올려,
+  밑변이 중심에서 13dp 위에 온다 — 반지름 9dp인 위치 점([map_location_dot]) 위로 4dp쯤 뜬다.
+
+  TODO(아이콘 교체): pathData는 design/icons/polygon2.svg를 그대로 옮긴 것이고, group의 rotation/
+   translate는 **그 아이콘이 기울어져 있어서 넣은 보정값**이다(축이 똑바로 위에서 시계방향 6.43°,
+   끝점이 캔버스 가운데보다 1.5 오른쪽). 똑바로 선 아이콘으로 다시 받으면 이 파일을 지우고
+   `<inset android:drawable="@drawable/ic_polygon2" android:insetBottom="41dp" />` 한 줄로 되돌린다
+   — 생성된 아이콘(ic_polygon2)을 그대로 쓰는 게 원래 모양이다.
+
+  색은 토큰 값을 그대로 박아 둔다(채우기 map/location, 테두리 text/primary) — 이 drawable은 Compose
+  밖(MapLibre SDK)에서 쓰여 테마를 읽을 수 없다.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="56dp"
+    android:height="56dp"
+    android:viewportWidth="56"
+    android:viewportHeight="56">
+    <group
+        android:pivotX="8.91"
+        android:pivotY="6.64"
+        android:rotation="-6.43"
+        android:translateX="19.09"
+        android:translateY="3.09">
+        <path
+            android:pathData="M8.79326 1.29286C9.19709 0.820293 9.95733 0.939448 10.1972 1.51291L14.6748 12.217C14.976 12.937 14.2119 13.6395 13.5197 13.2789L8.59737 10.7148C8.44128 10.6335 8.26347 10.6036 8.08938 10.6295L1.96255 11.5392C1.19949 11.6525 0.70458 10.7584 1.20574 10.172L8.79326 1.29286Z"
+            android:fillColor="#4286E0"
+            android:strokeColor="#F4EEEA"
+            android:strokeWidth="2" />
+    </group>
+</vector>

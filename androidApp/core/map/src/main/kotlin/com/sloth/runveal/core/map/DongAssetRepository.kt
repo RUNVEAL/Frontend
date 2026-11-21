@@ -1,6 +1,7 @@
 package com.sloth.runveal.core.map
 
 import android.content.Context
+import android.util.Log
 import com.sloth.runveal.core.map.internal.maplibre.DongGeoJsonBuilder
 import com.sloth.runveal.core.map.internal.maplibre.SigunguGeoJsonBuilder
 import com.sloth.runveal.core.map.internal.maplibre.VisitedRoadGeoJsonBuilder
@@ -32,6 +33,7 @@ private const val VISITED_SAMPLE_TRACKS_ASSET_DIR = "tracks"
 
 /** [DongAssetRepository.syncFromServer]가 스플래시에서 이미 쏴 둔 `/api/v1/meta` 결과([MetaHolder])를
  * 기다리는 최대 시간 — 서버가 꺼져 있거나 느려도 홈 지도는 번들 에셋으로 계속 떠야 한다(§5.7). */
+private const val TAG = "DongAssetRepository"
 private const val META_WAIT_TIMEOUT_MS = 5000L
 
 /**
@@ -70,7 +72,11 @@ class DongAssetRepository(private val context: Context) {
      * `index.geojson`/`index.json`을 홈 지도가 바로 쓸 수 있게 뽑아 온다. 실패하거나(오프라인·서버 꺼짐)
      * [MetaHolder]가 아직 안 채워졌으면 `null` — 호출부는 번들 에셋을 그대로 쓰면 된다. */
     suspend fun syncFromServer(): ServerDongMapData? {
-        val meta = withTimeoutOrNull(META_WAIT_TIMEOUT_MS) { MetaHolder.state.filterNotNull().first() } ?: return null
+        val meta = withTimeoutOrNull(META_WAIT_TIMEOUT_MS) { MetaHolder.state.filterNotNull().first() }
+        if (meta == null) {
+            Log.w(TAG, "/meta를 ${META_WAIT_TIMEOUT_MS}ms 안에 못 받아 서버 지도 데이터를 건너뛴다")
+            return null
+        }
         return try {
             val dir = ServerMapFileStore(context).ensureDownloaded(meta.mapVersions.current, listOf("index.geojson", "index.json"))
             val boundaryGeoJson = File(dir, "index.geojson").readText().normalizeDongCodeKey()
@@ -80,7 +86,9 @@ class DongAssetRepository(private val context: Context) {
                 totalLengthsByDong = totalLengthsByDong,
                 mapVersion = meta.mapVersions.current,
             )
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            // 여기서 조용히 null을 돌려주면 동 경계·라벨·빛이 통째로 사라진 이유를 로그로도 알 수 없다.
+            Log.w(TAG, "서버 지도 파일(index.geojson/index.json)을 못 받았다", e)
             null
         }
     }

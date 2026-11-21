@@ -67,8 +67,19 @@ sealed interface RunVealRoute : Route {
         @Serializable
         data object Course : HomeTab
 
+        /** "내 코스" 목록에서 한 건을 눌러 들어가는 코스 상세. 추천 결과에서 들어가는 [CourseDetail]과
+         * **같은 화면**을 쓰지만, 추천 응답이 아니라 로컬 `course` 테이블에서 읽는다([courseId]) —
+         * 기록 상세([RecordDetail])가 trackId만 넘기는 것과 같은 방식이다. */
+        @Serializable
+        data class SavedCourseDetail(val courseId: String) : HomeTab
+
         @Serializable
         data object Record : HomeTab
+
+        /** 기록 탭 목록에서 한 건을 눌러 들어가는 러닝 기록 상세. 값은 [trackId]로만 넘기고 화면이
+         * 로컬 DB에서 다시 읽는다 — 경로·탐험률 같은 큰 값을 라우트에 실을 수 없다. */
+        @Serializable
+        data class RecordDetail(val trackId: String) : HomeTab
 
         @Serializable
         data object My : HomeTab

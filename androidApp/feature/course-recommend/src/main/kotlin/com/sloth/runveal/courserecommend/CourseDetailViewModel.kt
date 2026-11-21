@@ -4,6 +4,7 @@ import android.util.Log
 import com.sloth.runveal.auth.AndroidAppContextHolder
 import com.sloth.runveal.core.map.CourseSnapshotRenderer
 import com.sloth.runveal.courserecommend.contract.CourseDetailIntent
+import com.sloth.runveal.courserecommend.contract.CourseDetailSource
 import com.sloth.runveal.courserecommend.contract.CourseDetailState
 import com.sloth.runveal.courserecommend.contract.ElevationPointUiModel
 import com.sloth.runveal.courserecommend.contract.RouteStepUiModel
@@ -30,29 +31,13 @@ private const val TAG = "CourseDetailDebug"
 /** 코스 목록(저장된 코스) 썸네일 자리 크기 — [CourseSnapshotRenderer]의 코스 목록 72dp 컨벤션과 맞춘다. */
 private const val THUMBNAIL_SIZE_DP = 72
 
-/** Compose 컨텍스트가 없는 ViewModel이라 `RunvealTheme.colors`를 못 읽어서, [CourseSnapshotImage]와
- * 같은 디자인 토큰을 ARGB로 직접 옮겨 둔다 — map.roadExplored(gold200)/map.location(blue500)/
- * text.primary(neutral50). */
-private const val SNAPSHOT_ROUTE_COLOR = 0xFFF2E096.toInt()
-private const val SNAPSHOT_ENDPOINT_COLOR = 0xFF4286E0.toInt()
-private const val SNAPSHOT_ENDPOINT_STROKE_COLOR = 0xFFF4EEEA.toInt()
-
 /** 효과가 필요 없는 화면이라 Effect 타입 인자는 [Nothing]. */
 class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState, Nothing>(
     initialState = CourseDetailState.Loading,
 ) {
     private val database = RunvealDatabaseProvider.database
     private val json = Json
-    private val snapshotRenderer = CourseSnapshotRenderer(
-        context = AndroidAppContextHolder.context,
-        routeColor = SNAPSHOT_ROUTE_COLOR,
-        endpointColor = SNAPSHOT_ENDPOINT_COLOR,
-        endpointStrokeColor = SNAPSHOT_ENDPOINT_STROKE_COLOR,
-        // 코스 썸네일은 러닝이 아니라서(isRunRoute=false) 아래 두 색은 실제로 안 쓰인다 —
-        // 러닝 경로에서만 쓰는 값이라 경로 색을 그대로 넘긴다.
-        newRoadColor = SNAPSHOT_ROUTE_COLOR,
-        todayRoadColor = SNAPSHOT_ROUTE_COLOR,
-    )
+    private val snapshotRenderer = CourseSnapshotRenderer(context = AndroidAppContextHolder.context)
 
     /** [load]가 찾아 둔 원본 — [CourseDetailIntent.SaveCourse]가 DB에 쓸 때 다시 쓴다(화면 상태는
      * 포맷된 문자열뿐이라 원본 숫자/배열이 필요하다). */
@@ -64,7 +49,10 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
 
     override suspend fun handleIntent(intent: CourseDetailIntent) {
         when (intent) {
-            is CourseDetailIntent.Load -> load(intent.routeId)
+            is CourseDetailIntent.Load -> when (val source = intent.source) {
+                is CourseDetailSource.Recommended -> load(source.id)
+                is CourseDetailSource.Saved -> loadSavedCourse(source.id)
+            }
             CourseDetailIntent.SaveCourse -> saveCourse()
         }
     }
@@ -81,6 +69,65 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
         currentNewRoadMeters = resolveNewRoadMeters(route)
         setState { route.toDetailState(courseLabel = ('A' + index).toString(), newRoadMeters = currentNewRoadMeters) }
     }
+
+    /**
+     * "내 코스"에서 들어온 코스 — 저장할 때 추천 응답을 컬럼에 그대로 넣어 뒀으니 그걸 다시 읽어
+     * 추천 결과와 같은 화면을 만든다. 러닝 기록을 승격한 코스는 추천 전용 컬럼(시간·고도·경유지)이
+     * 전부 비어 있어서, 그 칸들은 빈 값으로 둔다([CourseDetailState.Ready] 주석의 "공란" 규칙).
+     *
+     * 이미 저장된 코스라 다시 저장할 일이 없으므로 `currentRoute`는 비워 둔다 — "저장됨" 버튼을
+     * 눌러도 [saveCourse]가 그 자리에서 빠져나온다.
+     */
+    private suspend fun loadSavedCourse(courseId: String) {
+        val course = withContext(Dispatchers.IO) {
+            database.courseQueries.selectCourseById(courseId).executeAsOneOrNull()
+        }
+        if (course == null) {
+            Log.w(TAG, "저장된 코스를 못 찾았다 — courseId=$courseId")
+            setState { CourseDetailState.NotFound }
+            return
+        }
+        val durationMinutes = course.duration_sec?.let { it / 60 }
+        val elevationGain = course.elevation_gain_m
+        setState {
+            CourseDetailState.Ready(
+                courseLabel = "",
+                savedCourseName = course.name,
+                distanceValue = "%.1f".format(course.distance_meters / 1000.0),
+                distanceUnit = "km",
+                timeValue = durationMinutes?.toString() ?: "",
+                timeUnit = if (durationMinutes != null) "분" else "",
+                elevationValue = elevationGain?.let { "+$it" } ?: "",
+                elevationUnit = if (elevationGain != null) "m" else "",
+                newRoadValue = "%.1f".format((course.new_road_m ?: 0L) / 1000.0),
+                newRoadUnit = "km",
+                elevationProfile = course.elevation_profile?.let { decodeElevationProfile(it) } ?: emptyList(),
+                routeSteps = buildRouteSteps(
+                    milestones = course.milestones?.let { decodeMilestones(it) } ?: emptyList(),
+                    distanceMeters = course.distance_meters,
+                    isLoop = course.route_type == "LOOP",
+                ),
+                path = decodeCoordinates(course.coordinates),
+                isLoop = course.route_type == "LOOP",
+                isSaved = true,
+            )
+        }
+    }
+
+    /** `course.coordinates`("[[lon,lat],…]", 저장할 때 인코딩한 형식)를 되돌린다 — GeoJSON 좌표
+     * 순서라 [lng, lat]여서 LatLon은 반대로 매핑한다("내 코스" 탭과 같은 처리). */
+    private fun decodeCoordinates(raw: String): List<LatLon> =
+        json.decodeFromString(ListSerializer(ListSerializer(Double.serializer())), raw)
+            .map { LatLon(lat = it[1], lon = it[0]) }
+
+    private fun decodeElevationProfile(raw: String): List<ElevationPointUiModel> =
+        json.decodeFromString(ListSerializer(ListSerializer(Double.serializer())), raw)
+            .mapNotNull { point ->
+                if (point.size >= 2) ElevationPointUiModel(cumulativeDistanceM = point[0], elevationM = point[1]) else null
+            }
+
+    private fun decodeMilestones(raw: String): List<MilestoneDto> =
+        json.decodeFromString(ListSerializer(MilestoneDto.serializer()), raw)
 
     /** 서버가 `newRoadM`을 줬으면 그대로 쓰고, 안 줬으면(요청에 `exploredSegmentIds`를 못 보냈거나
      * 서버가 아직 안 채워 줄 때 — `docs/api/API.md` §3.3.1) 로컬 `explored_segment`로 추정한다. */
@@ -133,14 +180,21 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
             segment_ids = json.encodeToString(ListSerializer(Long.serializer()), route.segmentIds),
             milestones = json.encodeToString(ListSerializer(MilestoneDto.serializer()), route.milestones),
         )
-        prerenderThumbnail(courseId, ready.path)
+        prerenderThumbnail(courseId, ready.path, isLoop = route.type == "LOOP")
         setState { if (this is CourseDetailState.Ready) copy(isSaved = true) else this }
     }
 
     /** "내 코스" 탭 목록·추천 카드가 쓸 썸네일을 저장 시점에 같이 만들어 캐시해 둔다. 실패해도 코스
      * 저장 자체는 이미 끝났으니 조용히 무시한다 — 목록은 캐시가 없으면 플레이스홀더를 보여준다. */
-    private suspend fun prerenderThumbnail(courseId: String, path: List<LatLon>) {
-        val request = path.toSnapshotRequest(ownerId = courseId, variant = SnapshotVariant.THUMBNAIL) ?: return
+    private suspend fun prerenderThumbnail(courseId: String, path: List<LatLon>, isLoop: Boolean) {
+        // 목록("내 코스" 탭)이 만드는 요청과 **같아야** 미리 만든 캐시를 그대로 쓴다 — 캐시 키에
+        // 점 정보가 안 들어가서, 한쪽만 도착 점을 켜면 먼저 그린 그림이 그대로 보인다.
+        val request = path.toSnapshotRequest(
+            ownerId = courseId,
+            variant = SnapshotVariant.THUMBNAIL,
+            withStartMarker = true,
+            withEndMarker = !isLoop,
+        ) ?: return
         val density = AndroidAppContextHolder.context.resources.displayMetrics.density
         val sizePx = (THUMBNAIL_SIZE_DP * density).roundToInt()
         val file = snapshotRenderer.getOrRender(request, widthPx = sizePx, heightPx = sizePx)
@@ -175,7 +229,15 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
     }
 
     /** "출발"·중간 경유지(milestones)·"도착" 순서로 경로 정보 목록을 만든다. */
-    private fun RouteDto.buildRouteSteps(): List<RouteStepUiModel> {
+    private fun RouteDto.buildRouteSteps(): List<RouteStepUiModel> =
+        buildRouteSteps(milestones = milestones, distanceMeters = distanceM.toDouble(), isLoop = type == "LOOP")
+
+    /** 출발 — 경유지들 — 도착. 추천 응답과 저장된 코스가 같은 모양으로 보이게 한 곳에서 만든다. */
+    private fun buildRouteSteps(
+        milestones: List<MilestoneDto>,
+        distanceMeters: Double,
+        isLoop: Boolean,
+    ): List<RouteStepUiModel> {
         val steps = mutableListOf<RouteStepUiModel>()
         steps += RouteStepUiModel(
             place = "출발",
@@ -186,8 +248,8 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
         steps += milestones.map { it.toRouteStep() }
         steps += RouteStepUiModel(
             place = "도착",
-            note = if (type == "LOOP") "출발지" else null,
-            distanceLabel = "%.1fkm".format(distanceM / 1000.0),
+            note = if (isLoop) "출발지" else null,
+            distanceLabel = "%.1fkm".format(distanceMeters / 1000.0),
             type = RunvealRouteStepType.End,
         )
         return steps

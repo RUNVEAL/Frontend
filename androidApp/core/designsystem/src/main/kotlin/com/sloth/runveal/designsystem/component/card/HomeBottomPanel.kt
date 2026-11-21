@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -91,9 +92,10 @@ fun RunvealHomeBottomPanel(
 }
 
 /**
- * 위치 권한/위치 서비스가 꺼져 있을 때 [RunvealHomeBottomPanel]의 [RunvealHomeBottomPanel.banner]
- * 자리에 넣는 한 줄짜리 안내 배너 (HomeBottomPanel state=location_off). 권한이 꺼진 경우와 위치
- * 서비스(GPS)가 꺼진 경우는 문구·행동이 달라 호출하는 쪽에서 [message]/[actionLabel]로 구분해 넣는다.
+ * [RunvealHomeBottomPanel]의 [RunvealHomeBottomPanel.banner] 자리에 넣는 한 줄짜리 안내 배너
+ * (HomeBottomPanel state=location_off). 경우마다 문구·행동·아이콘이 달라 호출하는 쪽에서
+ * [message]/[actionLabel]/[icon]로 구분해 넣는다 — 위치 권한 꺼짐, 위치 서비스(GPS) 꺼짐,
+ * 서버 데이터 못 받음.
  */
 @Composable
 fun RunvealLocationOffBanner(
@@ -101,6 +103,9 @@ fun RunvealLocationOffBanner(
     actionLabel: String,
     onActionClick: () -> Unit,
     modifier: Modifier = Modifier,
+    icon: ImageVector = RunvealIcons.LocationOff,
+    /** [Color.Unspecified]면 벡터 자체 색을 쓴다 — location-off 아이콘이 그런 경우다(아래 주석). */
+    iconTint: Color = Color.Unspecified,
 ) {
     val colors = RunvealTheme.colors
     Row(
@@ -113,9 +118,9 @@ fun RunvealLocationOffBanner(
         // tint를 주면 location-off 아이콘의 사선이 두꺼워 보인다([[BottomSheetHeader.kt]] 참고) — 벡터
         // 자체 색(전경 F4EEEA + 배경 272626 knockout)을 그대로 쓴다.
         Icon(
-            imageVector = RunvealIcons.LocationOff,
+            imageVector = icon,
             contentDescription = null,
-            tint = Color.Unspecified,
+            tint = iconTint,
             modifier = Modifier.size(16.dp),
         )
         Text(

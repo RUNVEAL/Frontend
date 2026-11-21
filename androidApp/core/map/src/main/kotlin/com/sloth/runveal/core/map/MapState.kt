@@ -65,6 +65,13 @@ class MapState(
      * ([BaseStyleRoadFocus]). 가본 길(금색 선)은 그대로 둔다. */
     var unexploredRoadFocus: Boolean by mutableStateOf(false)
 
+    /**
+     * 현재 위치 마커에 "지금 바라보는 방향" 화살표를 띄울지(러닝 중). 기기 나침반(지자기 센서)을
+     * 따라 도는 삼각형이 마커 둘레에 붙는다 — 달리는 방향(GPS 진행 방향)이 아니라 **기기가 향한
+     * 쪽**이다. 홈 지도처럼 둘러보기만 하는 화면에서는 꺼 둔다(가만히 서 있어도 계속 떨린다).
+     */
+    var showsHeadingIndicator: Boolean by mutableStateOf(false)
+
     /** 지도를 탭한 마지막 좌표 — [MapLibreMapView]가 탭마다 채우고, 소비한 화면이 바로 null로 되돌려
      * 한 번만 처리되는 이벤트처럼 쓴다. */
     var lastMapClick: LatLon? by mutableStateOf(null)

@@ -259,6 +259,80 @@ class TrackLocalStore(
         return meters
     }
 
+    /** 기록 한 건 — 상세 화면용. 지운 기록(`deleted_at_epoch_ms`)이거나 없는 id면 null. */
+    fun trackSummary(id: String): TrackSummary? =
+        database.trackQueries.selectById(id).executeAsOneOrNull()
+            ?.takeIf { it.deleted_at_epoch_ms == null }
+            ?.let { row ->
+                TrackSummary(
+                    id = row.id,
+                    startedAtEpochMs = row.started_at_epoch_ms,
+                    elapsedMs = row.finished_at_epoch_ms - row.started_at_epoch_ms,
+                    distanceMeters = row.distance_meters,
+                    placeName = row.place_name,
+                )
+            }
+
+    /** 기록의 필터된 GPX 원문 — 구간 기록(km별 페이스)을 계산할 때 읽는다. 파일이 없으면 null. */
+    fun filteredGpx(trackId: String): String? {
+        val path = database.trackQueries.selectById(trackId).executeAsOneOrNull()?.gpx_filtered_path ?: return null
+        return fileStore.read(path)
+    }
+
+    /**
+     * 기록 이름을 사용자가 지은 이름으로 바꾼다(`place_name`). `place_lookup_attempted`가 같이 켜져
+     * 역지오코딩이 나중에 덮어쓰지 않는다 — 직접 지은 이름이 더 세다.
+     */
+    fun renameTrack(id: String, name: String, nowEpochMs: Long) {
+        database.trackQueries.updatePlaceName(place_name = name, updated_at_epoch_ms = nowEpochMs, id = id)
+    }
+
+    /** 기록 한 건이 **처음 밟은** 길이(m) — 상세 화면 "새 길". [newRoadMetersBetween]과 같은 재생을
+     * 쓰되 트랙 하나만 센다. */
+    fun newRoadMetersForTrack(trackId: String): Double {
+        var meters = 0.0
+        replayRunSegments { delta -> if (delta.trackId == trackId) meters += delta.addedMeters }
+        return meters
+    }
+
+    /** 기록 한 건 기준의 동별 달린 길이(분자). [beforeMeters]는 그 러닝 **직전까지**, [afterMeters]는
+     * 그 러닝까지 — 탐험률(%)로 바꾸는 건 분모를 아는 호출부(`DongRateChanges`)가 한다. */
+    data class DongWalkedAroundTrack(val admCd2: String, val beforeMeters: Double, val afterMeters: Double)
+
+    /**
+     * 기록 상세 "탐험률 변화" 줄의 재료. 재생은 시작 시각 순이고 한 트랙의 구간들은 붙어서 나오므로,
+     * 대상 트랙을 만나기 전까지의 누적이 "직전"이고 거기에 그 트랙 몫을 더한 게 "직후"다 —
+     * **그 뒤에 달린 기록은 세지 않는다**(나중 러닝이 올린 탐험률이 이 기록의 몫으로 보이면 안 된다).
+     */
+    fun dongWalkedAroundTrack(trackId: String): List<DongWalkedAroundTrack> {
+        val touched = database.runSegmentQueries.selectDongsForTrack(trackId).executeAsList().toSet()
+        if (touched.isEmpty()) return emptyList()
+
+        val before = mutableMapOf<String, Double>()
+        val after = mutableMapOf<String, Double>()
+        var passedTarget = false
+        replayRunSegments { delta ->
+            when {
+                delta.trackId == trackId -> {
+                    passedTarget = true
+                    after[delta.admCd2] = (after[delta.admCd2] ?: 0.0) + delta.addedMeters
+                }
+                !passedTarget -> {
+                    before[delta.admCd2] = (before[delta.admCd2] ?: 0.0) + delta.addedMeters
+                    after[delta.admCd2] = (after[delta.admCd2] ?: 0.0) + delta.addedMeters
+                }
+                else -> Unit
+            }
+        }
+        return touched.map { admCd2 ->
+            DongWalkedAroundTrack(
+                admCd2 = admCd2,
+                beforeMeters = before[admCd2] ?: 0.0,
+                afterMeters = after[admCd2] ?: 0.0,
+            )
+        }
+    }
+
     /** 기록 탭 썸네일용 트랙별 매칭 경로. 매칭이 아직/끝내 안 된 트랙은 `track_edge`가 비어 있어서
      * 결과 맵에 키가 없다 — 호출부는 그때 썸네일 없이(플레이스홀더) 그린다. */
     fun routesForTracks(trackIds: List<String>): Map<String, List<LatLon>> {
@@ -324,6 +398,7 @@ class TrackLocalStore(
                     trackId = row.track_id,
                     startedAtEpochMs = row.started_at_epoch_ms,
                     segmentId = row.segment_id,
+                    admCd2 = row.adm_cd2,
                     added = added,
                     addedMeters = added.coveredCount * (row.length_m / size),
                 ),
@@ -339,6 +414,7 @@ class TrackLocalStore(
         val trackId: String,
         val startedAtEpochMs: Long,
         val segmentId: Long,
+        val admCd2: String,
         val added: CoverageMask,
         /** [added]를 길이로 환산한 값(m). */
         val addedMeters: Double,

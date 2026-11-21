@@ -43,14 +43,20 @@ fun CourseSnapshotImage(
 ) {
     val context = LocalContext.current
     val colors = RunvealTheme.colors
-    val routeColor = colors.map.roadExplored.toArgb()
-    val endpointColor = colors.map.location.toArgb()
-    val endpointStrokeColor = colors.text.primary.toArgb()
-    val newRoadColor = colors.map.roadNew.toArgb()
-    val todayRoadColor = colors.map.roadToday.toArgb()
-    val renderer = remember(routeColor, endpointColor, endpointStrokeColor, newRoadColor, todayRoadColor) {
-        CourseSnapshotRendererImpl(context, routeColor, endpointColor, endpointStrokeColor, newRoadColor, todayRoadColor)
-    }
+    // 출발·도착 점은 디자인시스템 마커(`RunvealMapMarker`)와 같은 색 — 출발은 금색, 도착은 흰색에
+    // 둘 다 어두운 테두리(icon/onAccent). ViewModel이 쓰는 [SnapshotColors.DesignTokens]와 같은 값이다.
+    val snapshotColors = SnapshotColors(
+        route = colors.map.roadExplored.toArgb(),
+        start = colors.accent.glow.toArgb(),
+        startStroke = colors.icon.onAccent.toArgb(),
+        end = colors.icon.primary.toArgb(),
+        endStroke = colors.icon.onAccent.toArgb(),
+        resultEndpoint = colors.map.location.toArgb(),
+        resultEndpointStroke = colors.text.primary.toArgb(),
+        newRoad = colors.map.roadNew.toArgb(),
+        todayRoad = colors.map.roadToday.toArgb(),
+    )
+    val renderer = remember(snapshotColors) { CourseSnapshotRendererImpl(context = context, colors = snapshotColors) }
 
     var sizePx by remember { mutableStateOf(IntSize.Zero) }
 

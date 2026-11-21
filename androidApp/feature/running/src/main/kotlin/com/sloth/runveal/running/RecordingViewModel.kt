@@ -6,6 +6,7 @@ import com.sloth.runveal.recording.RecordingState as TrackRecordingState
 import com.sloth.runveal.recording.TrackRecorder
 import com.sloth.runveal.result.LiveNewRoadHolder
 import com.sloth.runveal.result.SelectedCourseHolder
+import com.sloth.runveal.running.contract.FinishDialog
 import com.sloth.runveal.running.contract.RecordingEffect
 import com.sloth.runveal.running.contract.RecordingIntent
 import com.sloth.runveal.running.contract.RecordingPhase
@@ -81,18 +82,25 @@ class RecordingViewModel : MviViewModel<RecordingIntent, RecordingState, Recordi
             RecordingIntent.StartClicked -> sendEffect(RecordingEffect.StartTrackingService)
             RecordingIntent.PauseClicked -> sendEffect(RecordingEffect.PauseTrackingService)
             RecordingIntent.ResumeClicked -> sendEffect(RecordingEffect.ResumeTrackingService)
+            RecordingIntent.StopRequested -> setState {
+                copy(finishDialog = FinishDialog(willSaveRecord = isRecordSavable()))
+            }
+            RecordingIntent.StopDismissed -> setState { copy(finishDialog = null) }
             // 저장 여부는 여기서 한 번만 정해 서비스까지 그대로 넘긴다 — 서비스가 따로 다시 판단하면
             // 그 사이 1분/100m 경계를 넘겨서 "홈으로 돌려보냈는데 기록은 저장됨" 같은 어긋남이 생긴다.
-            RecordingIntent.StopClicked -> sendEffect(
-                RecordingEffect.StopTrackingService(
-                    saveRecord = RecordingSavePolicy.isSavable(
-                        distanceMeters = TrackRecorder.totalDistanceMeters(),
-                        elapsedMs = TrackRecorder.elapsedMs(System.currentTimeMillis()),
-                    ),
-                ),
-            )
+            RecordingIntent.StopClicked -> {
+                setState { copy(finishDialog = null) }
+                sendEffect(RecordingEffect.StopTrackingService(saveRecord = isRecordSavable()))
+            }
         }
     }
+
+    /** 지금 끝내면 기록이 저장되는지(100m·1분, `RecordingSavePolicy`). 다이얼로그 문구와 실제 저장
+     * 판정이 같은 값을 쓰도록 한 곳에 둔다. */
+    private fun isRecordSavable(): Boolean = RecordingSavePolicy.isSavable(
+        distanceMeters = TrackRecorder.totalDistanceMeters(),
+        elapsedMs = TrackRecorder.elapsedMs(System.currentTimeMillis()),
+    )
 
     private fun formatElapsed(elapsedMs: Long): String {
         val totalSeconds = elapsedMs / 1000

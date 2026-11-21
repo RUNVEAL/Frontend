@@ -13,6 +13,15 @@
     <string name="recording_course_progress_unit">%</string>
     <string name="recording_locate_content_description">내 위치</string>
     <string name="recording_new_distance_format">+%1$skm</string>
+    <string name="recording_finish_dialog_title">러닝을 끝낼까요?</string>
+    <string name="recording_finish_dialog_description">지금까지 달린 기록이 저장되고
+탐험 지도에 반영돼요.</string>
+    <string name="recording_finish_dialog_confirm">끝내기</string>
+    <string name="recording_finish_dialog_cancel">취소</string>
+    <string name="recording_finish_dialog_unsaved_title">러닝 기록이 너무 짧아요</string>
+    <string name="recording_finish_dialog_unsaved_description">100m 또는 1분 미만은 저장되지 않아요.</string>
+    <string name="recording_finish_dialog_unsaved_confirm">저장 없이 종료</string>
+    <string name="recording_finish_dialog_unsaved_cancel">계속 달리기</string>
 
     <string name="result_title">러닝 완료!</string>
     <string name="result_new_road_value_format">+%1$s</string>

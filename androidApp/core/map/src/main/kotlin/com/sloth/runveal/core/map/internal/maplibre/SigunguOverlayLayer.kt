@@ -62,9 +62,13 @@ internal object SigunguOverlayLayer {
                 PropertyFactory.textSize(LABEL_SIZE_SP),
                 PropertyFactory.textColor(colors.sigunguLabel),
                 PropertyFactory.textJustify(Property.TEXT_JUSTIFY_CENTER),
-                // 250개 고정 목록(동 레벨처럼 수천 개가 아님)이라 겹침 방지로 숨기지 않고 항상 보이게 한다.
-                PropertyFactory.textAllowOverlap(true),
-                PropertyFactory.textIgnorePlacement(true),
+                // 겹치는 라벨은 MapLibre가 숨긴다(기본값) — 동 라벨([DongOverlayLayer])과 같은 규칙이다.
+                // 줌아웃할수록 시군구가 촘촘해져서 다 띄우면 이름이 서로 겹쳐 읽을 수 없다.
+                // 누가 살아남을지는 탐험률로 정한다 — sortKey가 낮은 라벨이 먼저 배치되고 자리를
+                // 차지하므로, 탐험률에 -1을 곱해 높은 쪽이 먼저 놓이게 한다.
+                PropertyFactory.symbolSortKey(
+                    Expression.product(Expression.literal(-1f), Expression.get("percent")),
+                ),
             )
             layer.minZoom = MapConfig.SIDO_SWITCH_ZOOM.toFloat()
             layer.maxZoom = MapConfig.SIGUNGU_SWITCH_ZOOM.toFloat()

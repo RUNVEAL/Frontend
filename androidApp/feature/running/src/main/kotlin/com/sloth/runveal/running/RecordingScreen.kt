@@ -46,6 +46,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sloth.runveal.core.map.LocalMapState
@@ -60,6 +61,7 @@ import com.sloth.runveal.designsystem.RunvealIcons
 import com.sloth.runveal.designsystem.component.button.RunvealButtonGroupEqual
 import com.sloth.runveal.designsystem.component.button.RunvealRunPauseButton
 import com.sloth.runveal.designsystem.component.map.RunvealMapMarkerType
+import com.sloth.runveal.designsystem.component.overlay.RunvealDialog
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.running.R
 import com.sloth.runveal.map.LatLon
@@ -144,8 +146,12 @@ fun RecordingScreen(
         if (state.phase == RecordingPhase.IDLE) viewModel.onIntent(RecordingIntent.StartClicked)
     }
 
-    // 뒤로가기로 화면을 못 벗어나게 한다 — 종료는 반드시 "종료하기" 버튼으로.
-    BackHandler(enabled = true) {}
+    // 뒤로가기로 화면을 못 벗어나게 한다 — 종료는 반드시 "종료하기" 버튼으로. 확인 다이얼로그가
+    // 떠 있을 때만 뒤로가기가 그걸 닫는다(Dialog가 자기 뒤로가기를 먼저 먹지만, 그 전에 이 화면이
+    // 가로채는 경우에도 같이 닫히게 둔다).
+    BackHandler(enabled = true) {
+        if (state.finishDialog != null) viewModel.onIntent(RecordingIntent.StopDismissed)
+    }
 
     // 러닝 중 지도 카메라 — 달리는 동안엔 현재 위치를 계속 따라가고(북쪽 고정), 일시정지하면 멈춘다.
     // 줌은 **시작할 때 한 번만** 맞춘다: 재개할 때 다시 맞추면 그 사이 사용자가 보려고 조절해 둔
@@ -170,7 +176,10 @@ fun RecordingScreen(
     // 따라다닌다. 패널만큼 아래를 비워 두던 카메라 여백도 이때 같이 되돌린다(러닝 중에는 그대로 둬야
     // 일시정지·드래그 때 지도가 튀지 않는다 — stopFollowingCurrentLocation KDoc).
     DisposableEffect(Unit) {
+        // 러닝 중에는 내 위치 마커에 지금 바라보는 방향을 화살표로 띄운다.
+        mapState.showsHeadingIndicator = true
         onDispose {
+            mapState.showsHeadingIndicator = false
             mapState.stopFollowingCurrentLocation(resetAnchor = true)
             mapState.followBottomInset = 0.dp
         }
@@ -256,11 +265,54 @@ fun RecordingScreen(
             ) {
                 RunvealButtonGroupEqual(
                     firstLabel = stringResource(R.string.recording_stop_button),
-                    // 화면 이동은 StopTrackingService effect를 처리한 뒤에 한다(위 CollectEffect).
-                    onFirstClick = { viewModel.onIntent(RecordingIntent.StopClicked) },
+                    // 바로 끝내지 않고 한 번 더 묻는다 — 실제 종료는 다이얼로그의 "끝내기"에서.
+                    onFirstClick = { viewModel.onIntent(RecordingIntent.StopRequested) },
                     secondLabel = stringResource(R.string.recording_resume_button),
                     onSecondClick = { viewModel.onIntent(RecordingIntent.ResumeClicked) },
                     modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        // RunvealDialog는 내용만 그리는 컴포넌트라(그 KDoc 참고) Compose의 Dialog로 감싼다 —
+        // 바깥을 누르거나 뒤로가기로 닫히는 동작을 거기서 얻는다(기록 상세의 삭제 다이얼로그와 같다).
+        state.finishDialog?.let { finishDialog ->
+            // 100m·1분을 못 채운 러닝은 저장되지 않으니, 끝내면 기록이 남는다는 안내를 그대로 쓸 수
+            // 없다 — 문구와 버튼을 "저장 없이 종료"로 바꿔 끝내기 전에 알린다.
+            val willSave = finishDialog.willSaveRecord
+            Dialog(onDismissRequest = { viewModel.onIntent(RecordingIntent.StopDismissed) }) {
+                RunvealDialog(
+                    title = stringResource(
+                        if (willSave) {
+                            R.string.recording_finish_dialog_title
+                        } else {
+                            R.string.recording_finish_dialog_unsaved_title
+                        },
+                    ),
+                    description = stringResource(
+                        if (willSave) {
+                            R.string.recording_finish_dialog_description
+                        } else {
+                            R.string.recording_finish_dialog_unsaved_description
+                        },
+                    ),
+                    confirmLabel = stringResource(
+                        if (willSave) {
+                            R.string.recording_finish_dialog_confirm
+                        } else {
+                            R.string.recording_finish_dialog_unsaved_confirm
+                        },
+                    ),
+                    cancelLabel = stringResource(
+                        if (willSave) {
+                            R.string.recording_finish_dialog_cancel
+                        } else {
+                            R.string.recording_finish_dialog_unsaved_cancel
+                        },
+                    ),
+                    // 화면 이동은 StopTrackingService effect를 처리한 뒤에 한다(위 CollectEffect).
+                    onConfirm = { viewModel.onIntent(RecordingIntent.StopClicked) },
+                    onCancel = { viewModel.onIntent(RecordingIntent.StopDismissed) },
                 )
             }
         }
