@@ -16,6 +16,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sloth.runveal.core.map.DongOverlayHolder
 import com.sloth.runveal.core.map.LocalMapState
 import com.sloth.runveal.map.MapConfig
+import com.sloth.runveal.network.dong.CurrentDongHolder
 import com.sloth.runveal.feature.tabhome.R
 import com.sloth.runveal.tabhome.component.HomeMapOverlay
 import com.sloth.runveal.tabhome.component.TOGGLE_INDEX_UNEXPLORED
@@ -37,8 +38,10 @@ internal fun HomeMapOverlayScreen(
     val context = LocalContext.current
 
     // 화면에 들어올 때 한 번만 조회한다 — 걸어 다니며 동이 바뀌는 것까지 따라가려면 위치 구독이
-    // 필요한데, 홈 라벨은 그만한 정확도가 필요 없다.
-    LaunchedEffect(Unit) { viewModel.loadCurrentDong(context) }
+    // 필요한데, 홈 라벨은 그만한 정확도가 필요 없다. 홈 배너의 "다시 시도"를 누르면 그 횟수가
+    // 바뀌면서 여기로 돌아온다(배너는 다른 모듈이라 이 ViewModel을 직접 못 부른다).
+    val retryRequests by CurrentDongHolder.retryRequests.collectAsStateWithLifecycle()
+    LaunchedEffect(retryRequests) { viewModel.loadCurrentDong(context) }
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
     var selectedToggleIndex by remember { mutableIntStateOf(0) }
 

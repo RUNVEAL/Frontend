@@ -44,9 +44,17 @@ class HomeMapOverlayViewModel : MviViewModel<Nothing, HomeMapOverlayState, Nothi
                     CurrentDongHolder.publish(result.dong)
                 }
 
-                DongResult.OutOfServiceArea -> Log.i(TAG, "서비스 지역 밖 — 동 이름 없이 둔다")
+                DongResult.OutOfServiceArea -> {
+                    Log.i(TAG, "서비스 지역 밖 — 동 이름 없이 둔다")
+                    CurrentDongHolder.publishUnavailable()
+                }
 
-                is DongResult.Failure -> Log.w(TAG, "동 조회 실패 — ${result.debugMessage}")
+                is DongResult.Failure -> {
+                    Log.w(TAG, "동 조회 실패 — ${result.debugMessage}")
+                    // 홈이 "데이터를 받지 못했어요" 배너를 띄울 수 있게 알린다 — 권한 없음·지역 밖과
+                    // 달리 이건 사용자가 다시 시도해 볼 만한 실패다.
+                    CurrentDongHolder.publishFailure()
+                }
             }
         }
     }

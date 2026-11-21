@@ -23,6 +23,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,10 +47,12 @@ import com.sloth.runveal.core.map.MapState
 import com.sloth.runveal.core.map.RunvealMap
 import com.sloth.runveal.core.map.buildVisitedRoadGeoJson
 import com.sloth.runveal.core.map.loadDongOverlayBundle
+import com.sloth.runveal.core.map.refreshDongOverlayFromServer
 import com.sloth.runveal.core.map.rememberMapState
 import com.sloth.runveal.courserecommend.navigation.courseDetailOverlay
 import com.sloth.runveal.courserecommend.navigation.courseRecommendOverlay
 import com.sloth.runveal.courserecommend.navigation.courseRecommendResultOverlay
+import com.sloth.runveal.courserecommend.navigation.savedCourseDetailOverlay
 import com.sloth.runveal.data.local.RunvealDatabaseProvider
 import com.sloth.runveal.data.local.FileStore
 import com.sloth.runveal.data.local.TrackLocalStore
@@ -86,6 +89,7 @@ import com.sloth.runveal.tabmypage.navigation.myGraph
 import com.sloth.runveal.tabrecord.navigation.recordGraph
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val HOME_BOTTOM_PANEL_INNER_INSET = 6.dp
@@ -94,8 +98,8 @@ private val HOME_BOTTOM_PANEL_INNER_INSET = 6.dp
 private const val TOAST_DURATION_MS = 3000L
 
 /**
- * 줌인 오버레이의 하단 액션 줄이 위치 안내 배너 때문에 더 높아진 패널과 안 겹치게 추가로 띄워야 하는
- * 높이. 배너(40dp) + 패널 안쪽 top padding(12dp) + 배너·탭바 사이 gap(4dp) - 패널이 대신하는
+ * 줌인 오버레이의 하단 액션 줄이 하단 패널 배너(위치 안내·서버 데이터 안내) 때문에 더 높아진 패널과
+ * 안 겹치게 추가로 띄워야 하는 높이. 배너(40dp) + 패널 안쪽 top padding(12dp) + 배너·탭바 사이 gap(4dp) - 패널이 대신하는
  * 탭바 단독 바깥 padding(16dp) = 56dp. 매칭되는 토큰이 없어 직접 계산해 하드코딩했다.
  */
 private val LOCATION_BANNER_EXTRA_INSET = 56.dp
@@ -113,7 +117,7 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     // 권한(앱)과 위치 서비스(기기)는 서로 다른 상태라 따로 본다 — 둘 중 하나만 꺼져 있어도 위치를 못 받는다.
     val locationServicesState = rememberLocationServicesState()
     val isLocationBannerNeeded = !locationPermissionState.isGranted || !locationServicesState.isEnabled
-    val appSettingsContext = LocalContext.current
+    val context = LocalContext.current
 
     /**
      * **러닝을 시작하기 전에** 위치가 준비됐는지 보고, 안 됐으면 그 자리에서 안내 바텀시트를 띄운다.
@@ -157,14 +161,18 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.HomeMap>() == true -> 0
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() == true -> 0
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Course>() == true -> 1
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.SavedCourseDetail>() == true -> 1
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Record>() == true -> 2
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.RecordDetail>() == true -> 2
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.My>() == true -> 3
         else -> 0
     }
-    val isCourseRecommendFlow = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() == true ||
+    // 지도를 깔고 그 위에 올라가는 코스 흐름 — 추천(만들기·결과·상세)과 "내 코스"에서 들어가는
+    // 코스 상세. 어느 쪽이든 탭바를 숨기고 동 경계·라벨을 걷어 코스에만 집중하게 한다.
+    val isCourseFlowOverMap = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommend>() == true ||
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseRecommendResult>() == true ||
-        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseDetail>() == true
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.CourseDetail>() == true ||
+        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.SavedCourseDetail>() == true
     // 약관 및 정책은 탭 안에서 들어가지만 그 자체로 전체 화면이라 탭바를 숨긴다 — 뒤로가기로
     // 목록·MY 탭으로 돌아온다.
     val isTermsFlow = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Terms>() == true ||
@@ -176,7 +184,7 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     val isRecordDetail = currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.RecordDetail>() == true
     // 지도 위 흐름(코스 추천, 코스 추천 결과, 코스 상세, 러닝 기록, 러닝 결과)과 약관 흐름,
     // 기록 상세에 들어가 있을 때만 탭바를 완전히 숨긴다.
-    val showTabBar = !isCourseRecommendFlow &&
+    val showTabBar = !isCourseFlowOverMap &&
         !isTermsFlow &&
         !isRecordDetail &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() != true &&
@@ -187,7 +195,7 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     // HomeMap이라 덮지 않는다.
     val isMapDestination = currentDestination == null ||
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.HomeMap>() == true ||
-        isCourseRecommendFlow ||
+        isCourseFlowOverMap ||
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() == true
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
 
@@ -203,9 +211,34 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
 
     // 지금 서 있는 동 — 조회는 홈 지도 오버레이가 하고(tab-home), 여기선 그 결과만 본다.
     val currentDong by CurrentDongHolder.state.collectAsStateWithLifecycle()
+    val isDongLoadFailed by CurrentDongHolder.loadFailed.collectAsStateWithLifecycle()
     // 요약 카드 퍼센트는 지도 빛을 정하는 값과 **같은 출처**를 쓴다 — 따로 세면 카드엔 8%인데
     // 지도는 다른 단계로 빛나는 식으로 어긋난다. 아직 안 만들어졌거나 0%면 0.
     val overlayBundle by DongOverlayHolder.state.collectAsStateWithLifecycle()
+
+    /**
+     * 서버에서 지도 데이터를 못 받은 상태. 둘 중 하나라도 실패면 참이다 — 동 이름(`/dong`)과 동
+     * 경계·탐험률(`/meta` + 지도 파일). 후자가 비면 동 테두리·라벨·빛이 통째로 안 보이고 탐험률이
+     * 전부 0%가 되는데, 지금까지는 그게 아무 설명 없이 "원래 그런 화면"처럼 보였다.
+     *
+     * 오버레이 묶음이 아직 null인 건 **만들고 있는 중**이라 실패로 보지 않는다.
+     */
+    val isServerDataMissing = isDongLoadFailed || overlayBundle?.isServerDataMissing == true
+    var isRetryingServerData by remember { mutableStateOf(false) }
+    val retryScope = rememberCoroutineScope()
+    val onRetryServerData: () -> Unit = {
+        if (!isRetryingServerData) {
+            isRetryingServerData = true
+            // 동 조회는 다른 모듈(tab-home)이 하므로 홀더로 부탁한다.
+            CurrentDongHolder.requestRetry()
+            retryScope.launch {
+                // 지금 묶음이 반영하고 있던 기록을 그대로 유지한다 — 다른 값을 넣으면 지도 레이어가
+                // 묶음을 "낡은 것"으로 보고 또 한 번 다시 만든다.
+                refreshDongOverlayFromServer(context, builtForTrackId = overlayBundle?.builtForTrackId)
+                isRetryingServerData = false
+            }
+        }
+    }
 
     val onSelectTab: (Int) -> Unit = { index ->
         val route: RunVealRoute.HomeTab = when (index) {
@@ -223,13 +256,14 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
 
     CompositionLocalProvider(
         LocalMapState provides mapState,
-        LocalMapOverlayBottomInset provides if (isLocationBannerNeeded) LOCATION_BANNER_EXTRA_INSET else 0.dp,
+        LocalMapOverlayBottomInset provides
+            if (isLocationBannerNeeded || isServerDataMissing) LOCATION_BANNER_EXTRA_INSET else 0.dp,
     ) {
         Box(modifier = modifier.fillMaxSize()) {
             HomeMapLayer(
                 mapState = mapState,
                 locationPermissionState = locationPermissionState,
-                hideRegionOverlays = isCourseRecommendFlow,
+                hideRegionOverlays = isCourseFlowOverMap,
                 modifier = Modifier.fillMaxSize(),
             )
 
@@ -289,6 +323,16 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                     resultOverlay(onClose = tabNavigator::popBackStack)
                 }
                 courseGraph(tabNavigator)
+                savedCourseDetailOverlay(
+                    onBack = tabNavigator::popBackStack,
+                    onStartRunning = {
+                        requireLocationForRun {
+                            // 상세를 먼저 떼어낸다 — 러닝이 끝나고 돌아올 자리는 "내 코스" 목록이다.
+                            tabNavigator.popBackStack()
+                            tabNavigator.navigate(RunVealRoute.HomeTab.Recording)
+                        }
+                    },
+                )
                 recordGraph(tabNavigator)
                 myGraph(
                     tabNavigator,
@@ -332,7 +376,7 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                                 // 그때는 앱 설정으로 보낸다(마이페이지의 위치 권한 줄과 같은 처리).
                                 onActionClick = {
                                     if (locationPermissionState.isPermanentlyDenied) {
-                                        appSettingsContext.openAppSettings()
+                                        context.openAppSettings()
                                     } else {
                                         locationPermissionState.request()
                                     }
@@ -346,6 +390,29 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                                 message = stringResource(R.string.home_location_services_off_banner_message),
                                 actionLabel = stringResource(R.string.home_location_services_off_banner_action),
                                 onActionClick = locationServicesState::requestEnable,
+                            )
+                        }
+                    }
+                    // 위치 안내를 먼저 띄운다 — 위치를 못 받으면 동 조회를 아예 건너뛰므로, 위치가
+                    // 꺼진 상태에서 "데이터를 받지 못했어요"를 먼저 보여 주면 엉뚱한 안내가 된다.
+                    isServerDataMissing -> {
+                        {
+                            RunvealLocationOffBanner(
+                                // 둘 중 뭘 못 받았는지에 따라 문구가 다르다 — 동 이름만 실패했으면
+                                // 지도는 제대로 보이는데 "지도 데이터를 못 받았다"는 틀린 안내가 된다.
+                                message = stringResource(
+                                    when {
+                                        isRetryingServerData ->
+                                            R.string.home_server_data_error_banner_message_retrying
+                                        overlayBundle?.isServerDataMissing == true ->
+                                            R.string.home_server_data_error_banner_message_map
+                                        else -> R.string.home_server_data_error_banner_message_dong
+                                    },
+                                ),
+                                actionLabel = stringResource(R.string.home_server_data_error_banner_action),
+                                onActionClick = onRetryServerData,
+                                icon = RunvealIcons.Alert,
+                                iconTint = RunvealTheme.colors.status.error,
                             )
                         }
                     }
@@ -439,7 +506,7 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                     when {
                         locationPermissionState.isPermanentlyDenied ->
                             RunvealLocationPermissionSettingsSheet(
-                                onSettingsClick = { appSettingsContext.openAppSettings() },
+                                onSettingsClick = { context.openAppSettings() },
                                 onCloseClick = { pendingRunStart = null },
                             )
 

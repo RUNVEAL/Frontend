@@ -21,4 +21,14 @@ data class RecordingState(
     val selectedCoursePath: List<LatLon>? = null,
     /** 선택한 코스가 순환이면 출발·도착이 같은 자리라 도착 핀을 생략한다(코스 상세와 같은 규칙). */
     val selectedCourseIsLoop: Boolean = false,
+    /** 종료 확인 다이얼로그 — 떠 있지 않으면 null. 종료는 되돌릴 수 없어서 한 번 더 묻는다
+     * (일시정지 중에만 뜬다 — 종료 버튼 자체가 그때만 보인다). */
+    val finishDialog: FinishDialog? = null,
 ) : UiState
+
+/**
+ * 종료 확인 다이얼로그에 넘길 것 — [willSaveRecord]가 false면 100m/1분을 못 채워 **저장되지 않는**
+ * 러닝이라, 문구와 버튼이 그 사실을 알리는 쪽으로 바뀐다([com.sloth.runveal.recording.RecordingSavePolicy]).
+ * 저장 여부는 다이얼로그를 띄울 때 재서 담아 둔다 — 일시정지 중이라 그 뒤로 거리·시간이 늘지 않는다.
+ */
+data class FinishDialog(val willSaveRecord: Boolean)
