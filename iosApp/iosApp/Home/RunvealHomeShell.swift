@@ -22,11 +22,6 @@ struct RunvealHomeShell: View {
     @StateObject private var permissionState = RunvealLocationPermissionState()
     @ObservedObject private var pendingCourseRun = RunvealPendingCourseRun.shared
 
-    /// **지도를 끈 채로 둔다.** 지금 `MLNMapView`를 만들면 그 자리에서 앱이 죽어서(원인은
-    /// `ios-feature/map-crash` 브랜치에서 따로 잡는 중) 지도를 켜면 UI를 볼 수가 없다.
-    /// 지도 문제가 해결되면 `false`로 바꾸고 이 상수와 아래 분기를 지운다.
-    private static let mapDisabled = true
-
     @State private var toastMessage: String?
 
     /**
@@ -86,17 +81,12 @@ struct RunvealHomeShell: View {
 
     var body: some View {
         ZStack {
-            if Self.mapDisabled {
-                // 지도 자리를 빈 바탕으로 채운다 — 그 위에 올라가는 UI 배치는 그대로 보인다.
-                RunvealTheme.colors.bg.canvas.ignoresSafeArea()
-            } else {
-                RunvealMap(
-                    state: mapState,
-                    overlay: mapData.visibleOverlay(hideRegionOverlays: isCourseRecommendFlow)
-                )
-                .ignoresSafeArea()
-                .runvealMapLayers(mapState, mapData.layers)
-            }
+            RunvealMap(
+                state: mapState,
+                overlay: mapData.visibleOverlay(hideRegionOverlays: isCourseRecommendFlow)
+            )
+            .ignoresSafeArea()
+            .runvealMapLayers(mapState, mapData.layers)
 
             content
 
