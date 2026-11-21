@@ -28,6 +28,7 @@ import com.sloth.runveal.designsystem.component.button.RunvealButton
 import com.sloth.runveal.designsystem.component.button.RunvealButtonSize
 import com.sloth.runveal.designsystem.component.button.RunvealButtonStyle
 import com.sloth.runveal.designsystem.component.button.RunvealIconButton
+import com.sloth.runveal.designsystem.component.button.RunvealIconButtonSize
 import com.sloth.runveal.designsystem.component.input.RunvealChipCondition
 import com.sloth.runveal.designsystem.component.input.RunvealChipConditionIcon
 import com.sloth.runveal.designsystem.component.input.RunvealChipDropdown
@@ -39,6 +40,10 @@ import com.sloth.runveal.feature.courserecommend.R
  * [onMyLocationClick]을 주면 패널 우측 상단 바로 위에 "내 위치" 아이콘 버튼이 떠 있는 형태로 추가된다
  * (`RunvealHomeBottomPanel`과 같은 자리·같은 방식 — 패널 바깥, 위로 띄운다).
  */
+/** "내 위치" 버튼이 차지하는 칸(터치 영역)과, 보이는 원(44)과의 차이. */
+private val MY_LOCATION_TOUCH_SIZE = 48.dp
+private val MY_LOCATION_TOUCH_INSET = 2.dp
+
 @Composable
 fun MakeCoursePanel(
     startLocation: String,
@@ -121,13 +126,16 @@ fun MakeCoursePanel(
         }
 
         if (onMyLocationClick != null) {
+            // 시안(B0)은 패널 위 16, 화면 오른쪽에서 16 떨어진 M(44) 버튼이다. 버튼이 차지하는 칸은
+            // 터치 영역(48)이라 보이는 원보다 사방 2 크다 — 그만큼 빼서 보이는 간격을 맞춘다.
             RunvealIconButton(
                 icon = RunvealIcons.Locate,
                 contentDescription = stringResource(R.string.course_create_my_location_content_description),
                 onClick = onMyLocationClick,
+                size = RunvealIconButtonSize.M,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .offset(y = -(RunvealTheme.layout.sizeIconButtonL + RunvealTheme.spacing.space12))
+                    .offset(y = -(MY_LOCATION_TOUCH_SIZE + RunvealTheme.spacing.space16 - MY_LOCATION_TOUCH_INSET))
                     .padding(end = RunvealTheme.spacing.space4),
             )
         }

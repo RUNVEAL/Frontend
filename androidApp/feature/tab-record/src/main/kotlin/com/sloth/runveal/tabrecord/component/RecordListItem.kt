@@ -39,6 +39,8 @@ fun RecordListItem(
     durationLabel: String,
     paceLabel: String,
     modifier: Modifier = Modifier,
+    /** null이면 줄을 그리지 않는다 — 처음 간 길이 없는 러닝. */
+    newRoadLabel: String? = null,
     thumbnailRequest: SnapshotRequest? = null,
     onClick: () -> Unit = {},
 ) {
@@ -118,6 +120,9 @@ fun RecordListItem(
                         Text(durationLabel, style = RunvealTheme.typography.bodyMRegular, color = colors.text.secondary)
                         Text(paceLabel, style = RunvealTheme.typography.bodyMRegular, color = colors.text.secondary)
                     }
+                    if (newRoadLabel != null) {
+                        Text(newRoadLabel, style = RunvealTheme.typography.bodyMRegular, color = colors.text.accent)
+                    }
                 }
             }
         }
@@ -134,6 +139,7 @@ private fun RecordListItemPreview() {
             distanceLabel = "5.21km",
             durationLabel = "31:40",
             paceLabel = "6′05″",
+            newRoadLabel = "새 길 +1.30km",
         )
     }
 }

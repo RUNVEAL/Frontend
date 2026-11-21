@@ -1,6 +1,8 @@
 package com.sloth.runveal.courserecommend
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,12 +17,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,6 +33,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -46,7 +49,10 @@ import com.sloth.runveal.core.map.buildRecommendedRouteGeoJson
 import com.sloth.runveal.courserecommend.contract.CourseRecommendResultIntent
 import com.sloth.runveal.courserecommend.contract.CourseRecommendResultState
 import com.sloth.runveal.courserecommend.contract.RouteCardUiModel
+import com.sloth.runveal.designsystem.RunvealIcons
 import com.sloth.runveal.designsystem.component.button.RunvealButton
+import com.sloth.runveal.designsystem.component.button.RunvealButtonGroup
+import com.sloth.runveal.designsystem.component.button.RunvealButtonGroupSingle
 import com.sloth.runveal.designsystem.component.button.RunvealButtonSize
 import com.sloth.runveal.designsystem.component.button.RunvealButtonStyle
 import com.sloth.runveal.designsystem.component.input.RunvealChipCondition
@@ -56,17 +62,25 @@ import com.sloth.runveal.designsystem.component.input.RunvealChipDropdown
 import com.sloth.runveal.designsystem.component.input.RunvealChipDropdownUsage
 import com.sloth.runveal.designsystem.component.list.RunvealCourseCard
 import com.sloth.runveal.designsystem.component.list.RunvealCourseCardState
+import com.sloth.runveal.designsystem.component.list.RunvealEmptyState
+import com.sloth.runveal.designsystem.component.list.RunvealListItem
+import com.sloth.runveal.designsystem.component.list.RunvealListItemSize
 import com.sloth.runveal.designsystem.component.map.RunvealMapMarkerType
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarStyle
+import com.sloth.runveal.designsystem.component.overlay.RunvealLoading
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.courserecommend.R
 import com.sloth.runveal.map.MapConfig
 import kotlin.math.abs
 import kotlinx.coroutines.launch
+import com.sloth.runveal.designsystem.R as DesignSystemR
 
 /** [RunvealCourseCard]의 고정 너비(240dp)와 맞춰야 캐러셀 가운데 정렬 계산이 들어맞는다. */
+/** 공용 로딩 모션 크기(시안 Z0의 80). */
+private val LOADING_SIZE = 80.dp
+
 private val COURSE_CARD_WIDTH = 240.dp
 
 /** B1 — `/api/v1/routes` 응답을 지도 위 오버레이로 보여주는 결과 화면. 지도(Map Shell)는 그대로 보이고
@@ -137,16 +151,14 @@ fun CourseRecommendResultScreen(
         }
 
         when (val current = state) {
-            is CourseRecommendResultState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            is CourseRecommendResultState.Loading ->
+                RunvealLoading(modifier = Modifier.align(Alignment.Center).size(LOADING_SIZE))
             is CourseRecommendResultState.Ready -> {
                 if (current.emptyMessage != null) {
                     EmptyResult(
                         message = current.emptyMessage,
                         onRetry = onClose,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
-                            .padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space16),
+                        modifier = Modifier.align(Alignment.TopStart),
                     )
                 } else {
                     BoxWithConstraints(
@@ -220,46 +232,104 @@ private fun SettingsSummaryRow(settings: CourseRecommendSettings, modifier: Modi
             onClick = null,
             usage = RunvealChipDropdownUsage.OnMap,
         )
-        if (settings.avoidVisitedPreferred) {
-            RunvealChipCondition(
-                checked = true,
-                onCheckedChange = {},
-                label = stringResource(R.string.course_recommend_result_avoid_visited_label),
-                usage = RunvealChipConditionUsage.OnMap,
-            )
-        }
-        if (settings.selectedFilterCount > 0) {
-            RunvealChipCondition(
-                checked = true,
-                onCheckedChange = {},
-                icon = RunvealChipConditionIcon.Filter,
-                label = settings.selectedFilterCount.toString(),
-                usage = RunvealChipConditionUsage.OnMap,
-            )
-        }
+        // 코스 만들기 패널과 같은 칩 세 개를 **항상** 보여준다 — 켠 것만 남기면 "안 가본 길 우선을
+        // 끄고 추천받은 건지, 애초에 안 보여준 건지"를 결과 화면에서 알 수 없다.
+        RunvealChipCondition(
+            checked = settings.avoidVisitedPreferred,
+            onCheckedChange = {},
+            label = stringResource(R.string.course_recommend_result_avoid_visited_label),
+            usage = RunvealChipConditionUsage.OnMap,
+        )
+        RunvealChipCondition(
+            checked = settings.selectedFilterCount > 0,
+            onCheckedChange = {},
+            icon = RunvealChipConditionIcon.Filter,
+            // 고른 필터가 없으면 아이콘만 — 코스 만들기 패널과 같은 규칙이다.
+            label = settings.selectedFilterCount.takeIf { it > 0 }?.toString(),
+            usage = RunvealChipConditionUsage.OnMap,
+        )
     }
 }
 
 @Composable
 private fun EmptyResult(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                // 앱바(56) 아래 24 — 시안(B1-1)의 Contents y=188 자리다.
+                .padding(top = RunvealTheme.layout.sizeTopAppBar + RunvealTheme.spacing.space24)
+                .padding(horizontal = RunvealTheme.layout.marginScreen),
+            verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space24),
+        ) {
+            RunvealEmptyState(
+                title = stringResource(R.string.course_recommend_result_empty_title),
+                // 왜 못 찾았는지는 서버·필터 상황마다 달라서 그대로 받아 설명 줄에 쓴다.
+                description = message,
+                graphic = {
+                    Image(painter = painterResource(R.drawable.empty_course), contentDescription = null)
+                },
+            )
+            EmptyResultHints()
+        }
+
+        RunvealButtonGroup(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
+        ) {
+            RunvealButtonGroupSingle(
+                label = stringResource(R.string.course_recommend_result_empty_action),
+                onClick = onRetry,
+            )
+        }
+    }
+}
+
+/** 조건을 어떻게 바꾸면 되는지 알려주는 줄 세 개(시안 B1-1 "설정변경 안내"). 누를 수 있는 건 아니고
+ * 읽는 안내라 클릭은 비워 둔다 — 실제 변경은 아래 "조건 다시 설정하기"로 돌아가서 한다. */
+@Composable
+private fun EmptyResultHints(modifier: Modifier = Modifier) {
     val colors = RunvealTheme.colors
     val shape = RunvealTheme.shapes.radius16
+    val hints = listOf(
+        Triple(
+            RunvealIcons.Circulation,
+            stringResource(R.string.course_recommend_result_empty_hint_loop_title),
+            stringResource(R.string.course_recommend_result_empty_hint_loop_description),
+        ),
+        Triple(
+            RunvealIcons.Distance,
+            stringResource(R.string.course_recommend_result_empty_hint_distance_title),
+            stringResource(R.string.course_recommend_result_empty_hint_distance_description),
+        ),
+        Triple(
+            RunvealIcons.Filter,
+            stringResource(R.string.course_recommend_result_empty_hint_filter_title),
+            stringResource(R.string.course_recommend_result_empty_hint_filter_description),
+        ),
+    )
 
     Column(
         modifier = modifier
+            .fillMaxWidth()
             .clip(shape)
-            .background(colors.surface.raised, shape)
-            .padding(RunvealTheme.spacing.space24),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space20),
+            .background(colors.surface.default, shape)
+            .border(1.dp, colors.border.default, shape)
+            .padding(horizontal = RunvealTheme.spacing.space16),
     ) {
-        Text(message, style = RunvealTheme.typography.bodyLRegular, color = colors.text.secondary, textAlign = TextAlign.Center)
-        RunvealButton(
-            label = stringResource(R.string.course_recommend_result_empty_action),
-            onClick = onRetry,
-            style = RunvealButtonStyle.Gold,
-            size = RunvealButtonSize.L,
-        )
+        hints.forEachIndexed { index, (icon, title, description) ->
+            RunvealListItem(
+                title = title,
+                description = description,
+                leadingIcon = icon,
+                size = RunvealListItemSize.L,
+                onClick = {},
+                showDivider = index != hints.lastIndex,
+            )
+        }
     }
 }
 

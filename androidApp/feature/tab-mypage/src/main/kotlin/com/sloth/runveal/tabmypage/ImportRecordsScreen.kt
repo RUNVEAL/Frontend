@@ -151,12 +151,14 @@ internal fun ImportRecordsScreen(
         toastMessageRes?.let { messageRes ->
             RunvealToast(
                 message = stringResource(messageRes),
+                // 시안(Overlay/Toast)은 하단 — 내비게이션 바 위 8.
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
                     .padding(
-                        horizontal = RunvealTheme.layout.marginScreen,
-                        vertical = RunvealTheme.spacing.space16,
+                        start = RunvealTheme.layout.marginScreen,
+                        end = RunvealTheme.layout.marginScreen,
+                        bottom = RunvealTheme.spacing.space8,
                     ),
             )
         }

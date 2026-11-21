@@ -26,6 +26,8 @@ fun MonthlyRunningSummary(
     newRoadValue: String,
     newRoadUnit: String,
     modifier: Modifier = Modifier,
+    /** 이번 달에 처음 간 길이 있는지 — 0이면 시안처럼 금색 강조를 빼고 보조 글자색으로 둔다. */
+    hasNewRoad: Boolean = true,
 ) {
     val colors = RunvealTheme.colors
 
@@ -67,23 +69,24 @@ fun MonthlyRunningSummary(
             }
         }
 
+        val newRoadColor = if (hasNewRoad) colors.text.accent else colors.text.secondary
         Row(
             // 36dp에 맞는 spacing 토큰이 없어 그대로 하드코딩.
             horizontalArrangement = Arrangement.spacedBy(36.dp),
             verticalAlignment = Alignment.Bottom,
         ) {
-            Text(newRoadLabel, style = RunvealTheme.typography.bodyLRegular, color = colors.text.accent)
+            Text(newRoadLabel, style = RunvealTheme.typography.bodyLRegular, color = newRoadColor)
             Row(horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space2)) {
                 Text(
                     newRoadValue,
                     style = RunvealTheme.typography.numM,
-                    color = colors.text.accent,
+                    color = newRoadColor,
                     modifier = Modifier.alignByBaseline(),
                 )
                 Text(
                     newRoadUnit,
                     style = RunvealTheme.typography.unitM,
-                    color = colors.text.accent,
+                    color = newRoadColor,
                     modifier = Modifier.alignByBaseline(),
                 )
             }

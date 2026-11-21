@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
@@ -61,6 +62,7 @@ import com.sloth.runveal.designsystem.RunvealIcons
 import com.sloth.runveal.designsystem.component.button.RunvealButtonGroupEqual
 import com.sloth.runveal.designsystem.component.button.RunvealRunPauseButton
 import com.sloth.runveal.designsystem.component.map.RunvealMapMarkerType
+import com.sloth.runveal.designsystem.component.map.RunvealNavigationBanner
 import com.sloth.runveal.designsystem.component.overlay.RunvealDialog
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.running.R
@@ -238,13 +240,25 @@ fun RecordingScreen(
 
     Box(modifier = modifier.fillMaxSize()) {
         if (state.phase != RecordingPhase.IDLE) {
-            NewRoadBadge(
-                distanceLabel = state.newRoadLabel,
+            Column(
                 modifier = Modifier
                     .align(Alignment.TopStart)
+                    .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(start = RunvealTheme.layout.marginScreen, top = RunvealTheme.spacing.space16),
-            )
+                    .padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space16),
+                verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
+            ) {
+                // 일시정지 중에는 기록이 멈췄다는 걸 지도 위에서도 알린다(시안 C0-1) — 하단 패널의
+                // 숫자가 멈춘 것만으로는 멈췄는지 느린지 알기 어렵다.
+                if (state.phase == RecordingPhase.PAUSED) {
+                    RunvealNavigationBanner(
+                        icon = RunvealIcons.Pause,
+                        instruction = stringResource(R.string.recording_paused_banner_title),
+                        description = stringResource(R.string.recording_paused_banner_description),
+                    )
+                }
+                NewRoadBadge(distanceLabel = state.newRoadLabel)
+            }
         }
         when (state.phase) {
             // 시작 직후 TrackRecorder.state가 아직 안 바뀐 찰나 — 그릴 게 없다.
@@ -388,9 +402,9 @@ private fun MapLegendRow(onLocateClick: () -> Unit, showCourseGuide: Boolean, mo
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.Bottom,
     ) {
-        Column {
+        LegendChip {
             if (showCourseGuide) {
-                LegendChip {
+                Row {
                     // 지도 위 안내선([CourseGuideLayer])과 같은 색(text.primary, 흰색) · 같은 점선.
                     LegendItem(
                         swatchColor = colors.text.primary,
@@ -399,7 +413,7 @@ private fun MapLegendRow(onLocateClick: () -> Unit, showCourseGuide: Boolean, mo
                     )
                 }
             }
-            LegendChip {
+            Row(horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12)) {
                 LegendItem(swatchColor = colors.map.roadToday, label = stringResource(R.string.recording_legend_today_label))
                 LegendItem(
                     swatchColor = colors.map.roadNew,
@@ -433,12 +447,13 @@ private fun MapLegendRow(onLocateClick: () -> Unit, showCourseGuide: Boolean, mo
 /** 범례 칩 하나 — 배경(`bg.scrim`)으로 묶인 [LegendItem] 한 줄. "추천 코스"는 단독 칩으로,
  * "오늘 달린 길"/"새로 탐험한 길"은 같은 칩 안에 묶는다([MapLegendRow]). */
 @Composable
-private fun LegendChip(content: @Composable RowScope.() -> Unit) {
-    Row(
+private fun LegendChip(content: @Composable ColumnScope.() -> Unit) {
+    // 시안(C0)은 추천 코스 줄과 길 색 줄을 **한 상자** 안에 4 간격으로 쌓는다.
+    Column(
         modifier = Modifier
             .background(RunvealTheme.colors.bg.scrim, RunvealTheme.shapes.radius8)
             .padding(horizontal = RunvealTheme.spacing.space12, vertical = RunvealTheme.spacing.space8),
-        horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
+        verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
         content = content,
     )
 }
