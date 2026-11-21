@@ -41,6 +41,10 @@ internal fun NavGraphBuilder.splashGraph(navigator: RunVealNavigator) {
             // 떠오른다. /meta와 **같이** 시작한다 — 서버가 죽어 있으면 /meta가 타임아웃까지 10초를
             // 쓰는데, 그 뒤에 시작하면 스플래시가 그만큼 더 길어진다. 서버 지도 파일을 쓸지 번들
             // 에셋으로 갈지는 loadDongOverlayBundle 안에서 MetaHolder를 잠깐 기다려 보고 정한다.
+            // 개발용 더미 기록 — 이번 달 기록이 하나도 없을 때만 한 번 넣는다(DebugTrackSeeder 주석).
+            // ⚠️ 빌드 종류를 가리지 않는다(릴리즈 포함) — 확인이 끝나면 이 줄과 그 파일을 지울 것.
+            withContext(Dispatchers.IO) { DebugTrackSeeder.seedIfEmpty(context) }
+
             val overlayWarmUp = launch {
                 try {
                     DongOverlayHolder.publish(loadDongOverlayBundle(context, builtForTrackId = null))
