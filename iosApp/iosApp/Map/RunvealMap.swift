@@ -163,15 +163,31 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
             refreshMarkerPositions()
         }
 
+        /// [clampToKoreaBoundsIfNeeded]가 부른 `setCenter` 안인가 — 재진입을 막는다.
+        private var isClampingToKorea = false
+
         /// MapLibre iOS에는 Android의 `setLatLngBoundsForCameraTarget`에 해당하는 API가 없어서,
         /// 카메라가 멈출 때 한국 범위를 벗어났으면 되돌린다.
+        ///
+        /// **자기가 부른 `setCenter` 안에서는 다시 들어오지 않는다.** MapLibre가 카메라를 옮길 수 없는
+        /// 상태(뷰 크기가 아직 0×0, 또는 줌이 낮아 세계 전체가 화면에 들어가 위도가 0에 고정)에서는
+        /// `setCenter`가 위치를 못 바꾼 채 `regionDidChangeAnimated`를 **동기로** 다시 부른다. 그러면
+        /// 여기서 또 옮기라고 하고, 끝없이 반복돼 스택이 넘쳐 홈 진입 때 앱이 죽었다.
+        /// 비교에 오차를 두는 것도 같은 이유다 — 되돌아온 경도가 124.49999999999999처럼 미세하게 달라
+        /// 정확히 비교하면 "아직 밖"으로 보고 계속 옮긴다.
         private func clampToKoreaBoundsIfNeeded(_ mapView: MLNMapView) {
+            guard !isClampingToKorea else { return }
             let northWest = RunvealMapConfig.koreaBoundsNorthWest
             let southEast = RunvealMapConfig.koreaBoundsSouthEast
             let center = mapView.centerCoordinate
             let clampedLat = min(max(center.latitude, southEast.lat), northWest.lat)
             let clampedLon = min(max(center.longitude, northWest.lon), southEast.lon)
-            guard clampedLat != center.latitude || clampedLon != center.longitude else { return }
+            let epsilon = 1e-6
+            guard abs(clampedLat - center.latitude) > epsilon || abs(clampedLon - center.longitude) > epsilon else {
+                return
+            }
+            isClampingToKorea = true
+            defer { isClampingToKorea = false }
             mapView.setCenter(
                 CLLocationCoordinate2D(latitude: clampedLat, longitude: clampedLon),
                 animated: true
