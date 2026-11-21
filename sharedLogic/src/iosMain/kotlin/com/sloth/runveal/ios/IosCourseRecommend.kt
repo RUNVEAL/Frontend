@@ -130,9 +130,16 @@ object IosCourseRecommend {
         return courseId
     }
 
-    /** 저장 직후 "내 코스" 탭 썸네일을 미리 만들 때 쓰는 요청. */
-    fun thumbnailRequest(courseId: String, path: List<LatLon>): SnapshotRequest? =
-        IosSnapshot.request(path, courseId, SnapshotVariant.THUMBNAIL)
+    /** 저장 직후 "내 코스" 탭 썸네일을 미리 만들 때 쓰는 요청. 목록에서 다시 만들 때와 같은
+     *  조건이어야 캐시가 맞는다([IosCourseList]) — 순환 코스면 도착 점을 빼고 출발만 찍는다. */
+    fun thumbnailRequest(courseId: String, path: List<LatLon>, isLoop: Boolean): SnapshotRequest? =
+        IosSnapshot.request(
+            points = path,
+            ownerId = courseId,
+            variant = SnapshotVariant.THUMBNAIL,
+            withStartMarker = true,
+            withEndMarker = !isLoop,
+        )
 
     /** `RouteDto.path`(GeoJSON `[lng, lat]`)를 지도에 그릴 좌표로. */
     fun pathOf(route: RouteDto): List<LatLon> =

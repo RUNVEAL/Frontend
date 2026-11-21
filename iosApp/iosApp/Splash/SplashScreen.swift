@@ -30,19 +30,35 @@ struct SplashScreen: View {
     @State private var overlayWarmUpFinished = false
 
     var body: some View {
-        VStack(spacing: RunvealSpacing.space24) {
+        VStack(spacing: RunvealSpacing.space16) {
             RunvealImages.splash
                 .resizable()
                 .scaledToFit()
                 .frame(width: 210, height: 140)
             Text(SplashStrings.tagline)
                 .runvealTextStyle(RunvealTheme.typography.heading2)
-                .foregroundStyle(RunvealTheme.colors.text.primary)
+                .foregroundStyle(RunvealTheme.colors.text.secondary)
                 .multilineTextAlignment(.center)
         }
         .padding(.horizontal, RunvealLayout.marginScreen)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(RunvealTheme.colors.bg.canvas)
+        .background {
+            ZStack {
+                RunvealTheme.colors.bg.canvas
+                // 우상단에서 번져 내려오는 금빛 — 시안 `L0-1 스플래시`의 배경 그라데이션
+                // (CSS 212.83deg = 좌하단으로 흐르므로 시작이 우상단이다). 끝 색은 투명이라
+                // 중간부터는 canvas만 남는다.
+                LinearGradient(
+                    stops: [
+                        .init(color: RunvealTheme.colors.accent.default.opacity(0.3), location: 0.035),
+                        .init(color: .clear, location: 0.626),
+                    ],
+                    startPoint: .topTrailing,
+                    endPoint: .bottomLeading
+                )
+            }
+            .ignoresSafeArea()
+        }
         .task { await bootstrap() }
     }
 
@@ -52,13 +68,11 @@ struct SplashScreen: View {
     /// 스플래시가 그대로 남는다. `@State` 플래그를 읽고 쓰는 쪽도 같은 이유로 여기 묶는다.
     @MainActor
     private func bootstrap() async {
-        RunvealTrace.step(.bootstrapStart)
         // 홈이 홀더로 받아 쓰니 스플래시를 넘어가도 계속 돌아야 한다 — 그래서 구조적 자식이 아니라
         // 별도 Task로 띄우고, 상한은 "기다리는 쪽"에만 둔다.
         Task {
             await warmUpDongOverlay()
             overlayWarmUpFinished = true
-            RunvealTrace.step(.overlayFlagSet)
         }
         // 어디로 보낼지는 `/meta`보다 **먼저** 정해 둔다 — 서버가 죽어 있으면 `/meta`가 타임아웃까지
         // 10초를 쓰는데, 그 뒤에 판정하면 그만큼 늦어진다(Android `splashGraph`와 같다).
@@ -67,7 +81,6 @@ struct SplashScreen: View {
         let goingHome = destination == .home
 
         let metaSucceeded = await fetchMeta()
-        RunvealTrace.step(metaSucceeded ? .metaDone : .metaFailed)
 
         if !metaSucceeded {
             try? await Task.sleep(for: Self.minimumVisibleDuration)
@@ -77,7 +90,6 @@ struct SplashScreen: View {
             await waitForOverlayWarmUp()
         }
 
-        RunvealTrace.step(.navigatingNext, goingHome ? "홈" : "온보딩")
         onFinished(destination)
     }
 
@@ -98,23 +110,19 @@ struct SplashScreen: View {
                 return
             }
         }
-        RunvealTrace.step(overlayWarmUpFinished ? .overlayWaitFinished : .overlayWaitTimedOut)
     }
 
     /// **메인 액터 밖에서 돈다**(`nonisolated`). 전국 경계 파싱과 Kotlin Map → Swift Dictionary
     /// 변환(동 3천여 개의 폴리곤)이 무거워서, 메인에서 돌리면 그 동안 화면이 멈추는 건 물론
     /// 상한을 재는 `waitForOverlayWarmUp()`까지 같이 멈춰 상한이 무의미해진다.
     private nonisolated func warmUpDongOverlay() async {
-        RunvealTrace.step(.overlayWarmUpStart)
         do {
             let bundle = try await RunvealDongOverlayLoader.load(builtForTrackId: nil)
-            RunvealTrace.step(.overlayBuilt)
             // 홀더는 `@MainActor`다 — 비격리 컨텍스트에서 부르니 await로 넘긴다.
             await RunvealDongOverlayHolder.shared.publish(bundle)
-            RunvealTrace.step(.overlayPublished)
         } catch {
             // 홈에서 다시 시도한다.
-            RunvealTrace.step(.overlayFailed, "\(error)")
+            print("[Splash] 동 오버레이 사전 생성 실패 — 홈에서 다시 시도한다: \(error)")
         }
     }
 
@@ -134,7 +142,7 @@ struct SplashScreen: View {
         } catch {
             // 못 읽으면 홈으로 보낸다 — 온보딩을 한 번 더 보여주는 것보다, 첫 화면을 못 띄우는
             // 쪽이 나쁘다.
-            RunvealTrace.step(.onboardingCheckFailed, "\(error)")
+            print("[Splash] 온보딩 완료 여부를 못 읽었다: \(error)")
             return .home
         }
     }

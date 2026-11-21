@@ -78,6 +78,18 @@ enum MapExpressions {
     /// 하나만 쓸 수 있어서 글자 색을 나누지 못한다. 문자열 합치기도 스타일 식으로 하지 않고
     /// `IosDongOverlayBuilder`가 GeoJSON의 `label` 프로퍼티에 미리 두 줄로 만들어 둔 값을 쓴다 —
     /// 식으로 조립하면 SDK 버전마다 함수 이름이 달라 깨지기 쉽다.
+    /// 라벨이 겹쳐 하나만 남을 때 **탐험률 높은 쪽**을 살리는 정렬 키.
+    ///
+    /// `symbolSortKey`는 **값이 낮은 심볼이 먼저 배치되고** 자리를 차지한다 — 그래서 탐험률에
+    /// -1을 곱해 높은 쪽이 먼저 놓이게 한다. Android `DongOverlayLayer`/`SigunguOverlayLayer`와
+    /// 같은 규칙이고, 라벨 GeoJSON의 숫자 속성 `percent`를 쓴다(표시용 `percentValue`는 문자열이다).
+    static var labelSortKeyByPercent: NSExpression {
+        NSExpression(
+            forFunction: "multiply:by:",
+            arguments: [NSExpression(forConstantValue: -1), NSExpression(forKeyPath: "percent")]
+        )
+    }
+
     static var dongLabelText: NSExpression {
         NSExpression(forKeyPath: "label")
     }

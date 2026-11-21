@@ -31,11 +31,15 @@ struct CourseScreen: View {
             colors.bg.canvas.ignoresSafeArea()
 
             // 화면 맨 위부터 깔리는 히어로 이미지 — 원본 비율(1920:544)대로 보여준다.
+            //
+            // **`.fill`을 쓰면 안 된다.** SwiftUI의 fill은 제안된 공간을 *덮도록* 키우는데, ZStack이
+            // 화면 세로 전체를 제안하므로 비율을 맞추려고 가로로 수천 pt까지 커진다(가운데만 보여
+            // 화면을 몇 배 확대한 꼴이 된다). `.fit`이면 가로에 맞춰 들어가고 높이가 비율대로
+            // 정해진다 — Android의 `fillMaxWidth().aspectRatio(...)`와 같은 결과다.
             RunvealImages.myCourse
                 .resizable()
-                .aspectRatio(1920.0 / 544.0, contentMode: .fill)
+                .aspectRatio(1920.0 / 544.0, contentMode: .fit)
                 .frame(maxWidth: .infinity)
-                .clipped()
                 .ignoresSafeArea(edges: .top)
                 .allowsHitTesting(false)
 

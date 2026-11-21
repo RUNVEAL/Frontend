@@ -63,6 +63,12 @@ final class RunvealMapState: ObservableObject {
     /// 하위 화면이 선언한 선 레이어 — 소스 ID → GeoJSON.
     @Published private(set) var layers: [String: String] = [:]
 
+    /// 현재 위치 마커에 "지금 바라보는 방향" 화살표를 띄울지(러닝 중). 기기 나침반(지자기 센서)을
+    /// 따라 도는 부채꼴이 마커 둘레에 붙는다 — 달리는 방향(GPS 진행 방향)이 아니라 **기기가 향한
+    /// 쪽**이다. 홈 지도처럼 둘러보기만 하는 화면에서는 꺼 둔다(가만히 서 있어도 계속 떨린다).
+    /// Android `MapState.showsHeadingIndicator`.
+    @Published var showsHeadingIndicator = false
+
     init(
         initialCenter: LatLon = RunvealMapConfig.seoulCityHall,
         initialZoom: Double = RunvealMapConfig.initialZoom

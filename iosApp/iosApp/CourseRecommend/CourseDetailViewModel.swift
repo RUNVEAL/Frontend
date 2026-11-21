@@ -58,7 +58,7 @@ final class CourseDetailViewModel: MviViewModel<CourseDetailIntent, CourseDetail
         }.value
         guard let courseId else { return }
 
-        await prerenderThumbnail(courseId: courseId, path: ready.path)
+        await prerenderThumbnail(courseId: courseId, path: ready.path, isLoop: ready.isLoop)
         setState { state in
             guard case .ready(var next) = state else { return state }
             next.isSaved = true
@@ -68,8 +68,12 @@ final class CourseDetailViewModel: MviViewModel<CourseDetailIntent, CourseDetail
 
     /// "내 코스" 탭 목록·추천 카드가 쓸 썸네일을 저장 시점에 같이 만들어 캐시해 둔다. 실패해도 코스
     /// 저장 자체는 이미 끝났으니 조용히 무시한다 — 목록은 캐시가 없으면 플레이스홀더를 보여준다.
-    private func prerenderThumbnail(courseId: String, path: [LatLon]) async {
-        guard let request = IosCourseRecommend.shared.thumbnailRequest(courseId: courseId, path: path) else { return }
+    private func prerenderThumbnail(courseId: String, path: [LatLon], isLoop: Bool) async {
+        guard let request = IosCourseRecommend.shared.thumbnailRequest(
+            courseId: courseId,
+            path: path,
+            isLoop: isLoop
+        ) else { return }
         let sizePx = Int(Self.thumbnailSize * UIScreen.main.scale)
         _ = await CourseSnapshotRenderer.shared.imageURL(request: request, widthPx: sizePx, heightPx: sizePx)
     }

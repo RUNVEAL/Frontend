@@ -21,6 +21,11 @@ data class MonthlyRecordItem(
 /** 기록 탭이 보여줄 이번 달 요약 + 목록. */
 data class MonthlyRecordSummary(
     val monthLabel: String,
+    /** 지금 보고 있는 달 — 월 선택 패널이 어디에 표시를 둘지 정하는 데 쓴다. */
+    val selectedYear: Int,
+    val selectedMonth: Int,
+    /** 요약 줄 앞머리("이번 달" 또는 "10월") — 보고 있는 달이 이번 달이 아닐 수 있다. */
+    val periodLabel: String,
     val runCountLabel: String,
     val totalDistanceValue: String,
     val newRoadValue: String,
@@ -30,14 +35,19 @@ data class MonthlyRecordSummary(
 /**
  * 기록 탭 데이터 — Android `RecordViewModel`의 DB 조회·포맷 부분에 해당한다.
  *
- * 월 선택 UI가 붙기 전까지 기간은 항상 "이번 달"이다.
+ * 보고 있는 달은 화면이 들고 있고([load]에 넘긴다), 기본은 이번 달이다.
  */
 object IosRecordList {
 
     private val store by lazy { TrackLocalStore(RunvealDatabaseProvider.database, FileStore()) }
 
-    fun loadThisMonth(): MonthlyRecordSummary {
-        val (from, to) = IosDateFormat.thisMonthRange()
+    /** 이번 달 — 화면이 처음 열릴 때. */
+    fun loadThisMonth(): MonthlyRecordSummary =
+        load(IosDateFormat.currentYear(), IosDateFormat.currentMonth())
+
+    /** 월 선택에서 고른 달. */
+    fun load(year: Int, month: Int): MonthlyRecordSummary {
+        val (from, to) = IosDateFormat.monthRange(year, month)
 
         val tracks = store.tracksBetween(from, to)
         val newRoadMeters = store.newRoadMetersBetween(from, to)
@@ -49,7 +59,10 @@ object IosRecordList {
         val totalDistanceMeters = tracks.sumOf { it.distanceMeters }
 
         return MonthlyRecordSummary(
-            monthLabel = IosDateFormat.currentMonthLabel(),
+            monthLabel = IosDateFormat.monthLabel(year, month),
+            selectedYear = year,
+            selectedMonth = month,
+            periodLabel = IosDateFormat.periodLabel(year, month),
             runCountLabel = "${tracks.size}회",
             totalDistanceValue = formatKilometers(totalDistanceMeters, 2),
             newRoadValue = "+" + formatKilometers(newRoadMeters, 2),

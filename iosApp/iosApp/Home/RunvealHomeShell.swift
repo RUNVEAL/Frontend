@@ -24,12 +24,6 @@ struct RunvealHomeShell: View {
 
     @State private var toastMessage: String?
 
-    /// 임시 진단 — `@StateObject` 프로퍼티들이 전부 만들어진 뒤에 불린다. 여기까지 찍히면 홈의
-    /// 모델 생성은 끝난 것이고, 그다음 멈추면 `body`(지도 포함)를 그리는 쪽이다.
-    init() {
-        RunvealTrace.step(.homeShellInit)
-    }
-
     /**
      러닝을 시작하기 전에 위치가 준비됐는지 보고, 안 됐으면 그 자리에서 안내 시트를 띄운다.
      여기에 담긴 동작은 권한·위치 서비스가 갖춰지면 이어서 실행된다.
@@ -86,9 +80,6 @@ struct RunvealHomeShell: View {
     }
 
     var body: some View {
-        // `@StateObject`들이 다 만들어진 뒤 처음 그릴 때 한 번 — 모델 생성과 지도 뷰 생성 사이
-        // 어디서 멈추는지 가른다.
-        let _ = RunvealTrace.once(.homeBodyEvaluated)
         ZStack {
             RunvealMap(
                 state: mapState,
@@ -118,10 +109,7 @@ struct RunvealHomeShell: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .environment(\.runvealMapOverlayBottomInset, isLocationBannerNeeded ? Self.locationBannerExtraInset : 0)
         .requireLocationPermission(permissionState)
-        .onAppear {
-            RunvealTrace.step(.homeShellAppeared)
-            mapData.start()
-        }
+        .onAppear { mapData.start() }
         .onDisappear { mapData.stop() }
         // "내 코스" 탭에서 코스를 바로 시작하면(탭 화면은 내비게이터를 직접 못 만진다) 여기서 받아
         // 기록 흐름으로 넘어간다 — 코스 자체는 `SelectedCourseHolder`에 이미 담겨 있다.
@@ -173,7 +161,7 @@ struct RunvealHomeShell: View {
         case .course:
             CourseScreen(onCreateCourseClick: { navigator.push(.courseRecommend) })
         case .record:
-            RecordScreen()
+            RecordScreen(onRecordClick: { trackId in navigator.push(.recordDetail(trackId: trackId)) })
         case .my:
             MyScreen(
                 permissionState: permissionState,
@@ -221,6 +209,8 @@ struct RunvealHomeShell: View {
             )
         case .result:
             ResultScreen(onClose: { navigator.popToTab() })
+        case .recordDetail(let trackId):
+            RecordDetailScreen(trackId: trackId, onBack: { navigator.pop() })
         case .termsDetail(let item):
             TermsDetailScreen(item: item, onBack: { navigator.pop() })
         }
