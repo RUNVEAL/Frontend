@@ -44,15 +44,37 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
             sendEffect(.pauseTracking)
         case .resumeClicked:
             sendEffect(.resumeTracking)
+        case .stopRequested:
+            setState { state in
+                var next = state
+                next.finishDialog = RecordingFinishDialog(willSaveRecord: Self.isRecordSavable())
+                return next
+            }
+        case .stopDismissed:
+            setState { state in
+                var next = state
+                next.finishDialog = nil
+                return next
+            }
         case .stopClicked:
+            setState { state in
+                var next = state
+                next.finishDialog = nil
+                return next
+            }
             // 저장 여부는 여기서 한 번만 정해 트래커까지 그대로 넘긴다 — 트래커가 따로 다시 판단하면
             // 그 사이 1분/100m 경계를 넘겨서 "홈으로 돌려보냈는데 기록은 저장됨" 같은 어긋남이 생긴다.
-            let savable = RecordingSavePolicy.shared.isSavable(
-                distanceMeters: RunvealRecorder.shared.totalDistanceMeters(),
-                elapsedMs: RunvealRecorder.shared.elapsedMs(nowEpochMs: Self.nowEpochMs)
-            )
-            sendEffect(.stopTracking(saveRecord: savable))
+            sendEffect(.stopTracking(saveRecord: Self.isRecordSavable()))
         }
+    }
+
+    /// 지금 끝내면 기록이 저장되는지(100m·1분). 다이얼로그 문구와 실제 저장 판정이 같은 값을 쓰도록
+    /// 한 곳에 둔다(Android `RecordingViewModel.isRecordSavable`).
+    private static func isRecordSavable() -> Bool {
+        RecordingSavePolicy.shared.isSavable(
+            distanceMeters: RunvealRecorder.shared.totalDistanceMeters(),
+            elapsedMs: RunvealRecorder.shared.elapsedMs(nowEpochMs: nowEpochMs)
+        )
     }
 
     private func observeRecording() {

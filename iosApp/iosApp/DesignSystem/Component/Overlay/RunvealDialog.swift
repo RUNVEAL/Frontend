@@ -60,7 +60,13 @@ struct RunvealDialog: View {
         }
         .padding(RunvealSpacing.space16)
         .frame(width: RunvealLayout.sizeDialogWidth)
-        .runvealGlass(RunvealShapes.radius24)
+        // 시안(Overlay/Dialog)이 주는 색을 그대로 쓴다 — surface/default(#272626 50%) +
+        // border/default(#443F3D). `runvealGlass`를 쓰지 않는 건 그쪽이 배경 블러가 없는 걸
+        // 메우려고 불투명도를 올린 fallback이어서다. 다이얼로그는 뒤에 스크림이 깔려서
+        // 50%로도 글자가 묻히지 않는다(Android와 같은 판단).
+        .background(colors.surface.default, in: RunvealShapes.radius24)
+        .overlay { RunvealShapes.radius24.stroke(colors.border.default, lineWidth: 1) }
+        .clipShape(RunvealShapes.radius24)
     }
 }
 

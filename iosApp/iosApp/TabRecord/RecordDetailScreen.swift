@@ -110,19 +110,20 @@ struct RecordDetailScreen: View {
             .presentationDragIndicator(.hidden)
             .presentationDetents([.height(320)])
         }
-        .overlay {
-            if viewModel.state.ready?.isDeleteDialogVisible == true {
-                RunvealDialog(
-                    title: TabRecordStrings.deleteDialogTitle,
-                    confirmLabel: TabRecordStrings.deleteDialogConfirm,
-                    cancelLabel: TabRecordStrings.deleteDialogCancel,
-                    description: TabRecordStrings.deleteDialogDescription,
-                    // 되돌릴 수 없는 동작이라 확인 버튼을 빨갛게 둔다.
-                    type: .destructive,
-                    onConfirm: { viewModel.onIntent(.deleteConfirmed) },
-                    onCancel: { viewModel.onIntent(.deleteDismissed) }
-                )
-            }
+        .runvealDialog(
+            isPresented: viewModel.state.ready?.isDeleteDialogVisible == true,
+            onDismiss: { viewModel.onIntent(.deleteDismissed) }
+        ) {
+            RunvealDialog(
+                title: TabRecordStrings.deleteDialogTitle,
+                confirmLabel: TabRecordStrings.deleteDialogConfirm,
+                cancelLabel: TabRecordStrings.deleteDialogCancel,
+                description: TabRecordStrings.deleteDialogDescription,
+                // 되돌릴 수 없는 동작이라 확인 버튼을 빨갛게 둔다.
+                type: .destructive,
+                onConfirm: { viewModel.onIntent(.deleteConfirmed) },
+                onCancel: { viewModel.onIntent(.deleteDismissed) }
+            )
         }
         .onDisappear { viewModel.cancelRunningTasks() }
     }

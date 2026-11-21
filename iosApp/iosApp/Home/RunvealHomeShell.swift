@@ -57,10 +57,11 @@ struct RunvealHomeShell: View {
         !permissionState.isGranted || !permissionState.isLocationServicesEnabled
     }
 
-    /// 코스 추천 흐름(만들기/결과/상세)에 들어가 있으면 지역 오버레이를 숨긴다.
+    /// 지도를 깔고 그 위에 올라가는 코스 흐름 — 추천(만들기·결과·상세)과 "내 코스"에서 들어가는
+    /// 코스 상세. 어느 쪽이든 동 경계·라벨을 걷어 코스에만 집중하게 한다(Android와 같은 규칙).
     private var isCourseRecommendFlow: Bool {
         switch navigator.currentOverlay {
-        case .courseRecommend, .courseRecommendResult, .courseDetail:
+        case .courseRecommend, .courseRecommendResult, .courseDetail, .savedCourseDetail:
             return true
         default:
             return false
@@ -159,7 +160,10 @@ struct RunvealHomeShell: View {
                 onRunStartClick: { requireLocationForRun { navigator.push(.recording) } }
             )
         case .course:
-            CourseScreen(onCreateCourseClick: { navigator.push(.courseRecommend) })
+            CourseScreen(
+                onCreateCourseClick: { navigator.push(.courseRecommend) },
+                onCourseClick: { course in navigator.push(.savedCourseDetail(courseId: course.id)) }
+            )
         case .record:
             RecordScreen(onRecordClick: { trackId in navigator.push(.recordDetail(trackId: trackId)) })
         case .my:
@@ -188,12 +192,25 @@ struct RunvealHomeShell: View {
         case .courseDetail(let routeId):
             CourseDetailScreen(
                 mapState: mapState,
-                routeId: routeId,
+                source: .recommended(id: routeId),
                 onBack: { navigator.pop() },
                 // 코스 추천 흐름 스택을 전부 지우고 들어간다 — 안 지우면 러닝 종료 후 뒤로가기/닫기로
                 // 홈이 아니라 코스 추천 화면으로 돌아간다.
                 // 코스 상세에서 "이 코스로 러닝 시작" — 여기서부터 위치가 필요하다.
                 onStartRunning: { requireLocationForRun { navigator.replaceStack(with: .recording) } }
+            )
+        case .savedCourseDetail(let courseId):
+            CourseDetailScreen(
+                mapState: mapState,
+                source: .saved(id: courseId),
+                onBack: { navigator.pop() },
+                // 상세를 먼저 떼어낸다 — 러닝이 끝나고 돌아올 자리는 "내 코스" 목록이다.
+                onStartRunning: {
+                    requireLocationForRun {
+                        navigator.pop()
+                        navigator.push(.recording)
+                    }
+                }
             )
         case .recording:
             RecordingScreen(

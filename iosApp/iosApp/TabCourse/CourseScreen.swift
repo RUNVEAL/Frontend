@@ -21,6 +21,8 @@ enum TabCourseStrings {
 /// 탭을 나갔다 들어올 때마다 다시 불러온다 — 그 사이 새로 저장한 코스가 반영돼야 한다.
 struct CourseScreen: View {
     let onCreateCourseClick: () -> Void
+    /// 목록에서 한 건을 누르면 코스 상세로 — 값은 id만 넘기고 화면이 로컬 DB에서 다시 읽는다.
+    let onCourseClick: (SavedCourseItem) -> Void
 
     @State private var courses: [SavedCourseItem] = []
     @State private var isLoading = true
@@ -74,6 +76,7 @@ struct CourseScreen: View {
                                 SavedCourseListItem(
                                     course: course,
                                     onMoreClick: {},
+                                    onClick: { onCourseClick(course) },
                                     onStartClick: { start(course: course) }
                                 )
                             }
@@ -282,6 +285,8 @@ private struct SavedCourseSectionHeader: View {
 private struct SavedCourseListItem: View {
     let course: SavedCourseItem
     let onMoreClick: () -> Void
+    /// 줄 전체를 눌렀을 때 — 코스 상세로 간다.
+    let onClick: () -> Void
     let onStartClick: () -> Void
 
     var body: some View {
@@ -333,5 +338,9 @@ private struct SavedCourseListItem: View {
         }
         .padding(.vertical, RunvealSpacing.space12)
         .frame(maxWidth: .infinity)
+        // 줄 전체가 눌리되 안쪽 버튼(더보기·바로 시작)이 먼저 받는다 — Button으로 감싸면 그
+        // 버튼들이 묻히므로 탭 제스처를 쓴다.
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onClick)
     }
 }
