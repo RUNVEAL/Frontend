@@ -54,6 +54,8 @@ enum RunvealTrace {
         case mapViewLaidOut = 30
         case mapCameraMinZoomSet = 31
         case mapCameraTrackingCleared = 32
+        case mapCameraArgsRead = 33
+        case mapCameraDelayDone = 34
 
         /// 화면과 Crashlytics 콘솔에 보이는 이름.
         var name: String {
@@ -90,6 +92,8 @@ enum RunvealTrace {
             case .mapViewLaidOut: return "지도 뷰 크기 잡힘"
             case .mapCameraMinZoomSet: return "지도 최소 줌 설정"
             case .mapCameraTrackingCleared: return "지도 추적 모드 해제"
+            case .mapCameraArgsRead: return "지도 카메라 인자 읽음"
+            case .mapCameraDelayDone: return "지도 기본 위치 확인 시간 끝"
             }
         }
     }

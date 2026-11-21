@@ -1,3 +1,4 @@
+import CoreLocation
 import MapLibre
 import SharedLogic
 import SwiftUI
@@ -140,6 +141,9 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         /// 초기 카메라를 이미 세웠는가 — 스타일과 크기가 모두 준비된 뒤 딱 한 번만 한다.
         private var didApplyInitialCamera = false
 
+        /// 카메라를 건드리기 전에 기본 위치 지도가 그려지는지 볼 시간(진단용, 원인이 갈리면 제거).
+        private static let initialCameraDiagnosticDelay: Duration = .seconds(2)
+
         private var lastOverlayBoundarySourceKey: String?
         private var glowRefreshTask: Task<Void, Never>?
         private var currentOverlay: RunvealDongOverlayBundle?
@@ -210,16 +214,34 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
             guard mapView.bounds.width >= 64, mapView.bounds.height >= 64 else { return }
             didApplyInitialCamera = true
 
+            // **진단용 지연.** 카메라를 건드리기 전에, 스타일만 올라온 지도가 기본 위치(0,0 · 줌 0)
+            // 로라도 실제로 그려지는지 눈으로 볼 틈을 둔다. 세계지도가 보이면 렌더러는 멀쩡하고
+            // `setCenter`만 문제라는 뜻이고, 계속 검으면 렌더러 자체가 한 프레임도 못 그리는 것이다.
+            // 원인이 갈리면 지우고 바로 세운다.
+            Task { @MainActor [weak self, weak mapView] in
+                try? await Task.sleep(for: Self.initialCameraDiagnosticDelay)
+                guard let self, let mapView else { return }
+                RunvealTrace.once(.mapCameraDelayDone)
+                self.applyInitialCamera(mapView)
+            }
+        }
+
+        private func applyInitialCamera(_ mapView: MLNMapView) {
             // `setCenter`가 내부에서 먼저 하는 일이 추적 모드 해제다 — 그 경로(위치 서비스 확인)와
             // 카메라 계산을 가르기 위해 미리 따로 부른다. 이미 `.none`이라 동작은 바뀌지 않는다.
             mapView.userTrackingMode = .none
             RunvealTrace.once(.mapCameraTrackingCleared)
 
-            mapView.setCenter(
-                state.initialCenter.coordinate,
-                zoomLevel: state.initialZoom,
-                animated: false
+            // 인자를 먼저 꺼내 값째로 남긴다 — Kotlin에서 건너온 좌표가 0이나 NaN일 가능성을
+            // 추측으로 배제하지 않고 눈으로 확인하려는 것.
+            let center = state.initialCenter.coordinate
+            let zoom = state.initialZoom
+            RunvealTrace.once(
+                .mapCameraArgsRead,
+                "\(center.latitude),\(center.longitude) z\(zoom) 유효=\(CLLocationCoordinate2DIsValid(center))"
             )
+
+            mapView.setCenter(center, zoomLevel: zoom, animated: false)
             RunvealTrace.once(.mapViewCentered)
 
             // 최소 줌은 카메라가 선 **뒤에** 건다. 먼저 걸면 MapLibre가 아직 기본값인 카메라를
