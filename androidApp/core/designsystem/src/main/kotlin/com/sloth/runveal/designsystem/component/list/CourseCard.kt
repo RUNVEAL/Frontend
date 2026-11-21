@@ -51,7 +51,9 @@ fun RunvealCourseCard(
     val borderColor = if (state == RunvealCourseCardState.Selected) colors.accent.default else colors.border.default
     val nameColor = if (state == RunvealCourseCardState.Selected) colors.text.accent else colors.text.primary
 
-    Column(
+    // 시안(List/Course Card)은 내용 묶음과 셰브론이 나란히 선 가로 구성이다 — 셰브론은 제목 줄이
+    // 아니라 **카드 세로 가운데**에 온다.
+    Row(
         modifier = modifier
             .width(240.dp)
             .clip(shape)
@@ -59,55 +61,66 @@ fun RunvealCourseCard(
             .border(1.dp, borderColor, shape)
             .clickable(onClick = onClick)
             .padding(top = 16.dp, end = 12.dp, bottom = 20.dp, start = 20.dp),
-        verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
+        horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
         ) {
-            Text(name, style = RunvealTheme.typography.heading3, color = nameColor)
-            if (tags.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4), verticalAlignment = Alignment.Bottom) {
-                    tags.take(2).forEach { RunvealTag(label = it) }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(name, style = RunvealTheme.typography.heading3, color = nameColor)
+                if (tags.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4), verticalAlignment = Alignment.Bottom) {
+                        tags.take(2).forEach { RunvealTag(label = it) }
+                    }
                 }
             }
-            Spacer(modifier = Modifier.weight(1f))
-            Icon(imageVector = RunvealIcons.Chevron, contentDescription = null, tint = colors.icon.tertiary, modifier = Modifier.size(16.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12)) {
+                // 수치가 없는 항목(고도, 새 길)도 공란으로 둘 뿐 칸을 차지하는 건 동일 — weight로 폭을 맞춰야 카드마다
+                // 칸 위치가 어긋나지 않는다.
+                RunvealStat(
+                    label = stringResource(R.string.course_card_stat_distance),
+                    value = distanceValue,
+                    unit = distanceUnit,
+                    type = RunvealStatType.Small,
+                    modifier = Modifier.weight(1f),
+                )
+                RunvealStat(
+                    label = stringResource(R.string.course_card_stat_time),
+                    value = timeValue,
+                    unit = timeUnit,
+                    type = RunvealStatType.Small,
+                    modifier = Modifier.weight(1f),
+                )
+                RunvealStat(
+                    label = stringResource(R.string.course_card_stat_elevation),
+                    value = elevationValue,
+                    unit = elevationUnit,
+                    type = RunvealStatType.Small,
+                    modifier = Modifier.weight(1f),
+                )
+                RunvealStat(
+                    label = stringResource(R.string.course_card_stat_new_road),
+                    value = newRoadValue,
+                    unit = newRoadUnit,
+                    type = RunvealStatType.Small,
+                    accent = true,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12)) {
-            // 수치가 없는 항목(고도, 새 길)도 공란으로 둘 뿐 칸을 차지하는 건 동일 — weight로 폭을 맞춰야 카드마다
-            // 칸 위치가 어긋나지 않는다.
-            RunvealStat(
-                label = stringResource(R.string.course_card_stat_distance),
-                value = distanceValue,
-                unit = distanceUnit,
-                type = RunvealStatType.Small,
-                modifier = Modifier.weight(1f),
-            )
-            RunvealStat(
-                label = stringResource(R.string.course_card_stat_time),
-                value = timeValue,
-                unit = timeUnit,
-                type = RunvealStatType.Small,
-                modifier = Modifier.weight(1f),
-            )
-            RunvealStat(
-                label = stringResource(R.string.course_card_stat_elevation),
-                value = elevationValue,
-                unit = elevationUnit,
-                type = RunvealStatType.Small,
-                modifier = Modifier.weight(1f),
-            )
-            RunvealStat(
-                label = stringResource(R.string.course_card_stat_new_road),
-                value = newRoadValue,
-                unit = newRoadUnit,
-                type = RunvealStatType.Small,
-                accent = true,
-                modifier = Modifier.weight(1f),
-            )
-        }
+
+        Icon(
+            imageVector = RunvealIcons.Chevron,
+            contentDescription = null,
+            tint = colors.icon.primary,
+            modifier = Modifier.size(16.dp),
+        )
     }
 }
 

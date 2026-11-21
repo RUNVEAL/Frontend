@@ -65,6 +65,9 @@ fun RecordScreen(
     )
 }
 
+/** 상단 히어로 이미지(my_course.png) 원본 비율 — 코스 탭과 같은 그림, 같은 비율이다. */
+private const val HERO_ASPECT_RATIO = 1920f / 544f
+
 /** 앱바와 요약 사이 간격 — spacing 스케일에 13이 없어 시안 값 그대로 쓴다. */
 private val SUMMARY_TOP_GAP = 13.dp
 
@@ -82,7 +85,23 @@ private fun RecordScreen(
     val density = LocalDensity.current
 
     Box(modifier = modifier.fillMaxSize().background(colors.bg.canvas)) {
-        NotReadyToastHost(notReadyToast)
+        // 탭바 위에 띄운다 — 탭바는 Map Shell이 이 화면 위에 겹쳐 그린다.
+        NotReadyToastHost(
+            notReadyToast,
+            bottomInset = RunvealTheme.layout.sizeTabBar + RunvealTheme.spacing.space8,
+        )
+
+        // 코스 탭과 같은 히어로 이미지 — 시안(D0)도 같은 Graphic/My Course를 화면 맨 위(상태바 뒤까지)에
+        // 깐다. 원본 비율(1920:544) 그대로 보여준다.
+        Image(
+            painter = painterResource(R.drawable.my_course),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .aspectRatio(HERO_ASPECT_RATIO),
+        )
 
         Column(
             modifier = Modifier
@@ -137,6 +156,7 @@ private fun RecordScreen(
                 newRoadLabel = "새로 탐험한 길",
                 newRoadValue = state.newRoadValue,
                 newRoadUnit = "km",
+                hasNewRoad = state.hasNewRoad,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = SUMMARY_TOP_GAP)
@@ -172,6 +192,7 @@ private fun RecordScreen(
                             distanceLabel = record.distanceLabel,
                             durationLabel = record.durationLabel,
                             paceLabel = record.paceLabel,
+                            newRoadLabel = record.newRoadLabel,
                             thumbnailRequest = record.thumbnailRequest,
                             // 삭제는 상세 화면의 더보기 메뉴로 옮겼다 — 길게 누르기로는 지울 수 없다.
                             onClick = { onRecordClick(record.trackId) },

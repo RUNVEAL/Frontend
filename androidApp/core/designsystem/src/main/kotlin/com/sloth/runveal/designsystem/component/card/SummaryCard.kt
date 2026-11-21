@@ -38,7 +38,10 @@ fun RunvealSummaryCard(
         horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
+        ) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
                 verticalAlignment = Alignment.CenterVertically,

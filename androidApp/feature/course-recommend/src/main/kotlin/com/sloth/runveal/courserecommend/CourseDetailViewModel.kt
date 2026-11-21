@@ -99,8 +99,10 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
                 timeUnit = if (durationMinutes != null) "분" else "",
                 elevationValue = elevationGain?.let { "+$it" } ?: "",
                 elevationUnit = if (elevationGain != null) "m" else "",
-                newRoadValue = "%.1f".format((course.new_road_m ?: 0L) / 1000.0),
-                newRoadUnit = "km",
+                newRoadValue = formatNewRoadPercent(
+                    course.new_road_ratio ?: (course.new_road_m ?: 0L).toDouble().safeRatio(course.distance_meters),
+                ),
+                newRoadUnit = "%",
                 elevationProfile = course.elevation_profile?.let { decodeElevationProfile(it) } ?: emptyList(),
                 routeSteps = buildRouteSteps(
                     milestones = course.milestones?.let { decodeMilestones(it) } ?: emptyList(),
@@ -119,6 +121,12 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
     private fun decodeCoordinates(raw: String): List<LatLon> =
         json.decodeFromString(ListSerializer(ListSerializer(Double.serializer())), raw)
             .map { LatLon(lat = it[1], lon = it[0]) }
+
+    /** 0~1 비율을 "24"처럼 정수 퍼센트 문자열로. 소수점을 붙이면 네 칸짜리 통계 줄에서 넘친다. */
+    private fun formatNewRoadPercent(ratio: Double): String = "%.0f".format((ratio * 100).coerceIn(0.0, 100.0))
+
+    /** 거리가 0이면(저장만 하고 좌표가 비정상인 코스 등) 0으로 둔다 — 나눗셈이 NaN이 되면 "NaN%"가 찍힌다. */
+    private fun Double.safeRatio(total: Double): Double = if (total > 0) this / total else 0.0
 
     private fun decodeElevationProfile(raw: String): List<ElevationPointUiModel> =
         json.decodeFromString(ListSerializer(ListSerializer(Double.serializer())), raw)
@@ -216,8 +224,9 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
             // 값이 없으면 "-" 같은 대체 텍스트 없이 그냥 공란 — RunvealStat이 weight로 칸 폭을 맞춘다.
             elevationValue = elevation?.let { "+$it" } ?: "",
             elevationUnit = if (elevation != null) "m" else "",
-            newRoadValue = "%.1f".format(newRoadMeters / 1000.0),
-            newRoadUnit = "km",
+            // 시안(B2)의 "새 길"은 거리가 아니라 **코스에서 처음 가는 길의 비율**이다.
+            newRoadValue = formatNewRoadPercent(newRoadRatio ?: newRoadMeters.safeRatio(distanceM.toDouble())),
+            newRoadUnit = "%",
             elevationProfile = elevationProfile?.mapNotNull { point ->
                 if (point.size >= 2) ElevationPointUiModel(cumulativeDistanceM = point[0], elevationM = point[1]) else null
             } ?: emptyList(),

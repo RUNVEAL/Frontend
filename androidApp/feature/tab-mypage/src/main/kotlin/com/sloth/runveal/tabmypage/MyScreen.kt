@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredHeight
 import androidx.compose.foundation.layout.requiredWidth
@@ -197,10 +200,16 @@ fun MyScreen(
         state.toast?.let { toast ->
             RunvealToast(
                 message = stringResource(toast.messageRes),
+                // 시안(Overlay/Toast)은 하단 — 탭바 위 8에 띄운다.
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space16),
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+                    .padding(
+                        start = RunvealTheme.layout.marginScreen,
+                        end = RunvealTheme.layout.marginScreen,
+                        bottom = RunvealTheme.spacing.space8 + RunvealTheme.layout.sizeTabBar +
+                            RunvealTheme.spacing.space8,
+                    ),
             )
         }
     }

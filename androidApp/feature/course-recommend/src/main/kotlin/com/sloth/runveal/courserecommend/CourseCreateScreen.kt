@@ -65,6 +65,9 @@ import kotlin.coroutines.resume
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 
+/** 코스 만들기 패널의 좌우 여백 — 화면 여백(16)의 예외(시안 B0). */
+private val MAKE_COURSE_PANEL_SIDE_MARGIN = 10.dp
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CourseCreateScreen(
@@ -182,7 +185,9 @@ fun CourseCreateScreen(
                     .align(Alignment.BottomCenter)
                     .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
                     .padding(
-                        horizontal = RunvealTheme.layout.marginScreen,
+                        // 패널은 화면 좌우 여백(16)의 예외다 — 시안(B0)은 10이다. 패널이 안쪽으로 6을
+                        // 더 주기 때문에, 10이어야 패널 안 버튼이 화면 기준 16에 선다.
+                        horizontal = MAKE_COURSE_PANEL_SIDE_MARGIN,
                         vertical = RunvealTheme.spacing.space8,
                     ),
             )

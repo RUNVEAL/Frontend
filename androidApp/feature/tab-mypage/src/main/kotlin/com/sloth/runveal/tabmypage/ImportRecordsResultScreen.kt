@@ -212,7 +212,7 @@ private fun RouteMapCard(request: SnapshotRequest?, modifier: Modifier = Modifie
         modifier = modifier
             .size(width = MAP_CARD_WIDTH, height = MAP_CARD_HEIGHT)
             .clip(shape)
-            .background(colors.bg.canvas, shape)
+            .background(colors.bg.map, shape)
             .border(1.dp, colors.border.default, shape),
     ) {
         CourseSnapshotImage(
@@ -231,7 +231,8 @@ private fun ExploreResultCard(state: ImportRecordsResultState.Ready, modifier: M
         modifier = modifier
             .fillMaxWidth()
             .background(colors.surface.default, RunvealTheme.shapes.radius16)
-            .padding(RunvealTheme.layout.marginCardPadding),
+            // 시안(A4-3)의 이 카드만 안쪽 여백이 16이다 — 다른 카드(20)보다 촘촘하다.
+            .padding(RunvealTheme.spacing.space16),
         verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
     ) {
         Row(
