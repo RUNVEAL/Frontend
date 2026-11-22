@@ -3,6 +3,8 @@ package com.sloth.runveal.courserecommend
 import androidx.lifecycle.viewModelScope
 import com.sloth.runveal.courserecommend.contract.CourseRecommendResultIntent
 import com.sloth.runveal.courserecommend.contract.CourseRecommendResultState
+import com.sloth.runveal.courserecommend.contract.DefaultCustomDistanceIndex
+import com.sloth.runveal.courserecommend.contract.DefaultDistance
 import com.sloth.runveal.courserecommend.contract.RouteCardUiModel
 import com.sloth.runveal.map.LatLon
 import com.sloth.runveal.network.routes.RouteDto
@@ -13,6 +15,8 @@ import kotlinx.coroutines.launch
 class CourseRecommendResultViewModel : MviViewModel<CourseRecommendResultIntent, CourseRecommendResultState, Nothing>(
     initialState = CourseRecommendResultState.Loading,
 ) {
+    private val recommender = CourseRecommender()
+
     init {
         viewModelScope.launch {
             CourseRecommendResultHolder.state.collect { result ->
@@ -23,10 +27,55 @@ class CourseRecommendResultViewModel : MviViewModel<CourseRecommendResultIntent,
 
     override suspend fun handleIntent(intent: CourseRecommendResultIntent) {
         when (intent) {
-            is CourseRecommendResultIntent.SelectRoute -> setState {
-                if (this is CourseRecommendResultState.Ready) copy(selectedRouteId = intent.routeId) else this
+            is CourseRecommendResultIntent.SelectRoute -> updateReady { copy(selectedRouteId = intent.routeId) }
+
+            CourseRecommendResultIntent.OpenFilterSheet -> updateReady { copy(filterDraft = settings) }
+
+            CourseRecommendResultIntent.CloseFilterSheet -> updateReady { copy(filterDraft = null) }
+
+            is CourseRecommendResultIntent.UpdateFilterDraft -> updateReady { copy(filterDraft = intent.draft) }
+
+            // 출발·도착지는 코스 만들기에서 고른 값이라 그대로 두고, 고를 수 있는 조건만 되돌린다.
+            CourseRecommendResultIntent.ResetFilterDraft -> updateReady {
+                copy(
+                    filterDraft = CourseRecommendSettings(
+                        selectedDistance = DefaultDistance,
+                        isCustomDistanceSelected = false,
+                        customDistanceIndex = DefaultCustomDistanceIndex,
+                        avoidVisitedPreferred = true,
+                        selectedFilters = emptySet(),
+                        startLatLon = settings.startLatLon,
+                        endLatLon = settings.endLatLon,
+                    ),
+                )
             }
+
+            CourseRecommendResultIntent.ApplyFilterDraft -> applyFilterDraft()
         }
+    }
+
+    /**
+     * 바꾼 조건으로 다시 추천받는다. 결과는 [CourseRecommendResultHolder]에 publish하고, 위의
+     * 구독이 그걸 받아 화면 상태를 통째로 갈아 끼운다 — 코스 만들기에서 들어왔을 때와 같은 경로다.
+     *
+     * 다시 받는 동안에도 조건 칩과 지도는 그대로 두고 로딩만 덮는다(화면이 비면 뒤로 간 것처럼 보인다).
+     */
+    private fun applyFilterDraft() {
+        val ready = currentState as? CourseRecommendResultState.Ready ?: return
+        val draft = ready.filterDraft ?: return
+        setState { if (this is CourseRecommendResultState.Ready) copy(filterDraft = null, isReloading = true) else this }
+        viewModelScope.launch {
+            val result = recommender.recommend(draft, fallbackStart = null)
+            // 홀더에도 올려 둔다 — 코스 상세가 여기서 routeId로 코스를 찾는다.
+            CourseRecommendResultHolder.publish(result)
+            // 그리고 상태를 직접 갈아 끼운다. 조건만 바꾸고 결과가 **똑같이** 오면 StateFlow가
+            // 같은 값이라 보고 흘리지 않아서, 위 구독만 믿으면 로딩이 영영 안 걷힌다.
+            setState { toReadyState(result) }
+        }
+    }
+
+    private fun updateReady(block: CourseRecommendResultState.Ready.() -> CourseRecommendResultState.Ready) {
+        setState { if (this is CourseRecommendResultState.Ready) block() else this }
     }
 
     private fun toReadyState(result: CourseRecommendResult): CourseRecommendResultState.Ready =

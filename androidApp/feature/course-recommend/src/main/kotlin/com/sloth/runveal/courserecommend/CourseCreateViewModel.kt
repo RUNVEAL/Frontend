@@ -7,36 +7,21 @@ import com.sloth.runveal.courserecommend.contract.CourseCreateState
 import com.sloth.runveal.courserecommend.contract.DefaultCustomDistanceIndex
 import com.sloth.runveal.courserecommend.contract.DefaultDistance
 import com.sloth.runveal.courserecommend.contract.LocationSelectionTarget
-import com.sloth.runveal.data.local.RunvealDatabaseProvider
-import com.sloth.runveal.dong.SegmentCoverageMatcher
 import com.sloth.runveal.map.LatLon
-import com.sloth.runveal.network.meta.MetaApi
-import com.sloth.runveal.network.meta.MetaHolder
-import com.sloth.runveal.network.routes.LatLng
-import com.sloth.runveal.network.routes.RoutesApi
-import com.sloth.runveal.network.routes.RoutesRequest
 import com.sloth.runveal.ui.mvi.MviViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.withContext
 
 private const val TAG = "CourseRecommendDebug"
-
-/** TEMP — 출발지를 아직 안 골랐고 현재 위치도 못 받았을 때 쓰는 최후 기본 좌표(성수동 인근). */
-private val TEMP_START_LOCATION = LatLon(lat = 37.5445, lon = 127.0557)
 
 /** TODO: 임시 로딩 — 디자인 적용된 로딩으로 교체되면 이 최소 노출 시간도 다시 검토.
  * 응답이 이것보다 빨리 와도 로딩 모션이 최소 한 번은 눈에 보이게 그만큼은 붙잡아 둔다 — 안 그러면
  * 응답이 너무 빨라 Lottie 컴포지션이 로드되기도 전에 화면이 넘어가 버려서 로딩이 거의 안 보인다. */
 private const val MIN_RECOMMEND_LOADING_MS = 900L
 
-private fun LatLon.toRoutesLatLng(): LatLng = LatLng(lat = lat, lng = lon)
-
 class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState, CourseCreateEffect>(
     initialState = CourseCreateState(),
 ) {
-    private val routesApi = RoutesApi()
-    private val database = RunvealDatabaseProvider.database
+    private val recommender = CourseRecommender()
 
     override suspend fun handleIntent(intent: CourseCreateIntent) {
         when (intent) {
@@ -126,57 +111,28 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
      * 떨어진다. */
     private suspend fun recommendRoutes(currentLocation: LatLon?) {
         val startedAtMs = System.currentTimeMillis()
-        val settings = CourseRecommendSettings(
-            distanceLabel = currentState.distanceLabel,
-            avoidVisitedPreferred = currentState.avoidVisitedPreferred,
-            selectedFilterCount = currentState.selectedFilters.size,
-        )
-        try {
-            val meta = MetaHolder.state.value ?: MetaApi().fetchMeta().also { MetaHolder.publish(it) }
-            val distanceM = parseDistanceMeters(currentState.distanceLabel)
-            val response = routesApi.fetchRoutes(
-                RoutesRequest(
-                    mapVersion = meta.mapVersions.current,
-                    start = (currentState.startLatLon ?: currentLocation ?: TEMP_START_LOCATION).toRoutesLatLng(),
-                    end = currentState.endLatLon?.toRoutesLatLng(),
-                    distanceM = distanceM,
-                    preferUnexplored = currentState.avoidVisitedPreferred,
-                    exploredSegmentIds = loadExploredSegmentIds(meta.limits.routes.maxExploredSegmentIds),
-                ),
-            )
-            Log.i(TAG, "추천 성공 routes=${response.routes.size} warnings=${response.warnings}")
-            CourseRecommendResultHolder.publish(CourseRecommendResult.Success(response, settings))
-        } catch (e: Exception) {
-            Log.w(TAG, "추천 실패", e)
-            CourseRecommendResultHolder.publish(
-                CourseRecommendResult.Failure(e.message ?: "코스를 추천받지 못했어요", settings),
-            )
-        }
+        val settings = currentState.toSettings(currentLocation)
+        CourseRecommendResultHolder.publish(recommender.recommend(settings, currentLocation))
         val elapsedMs = System.currentTimeMillis() - startedAtMs
         if (elapsedMs < MIN_RECOMMEND_LOADING_MS) delay(MIN_RECOMMEND_LOADING_MS - elapsedMs)
         sendEffect(CourseCreateEffect.NavigateToResult)
     }
 
     /**
-     * 지금까지 달려서 "가본 길"이 된 구간 ID — 서버가 코스별 `newRoadM`/`newRoadRatio`(안 가본 길)를
-     * 계산하려면 이걸 같이 보내야 한다(`docs/api/API.md` §3.3.1 — 안 보내면 둘 다 null로 온다).
-     * 가본 게 하나도 없으면 빈 배열을 보낸다 — null과 다르게 "탐험 0개"로 처리된다.
+     * 지금 패널에 고른 조건을 그대로 추천 입력으로 옮긴다 — 결과 화면에서 조건을 다시 바꿀 때도 같은
+     * 값을 이어서 쓴다([CourseRecommendSettings]).
      *
-     * [maxCount](`/meta`의 `limits.routes.maxExploredSegmentIds`)를 넘기면 413 `TOO_MANY_SEGMENTS`라
-     * 잘라서 보낸다. 어느 걸 남길지 고를 기준이 없어 앞에서부터 자르므로, 잘린 뒤엔 서버의 새 길
-     * 계산도 그만큼 부정확해진다 — [com.sloth.runveal.dong.NewRoadEstimator] 쪽 로컬 계산과 달리
-     * 여기서 걸릴 일은 거의 없지만(1만 구간) 로그는 남긴다.
+     * 출발지를 안 골랐으면 이번에 실제로 쓴 현재 위치를 박아 둔다 — 안 그러면 결과 화면에서 조건만
+     * 바꿔 다시 받을 때 출발지가 비어 임시 좌표로 떨어진다.
      */
-    private suspend fun loadExploredSegmentIds(maxCount: Int): List<Long> = withContext(Dispatchers.IO) {
-        val all = database.exploredSegmentQueries
-            .selectCoveredSegmentIds(SegmentCoverageMatcher.DEFAULT_SEGMENT_COVERAGE)
-            .executeAsList()
-        if (all.size > maxCount) Log.w(TAG, "가본 구간 ${all.size}개 > 상한 ${maxCount}개 — 잘라서 보낸다")
-        all.take(maxCount)
-    }
+    private fun CourseCreateState.toSettings(currentLocation: LatLon?): CourseRecommendSettings = CourseRecommendSettings(
+        selectedDistance = selectedDistance,
+        isCustomDistanceSelected = isCustomDistanceSelected,
+        customDistanceIndex = customDistanceIndex,
+        avoidVisitedPreferred = avoidVisitedPreferred,
+        selectedFilters = selectedFilters,
+        startLatLon = startLatLon ?: currentLocation,
+        endLatLon = endLatLon,
+    )
 
-    /** "5km"/"12.5km" → 5000/12500. 프리셋·커스텀 값 전부 0.5km 단위라 서버의 500m 단위 제약과
-     * 맞는다. */
-    private fun parseDistanceMeters(distanceLabel: String): Int =
-        (distanceLabel.removeSuffix("km").toDouble() * 1000).toInt()
 }
