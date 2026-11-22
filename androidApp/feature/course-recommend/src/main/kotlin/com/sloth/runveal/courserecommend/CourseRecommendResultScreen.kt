@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -190,6 +191,8 @@ fun CourseRecommendResultScreen(
                 if (current.emptyMessage != null) {
                     EmptyResult(
                         message = current.emptyMessage,
+                        settings = current.settings,
+                        onIntent = viewModel::onIntent,
                         onRetry = onClose,
                         modifier = Modifier.align(Alignment.TopStart),
                     )
@@ -306,7 +309,13 @@ private fun SettingsSummaryRow(
 }
 
 @Composable
-private fun EmptyResult(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+private fun EmptyResult(
+    message: String,
+    settings: CourseRecommendSettings,
+    onIntent: (CourseRecommendResultIntent) -> Unit,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -326,7 +335,7 @@ private fun EmptyResult(message: String, onRetry: () -> Unit, modifier: Modifier
                     Image(painter = painterResource(R.drawable.empty_course), contentDescription = null)
                 },
             )
-            EmptyResultHints()
+            EmptyResultHints(settings = settings, onIntent = onIntent)
         }
 
         RunvealButtonGroup(
@@ -342,28 +351,52 @@ private fun EmptyResult(message: String, onRetry: () -> Unit, modifier: Modifier
     }
 }
 
-/** 조건을 어떻게 바꾸면 되는지 알려주는 줄 세 개(시안 B1-1 "설정변경 안내"). 누를 수 있는 건 아니고
- * 읽는 안내라 클릭은 비워 둔다 — 실제 변경은 아래 "조건 다시 설정하기"로 돌아가서 한다. */
+/** 안내 줄 하나 — 문구와 "누르면 할 일"을 묶어 둔다. */
+private class EmptyHint(
+    val icon: ImageVector,
+    val title: String,
+    val description: String,
+    val onClick: () -> Unit,
+)
+
+/**
+ * 조건을 어떻게 바꾸면 되는지 알려주는 줄(시안 B1-1 "설정변경 안내"). 각 줄은 **그 줄이 말하는 것을
+ * 그대로 해 주는 버튼**이다 — 순환 코스는 도착지를 비워 바로 다시 받고, 거리·필터는 코스 조건 설정
+ * 시트를 띄운다(상단 조건 칩과 같은 시트).
+ *
+ * 이미 그렇게 되어 있어서 누를 게 없는 줄은 빼놓는다 — 도착지가 없으면(이미 순환) 순환 줄을, 고른
+ * 필터가 없으면 필터 줄을 숨긴다. 눌러도 아무 일도 안 나는 줄을 남기면 고장으로 보인다.
+ */
 @Composable
-private fun EmptyResultHints(modifier: Modifier = Modifier) {
+private fun EmptyResultHints(
+    settings: CourseRecommendSettings,
+    onIntent: (CourseRecommendResultIntent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val colors = RunvealTheme.colors
     val shape = RunvealTheme.shapes.radius16
-    val hints = listOf(
-        Triple(
-            RunvealIcons.Circulation,
-            stringResource(R.string.course_recommend_result_empty_hint_loop_title),
-            stringResource(R.string.course_recommend_result_empty_hint_loop_description),
-        ),
-        Triple(
-            RunvealIcons.Distance,
-            stringResource(R.string.course_recommend_result_empty_hint_distance_title),
-            stringResource(R.string.course_recommend_result_empty_hint_distance_description),
-        ),
-        Triple(
-            RunvealIcons.Filter,
-            stringResource(R.string.course_recommend_result_empty_hint_filter_title),
-            stringResource(R.string.course_recommend_result_empty_hint_filter_description),
-        ),
+    val loopHint = EmptyHint(
+        icon = RunvealIcons.Circulation,
+        title = stringResource(R.string.course_recommend_result_empty_hint_loop_title),
+        description = stringResource(R.string.course_recommend_result_empty_hint_loop_description),
+        onClick = { onIntent(CourseRecommendResultIntent.RetryAsLoopCourse) },
+    )
+    val distanceHint = EmptyHint(
+        icon = RunvealIcons.Distance,
+        title = stringResource(R.string.course_recommend_result_empty_hint_distance_title),
+        description = stringResource(R.string.course_recommend_result_empty_hint_distance_description),
+        onClick = { onIntent(CourseRecommendResultIntent.OpenFilterSheet) },
+    )
+    val filterHint = EmptyHint(
+        icon = RunvealIcons.Filter,
+        title = stringResource(R.string.course_recommend_result_empty_hint_filter_title),
+        description = stringResource(R.string.course_recommend_result_empty_hint_filter_description),
+        onClick = { onIntent(CourseRecommendResultIntent.OpenFilterSheet) },
+    )
+    val hints = listOfNotNull(
+        loopHint.takeIf { settings.endLatLon != null },
+        distanceHint,
+        filterHint.takeIf { settings.selectedFilterCount > 0 },
     )
 
     Column(
@@ -374,13 +407,13 @@ private fun EmptyResultHints(modifier: Modifier = Modifier) {
             .border(1.dp, colors.border.default, shape)
             .padding(horizontal = RunvealTheme.spacing.space16),
     ) {
-        hints.forEachIndexed { index, (icon, title, description) ->
+        hints.forEachIndexed { index, hint ->
             RunvealListItem(
-                title = title,
-                description = description,
-                leadingIcon = icon,
+                title = hint.title,
+                description = hint.description,
+                leadingIcon = hint.icon,
                 size = RunvealListItemSize.L,
-                onClick = {},
+                onClick = hint.onClick,
                 showDivider = index != hints.lastIndex,
             )
         }

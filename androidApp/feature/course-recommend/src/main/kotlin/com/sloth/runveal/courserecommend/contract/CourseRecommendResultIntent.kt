@@ -20,4 +20,7 @@ sealed interface CourseRecommendResultIntent : UiIntent {
 
     /** "코스 조건 적용하기" — 바꾼 조건으로 다시 추천받는다. */
     data object ApplyFilterDraft : CourseRecommendResultIntent
+
+    /** 결과 없음 화면의 "순환 코스로 찾기" — 도착지를 비워(출발지로 돌아오는 LOOP) 바로 다시 받는다. */
+    data object RetryAsLoopCourse : CourseRecommendResultIntent
 }

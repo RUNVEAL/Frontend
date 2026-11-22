@@ -50,22 +50,29 @@ class CourseRecommendResultViewModel : MviViewModel<CourseRecommendResultIntent,
                 )
             }
 
-            CourseRecommendResultIntent.ApplyFilterDraft -> applyFilterDraft()
+            CourseRecommendResultIntent.ApplyFilterDraft -> {
+                val draft = (currentState as? CourseRecommendResultState.Ready)?.filterDraft ?: return
+                recommendWith(draft)
+            }
+
+            // 도착지만 비우고 나머지 조건은 그대로 — 안내 줄이 말하는 "출발지로 돌아오는 코스"다.
+            CourseRecommendResultIntent.RetryAsLoopCourse -> {
+                val settings = (currentState as? CourseRecommendResultState.Ready)?.settings ?: return
+                recommendWith(settings.copy(endLatLon = null))
+            }
         }
     }
 
     /**
-     * 바꾼 조건으로 다시 추천받는다. 결과는 [CourseRecommendResultHolder]에 publish하고, 위의
+     * 주어진 조건으로 다시 추천받는다. 결과는 [CourseRecommendResultHolder]에 publish하고, 위의
      * 구독이 그걸 받아 화면 상태를 통째로 갈아 끼운다 — 코스 만들기에서 들어왔을 때와 같은 경로다.
      *
      * 다시 받는 동안에도 조건 칩과 지도는 그대로 두고 로딩만 덮는다(화면이 비면 뒤로 간 것처럼 보인다).
      */
-    private fun applyFilterDraft() {
-        val ready = currentState as? CourseRecommendResultState.Ready ?: return
-        val draft = ready.filterDraft ?: return
+    private fun recommendWith(settings: CourseRecommendSettings) {
         setState { if (this is CourseRecommendResultState.Ready) copy(filterDraft = null, isReloading = true) else this }
         viewModelScope.launch {
-            val result = recommender.recommend(draft, fallbackStart = null)
+            val result = recommender.recommend(settings, fallbackStart = null)
             // 홀더에도 올려 둔다 — 코스 상세가 여기서 routeId로 코스를 찾는다.
             CourseRecommendResultHolder.publish(result)
             // 그리고 상태를 직접 갈아 끼운다. 조건만 바꾸고 결과가 **똑같이** 오면 StateFlow가
