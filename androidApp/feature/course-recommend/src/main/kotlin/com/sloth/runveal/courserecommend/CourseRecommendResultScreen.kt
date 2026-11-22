@@ -138,25 +138,25 @@ fun CourseRecommendResultScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // 조건을 바꿔 다시 받는 중에는 지도와 칩은 그대로 두고 로딩만 덮는다 — 화면이 비면 뒤로 간
-        // 것처럼 보인다.
-        if (readyState?.isReloading == true) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(RunvealTheme.colors.bg.scrim)
-                    // 다시 받는 동안의 탭을 먹는다(뒤의 카드·지도가 눌리면 안 된다).
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
-                contentAlignment = Alignment.Center,
-            ) {
-                RunvealLoading(modifier = Modifier.size(LOADING_SIZE))
-            }
+        // 추천 결과가 없을 땐 한 장짜리 안내 화면이다(시안 B1-1) — 뒤에 지도가 비치면 "코스를 못
+        // 찾았다"면서 지도만 덩그러니 보이게 돼서, 화면 배경색으로 덮는다.
+        if (readyState?.emptyMessage != null) {
+            Box(modifier = Modifier.matchParentSize().background(RunvealTheme.colors.bg.canvas))
         }
 
         Column(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .fillMaxWidth()
+                // 결과가 없을 때만 머리 영역을 불투명하게 둔다(시안 B1-1) — 코스가 있을 땐 지도 위에
+                // 그대로 얹히는 앱바다.
+                .then(
+                    if (readyState?.emptyMessage != null) {
+                        Modifier.background(RunvealTheme.colors.surface.raised)
+                    } else {
+                        Modifier
+                    },
+                )
                 .windowInsetsPadding(WindowInsets.statusBars),
         ) {
             RunvealTopAppBar(
@@ -239,6 +239,20 @@ fun CourseRecommendResultScreen(
                         }
                     }
                 }
+            }
+        }
+
+        // 조건을 바꿔 다시 받는 중 — 맨 위에 덮어 카드·칩까지 가리고 탭도 막는다. 지도와 화면 뼈대는
+        // 그대로 둬서, 화면이 통째로 비어 "뒤로 간 것처럼" 보이지 않게 한다.
+        if (readyState?.isReloading == true) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(RunvealTheme.colors.bg.scrim)
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
+                contentAlignment = Alignment.Center,
+            ) {
+                RunvealLoading(modifier = Modifier.size(LOADING_SIZE))
             }
         }
     }
