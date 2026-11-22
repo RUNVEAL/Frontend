@@ -128,11 +128,25 @@ fun CourseRecommendResultScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
+        // 추천 결과가 없을 땐 한 장짜리 안내 화면이다(시안 B1-1) — 뒤에 지도가 비치면 "코스를 못
+        // 찾았다"면서 지도만 덩그러니 보이게 돼서, 화면 배경색으로 덮는다.
+        if (readyState?.emptyMessage != null) {
+            Box(modifier = Modifier.matchParentSize().background(RunvealTheme.colors.bg.canvas))
+        }
 
         Column(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .fillMaxWidth()
+                // 결과가 없을 때만 머리 영역을 불투명하게 둔다(시안 B1-1) — 코스가 있을 땐 지도 위에
+                // 그대로 얹히는 앱바다.
+                .then(
+                    if (readyState?.emptyMessage != null) {
+                        Modifier.background(RunvealTheme.colors.surface.raised)
+                    } else {
+                        Modifier
+                    },
+                )
                 .windowInsetsPadding(WindowInsets.statusBars),
         ) {
             RunvealTopAppBar(
