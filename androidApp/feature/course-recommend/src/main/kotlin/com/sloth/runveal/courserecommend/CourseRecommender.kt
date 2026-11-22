@@ -16,6 +16,10 @@ import kotlinx.coroutines.withContext
 private const val TAG = "CourseRecommendDebug"
 
 /** 출발지를 아직 안 골랐고 현재 위치도 못 받았을 때 쓰는 최후 기본 좌표(성수동 인근). */
+/** 추천을 못 받았을 때 화면에 보여 줄 문구 — 원인(네트워크·서버 오류)은 사용자가 할 수 있는 게
+ * 없어 구분하지 않는다. */
+private const val RECOMMEND_FAILURE_MESSAGE = "잠시 후 다시 시도해 주세요"
+
 private val TEMP_START_LOCATION = LatLon(lat = 37.5445, lon = 127.0557)
 
 private fun LatLon.toRoutesLatLng(): LatLng = LatLng(lat = lat, lng = lon)
@@ -55,7 +59,9 @@ internal class CourseRecommender {
         CourseRecommendResult.Success(response, settings)
     } catch (e: Exception) {
         Log.w(TAG, "추천 실패", e)
-        CourseRecommendResult.Failure(e.message ?: "코스를 추천받지 못했어요", settings)
+        // 예외 메시지(HTTP 상태·스택 등)를 그대로 쓰면 화면에 에러 코드가 뜬다 — 사유는 로그에만
+        // 남기고 화면엔 사람이 읽는 문구를 보낸다.
+        CourseRecommendResult.Failure(RECOMMEND_FAILURE_MESSAGE, settings)
     }
 
     /** 이미 가본 구간 id — 서버가 "새 길" 비중을 계산하는 데 쓴다. 상한을 넘으면 잘라서 보낸다. */

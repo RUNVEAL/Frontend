@@ -162,7 +162,13 @@ fun CourseRecommendResultScreen(
             RunvealTopAppBar(
                 leading = RunvealTopAppBarLeading.Back,
                 onLeadingClick = onClose,
-                style = RunvealTopAppBarStyle.Map,
+                // 지도 위에 얹힐 때만 글래스 원형 배경을 쓴다 — 결과가 없을 땐 불투명한 한 장짜리
+                // 화면이라 아이콘만 둔다(시안 B1-1).
+                style = if (readyState?.emptyMessage != null) {
+                    RunvealTopAppBarStyle.Default
+                } else {
+                    RunvealTopAppBarStyle.Map
+                },
                 title = stringResource(R.string.course_recommend_result_title),
                 modifier = Modifier.fillMaxWidth(),
             )
