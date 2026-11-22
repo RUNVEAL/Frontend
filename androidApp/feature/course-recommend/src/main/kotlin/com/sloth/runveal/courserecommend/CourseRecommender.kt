@@ -15,11 +15,15 @@ import kotlinx.coroutines.withContext
 
 private const val TAG = "CourseRecommendDebug"
 
-/** 출발지를 아직 안 골랐고 현재 위치도 못 받았을 때 쓰는 최후 기본 좌표(성수동 인근). */
-/** 추천을 못 받았을 때 화면에 보여 줄 문구 — 원인(네트워크·서버 오류)은 사용자가 할 수 있는 게
- * 없어 구분하지 않는다. */
+/**
+ * 추천을 못 받았을 때 화면에 보여 줄 문구. 지금은 원인(네트워크·서버 오류)을 구분하지 않고 하나로 쓴다.
+ *
+ * TODO: 서버 에러 코드별 안내 문구 작성 예정 — `docs/api/API.md`의 에러 코드별로 사용자가 할 수 있는
+ *  행동이 다르면(예: 지도 버전 만료 → 갱신, 범위 밖 좌표 → 출발지 다시 고르기) 코드별 문구로 나눈다.
+ */
 private const val RECOMMEND_FAILURE_MESSAGE = "잠시 후 다시 시도해 주세요"
 
+/** 출발지를 아직 안 골랐고 현재 위치도 못 받았을 때 쓰는 최후 기본 좌표(성수동 인근). */
 private val TEMP_START_LOCATION = LatLon(lat = 37.5445, lon = 127.0557)
 
 private fun LatLon.toRoutesLatLng(): LatLng = LatLng(lat = lat, lng = lon)
