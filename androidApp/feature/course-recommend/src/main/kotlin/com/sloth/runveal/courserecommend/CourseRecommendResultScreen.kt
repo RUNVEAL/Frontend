@@ -156,7 +156,9 @@ fun CourseRecommendResultScreen(
                 title = stringResource(R.string.course_recommend_result_title),
                 modifier = Modifier.fillMaxWidth(),
             )
-            if (readyState != null) {
+            // 결과가 없을 땐 칩을 숨긴다(시안 B1-1) — 보여 줄 코스가 없는데 조건만 떠 있으면 설명과
+            // "조건 다시 설정하기" 버튼이 하는 말과 겹친다.
+            if (readyState != null && readyState.emptyMessage == null) {
                 SettingsSummaryRow(
                     settings = readyState.settings,
                     modifier = Modifier.padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space12),
