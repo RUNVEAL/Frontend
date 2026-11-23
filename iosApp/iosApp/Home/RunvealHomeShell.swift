@@ -45,6 +45,27 @@ struct RunvealHomeShell: View {
         }
     }
 
+    /// 위치가 준비된 뒤 한 번만 현재 위치로 옮겼는가 — 앱을 켠 뒤 처음 한 번이다.
+    @State private var didRecenterOnLocationReady = false
+
+    /**
+     위치 권한과 위치 서비스가 모두 갖춰지면 지도를 **기본 위치(서울시청)에서 현재 위치로** 한 번
+     옮긴다.
+
+     지도는 권한을 받기 **전에** 떠 있다 — 권한 안내 시트가 지도 위에 뜨기 때문이다. 그래서 허용한
+     뒤에 옮겨 주는 경로가 없으면 앱을 다시 켤 때까지 기본 위치에 머문다. 이미 허용된 상태로 켰을
+     때도 첫 등장에서 한 번 옮긴다(Android `CurrentLocationLayer.activate`가 켜지면서 `trackOnce`로
+     하는 일과 같다).
+
+     계속 따라가지는 않는다 — 한 번 옮기고 나면 사용자가 자유롭게 둘러볼 수 있어야 한다.
+     */
+    private func recenterOnceWhenLocationReady() {
+        guard !didRecenterOnLocationReady else { return }
+        guard permissionState.isGranted, permissionState.isLocationServicesEnabled else { return }
+        didRecenterOnLocationReady = true
+        mapState.recenterToCurrentLocation()
+    }
+
     /// 시트에서 허용·켜기를 마치면 다시 누르게 하지 않고 바로 잇는다.
     private func resumePendingRunIfReady() {
         guard let proceed = pendingRunStart else { return }
@@ -110,7 +131,10 @@ struct RunvealHomeShell: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .environment(\.runvealMapOverlayBottomInset, isLocationBannerNeeded ? Self.locationBannerExtraInset : 0)
         .requireLocationPermission(permissionState)
-        .onAppear { mapData.start() }
+        .onAppear {
+            mapData.start()
+            recenterOnceWhenLocationReady()
+        }
         .onDisappear { mapData.stop() }
         // "내 코스" 탭에서 코스를 바로 시작하면(탭 화면은 내비게이터를 직접 못 만진다) 여기서 받아
         // 기록 흐름으로 넘어간다 — 코스 자체는 `SelectedCourseHolder`에 이미 담겨 있다.
@@ -132,8 +156,14 @@ struct RunvealHomeShell: View {
                 .runvealSheetContent()
         }
         // 시트에서 허용·켜기를 마치고 돌아오면 미뤄 둔 러닝 시작을 잇는다.
-        .onChange(of: permissionState.isGranted) { _, _ in resumePendingRunIfReady() }
-        .onChange(of: permissionState.isLocationServicesEnabled) { _, _ in resumePendingRunIfReady() }
+        .onChange(of: permissionState.isGranted) { _, _ in
+            recenterOnceWhenLocationReady()
+            resumePendingRunIfReady()
+        }
+        .onChange(of: permissionState.isLocationServicesEnabled) { _, _ in
+            recenterOnceWhenLocationReady()
+            resumePendingRunIfReady()
+        }
     }
 
     // MARK: - 탭/오버레이 콘텐츠
