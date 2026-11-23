@@ -65,6 +65,19 @@
         </activity-alias>
 
         <!--
+          Firebase Analytics 수집을 켤지 — 값은 build.gradle.kts의 manifestPlaceholders가 넣는다
+          (defaultConfig에서 false, release에서만 true). 꺼져 있으면 SDK가 이벤트를 모으지도
+          보내지도 않는다.
+
+          Gradle 설정을 스위치로 둔 이유: 런타임에 BuildConfig.DEBUG로 끄면 앱이 시작되고 이 값을
+          적용하기까지의 짧은 사이에 자동 이벤트(first_open 등)가 이미 나갈 수 있다. 매니페스트
+          값은 SDK가 켜지기 전에 읽히므로 그 틈이 없다.
+        -->
+        <meta-data
+            android:name="firebase_analytics_collection_enabled"
+            android:value="${analyticsCollectionEnabled}" />
+
+        <!--
           카카오 계정 로그인(웹)이 끝나고 커스텀 스킴으로 돌아올 때 인증 코드를 받는 SDK 액티비티.
           카카오 SDK가 매니페스트에 넣어 주지 않아서 앱이 직접 선언해야 한다 — 없으면 카카오톡이
           안 깔린 기기에서 로그인이 돌아올 곳을 못 찾아 그대로 끝난다. 스킴의 앱 키는
