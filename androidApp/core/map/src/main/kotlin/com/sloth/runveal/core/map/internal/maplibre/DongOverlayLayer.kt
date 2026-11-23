@@ -28,7 +28,17 @@ import org.maplibre.geojson.FeatureCollection
  */
 internal object DongOverlayLayer {
     private const val LINE_WIDTH_DP = 1.2f
+    /**
+     * 라벨 글자 크기의 기준 — 동 이름(caption/s-regular)과 % 기호(unit/s)가 둘 다 11이라 이걸
+     * 기준으로 두고, 더 큰 숫자(num/s = 14)만 [PERCENT_VALUE_FONT_SCALE]로 키운다.
+     *
+     * 글꼴은 지도 스타일이 가진 glyph(Noto Sans)만 쓸 수 있어서 Pretendard/Geist로는 못 바꾼다 —
+     * 토큰에서 **크기와 색만** 옮겨 온다.
+     */
     private const val LABEL_SIZE_SP = 11f
+
+    /** num/s(14) ÷ 기준 11 — 퍼센트 숫자만 이만큼 키운다. */
+    private const val PERCENT_VALUE_FONT_SCALE = 14f / LABEL_SIZE_SP
     private val LABEL_FONT = arrayOf("Noto Sans Regular")
 
     private val EMPTY_FEATURE_COLLECTION_JSON = FeatureCollection.fromFeatures(emptyList()).toJson()
@@ -89,10 +99,21 @@ internal object DongOverlayLayer {
         }
     }
 
+    /**
+     * 동 이름(caption/s-regular) 줄과 "12%"(num/s + unit/s) 줄. 토큰대로 숫자만 크고(14),
+     * 이름과 % 기호는 작고 연한 색이다.
+     */
     private fun labelTextField(colors: MapColors): Expression = Expression.format(
         Expression.formatEntry(Expression.get("name"), Expression.FormatOption.formatTextColor(colors.dongLabelSecondary)),
         Expression.formatEntry(Expression.literal("\n")),
-        Expression.formatEntry(Expression.get("percentValue")),
-        Expression.formatEntry(Expression.literal("%")),
+        Expression.formatEntry(
+            Expression.get("percentValue"),
+            Expression.FormatOption.formatFontScale(PERCENT_VALUE_FONT_SCALE.toDouble()),
+            Expression.FormatOption.formatTextColor(colors.dongLabelPrimary),
+        ),
+        Expression.formatEntry(
+            Expression.literal("%"),
+            Expression.FormatOption.formatTextColor(colors.dongLabelSecondary),
+        ),
     )
 }

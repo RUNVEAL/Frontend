@@ -24,7 +24,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -43,6 +42,7 @@ import com.sloth.runveal.core.map.CourseSnapshotImage
 import com.sloth.runveal.designsystem.component.button.RunvealButtonGroupEqual
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
+import com.sloth.runveal.designsystem.component.overlay.RunvealLoading
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.running.R
 import com.sloth.runveal.map.snapshot.SnapshotRequest
@@ -51,11 +51,14 @@ import com.sloth.runveal.running.contract.ResultState
 import com.sloth.runveal.ui.toast.NotReadyToastHost
 import com.sloth.runveal.ui.toast.rememberNotReadyToastState
 
+/** 공용 로딩 모션 크기(시안 Z0의 80). */
+private val LOADING_SIZE = 80.dp
+
 private val MAP_CARD_HEIGHT = 268.dp
 private val RESULT_GLOW_WIDTH = 480.dp
 private val RESULT_GLOW_HEIGHT = 320.dp
 private val RESULT_TITLE_TO_EXPLORE_GAP = 40.dp
-private val LEGEND_SWATCH_WIDTH = 16.dp
+private val LEGEND_SWATCH_WIDTH = 14.dp
 private val LEGEND_SWATCH_HEIGHT = 3.dp
 private val LEGEND_SWATCH_HALO_SIZE = 10.dp
 private val LEGEND_SWATCH_HALO_PADDING = 3.dp
@@ -95,7 +98,7 @@ fun ResultScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewModel: 
 
             when (val current = state) {
                 is ResultState.Loading -> Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                    RunvealLoading(modifier = Modifier.align(Alignment.Center).size(LOADING_SIZE))
                 }
                 is ResultState.Ready -> ResultContent(
                     state = current,
@@ -123,7 +126,8 @@ private fun ResultContent(
                 .weight(1f)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(top = RunvealTheme.spacing.space32)
+                // 시안(C1)의 타이틀 y=120 — 상태바 52 + 앱바 56 바로 아래 12다.
+                .padding(top = RunvealTheme.spacing.space12)
                 // 화면 기본 좌우 여백 16dp — 모든 하위 콘텐츠에 공통으로 적용된다.
                 .padding(horizontal = RunvealTheme.layout.marginScreen),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -146,7 +150,7 @@ private fun ResultContent(
                 modifier = Modifier.padding(horizontal = RunvealTheme.spacing.space24).fillMaxWidth(),
             )
 
-            Spacer(modifier = Modifier.height(RunvealTheme.spacing.space32))
+            Spacer(modifier = Modifier.height(RunvealTheme.spacing.space20))
 
             // 지도 카드 — 화면 기본 여백(16dp)만 적용, 별도 섹션 마진 없음.
             RouteMapCard(request = state.mapSnapshotRequest, modifier = Modifier.fillMaxWidth())
@@ -263,7 +267,7 @@ private fun RouteMapCard(request: SnapshotRequest?, modifier: Modifier = Modifie
         )
 
         Row(
-            modifier = Modifier.align(Alignment.BottomStart).padding(RunvealTheme.spacing.space16),
+            modifier = Modifier.align(Alignment.BottomStart).padding(RunvealTheme.spacing.space12),
             horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
         ) {
             LegendItem(

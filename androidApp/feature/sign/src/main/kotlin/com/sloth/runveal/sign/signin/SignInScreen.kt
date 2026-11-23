@@ -123,9 +123,14 @@ internal fun SignInScreen(
                 message = stringResource(R.string.sign_in_error),
                 type = RunvealToastType.Error,
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space16),
+                    .align(Alignment.BottomCenter)
+                    // 시안(Overlay/Toast)은 하단 — 내비게이션 바 위 8.
+                    .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+                    .padding(
+                        start = RunvealTheme.layout.marginScreen,
+                        end = RunvealTheme.layout.marginScreen,
+                        bottom = RunvealTheme.spacing.space8,
+                    ),
             )
         }
 

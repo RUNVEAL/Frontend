@@ -23,7 +23,8 @@ import org.maplibre.geojson.FeatureCollection
  */
 internal object SigunguOverlayLayer {
     private const val LINE_WIDTH_DP = 1.5f
-    private const val LABEL_SIZE_SP = 12f
+    /** 지역 이름은 caption/s-regular(11) — 동 라벨과 같은 크기다. */
+    private const val LABEL_SIZE_SP = 11f
     private val LABEL_FONT = arrayOf("Noto Sans Regular")
 
     private val EMPTY_FEATURE_COLLECTION_JSON = FeatureCollection.fromFeatures(emptyList()).toJson()

@@ -1,7 +1,11 @@
 package com.sloth.runveal.courserecommend
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,13 +19,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -31,6 +38,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -43,10 +53,17 @@ import com.sloth.runveal.core.map.MapLayers
 import com.sloth.runveal.core.map.MapPin
 import com.sloth.runveal.core.map.RecommendedRoute
 import com.sloth.runveal.core.map.buildRecommendedRouteGeoJson
+import com.sloth.runveal.courserecommend.component.FilterBottomSheet
 import com.sloth.runveal.courserecommend.contract.CourseRecommendResultIntent
 import com.sloth.runveal.courserecommend.contract.CourseRecommendResultState
+import com.sloth.runveal.courserecommend.contract.CustomDistanceValues
+import com.sloth.runveal.courserecommend.contract.DistanceOptions
+import com.sloth.runveal.courserecommend.contract.FilterOptions
 import com.sloth.runveal.courserecommend.contract.RouteCardUiModel
+import com.sloth.runveal.designsystem.RunvealIcons
 import com.sloth.runveal.designsystem.component.button.RunvealButton
+import com.sloth.runveal.designsystem.component.button.RunvealButtonGroup
+import com.sloth.runveal.designsystem.component.button.RunvealButtonGroupSingle
 import com.sloth.runveal.designsystem.component.button.RunvealButtonSize
 import com.sloth.runveal.designsystem.component.button.RunvealButtonStyle
 import com.sloth.runveal.designsystem.component.input.RunvealChipCondition
@@ -56,17 +73,25 @@ import com.sloth.runveal.designsystem.component.input.RunvealChipDropdown
 import com.sloth.runveal.designsystem.component.input.RunvealChipDropdownUsage
 import com.sloth.runveal.designsystem.component.list.RunvealCourseCard
 import com.sloth.runveal.designsystem.component.list.RunvealCourseCardState
+import com.sloth.runveal.designsystem.component.list.RunvealEmptyState
+import com.sloth.runveal.designsystem.component.list.RunvealListItem
+import com.sloth.runveal.designsystem.component.list.RunvealListItemSize
 import com.sloth.runveal.designsystem.component.map.RunvealMapMarkerType
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarStyle
+import com.sloth.runveal.designsystem.component.overlay.RunvealLoading
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.courserecommend.R
 import com.sloth.runveal.map.MapConfig
 import kotlin.math.abs
 import kotlinx.coroutines.launch
+import com.sloth.runveal.designsystem.R as DesignSystemR
 
 /** [RunvealCourseCard]의 고정 너비(240dp)와 맞춰야 캐러셀 가운데 정렬 계산이 들어맞는다. */
+/** 공용 로딩 모션 크기(시안 Z0의 80). */
+private val LOADING_SIZE = 80.dp
+
 private val COURSE_CARD_WIDTH = 240.dp
 
 /** B1 — `/api/v1/routes` 응답을 지도 위 오버레이로 보여주는 결과 화면. 지도(Map Shell)는 그대로 보이고
@@ -114,39 +139,62 @@ fun CourseRecommendResultScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
+        // 추천 결과가 없을 땐 한 장짜리 안내 화면이다(시안 B1-1) — 뒤에 지도가 비치면 "코스를 못
+        // 찾았다"면서 지도만 덩그러니 보이게 돼서, 화면 배경색으로 덮는다.
+        if (readyState?.emptyMessage != null) {
+            Box(modifier = Modifier.matchParentSize().background(RunvealTheme.colors.bg.canvas))
+        }
 
         Column(
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .fillMaxWidth()
+                // 결과가 없을 때만 머리 영역을 불투명하게 둔다(시안 B1-1) — 코스가 있을 땐 지도 위에
+                // 그대로 얹히는 앱바다.
+                .then(
+                    if (readyState?.emptyMessage != null) {
+                        Modifier.background(RunvealTheme.colors.surface.raised)
+                    } else {
+                        Modifier
+                    },
+                )
                 .windowInsetsPadding(WindowInsets.statusBars),
         ) {
             RunvealTopAppBar(
                 leading = RunvealTopAppBarLeading.Back,
                 onLeadingClick = onClose,
-                style = RunvealTopAppBarStyle.Map,
+                // 지도 위에 얹힐 때만 글래스 원형 배경을 쓴다 — 결과가 없을 땐 불투명한 한 장짜리
+                // 화면이라 아이콘만 둔다(시안 B1-1).
+                style = if (readyState?.emptyMessage != null) {
+                    RunvealTopAppBarStyle.Default
+                } else {
+                    RunvealTopAppBarStyle.Map
+                },
                 title = stringResource(R.string.course_recommend_result_title),
                 modifier = Modifier.fillMaxWidth(),
             )
-            if (readyState != null) {
+            // 결과가 없을 땐 칩을 숨긴다(시안 B1-1) — 보여 줄 코스가 없는데 조건만 떠 있으면 설명과
+            // "조건 다시 설정하기" 버튼이 하는 말과 겹친다.
+            if (readyState != null && readyState.emptyMessage == null) {
                 SettingsSummaryRow(
                     settings = readyState.settings,
+                    onSettingsClick = { viewModel.onIntent(CourseRecommendResultIntent.OpenFilterSheet) },
                     modifier = Modifier.padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space12),
                 )
             }
         }
 
         when (val current = state) {
-            is CourseRecommendResultState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            is CourseRecommendResultState.Loading ->
+                RunvealLoading(modifier = Modifier.align(Alignment.Center).size(LOADING_SIZE))
             is CourseRecommendResultState.Ready -> {
                 if (current.emptyMessage != null) {
                     EmptyResult(
                         message = current.emptyMessage,
+                        settings = current.settings,
+                        onIntent = viewModel::onIntent,
                         onRetry = onClose,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
-                            .padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space16),
+                        modifier = Modifier.align(Alignment.TopStart),
                     )
                 } else {
                     BoxWithConstraints(
@@ -204,62 +252,171 @@ fun CourseRecommendResultScreen(
                 }
             }
         }
+
+        // 조건을 바꿔 다시 받는 중 — 맨 위에 덮어 카드·칩까지 가리고 탭도 막는다. 지도와 화면 뼈대는
+        // 그대로 둬서, 화면이 통째로 비어 "뒤로 간 것처럼" 보이지 않게 한다.
+        if (readyState?.isReloading == true) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(RunvealTheme.colors.bg.scrim)
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {},
+                contentAlignment = Alignment.Center,
+            ) {
+                RunvealLoading(modifier = Modifier.size(LOADING_SIZE))
+            }
+        }
+    }
+
+    readyState?.filterDraft?.let { draft ->
+        FilterSheet(draft = draft, onIntent = viewModel::onIntent)
     }
 }
 
-/** B0에서 고른 거리·안 가본 길 우선·필터 수를 그대로 보여주는 요약 칩 — 코스 만들기 바텀 패널과 같은
+/** B0에서 고른 거리·안 가본 길 우선·필터를 그대로 보여주는 요약 칩 — 코스 만들기 바텀 패널과 같은
  * 칩이지만 지도 위에 바로 떠서 글래스(OnMap) 스타일을 쓴다.
  *
- * **조회용이다.** 그래서 거리 칩도 `onClick`을 주지 않아 화살표가 없고 눌리지도 않는다 —
- * 여기서 조건을 바꾸려면 뒤로 가서 다시 고른다. */
+ * 셋 중 아무거나 누르면 코스 조건 설정 시트가 열린다 — 어느 칩을 눌렀든 바꿀 수 있는 조건은 같다. */
 @Composable
-private fun SettingsSummaryRow(settings: CourseRecommendSettings, modifier: Modifier = Modifier) {
+private fun SettingsSummaryRow(
+    settings: CourseRecommendSettings,
+    onSettingsClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8)) {
         RunvealChipDropdown(
             label = settings.distanceLabel,
-            onClick = null,
+            onClick = onSettingsClick,
             usage = RunvealChipDropdownUsage.OnMap,
         )
-        if (settings.avoidVisitedPreferred) {
-            RunvealChipCondition(
-                checked = true,
-                onCheckedChange = {},
-                label = stringResource(R.string.course_recommend_result_avoid_visited_label),
-                usage = RunvealChipConditionUsage.OnMap,
+        // 코스 만들기 패널과 같은 칩 세 개를 **항상** 보여준다 — 켠 것만 남기면 "안 가본 길 우선을
+        // 끄고 추천받은 건지, 애초에 안 보여준 건지"를 결과 화면에서 알 수 없다.
+        RunvealChipCondition(
+            checked = settings.avoidVisitedPreferred,
+            onCheckedChange = { onSettingsClick() },
+            label = stringResource(R.string.course_recommend_result_avoid_visited_label),
+            usage = RunvealChipConditionUsage.OnMap,
+        )
+        RunvealChipCondition(
+            checked = settings.selectedFilterCount > 0,
+            onCheckedChange = { onSettingsClick() },
+            icon = RunvealChipConditionIcon.Filter,
+            // 고른 필터가 없으면 아이콘만 — 코스 만들기 패널과 같은 규칙이다.
+            label = settings.selectedFilterCount.takeIf { it > 0 }?.toString(),
+            usage = RunvealChipConditionUsage.OnMap,
+        )
+    }
+}
+
+@Composable
+private fun EmptyResult(
+    message: String,
+    settings: CourseRecommendSettings,
+    onIntent: (CourseRecommendResultIntent) -> Unit,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                // 앱바(56) 아래 24 — 시안(B1-1)의 Contents y=188 자리다.
+                .padding(top = RunvealTheme.layout.sizeTopAppBar + RunvealTheme.spacing.space24)
+                .padding(horizontal = RunvealTheme.layout.marginScreen),
+            verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space24),
+        ) {
+            RunvealEmptyState(
+                title = stringResource(R.string.course_recommend_result_empty_title),
+                // 왜 못 찾았는지는 서버·필터 상황마다 달라서 그대로 받아 설명 줄에 쓴다.
+                description = message,
+                graphic = {
+                    Image(painter = painterResource(R.drawable.empty_course), contentDescription = null)
+                },
             )
+            EmptyResultHints(settings = settings, onIntent = onIntent)
         }
-        if (settings.selectedFilterCount > 0) {
-            RunvealChipCondition(
-                checked = true,
-                onCheckedChange = {},
-                icon = RunvealChipConditionIcon.Filter,
-                label = settings.selectedFilterCount.toString(),
-                usage = RunvealChipConditionUsage.OnMap,
+
+        RunvealButtonGroup(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
+        ) {
+            RunvealButtonGroupSingle(
+                label = stringResource(R.string.course_recommend_result_empty_action),
+                onClick = onRetry,
             )
         }
     }
 }
 
+/** 안내 줄 하나 — 문구와 "누르면 할 일"을 묶어 둔다. */
+private class EmptyHint(
+    val icon: ImageVector,
+    val title: String,
+    val description: String,
+    val onClick: () -> Unit,
+)
+
+/**
+ * 조건을 어떻게 바꾸면 되는지 알려주는 줄(시안 B1-1 "설정변경 안내"). 각 줄은 **그 줄이 말하는 것을
+ * 그대로 해 주는 버튼**이다 — 순환 코스는 도착지를 비워 바로 다시 받고, 거리·필터는 코스 조건 설정
+ * 시트를 띄운다(상단 조건 칩과 같은 시트).
+ *
+ * 이미 그렇게 되어 있어서 누를 게 없는 줄은 빼놓는다 — 도착지가 없으면(이미 순환) 순환 줄을, 고른
+ * 필터가 없으면 필터 줄을 숨긴다. 눌러도 아무 일도 안 나는 줄을 남기면 고장으로 보인다.
+ */
 @Composable
-private fun EmptyResult(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+private fun EmptyResultHints(
+    settings: CourseRecommendSettings,
+    onIntent: (CourseRecommendResultIntent) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val colors = RunvealTheme.colors
     val shape = RunvealTheme.shapes.radius16
+    val loopHint = EmptyHint(
+        icon = RunvealIcons.Circulation,
+        title = stringResource(R.string.course_recommend_result_empty_hint_loop_title),
+        description = stringResource(R.string.course_recommend_result_empty_hint_loop_description),
+        onClick = { onIntent(CourseRecommendResultIntent.RetryAsLoopCourse) },
+    )
+    val distanceHint = EmptyHint(
+        icon = RunvealIcons.Distance,
+        title = stringResource(R.string.course_recommend_result_empty_hint_distance_title),
+        description = stringResource(R.string.course_recommend_result_empty_hint_distance_description),
+        onClick = { onIntent(CourseRecommendResultIntent.OpenFilterSheet) },
+    )
+    val filterHint = EmptyHint(
+        icon = RunvealIcons.Filter,
+        title = stringResource(R.string.course_recommend_result_empty_hint_filter_title),
+        description = stringResource(R.string.course_recommend_result_empty_hint_filter_description),
+        onClick = { onIntent(CourseRecommendResultIntent.OpenFilterSheet) },
+    )
+    val hints = listOfNotNull(
+        loopHint.takeIf { settings.endLatLon != null },
+        distanceHint,
+        filterHint.takeIf { settings.selectedFilterCount > 0 },
+    )
 
     Column(
         modifier = modifier
+            .fillMaxWidth()
             .clip(shape)
-            .background(colors.surface.raised, shape)
-            .padding(RunvealTheme.spacing.space24),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space20),
+            .background(colors.surface.default, shape)
+            .border(1.dp, colors.border.default, shape)
+            .padding(horizontal = RunvealTheme.spacing.space16),
     ) {
-        Text(message, style = RunvealTheme.typography.bodyLRegular, color = colors.text.secondary, textAlign = TextAlign.Center)
-        RunvealButton(
-            label = stringResource(R.string.course_recommend_result_empty_action),
-            onClick = onRetry,
-            style = RunvealButtonStyle.Gold,
-            size = RunvealButtonSize.L,
-        )
+        hints.forEachIndexed { index, hint ->
+            RunvealListItem(
+                title = hint.title,
+                description = hint.description,
+                leadingIcon = hint.icon,
+                size = RunvealListItemSize.L,
+                onClick = hint.onClick,
+                showDivider = index != hints.lastIndex,
+            )
+        }
     }
 }
 
@@ -290,4 +447,48 @@ private fun tagLabel(code: String): String = when (code) {
     "GENTLE_SLOPE" -> stringResource(R.string.course_recommend_tag_gentle_slope)
     "FLAT" -> stringResource(R.string.course_recommend_tag_flat)
     else -> code
+}
+
+/**
+ * 상단 필터 칩으로 여는 코스 조건 설정 시트. 코스 만들기(B0)와 **같은 시트**를 쓰고, 고치는 동안은
+ * 초안([CourseRecommendResultState.Ready.filterDraft])에만 쌓였다가 "코스 조건 적용하기"를 눌러야
+ * 실제로 다시 추천받는다.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FilterSheet(draft: CourseRecommendSettings, onIntent: (CourseRecommendResultIntent) -> Unit) {
+    fun update(block: CourseRecommendSettings.() -> CourseRecommendSettings) {
+        onIntent(CourseRecommendResultIntent.UpdateFilterDraft(draft.block()))
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = { onIntent(CourseRecommendResultIntent.CloseFilterSheet) },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Color.Transparent,
+        dragHandle = null,
+    ) {
+        FilterBottomSheet(
+            distanceOptions = DistanceOptions,
+            selectedDistance = draft.selectedDistance,
+            onDistanceSelect = { update { copy(selectedDistance = it, isCustomDistanceSelected = false) } },
+            isCustomDistanceSelected = draft.isCustomDistanceSelected,
+            customDistanceValues = CustomDistanceValues,
+            customDistanceIndex = draft.customDistanceIndex,
+            onCustomDistanceChipClick = { update { copy(isCustomDistanceSelected = true) } },
+            onCustomDistanceIndexChange = { update { copy(customDistanceIndex = it) } },
+            avoidVisitedPreferred = draft.avoidVisitedPreferred,
+            onAvoidVisitedPreferredChange = { update { copy(avoidVisitedPreferred = it) } },
+            filterOptions = FilterOptions,
+            selectedFilters = draft.selectedFilters,
+            onFilterToggle = { filter ->
+                update {
+                    val filters = if (filter in selectedFilters) selectedFilters - filter else selectedFilters + filter
+                    copy(selectedFilters = filters)
+                }
+            },
+            onBack = { onIntent(CourseRecommendResultIntent.CloseFilterSheet) },
+            onReset = { onIntent(CourseRecommendResultIntent.ResetFilterDraft) },
+            onApply = { onIntent(CourseRecommendResultIntent.ApplyFilterDraft) },
+        )
+    }
 }

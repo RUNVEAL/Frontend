@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.sloth.runveal.designsystem.R
 import com.sloth.runveal.designsystem.RunvealIcons
 import com.sloth.runveal.designsystem.component.button.RunvealIconButton
+import com.sloth.runveal.designsystem.component.button.RunvealIconButtonSize
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.designsystem.component.navigation.RunvealTabBar
 import com.sloth.runveal.designsystem.component.navigation.RunvealTabBarContainer
@@ -42,6 +43,13 @@ import com.sloth.runveal.designsystem.theme.runvealGlass
  * [onMyLocationClick]을 주면 패널 우측 상단 바로 위에 "내 위치" 아이콘 버튼이 떠 있는 형태로 추가된다
  * (지도 locate 버튼과 같은 자리를 다시 안 차지하게 패널 바깥, 위로 띄운다).
  */
+/** 패널 위 "내 위치" 버튼 — 시안 간격(패널 위 20, 패널 오른쪽 끝에서 10 안쪽)과, 보이는 원(44)과
+ * 터치 칸(48)의 차이 2. */
+private val MY_LOCATION_TOUCH_SIZE = 48.dp
+private val MY_LOCATION_PANEL_GAP = 20.dp
+private val MY_LOCATION_END_GAP = 10.dp
+private val MY_LOCATION_TOUCH_INSET = 2.dp
+
 @Composable
 fun RunvealHomeBottomPanel(
     tabBar: @Composable () -> Unit,
@@ -78,14 +86,17 @@ fun RunvealHomeBottomPanel(
         }
 
         if (onMyLocationClick != null) {
+            // 시안(A3-1)은 패널 위 20, 화면 오른쪽에서 20 떨어진 M(44) 버튼이다. 버튼이 차지하는 칸은
+            // 터치 영역(48)이라 보이는 원보다 사방 2 크다 — 그만큼 빼서 보이는 간격을 맞춘다.
             RunvealIconButton(
                 icon = RunvealIcons.Locate,
                 contentDescription = stringResource(R.string.home_bottom_panel_my_location_content_description),
                 onClick = onMyLocationClick,
+                size = RunvealIconButtonSize.M,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .offset(y = -(RunvealTheme.layout.sizeIconButtonL + RunvealTheme.spacing.space12))
-                    .padding(end = RunvealTheme.spacing.space4),
+                    .offset(y = -(MY_LOCATION_TOUCH_SIZE + MY_LOCATION_PANEL_GAP - MY_LOCATION_TOUCH_INSET))
+                    .padding(end = MY_LOCATION_END_GAP - MY_LOCATION_TOUCH_INSET),
             )
         }
     }

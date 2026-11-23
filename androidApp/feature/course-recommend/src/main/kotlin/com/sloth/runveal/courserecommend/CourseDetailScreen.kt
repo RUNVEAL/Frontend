@@ -13,11 +13,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,6 +53,7 @@ import com.sloth.runveal.designsystem.component.map.RunvealMapMarkerType
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarStyle
+import com.sloth.runveal.designsystem.component.overlay.RunvealLoading
 import com.sloth.runveal.designsystem.component.stat.RunvealStat
 import com.sloth.runveal.designsystem.component.stat.RunvealStatType
 import com.sloth.runveal.designsystem.component.overlay.RunvealBottomSheet
@@ -61,6 +62,9 @@ import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.courserecommend.R
 import com.sloth.runveal.map.MapConfig
 import com.sloth.runveal.result.SelectedCourseHolder
+
+/** 공용 로딩 모션 크기(시안 Z0의 80). */
+private val LOADING_SIZE = 80.dp
 
 /** B2 — 코스 상세. 지도(Map Shell)는 그대로 보이고 이 위에 뒤로가기와 바텀시트만 얹는다 — 배경을
  * 깔지 않는다. 추천 결과에서 들어온 코스와 "내 코스"에서 들어온 코스가 같은 화면을 쓰고, 어느 쪽을
@@ -118,7 +122,8 @@ fun CourseDetailScreen(
         )
 
         when (val current = state) {
-            is CourseDetailState.Loading -> CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            // 공용 로딩 모션(시안 Z0) — Material 기본 스피너는 이 앱 어디에도 안 쓴다.
+            is CourseDetailState.Loading -> RunvealLoading(modifier = Modifier.align(Alignment.Center).size(LOADING_SIZE))
             is CourseDetailState.NotFound -> Text(
                 stringResource(R.string.course_detail_not_found),
                 style = RunvealTheme.typography.bodyLRegular,
