@@ -29,5 +29,13 @@
 	<!-- 다크 모드 단일 테마 — 시스템 설정과 무관하게 항상 다크로 고정한다(Android와 같다). -->
 	<key>UIUserInterfaceStyle</key>
 	<string>Dark</string>
+	<!-- Firebase Analytics 수집을 기본으로 꺼 둔다. 릴리즈 빌드만 iOSApp.init에서 다시 켠다
+	     (Android는 같은 역할을 AndroidManifest의 firebase_analytics_collection_enabled가 한다).
+
+	     여기서 끄는 이유: 이 값은 SDK가 켜지기 전에 읽히므로, 앱이 시작하고 런타임으로 끄기까지의
+	     짧은 사이에 자동 이벤트(first_open 등)가 새 나가는 틈이 없다. 한 번 런타임으로 켜면 그
+	     선택이 기기에 저장되므로, 디버그 빌드를 깔았던 기기에서도 릴리즈를 깔면 정상 수집된다. -->
+	<key>FIREBASE_ANALYTICS_COLLECTION_ENABLED</key>
+	<false/>
 </dict>
 </plist>
