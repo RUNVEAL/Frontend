@@ -129,6 +129,7 @@ struct RunvealHomeShell: View {
         .sheet(isPresented: Binding(get: { pendingRunStart != nil },
                                     set: { if !$0 { pendingRunStart = nil } })) {
             runStartLocationSheet
+                .runvealSheetContent()
                 .presentationBackground(.clear)
                 .presentationDetents([.height(Self.locationSheetHeight)])
                 .presentationDragIndicator(.hidden)

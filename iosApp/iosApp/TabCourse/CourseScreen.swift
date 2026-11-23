@@ -156,6 +156,7 @@ struct CourseScreen: View {
                     },
                     onCancel: { renameTarget = nil }
                 )
+                .runvealSheetContent()
                 .presentationBackground(Color.clear)
                 .presentationDragIndicator(.hidden)
                 .presentationDetents([.height(Self.renameSheetHeight)])

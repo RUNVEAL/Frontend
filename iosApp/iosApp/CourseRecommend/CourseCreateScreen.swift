@@ -76,6 +76,7 @@ struct CourseCreateScreen: View {
                 onReset: { viewModel.onIntent(.resetFilterSheet) },
                 onApply: { viewModel.onIntent(.applyFilterSheet) }
             )
+            .runvealSheetContent()
             .presentationBackground(Color.clear)
             .presentationDragIndicator(.hidden)
         }
