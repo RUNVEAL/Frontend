@@ -121,6 +121,13 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         /// [pendingRecenter] 요청이 같이 맞춰야 할 줌 — nil이면 배율은 그대로 둔다.
         private var pendingRecenterZoom: Double?
 
+        private var appliedFollowCommandId = 0
+        /// 우리가 추적을 켠 상태인가 — "한 번 옮기기"([pendingRecenter])와 구분하는 데 쓴다.
+        private var isFollowRequested = false
+        /// 추적을 켜면서 맞춰야 할 줌 — [pendingRecenterZoom]과 같은 이유로 전환이 끝난 뒤에 건다.
+        private var pendingFollowZoom: Double?
+        private var appliedFollowBottomInset: CGFloat = 0
+
         private var lastOverlayBoundarySourceKey: String?
         private var glowRefreshTask: Task<Void, Never>?
         private var currentOverlay: RunvealDongOverlayBundle?
@@ -167,10 +174,17 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         func mapView(_ mapView: MLNMapView, regionDidChangeAnimated animated: Bool) {
             state.updateZoom(mapView.zoomLevel)
             clampToKoreaBoundsIfNeeded(mapView)
+            if let zoom = pendingFollowZoom {
+                // 추적을 켜는 시점에 같이 주면 전환 애니메이션에 묻힌다 — 아래 한 번 옮기기와 같은 이유로
+                // 전환이 끝난 이 시점에 배율만 따로 건다. 중심은 추적이 계속 맞춰 준다.
+                pendingFollowZoom = nil
+                mapView.setZoomLevel(zoom, animated: true)
+            }
             if pendingRecenter {
                 // 한 번만 따라가고 추적을 끈다 — 이후에는 사용자가 자유롭게 둘러볼 수 있게.
+                // 러닝처럼 계속 따라가야 하는 중이면 끄지 않는다.
                 pendingRecenter = false
-                mapView.userTrackingMode = .none
+                if !isFollowRequested { mapView.userTrackingMode = .none }
                 // 줌까지 맞춰야 하는 요청이면(기록 탭 → 홈 줌인 뷰) 추적이 현위치로 옮겨 놓은
                 // 중심을 그대로 두고 배율만 바꾼다. 추적을 켜는 시점에 같이 주지 않는 이유는
                 // Android(`setCameraMode`에 zoom 인자)와 달리 MapLibre iOS에는 그런 묶음 API가
@@ -311,12 +325,49 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
                 }
             }
 
+            if let command = state.followCommand, command.id != appliedFollowCommandId {
+                appliedFollowCommandId = command.id
+                applyFollow(command, mapView: mapView)
+            }
+
+            // 추적 중에 패널 높이가 바뀌면 카메라 여백만 다시 반영한다.
+            if isFollowRequested, state.followBottomInset != appliedFollowBottomInset {
+                applyFollowBottomInset(state.followBottomInset, mapView: mapView)
+            }
+
             if state.boundsFocusRequestId != appliedBoundsFocusRequestId {
                 appliedBoundsFocusRequestId = state.boundsFocusRequestId
                 if state.boundsFocusRequestId > 0, let points = state.boundsFocusPoints, points.count >= 2 {
                     focus(mapView: mapView, points: points, extraBottomPadding: state.boundsFocusExtraBottomPadding)
                 }
             }
+        }
+
+        /// 현재 위치 추적을 켜고 끈다 — Android `CurrentLocationLayer.startFollowing`/`stopFollowing`.
+        ///
+        /// `.follow`는 **북쪽 고정**으로 따라간다(`.followWithHeading`은 지도가 같이 돌아서 안 쓴다).
+        private func applyFollow(_ command: FollowCurrentLocationCommand, mapView: MLNMapView) {
+            isFollowRequested = command.isFollowing
+            if command.isFollowing {
+                // 한 번 옮기기 요청이 걸려 있었다면 버린다 — 계속 따라가는 쪽이 이긴다.
+                pendingRecenter = false
+                pendingRecenterZoom = nil
+                pendingFollowZoom = command.zoom
+                mapView.userTrackingMode = .follow
+                applyFollowBottomInset(state.followBottomInset, mapView: mapView)
+            } else {
+                pendingFollowZoom = nil
+                mapView.userTrackingMode = .none
+                if command.resetAnchor {
+                    applyFollowBottomInset(0, mapView: mapView)
+                }
+            }
+        }
+
+        /// 하단 패널에 가리는 만큼 카메라 아래 여백을 줘서, 현재 위치가 보이는 영역의 가운데에 오게 한다.
+        private func applyFollowBottomInset(_ inset: CGFloat, mapView: MLNMapView) {
+            appliedFollowBottomInset = inset
+            mapView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: inset, right: 0)
         }
 
         /// 코스 선이 화면 가장자리에 딱 붙지 않게 주는 여백.

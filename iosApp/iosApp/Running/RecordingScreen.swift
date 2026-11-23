@@ -16,6 +16,13 @@ struct RecordingScreen: View {
     @State private var courseProgress: RecordingCourseProgress?
     /// `.runvealMapDotMarkers`가 "내가 올린 마커만 치우기"를 판단하는 표식.
     @State private var courseMarkersOwner = UUID()
+    /// 하단 패널이 지도를 가리는 높이 — 그만큼 카메라 아래 여백을 줘서 현재 위치가 패널 위
+    /// 보이는 영역의 가운데에 오게 한다. 패널 높이는 기록/일시정지·코스 진행 표시 유무로 달라져서
+    /// 실제로 재서 넘긴다(Android `onSizeChanged`와 같은 이유).
+    @State private var panelHeight: CGFloat = 0
+    /// 줌은 **시작할 때 한 번만** 맞춘다 — 재개할 때 다시 맞추면 그 사이 사용자가 보려고 조절해 둔
+    /// 배율이 멋대로 되돌아간다("내 위치" 버튼도 같은 이유로 줌을 안 건드린다).
+    @State private var isFirstStart = true
 
     private static let courseGuideTickerInterval: Duration = .seconds(1)
 
@@ -35,11 +42,21 @@ struct RecordingScreen: View {
                     // 시작 직후 기록 상태가 아직 안 바뀐 찰나 — 그릴 게 없다.
                     EmptyView()
                 case .recording:
-                    RecordingOverlay(state: viewModel.state, courseProgress: courseProgress, mapState: mapState) {
+                    RecordingOverlay(
+                        state: viewModel.state,
+                        courseProgress: courseProgress,
+                        mapState: mapState,
+                        onPanelHeightChange: { panelHeight = $0 }
+                    ) {
                         RunvealRunPauseButton { viewModel.onIntent(.pauseClicked) }
                     }
                 case .paused:
-                    RecordingOverlay(state: viewModel.state, courseProgress: courseProgress, mapState: mapState) {
+                    RecordingOverlay(
+                        state: viewModel.state,
+                        courseProgress: courseProgress,
+                        mapState: mapState,
+                        onPanelHeightChange: { panelHeight = $0 }
+                    ) {
                         RunvealButtonGroupEqual(
                             firstLabel: RunningStrings.recordingStopButton,
                             onFirstClick: { viewModel.onIntent(.stopRequested) },
@@ -101,12 +118,30 @@ struct RecordingScreen: View {
             }
             await focusCourseAndTrackProgress()
         }
+        // 러닝 중 지도 카메라 — 달리는 동안엔 현재 위치를 계속 따라가고(북쪽 고정), 일시정지하면 멈춘다.
+        .onChange(of: viewModel.state.phase) { _, phase in
+            switch phase {
+            case .recording:
+                mapState.startFollowingCurrentLocation(
+                    zoom: isFirstStart ? RunvealMapConfig.recordingZoom : nil
+                )
+                isFirstStart = false
+            case .paused:
+                mapState.stopFollowingCurrentLocation()
+            case .idle:
+                break
+            }
+        }
+        .onChange(of: panelHeight) { _, height in mapState.followBottomInset = height }
         // 러닝 중에는 내 위치 마커에 지금 바라보는 방향을 화살표로 띄운다.
         .onAppear { mapState.showsHeadingIndicator = true }
         .onDisappear {
             // 지도(Map Shell)는 이 화면보다 오래 산다 — 나갈 때 끄지 않으면 홈 지도에도 화살표가
-            // 계속 붙어 있다(Android `RecordingScreen`의 DisposableEffect와 같은 이유).
+            // 계속 붙어 있고 지도가 계속 현재 위치를 따라다닌다. 패널만큼 비워 두던 카메라 여백도
+            // 이때 같이 되돌린다(Android `RecordingScreen`의 DisposableEffect와 같은 이유).
             mapState.showsHeadingIndicator = false
+            mapState.stopFollowingCurrentLocation(resetAnchor: true)
+            mapState.followBottomInset = 0
             viewModel.onDisappear()
         }
     }
@@ -142,7 +177,8 @@ struct RecordingScreen: View {
     /// 같은 자리라 "현위치에서 가장 가까운 점" 방식도 못 쓴다.
     private func focusCourseAndTrackProgress() async {
         guard let path = viewModel.state.selectedCoursePath, path.count >= 2 else { return }
-        mapState.focusOnBounds(points: path)
+        // 코스 전체로 카메라를 맞추지 않는다 — 시작하자마자 현재 위치 추적이 켜지므로 그 포커싱은
+        // 바로 덮인다(Android도 추적만 하고 코스 포커싱은 하지 않는다).
 
         let tracker = IosCourseProgress.shared.tracker(coursePath: path)
         var consumedPointCount = 0
@@ -184,21 +220,37 @@ private struct NewRoadBadge: View {
 }
 
 /// 범례+내 위치 줄 + 패널(16 간격) — 기록 중/일시정지 공통.
+///
+/// [onPanelHeightChange]로 패널(지도를 실제로 가리는 불투명한 부분)의 높이를 알려준다 — 러닝 중
+/// 카메라가 현재 위치를 "패널 위 보이는 영역의 가운데"에 두는 데 쓴다. 범례·내 위치 줄은 지도가
+/// 그대로 보이는 자리라 높이에서 뺀다.
 private struct RecordingOverlay<Action: View>: View {
     let state: RecordingScreenState
     let courseProgress: RecordingCourseProgress?
     let mapState: RunvealMapState
+    let onPanelHeightChange: (CGFloat) -> Void
     @ViewBuilder let action: () -> Action
 
     var body: some View {
         VStack(spacing: RunvealSpacing.space16) {
             MapLegendRow(
                 showCourseGuide: state.selectedCoursePath != nil,
-                onLocateClick: { mapState.recenterToCurrentLocation() }
+                // 러닝 중에는 한 번 옮기기가 아니라 **추적 복귀**다 — 지도를 드래그해 추적이 풀린
+                // 뒤 다시 따라가게 한다(Android도 이 버튼이 startFollowing을 부른다).
+                onLocateClick: { mapState.startFollowingCurrentLocation() }
             )
             .padding(.horizontal, RunvealLayout.marginScreen)
 
             RecordingPanel(state: state, courseProgress: courseProgress, action: action)
+                .background(
+                    GeometryReader { panelGeometry in
+                        Color.clear
+                            .onAppear { onPanelHeightChange(panelGeometry.size.height) }
+                            .onChange(of: panelGeometry.size.height) { _, height in
+                                onPanelHeightChange(height)
+                            }
+                    }
+                )
         }
         .frame(maxWidth: .infinity)
     }
