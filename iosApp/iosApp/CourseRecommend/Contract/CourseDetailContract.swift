@@ -9,6 +9,14 @@ enum CourseDetailSource: Hashable {
     case recommended(id: String)
     /// "내 코스"에서 눌러 들어온, 이미 저장된 코스 — 로컬 `course` 테이블에서 읽는다.
     case saved(id: String)
+
+    /// 출처와 무관하게 "이 코스"를 가리키는 id — 지도 레이어의 피처 id처럼 어느 쪽이든 같은 값을
+    /// 쓰는 자리가 있다(Android `CourseDetailSource.id`).
+    var id: String {
+        switch self {
+        case .recommended(let id), .saved(let id): return id
+        }
+    }
 }
 
 enum CourseDetailIntent: UiIntent {
