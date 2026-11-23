@@ -57,10 +57,11 @@ struct CourseCreateScreen: View {
             mapState.pinMarkers = []
             viewModel.cancelRunningTasks()
         }
-        .sheet(isPresented: Binding(
-            get: { viewModel.state.showFilterSheet },
-            set: { if !$0 { viewModel.onIntent(.closeFilterSheet) } }
-        )) {
+        // 지도 위에 얹는다 — `.sheet`으로 띄우면 뒤 지도가 검게 보인다(`runvealBottomSheet` 참고).
+        .runvealBottomSheet(
+            isPresented: viewModel.state.showFilterSheet,
+            onDismiss: { viewModel.onIntent(.closeFilterSheet) }
+        ) {
             FilterBottomSheet(
                 selectedDistance: viewModel.state.selectedDistance,
                 isCustomDistanceSelected: viewModel.state.isCustomDistanceSelected,
@@ -76,7 +77,6 @@ struct CourseCreateScreen: View {
                 onReset: { viewModel.onIntent(.resetFilterSheet) },
                 onApply: { viewModel.onIntent(.applyFilterSheet) }
             )
-            .runvealSheetContent()
         }
     }
 
