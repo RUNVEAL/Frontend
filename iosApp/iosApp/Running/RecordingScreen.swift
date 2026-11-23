@@ -383,7 +383,10 @@ private struct RecordingPanel<Action: View>: View {
         .padding(.top, RunvealSpacing.space24)
         .padding(.bottom, RunvealSpacing.space32)
         .frame(maxWidth: .infinity)
-        .background(colors.surface.raised, in: shape)
+        // 배경만 OS 내비게이션 바(제스처 바) 뒤까지 채운다 — `RunvealBottomSheet`와 같은 컨벤션.
+        .background {
+            shape.fill(colors.surface.raised).ignoresSafeArea(edges: .bottom)
+        }
     }
 }
 
