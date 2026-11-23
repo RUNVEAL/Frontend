@@ -355,7 +355,19 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                         }
                     },
                 )
-                recordGraph(tabNavigator)
+                recordGraph(
+                    tabNavigator,
+                    // 기록이 없을 때의 "러닝 시작하기" — 홈 탭으로 옮기고 지도를 줌인 뷰까지
+                    // 확대한다. 줌인이라야 러닝 시작 버튼이 있는 오버레이가 뜬다
+                    // (ZoomedInMapOverlay는 currentZoom >= ZOOM_IN_THRESHOLD에서만 그려진다).
+                    //
+                    // 기록 탭은 빈 상태가 스택 루트라, MY 탭에서 나올 때처럼 화면을 먼저 떼어낼
+                    // 필요가 없다 — 탭만 바꾸면 된다.
+                    onStartRunningClick = {
+                        onSelectTab(0)
+                        mapState.recenterToCurrentLocation(zoom = MapConfig.HOME_ZOOM_IN)
+                    },
+                )
                 myGraph(
                     tabNavigator,
                     onLoggedOut = onLoggedOut,

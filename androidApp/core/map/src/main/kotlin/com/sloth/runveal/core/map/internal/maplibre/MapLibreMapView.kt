@@ -313,7 +313,7 @@ internal fun MapLibreMapView(
     // "내 위치" 버튼 요청으로 보고 다시 추적한다.
     LaunchedEffect(state.recenterRequestId, liveMap) {
         if (state.recenterRequestId == 0) return@LaunchedEffect
-        liveMap?.let { CurrentLocationLayer.recenter(it) }
+        liveMap?.let { CurrentLocationLayer.recenter(it, state.recenterZoom) }
     }
     // 0은 초기값(= 아직 요청 안 함) — [MapState.focusOnBounds]가 호출될 때만 카메라를 옮긴다.
     LaunchedEffect(state.boundsFocusRequestId, liveMap) {

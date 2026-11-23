@@ -18,6 +18,15 @@ object MapConfig {
     /** 러닝을 시작할 때 맞추는 줌 — 지금 달리는 길과 다음 갈림길이 같이 보이는 정도. */
     const val RECORDING_ZOOM: Double = 16.5
 
+    /**
+     * 다른 화면에서 홈 줌인 뷰로 보낼 때 맞추는 줌(기록 탭 "러닝 시작하기" 등) — 주변 도로와 동네
+     * 범위가 같이 보이는 정도다.
+     *
+     * [ZOOM_IN_THRESHOLD]보다 넉넉히 위에 둔다. 임계값에 딱 맞추면 전환 히스테리시스가 없어서
+     * 손가락이 살짝 스쳐 축소되는 것만으로 줌아웃 UI로 되돌아간다.
+     */
+    const val HOME_ZOOM_IN: Double = 15.0
+
     val KOREA_BOUNDS_NORTH_WEST: LatLon = LatLon(lat = 38.7, lon = 124.5)
     val KOREA_BOUNDS_SOUTH_EAST: LatLon = LatLon(lat = 33.0, lon = 131.0)
     const val MIN_ZOOM_PREFERENCE: Double = 6.0
