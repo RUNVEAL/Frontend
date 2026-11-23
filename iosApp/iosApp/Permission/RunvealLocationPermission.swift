@@ -76,12 +76,12 @@ struct RequireLocationPermissionModifier: ViewModifier {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { state.refresh() }
             }
-            .sheet(isPresented: Binding(
-                get: { !state.isGranted && !dismissed },
-                set: { if !$0 { dismissed = true } }
-            )) {
+            // 지도 위에 얹는다 — `.sheet`으로 띄우면 뒤 지도가 검게 보인다(`runvealBottomSheet` 참고).
+            .runvealBottomSheet(
+                isPresented: !state.isGranted && !dismissed,
+                onDismiss: { dismissed = true }
+            ) {
                 sheetContent
-                    .runvealSheetContent()
             }
     }
 

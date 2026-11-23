@@ -126,10 +126,12 @@ struct RunvealHomeShell: View {
         }
         // 러닝 시작을 눌렀는데 위치가 준비 안 된 경우 — 무엇이 모자란지에 맞는 시트를 띄운다.
         // 권한을 먼저 보고, 권한이 있으면 위치 서비스를 본다(둘 중 하나만 꺼져도 좌표를 못 받는다).
-        .sheet(isPresented: Binding(get: { pendingRunStart != nil },
-                                    set: { if !$0 { pendingRunStart = nil } })) {
+        // 지도 위에 얹는다 — `.sheet`으로 띄우면 뒤 지도가 검게 보인다(`runvealBottomSheet` 참고).
+        .runvealBottomSheet(
+            isPresented: pendingRunStart != nil,
+            onDismiss: { pendingRunStart = nil }
+        ) {
             runStartLocationSheet
-                .runvealSheetContent()
         }
         // 시트에서 허용·켜기를 마치고 돌아오면 미뤄 둔 러닝 시작을 잇는다.
         .onChange(of: permissionState.isGranted) { _, _ in resumePendingRunIfReady() }
