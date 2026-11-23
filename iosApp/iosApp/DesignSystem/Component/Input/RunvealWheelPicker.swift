@@ -29,6 +29,16 @@ struct RunvealWheelPicker: View {
         self.onSelectedIndexChange = onSelectedIndexChange
     }
 
+    /// 보이는 창(5줄) 안에 들어와 있는 줄인가.
+    ///
+    /// 드래그 중 끊기지 않게 창 위아래로 줄을 더 그려 두는데, 그 줄들도 **버튼**이다.
+    /// `clipped()`는 그리는 것만 자르고 터치는 그대로 남기므로, 그냥 두면 창 밖의 보이지 않는
+    /// 줄이 위에 있는 칩·버튼을 덮는다 — 그쪽을 눌러도 휠 값만 바뀌는 증상이 그것이다.
+    private func isWithinWindow(_ rowOffset: Int) -> Bool {
+        let rowCenter = CGFloat(rowOffset) * Self.rowHeight + offset
+        return abs(rowCenter) <= Self.rowHeight * CGFloat(Self.visibleRows) / 2
+    }
+
     /// 드래그 중 실제로 센터 줄에 와 있는 값 — 인덱스 커밋과는 별개로 스타일만 따라간다.
     private var centerRowOffset: Int {
         let raw = Int((-offset / Self.rowHeight).rounded())
@@ -43,6 +53,8 @@ struct RunvealWheelPicker: View {
         .frame(maxWidth: .infinity)
         .frame(height: Self.rowHeight * CGFloat(Self.visibleRows))
         .clipped()
+        // 터치도 보이는 창 안으로 제한한다 — `clipped()`는 **그리는 것만** 자른다.
+        .contentShape(Rectangle())
         .gesture(dragGesture)
     }
 
@@ -84,6 +96,7 @@ struct RunvealWheelPicker: View {
         }
         .buttonStyle(.plain)
         .disabled(value == nil)
+        .allowsHitTesting(isWithinWindow(rowOffset))
     }
 
     @ViewBuilder
