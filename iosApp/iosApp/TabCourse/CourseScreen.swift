@@ -43,6 +43,13 @@ struct CourseScreen: View {
     @State private var renameTarget: SavedCourseItem?
     @State private var deleteTarget: SavedCourseItem?
     @State private var isNotReadyToastVisible = false
+    /// 떠 있는 더보기 메뉴 — 어느 코스의 어느 자리인지. nil이면 안 떠 있다.
+    @State private var moreMenu: CourseMoreMenuTarget?
+
+    /// 더보기 아이콘 자리를 재는 기준 좌표 공간 — 화면 루트에 이름을 붙여 둔다.
+    private static let menuSpace = "course-more-menu"
+    /// 아이콘과 메뉴 사이 간격. 아이콘을 가리지 않게 **아래로** 띄운다.
+    private static let menuGap: CGFloat = 4
 
     var body: some View {
         let colors = RunvealTheme.colors
@@ -75,11 +82,10 @@ struct CourseScreen: View {
                         CourseRecommendationCard(
                             badgeLabel: TabCourseStrings.recommendBadge,
                             course: featured,
-                            onRenameClick: { renameTarget = featured },
-                            // TODO: GPX 파일로 내보내기는 아직이다 — 그때까지는 "개발 중" 안내만 띄운다
-                            //  (Android도 같은 상태다).
-                            onExportGpxClick: { isNotReadyToastVisible = true },
-                            onDeleteClick: { deleteTarget = featured },
+                            menuSpace: Self.menuSpace,
+                            onMoreTap: { anchor in
+                                moreMenu = CourseMoreMenuTarget(course: featured, anchor: anchor)
+                            },
                             onStartClick: { start(course: featured) }
                         )
                         .padding(.horizontal, RunvealLayout.marginScreen)
@@ -96,9 +102,10 @@ struct CourseScreen: View {
                             ForEach(courses, id: \.id) { course in
                                 SavedCourseListItem(
                                     course: course,
-                                    onRenameClick: { renameTarget = course },
-                                    onExportGpxClick: { isNotReadyToastVisible = true },
-                                    onDeleteClick: { deleteTarget = course },
+                                    menuSpace: Self.menuSpace,
+                                    onMoreTap: { anchor in
+                                        moreMenu = CourseMoreMenuTarget(course: course, anchor: anchor)
+                                    },
                                     onClick: { onCourseClick(course) },
                                     onStartClick: { start(course: course) }
                                 )
@@ -135,7 +142,11 @@ struct CourseScreen: View {
                     Spacer()
                 }
             }
+
+            moreMenuOverlay
         }
+        // 더보기 아이콘이 자기 자리를 재는 기준 — 메뉴를 띄우는 자리와 같은 공간이어야 한다.
+        .coordinateSpace(name: Self.menuSpace)
         .task { await reload() }
         // 토스트 자체는 타이머를 모르는 순수 컴포넌트라 사라지는 건 여기서 재운다.
         .task(id: isNotReadyToastVisible) {
@@ -182,6 +193,48 @@ struct CourseScreen: View {
 
     /// 토스트가 떠 있는 시간 — 디자인시스템 토스트 주석의 "3초"를 그대로 따른다.
     private static let toastDuration: Duration = .seconds(3)
+
+    /// 더보기 메뉴 — **화면 루트에서** 그린다.
+    ///
+    /// 카드 안에서 그리면 `clipShape`에 잘리고 러닝 시작 버튼이 위를 덮는다. 여기서 그리면 둘 다
+    /// 없어지고, 바깥을 눌러 닫는 것도 같이 붙는다(Android `DropdownMenu`와 같은 동작).
+    ///
+    /// 자리는 아이콘 **바로 아래**다 — 아이콘을 가리지 않아야 어느 줄의 메뉴인지 보인다.
+    @ViewBuilder
+    private var moreMenuOverlay: some View {
+        if let target = moreMenu {
+            ZStack(alignment: .topLeading) {
+                // 바깥 어디를 눌러도 닫힌다. 보이지는 않지만 터치는 받아야 해서 `contentShape`를 준다.
+                //
+                // **`ignoresSafeArea`를 주지 않는다.** 그러면 이 ZStack이 화면 밖까지 커져서
+                // 기준점(top-leading)이 위로 밀리고, 아이콘 자리를 잰 좌표와 어긋난다.
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture { moreMenu = nil }
+
+                CourseMoreMenuContent(
+                    onRenameClick: {
+                        moreMenu = nil
+                        renameTarget = target.course
+                    },
+                    // TODO: GPX 파일로 내보내기는 아직이다 — 그때까지는 "개발 중" 안내만 띄운다
+                    //  (Android도 같은 상태다).
+                    onExportGpxClick: {
+                        moreMenu = nil
+                        isNotReadyToastVisible = true
+                    },
+                    onDeleteClick: {
+                        moreMenu = nil
+                        deleteTarget = target.course
+                    }
+                )
+                // 오른쪽 끝을 아이콘에 맞추고, 아이콘 아래로 내린다. 가로는 메뉴 폭만큼 되돌려야
+                // 오른쪽 정렬이 된다.
+                .alignmentGuide(.leading) { dimension in -(target.anchor.maxX - dimension.width) }
+                .alignmentGuide(.top) { _ in -(target.anchor.maxY + Self.menuGap) }
+            }
+        }
+    }
 
     private func reload() async {
         let loaded = await Task.detached(priority: .userInitiated) {
@@ -257,9 +310,8 @@ private struct CourseTopBarActionButton: View {
 private struct CourseRecommendationCard: View {
     let badgeLabel: String
     let course: SavedCourseItem
-    let onRenameClick: () -> Void
-    let onExportGpxClick: () -> Void
-    let onDeleteClick: () -> Void
+    let menuSpace: String
+    let onMoreTap: (CGRect) -> Void
     let onStartClick: () -> Void
 
     private static let mapHeight: CGFloat = 160
@@ -319,11 +371,7 @@ private struct CourseRecommendationCard: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    CourseMoreMenuIcon(
-                        onRenameClick: onRenameClick,
-                        onExportGpxClick: onExportGpxClick,
-                        onDeleteClick: onDeleteClick
-                    )
+                    CourseMoreMenuButton(coordinateSpace: menuSpace, onTap: onMoreTap)
                 }
                 .frame(maxWidth: .infinity)
 
@@ -378,9 +426,8 @@ private struct SavedCourseSectionHeader: View {
 /// 저장한 코스 목록의 한 줄 — 썸네일 + 정보 + 더보기 + 바로 시작.
 private struct SavedCourseListItem: View {
     let course: SavedCourseItem
-    let onRenameClick: () -> Void
-    let onExportGpxClick: () -> Void
-    let onDeleteClick: () -> Void
+    let menuSpace: String
+    let onMoreTap: (CGRect) -> Void
     /// 줄 전체를 눌렀을 때 — 코스 상세로 간다.
     let onClick: () -> Void
     let onStartClick: () -> Void
@@ -415,11 +462,7 @@ private struct SavedCourseListItem: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            CourseMoreMenuIcon(
-                onRenameClick: onRenameClick,
-                onExportGpxClick: onExportGpxClick,
-                onDeleteClick: onDeleteClick
-            )
+            CourseMoreMenuButton(coordinateSpace: menuSpace, onTap: onMoreTap)
 
             Button(action: onStartClick) {
                 RunvealIcon(RunvealIcons.play, tint: colors.accent.default, size: 16)
