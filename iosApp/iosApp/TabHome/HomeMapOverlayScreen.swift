@@ -302,6 +302,11 @@ private struct ExploreSummaryCard: View {
         .padding(.horizontal, RunvealLayout.marginScreen)
         .padding(.vertical, RunvealLayout.marginCardPadding)
         .frame(maxWidth: .infinity)
-        .background(colors.surface.raised, in: shape)
+        // **배경만 상태 바 뒤까지 채운다** — 그래야 그 영역도 카드와 같은 색으로 보인다(안 그러면
+        // 지도가 비친다). 내용은 safe area 아래에 그대로 남는다. Android가 배경을 먼저 칠하고
+        // 그 위에 statusBars 인셋을 더하는 것과 같은 결과다. 하단 시트와 같은 컨벤션이다.
+        .background {
+            shape.fill(colors.surface.raised).ignoresSafeArea(edges: .top)
+        }
     }
 }
