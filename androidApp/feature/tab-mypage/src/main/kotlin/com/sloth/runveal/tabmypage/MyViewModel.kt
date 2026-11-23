@@ -66,6 +66,21 @@ class MyViewModel : MviViewModel<MyIntent, MyState, MyEffect>(
             MyIntent.LogoutDismissed -> setState { copy(showLogoutDialog = false) }
             MyIntent.LogoutConfirmed -> logout()
 
+            // ⚠️ 테스트용 — 기록이 늘었으니 "탐험한 동"·"누적 거리"를 다시 센다(Health Connect
+            // 가져오기가 끝났을 때와 같은 처리).
+            is MyIntent.SampleGpxImported -> {
+                loadRunningSummary()
+                setState {
+                    copy(
+                        toast = when {
+                            intent.imported > 0 -> MyToast.SAMPLE_GPX_IMPORTED
+                            intent.skipped > 0 -> MyToast.SAMPLE_GPX_ALREADY
+                            else -> MyToast.SAMPLE_GPX_FAILED
+                        },
+                    )
+                }
+            }
+
             is MyIntent.ToastRequested -> setState { copy(toast = intent.toast) }
             MyIntent.ToastShown -> setState { copy(toast = null) }
         }

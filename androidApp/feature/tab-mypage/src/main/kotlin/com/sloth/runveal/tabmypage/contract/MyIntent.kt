@@ -15,4 +15,7 @@ sealed interface MyIntent : UiIntent {
 
     /** 안내 토스트가 노출을 마쳤을 때 — 다시 안 뜨게 상태에서 내린다. */
     data object ToastShown : MyIntent
+
+    /** ⚠️ 테스트용 — 샘플 GPX 넣기가 끝났다. 프로필 숫자를 다시 집계하고 결과를 토스트로 알린다. */
+    data class SampleGpxImported(val imported: Int, val skipped: Int) : MyIntent
 }

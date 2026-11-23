@@ -6,6 +6,15 @@ import com.sloth.runveal.ui.mvi.UiState
 enum class MyToast {
     /** 아직 붙일 기능이 없는 항목을 눌렀을 때. */
     NOT_READY,
+
+    /** ⚠️ 테스트용 — "테스트 GPX 불러오기"로 샘플 기록을 넣었을 때. */
+    SAMPLE_GPX_IMPORTED,
+
+    /** ⚠️ 테스트용 — 샘플 기록이 이미 전부 들어 있어 넣은 게 없을 때. */
+    SAMPLE_GPX_ALREADY,
+
+    /** ⚠️ 테스트용 — 샘플 기록을 하나도 못 넣었을 때(에셋·DB 문제). */
+    SAMPLE_GPX_FAILED,
 }
 
 /**

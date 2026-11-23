@@ -25,7 +25,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -52,7 +55,10 @@ import com.sloth.runveal.tabmypage.contract.MyIntent
 import com.sloth.runveal.tabmypage.contract.MyToast
 import com.sloth.runveal.tabmypage.contract.TermsPolicyItem
 import com.sloth.runveal.ui.mvi.CollectEffect
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** `mypage_bg.png`의 원본 크기(2062x2032px, xxxhdpi 4배). 화면 너비(360dp)보다 넓은 건 의도 —
  * 양옆으로 번져 나가는 배경이라 가운데 정렬로 잘라 쓴다(ResultScreen의 result_glow와 같은 방식). */
@@ -104,6 +110,21 @@ fun MyScreen(
             context.openAppSettings()
         } else {
             locationPermissionState.request()
+        }
+    }
+
+    // ⚠️ 테스트용 — 샘플 GPX 넣기. 에셋을 읽어야 해서 ViewModel이 아니라 화면이 맡는다(위치 권한과
+    // 같은 이유). 수천 점을 도로 인덱스에 맞춰 보느라 몇 초 걸리므로, 끝날 때까지 다시 눌러도 무시한다.
+    val coroutineScope = rememberCoroutineScope()
+    var isImportingSampleGpx by remember { mutableStateOf(false) }
+    val onImportSampleGpxClick: () -> Unit = {
+        if (!isImportingSampleGpx) {
+            isImportingSampleGpx = true
+            coroutineScope.launch {
+                val result = withContext(Dispatchers.IO) { UtSampleGpxImporter.import(context) }
+                isImportingSampleGpx = false
+                viewModel.onIntent(MyIntent.SampleGpxImported(result.imported, result.skipped))
+            }
         }
     }
 
@@ -171,6 +192,8 @@ fun MyScreen(
                         isLocationPermissionGranted = locationPermissionState.isGranted,
                         onLocationPermissionClick = onLocationPermissionClick,
                         onImportRecordsClick = onImportRecordsClick,
+                        isImportingSampleGpx = isImportingSampleGpx,
+                        onImportSampleGpxClick = onImportSampleGpxClick,
                         onIntent = viewModel::onIntent,
                     )
                     TermsPolicySection(onItemClick = onTermsItemClick)
@@ -220,6 +243,8 @@ private fun SettingsSection(
     isLocationPermissionGranted: Boolean,
     onLocationPermissionClick: () -> Unit,
     onImportRecordsClick: () -> Unit,
+    isImportingSampleGpx: Boolean,
+    onImportSampleGpxClick: () -> Unit,
     onIntent: (MyIntent) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -264,6 +289,20 @@ private fun SettingsSection(
                     .padding(end = RunvealTheme.spacing.space12),
             )
         }
+
+        // ⚠️ 테스트용 — UT 샘플 기록을 로컬에 넣는다([UtSampleGpxImporter]). 머지 전에 이 줄과
+        // 그 파일, `assets/ut-gpx`를 지울 것.
+        RunvealListItem(
+            title = stringResource(R.string.my_menu_import_sample_gpx),
+            description = stringResource(
+                if (isImportingSampleGpx) {
+                    R.string.my_menu_import_sample_gpx_running
+                } else {
+                    R.string.my_menu_import_sample_gpx_description
+                },
+            ),
+            onClick = onImportSampleGpxClick,
+        )
     }
 }
 
@@ -328,4 +367,7 @@ private fun AccountSection(onIntent: (MyIntent) -> Unit) {
 private val MyToast.messageRes: Int
     get() = when (this) {
         MyToast.NOT_READY -> R.string.my_not_ready_toast
+        MyToast.SAMPLE_GPX_IMPORTED -> R.string.my_sample_gpx_imported_toast
+        MyToast.SAMPLE_GPX_ALREADY -> R.string.my_sample_gpx_already_toast
+        MyToast.SAMPLE_GPX_FAILED -> R.string.my_sample_gpx_failed_toast
     }
