@@ -145,6 +145,15 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
             apply(state: state, overlay: currentOverlay)
         }
 
+        // MARK: 현재 위치 마커
+
+        /// 현재 위치만 우리 마커로 바꾼다 — 나머지 annotation은 쓰지 않으므로 nil을 돌려줘
+        /// SDK 기본값에 맡긴다.
+        func mapView(_ mapView: MLNMapView, viewFor annotation: MLNAnnotation) -> MLNAnnotationView? {
+            guard annotation is MLNUserLocation else { return nil }
+            return RunvealUserLocationAnnotationView()
+        }
+
         // MARK: 카메라
 
         func mapView(_ mapView: MLNMapView, regionDidChangeAnimated animated: Bool) {
