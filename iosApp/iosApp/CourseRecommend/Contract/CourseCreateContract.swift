@@ -56,6 +56,9 @@ struct CourseCreateState: UiState {
     var pickedLocation: LatLon?
     var startLatLon: LatLon?
     var endLatLon: LatLon?
+    /// [pickedLocation]이 속한 행정동 이름(`GET /api/v1/dong`) — 아직 못 받았거나 조회가 실패하면
+    /// nil이고, 그때는 [selectedPlaceName]이 좌표를 그대로 보여준다.
+    var pickedPlaceName: String?
     var selectedDistance = CourseCreateOptions.defaultDistance
     var isCustomDistanceSelected = false
     var customDistanceIndex = CourseCreateOptions.defaultCustomDistanceIndex
@@ -69,9 +72,12 @@ struct CourseCreateState: UiState {
             : selectedDistance
     }
 
-    // TODO: 좌표 기반 주소(또는 동 이름) 변환이 붙으면 좌표 대신 그 결과를 보여주기(Android도 같은 TODO).
-    /// 장소명 대신 탭한 좌표를 그대로 보여준다(§1 — 좌표→주소 변환 자체를 안 씀).
+    /// 탭한 자리의 행정동 이름([pickedPlaceName], 예: "중구 명동"). 조회 중이거나 실패했으면 좌표를
+    /// 그대로 보여준다 — 이름이 안 떠도 어디를 찍었는지는 알 수 있어야 한다.
+    ///
+    /// 확정하면 이 값이 그대로 출발지/도착지 라벨로 들어간다.
     var selectedPlaceName: String {
+        if let pickedPlaceName { return pickedPlaceName }
         guard let pickedLocation else { return CourseRecommendStrings.pickLocation }
         return String(format: "%.4f, %.4f", pickedLocation.lat, pickedLocation.lon)
     }

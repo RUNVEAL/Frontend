@@ -11,6 +11,9 @@ final class CourseCreateViewModel: MviViewModel<CourseCreateIntent, CourseCreate
     /// 응답이 이것보다 빨리 와도 로딩 모션이 최소 한 번은 눈에 보이게 그만큼은 붙잡아 둔다.
     private static let minimumLoadingDuration: Duration = .milliseconds(900)
 
+    /// 진행 중인 행정동 조회 — 지도를 연달아 탭하면 앞선 요청을 버린다.
+    private var placeNameTask: Task<Void, Never>?
+
     init() {
         super.init(initialState: CourseCreateState())
     }
@@ -24,7 +27,14 @@ final class CourseCreateViewModel: MviViewModel<CourseCreateIntent, CourseCreate
             setState { var s = $0; s.locationSelectionTarget = .end; return s }
 
         case .cancelLocationSelection:
-            setState { var s = $0; s.locationSelectionTarget = .none; s.pickedLocation = nil; return s }
+            placeNameTask?.cancel()
+            setState { state in
+                var next = state
+                next.locationSelectionTarget = .none
+                next.pickedLocation = nil
+                next.pickedPlaceName = nil
+                return next
+            }
 
         case .confirmLocationSelection:
             setState { state in
@@ -42,11 +52,19 @@ final class CourseCreateViewModel: MviViewModel<CourseCreateIntent, CourseCreate
                 }
                 next.locationSelectionTarget = .none
                 next.pickedLocation = nil
+                next.pickedPlaceName = nil
                 return next
             }
 
         case .mapLocationPicked(let location):
-            setState { var s = $0; s.pickedLocation = location; return s }
+            // 옛 이름을 지우고 넣는다 — 안 지우면 새로 찍은 자리에 먼 동 이름이 잠깐 남는다.
+            setState { state in
+                var next = state
+                next.pickedLocation = location
+                next.pickedPlaceName = nil
+                return next
+            }
+            lookUpPlaceName(location)
 
         case .openFilterSheet:
             setState { var s = $0; s.showFilterSheet = true; return s }
@@ -93,6 +111,29 @@ final class CourseCreateViewModel: MviViewModel<CourseCreateIntent, CourseCreate
 
         case .recommendClicked(let currentLocation):
             await recommendRoutes(currentLocation: currentLocation)
+        }
+    }
+
+    /// 탭한 자리의 행정동 이름을 받아 온다(`IosPlaceName` → `GET /api/v1/dong`). 못 받으면 상태를
+    /// 건드리지 않아서 화면은 좌표를 그대로 보여준다 — 위치를 고르는 일 자체는 이름 없이도 되므로
+    /// 오류로 다루지 않는다.
+    ///
+    /// 지도를 연달아 탭하면 앞선 요청을 취소하고, 그래도 늦게 도착한 응답은 좌표가 그대로인지
+    /// 확인한 뒤에만 반영한다 — 취소가 응답 처리 직전에 걸리면 엉뚱한 자리의 이름이 박힌다.
+    private func lookUpPlaceName(_ location: LatLon) {
+        placeNameTask?.cancel()
+        placeNameTask = Task { [weak self] in
+            guard let name = try? await IosPlaceName.shared.fetch(lat: location.lat, lon: location.lon),
+                  !Task.isCancelled
+            else { return }
+            self?.setState { state in
+                var next = state
+                // 그 사이 다른 자리를 찍었으면 버린다.
+                if next.pickedLocation?.lat == location.lat, next.pickedLocation?.lon == location.lon {
+                    next.pickedPlaceName = name
+                }
+                return next
+            }
         }
     }
 
