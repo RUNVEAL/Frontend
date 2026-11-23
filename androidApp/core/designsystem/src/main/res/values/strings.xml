@@ -11,7 +11,7 @@
     <string name="map_marker_end_label">도착</string>
     <string name="course_list_item_not_run">아직 안 달림</string>
     <string name="course_card_stat_distance">거리</string>
-    <string name="course_card_stat_time">예상 시간</string>
+    <string name="course_card_stat_time">예상</string>
     <string name="course_card_stat_elevation">고도</string>
     <string name="course_card_stat_new_road">새 길</string>
     <string name="home_bottom_panel_my_location_content_description">내 위치</string>
