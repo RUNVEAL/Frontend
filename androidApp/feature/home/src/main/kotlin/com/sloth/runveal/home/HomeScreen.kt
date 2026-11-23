@@ -214,6 +214,25 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
 
     // 지금 서 있는 동 — 조회는 홈 지도 오버레이가 하고(tab-home), 여기선 그 결과만 본다.
     val currentDong by CurrentDongHolder.state.collectAsStateWithLifecycle()
+
+    /**
+     * 위치 권한·위치 서비스를 **막 켠 경우** 동 조회를 다시 시킨다.
+     *
+     * 홈 지도 오버레이는 화면에 들어올 때 한 번만 조회하는데, 첫 실행에서는 권한 창이 아직 떠 있는
+     * 동안에 그 한 번을 써 버린다 — 현재 위치를 못 받아 조회를 건너뛰고, 그 화면은 권한 상태를
+     * 모르니 허용한 뒤에도 다시 받지 않는다. 그래서 라벨이 "현재 위치"에 그대로 멈춰 있었다.
+     *
+     * 꺼짐 → 켜짐으로 **바뀔 때만** 보낸다. 처음부터 허용된 상태면 오버레이가 제대로 조회하므로
+     * 같은 요청을 두 번 할 이유가 없다.
+     */
+    var wasLocationReady by remember {
+        mutableStateOf(locationPermissionState.isGranted && locationServicesState.isEnabled)
+    }
+    LaunchedEffect(locationPermissionState.isGranted, locationServicesState.isEnabled) {
+        val isLocationReady = locationPermissionState.isGranted && locationServicesState.isEnabled
+        if (isLocationReady && !wasLocationReady) CurrentDongHolder.requestRetry()
+        wasLocationReady = isLocationReady
+    }
     val isDongLoadFailed by CurrentDongHolder.loadFailed.collectAsStateWithLifecycle()
     // 요약 카드 퍼센트는 지도 빛을 정하는 값과 **같은 출처**를 쓴다 — 따로 세면 카드엔 8%인데
     // 지도는 다른 단계로 빛나는 식으로 어긋난다. 아직 안 만들어졌거나 0%면 0.

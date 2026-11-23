@@ -4,11 +4,13 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.sloth.runveal.devicestate.currentLocationOrNull
+import com.sloth.runveal.map.LatLon
 import com.sloth.runveal.network.dong.CurrentDongHolder
 import com.sloth.runveal.network.dong.DongApi
 import com.sloth.runveal.network.dong.DongResult
 import com.sloth.runveal.tabhome.contract.HomeMapOverlayState
 import com.sloth.runveal.ui.mvi.MviViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private const val TAG = "HomeMapOverlay"
@@ -29,7 +31,7 @@ class HomeMapOverlayViewModel : MviViewModel<Nothing, HomeMapOverlayState, Nothi
      */
     fun loadCurrentDong(context: Context) {
         viewModelScope.launch {
-            val location = context.currentLocationOrNull()
+            val location = awaitCurrentLocation(context)
             if (location == null) {
                 Log.i(TAG, "현재 위치를 받지 못해 동 조회를 건너뛴다(권한 없음 또는 위치 비활성)")
                 return@launch
@@ -58,4 +60,25 @@ class HomeMapOverlayViewModel : MviViewModel<Nothing, HomeMapOverlayState, Nothi
             }
         }
     }
+
+    /**
+     * 현재 위치를 받는다. 권한을 막 허용한 직후에는 위치 공급자가 아직 덜 깨어나 첫 요청이 그냥
+     * 빈손으로 돌아오는 일이 있어서, 몇 번 더 기다려 본다 — 한 번 만에 포기하면 라벨이 "현재 위치"
+     * 에 멈춰 버린다.
+     *
+     * 권한이 없으면 첫 요청이 바로 null로 떨어지는데, 그 경우에도 여기서 몇 초를 더 쓰는 건 상관
+     * 없다 — 권한을 켜면 홈이 다시 조회를 시키고([CurrentDongHolder.requestRetry]) 그때 이 루프는
+     * 취소된다.
+     */
+    private suspend fun awaitCurrentLocation(context: Context): LatLon? {
+        repeat(LOCATION_ATTEMPTS) { attempt ->
+            context.currentLocationOrNull()?.let { return it }
+            if (attempt < LOCATION_ATTEMPTS - 1) delay(LOCATION_RETRY_DELAY_MS)
+        }
+        return null
+    }
 }
+
+/** 현재 위치를 받아 볼 횟수 — 권한 허용 직후 공급자가 깨어나는 데 걸리는 시간만 메우면 된다. */
+private const val LOCATION_ATTEMPTS = 3
+private const val LOCATION_RETRY_DELAY_MS = 2000L
