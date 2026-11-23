@@ -107,9 +107,6 @@ struct RecordDetailScreen: View {
                 onCancel: { viewModel.onIntent(.renameDismissed) }
             )
             .runvealSheetContent()
-            .presentationBackground(Color.clear)
-            .presentationDragIndicator(.hidden)
-            .presentationDetents([.height(320)])
         }
         .runvealDialog(
             isPresented: viewModel.state.ready?.isDeleteDialogVisible == true,

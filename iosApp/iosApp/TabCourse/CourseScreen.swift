@@ -157,9 +157,6 @@ struct CourseScreen: View {
                     onCancel: { renameTarget = nil }
                 )
                 .runvealSheetContent()
-                .presentationBackground(Color.clear)
-                .presentationDragIndicator(.hidden)
-                .presentationDetents([.height(Self.renameSheetHeight)])
             }
         }
         .runvealDialog(
@@ -185,8 +182,6 @@ struct CourseScreen: View {
 
     /// 토스트가 떠 있는 시간 — 디자인시스템 토스트 주석의 "3초"를 그대로 따른다.
     private static let toastDuration: Duration = .seconds(3)
-    /// 이름 수정 시트 높이 — 디자인시스템 바텀시트가 자체 높이를 가져서 detent로 고정해 준다.
-    private static let renameSheetHeight: CGFloat = 320
 
     private func reload() async {
         let loaded = await Task.detached(priority: .userInitiated) {

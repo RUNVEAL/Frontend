@@ -82,8 +82,6 @@ struct RequireLocationPermissionModifier: ViewModifier {
             )) {
                 sheetContent
                     .runvealSheetContent()
-                    .presentationBackground(Color.clear)
-                    .presentationDragIndicator(.hidden)
             }
     }
 
@@ -94,13 +92,11 @@ struct RequireLocationPermissionModifier: ViewModifier {
                 onSettingsClick: { state.openSettings() },
                 onCloseClick: { dismissed = true }
             )
-            .presentationDetents([.height(320)])
         } else {
             RunvealLocationPermissionSheet(
                 onAllowClick: { state.request() },
                 onLaterClick: { dismissed = true }
             )
-            .presentationDetents([.height(520)])
         }
     }
 }

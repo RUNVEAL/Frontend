@@ -130,9 +130,6 @@ struct RunvealHomeShell: View {
                                     set: { if !$0 { pendingRunStart = nil } })) {
             runStartLocationSheet
                 .runvealSheetContent()
-                .presentationBackground(.clear)
-                .presentationDetents([.height(Self.locationSheetHeight)])
-                .presentationDragIndicator(.hidden)
         }
         // 시트에서 허용·켜기를 마치고 돌아오면 미뤄 둔 러닝 시작을 잇는다.
         .onChange(of: permissionState.isGranted) { _, _ in resumePendingRunIfReady() }
@@ -290,9 +287,6 @@ struct RunvealHomeShell: View {
             navigator.select(tab: tab)
         }
     }
-
-    /// 지도 위 안내 시트 높이 — 디자인시스템 바텀시트가 자체 높이를 가져서 detent로 고정해 준다.
-    private static let locationSheetHeight: CGFloat = 420
 
     @ViewBuilder
     private var runStartLocationSheet: some View {
