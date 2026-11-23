@@ -155,7 +155,6 @@ private struct CurrentLocationLabel: View {
             Text(locationName)
                 .runvealTextStyle(RunvealTheme.typography.bodyLSemibold)
                 .foregroundStyle(colors.text.primary)
-            RunvealIcon(RunvealIcons.chevron, tint: colors.icon.primary, size: 14)
         }
     }
 }
@@ -272,7 +271,6 @@ private struct ExploreSummaryCard: View {
                     Text(dongName)
                         .runvealTextStyle(RunvealTheme.typography.heading3)
                         .foregroundStyle(colors.text.primary)
-                    RunvealIcon(RunvealIcons.chevron, tint: colors.icon.tertiary, size: 14)
                     Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity)
