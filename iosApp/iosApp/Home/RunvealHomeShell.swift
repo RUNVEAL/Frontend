@@ -165,7 +165,15 @@ struct RunvealHomeShell: View {
                 onCourseClick: { course in navigator.push(.savedCourseDetail(courseId: course.id)) }
             )
         case .record:
-            RecordScreen(onRecordClick: { trackId in navigator.push(.recordDetail(trackId: trackId)) })
+            RecordScreen(
+                onRecordClick: { trackId in navigator.push(.recordDetail(trackId: trackId)) },
+                // 기록이 없을 때의 "러닝 시작하기" — 홈 탭으로 옮기고 지도를 줌인 뷰까지 확대한다.
+                // 줌인이라야 러닝 시작 버튼이 있는 오버레이가 뜬다(Android와 같은 흐름).
+                onStartRunningClick: {
+                    navigator.select(tab: .home)
+                    mapState.recenterToCurrentLocation(zoom: RunvealMapConfig.homeZoomIn)
+                }
+            )
         case .my:
             MyScreen(
                 permissionState: permissionState,
