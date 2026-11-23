@@ -116,7 +116,8 @@ struct CourseCreateScreen: View {
                 onDistanceClick: { viewModel.onIntent(.openFilterSheet) },
                 onAvoidVisitedPreferredChange: { viewModel.onIntent(.setAvoidVisitedPreferred($0)) },
                 onFilterClick: { viewModel.onIntent(.openFilterSheet) },
-                onRecommendClick: recommend
+                onRecommendClick: recommend,
+                onMyLocationClick: { mapState.recenterToCurrentLocation() }
             )
             .padding(.horizontal, RunvealLayout.marginScreen)
             .padding(.vertical, RunvealSpacing.space8)
@@ -126,7 +127,8 @@ struct CourseCreateScreen: View {
                 placeName: viewModel.state.selectedPlaceName,
                 distanceLabel: CourseRecommendStrings.distanceNotImplemented,
                 confirmLabel: viewModel.state.locationConfirmLabel,
-                onConfirmClick: { viewModel.onIntent(.confirmLocationSelection) }
+                onConfirmClick: { viewModel.onIntent(.confirmLocationSelection) },
+                onMyLocationClick: { mapState.recenterToCurrentLocation() }
             )
         }
     }

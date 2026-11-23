@@ -14,6 +14,19 @@ enum TabCourseStrings {
     static let more = "더보기"
     static let startWithThisCourse = "이 코스로 러닝 시작"
     static let startNow = "바로 시작"
+    static let moreRename = "이름 수정"
+    static let moreExportGpx = "GPX 내보내기"
+    static let moreDelete = "삭제"
+    static let deleteDialogTitle = "코스를 삭제할까요?"
+    static let deleteDialogDescription = "삭제하면 되돌릴 수 없어요"
+    static let deleteDialogConfirm = "삭제"
+    static let deleteDialogCancel = "취소"
+    static let renameSheetTitle = "코스 이름 수정"
+    static let renameInputLabel = "코스 이름"
+    static let renameInputPlaceholder = "코스 이름을 입력하세요"
+    static let renameCancel = "취소"
+    static let renameConfirm = "저장"
+    static let notReady = "아직 개발 중입니다"
 }
 
 /// "내 코스" 탭 — Android `CourseScreen` + `CourseListViewModel`에 해당한다.
@@ -26,6 +39,10 @@ struct CourseScreen: View {
 
     @State private var courses: [SavedCourseItem] = []
     @State private var isLoading = true
+    /// 더보기에서 고른 코스 — 이름 수정 시트/삭제 다이얼로그가 어떤 코스인지 들고 있는다.
+    @State private var renameTarget: SavedCourseItem?
+    @State private var deleteTarget: SavedCourseItem?
+    @State private var isNotReadyToastVisible = false
 
     var body: some View {
         let colors = RunvealTheme.colors
@@ -58,7 +75,11 @@ struct CourseScreen: View {
                         CourseRecommendationCard(
                             badgeLabel: TabCourseStrings.recommendBadge,
                             course: featured,
-                            onMoreClick: {},
+                            onRenameClick: { renameTarget = featured },
+                            // TODO: GPX 파일로 내보내기는 아직이다 — 그때까지는 "개발 중" 안내만 띄운다
+                            //  (Android도 같은 상태다).
+                            onExportGpxClick: { isNotReadyToastVisible = true },
+                            onDeleteClick: { deleteTarget = featured },
                             onStartClick: { start(course: featured) }
                         )
                         .padding(.horizontal, RunvealLayout.marginScreen)
@@ -75,7 +96,9 @@ struct CourseScreen: View {
                             ForEach(courses, id: \.id) { course in
                                 SavedCourseListItem(
                                     course: course,
-                                    onMoreClick: {},
+                                    onRenameClick: { renameTarget = course },
+                                    onExportGpxClick: { isNotReadyToastVisible = true },
+                                    onDeleteClick: { deleteTarget = course },
                                     onClick: { onCourseClick(course) },
                                     onStartClick: { start(course: course) }
                                 )
@@ -103,9 +126,66 @@ struct CourseScreen: View {
                 .padding(.horizontal, RunvealLayout.marginScreen)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+
+            if isNotReadyToastVisible {
+                VStack {
+                    RunvealToast(message: TabCourseStrings.notReady)
+                        .padding(.horizontal, RunvealLayout.marginScreen)
+                        .padding(.vertical, RunvealSpacing.space16)
+                    Spacer()
+                }
+            }
         }
         .task { await reload() }
+        // 토스트 자체는 타이머를 모르는 순수 컴포넌트라 사라지는 건 여기서 재운다.
+        .task(id: isNotReadyToastVisible) {
+            guard isNotReadyToastVisible else { return }
+            try? await Task.sleep(for: Self.toastDuration)
+            isNotReadyToastVisible = false
+        }
+        // `SavedCourseItem`은 Kotlin에서 건너온 타입이라 Identifiable이 아니다 — 값을 따로 들고
+        // 표시 여부만 Binding으로 만든다(홈 셸의 위치 안내 시트와 같은 방식).
+        .sheet(isPresented: Binding(get: { renameTarget != nil },
+                                    set: { if !$0 { renameTarget = nil } })) {
+            if let course = renameTarget {
+                CourseRenameSheet(
+                    initialName: course.title,
+                    onConfirm: { name in
+                        renameTarget = nil
+                        Task { await rename(course: course, to: name) }
+                    },
+                    onCancel: { renameTarget = nil }
+                )
+                .presentationBackground(Color.clear)
+                .presentationDragIndicator(.hidden)
+                .presentationDetents([.height(Self.renameSheetHeight)])
+            }
+        }
+        .runvealDialog(
+            isPresented: deleteTarget != nil,
+            onDismiss: { deleteTarget = nil }
+        ) {
+            RunvealDialog(
+                title: TabCourseStrings.deleteDialogTitle,
+                confirmLabel: TabCourseStrings.deleteDialogConfirm,
+                cancelLabel: TabCourseStrings.deleteDialogCancel,
+                description: TabCourseStrings.deleteDialogDescription,
+                // 되돌릴 수 없는 동작이라 확인 버튼을 빨갛게 둔다.
+                type: .destructive,
+                onConfirm: {
+                    guard let course = deleteTarget else { return }
+                    deleteTarget = nil
+                    Task { await delete(course: course) }
+                },
+                onCancel: { deleteTarget = nil }
+            )
+        }
     }
+
+    /// 토스트가 떠 있는 시간 — 디자인시스템 토스트 주석의 "3초"를 그대로 따른다.
+    private static let toastDuration: Duration = .seconds(3)
+    /// 이름 수정 시트 높이 — 디자인시스템 바텀시트가 자체 높이를 가져서 detent로 고정해 준다.
+    private static let renameSheetHeight: CGFloat = 320
 
     private func reload() async {
         let loaded = await Task.detached(priority: .userInitiated) {
@@ -113,6 +193,23 @@ struct CourseScreen: View {
         }.value
         courses = loaded
         isLoading = false
+    }
+
+    /// 이름만 바꾸고 목록을 다시 읽는다 — 썸네일은 경로로 캐시되니 이름이 바뀌어도 그대로 쓴다.
+    private func rename(course: SavedCourseItem, to name: String) async {
+        await Task.detached(priority: .userInitiated) {
+            IosCourseList.shared.rename(courseId: course.id, name: name)
+        }.value
+        await reload()
+    }
+
+    /// 코스 행과 그 썸네일 캐시를 지우고 목록을 다시 읽는다(Android도 둘을 같이 지운다).
+    private func delete(course: SavedCourseItem) async {
+        await Task.detached(priority: .userInitiated) {
+            IosCourseList.shared.delete(courseId: course.id)
+        }.value
+        CourseSnapshotRenderer.shared.delete(ownerId: course.id)
+        await reload()
     }
 
     /// 코스 상세의 "이 코스로 러닝 시작"과 같은 패턴 — 기록 화면이 점선 안내선과 출발·도착 핀을
@@ -164,7 +261,9 @@ private struct CourseTopBarActionButton: View {
 private struct CourseRecommendationCard: View {
     let badgeLabel: String
     let course: SavedCourseItem
-    let onMoreClick: () -> Void
+    let onRenameClick: () -> Void
+    let onExportGpxClick: () -> Void
+    let onDeleteClick: () -> Void
     let onStartClick: () -> Void
 
     private static let mapHeight: CGFloat = 160
@@ -224,12 +323,11 @@ private struct CourseRecommendationCard: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    Button(action: onMoreClick) {
-                        RunvealIcon(RunvealIcons.more, tint: colors.icon.tertiary)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(TabCourseStrings.more)
+                    CourseMoreMenuIcon(
+                        onRenameClick: onRenameClick,
+                        onExportGpxClick: onExportGpxClick,
+                        onDeleteClick: onDeleteClick
+                    )
                 }
                 .frame(maxWidth: .infinity)
 
@@ -284,7 +382,9 @@ private struct SavedCourseSectionHeader: View {
 /// 저장한 코스 목록의 한 줄 — 썸네일 + 정보 + 더보기 + 바로 시작.
 private struct SavedCourseListItem: View {
     let course: SavedCourseItem
-    let onMoreClick: () -> Void
+    let onRenameClick: () -> Void
+    let onExportGpxClick: () -> Void
+    let onDeleteClick: () -> Void
     /// 줄 전체를 눌렀을 때 — 코스 상세로 간다.
     let onClick: () -> Void
     let onStartClick: () -> Void
@@ -319,12 +419,11 @@ private struct SavedCourseListItem: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            Button(action: onMoreClick) {
-                RunvealIcon(RunvealIcons.more, tint: colors.icon.tertiary)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(TabCourseStrings.more)
+            CourseMoreMenuIcon(
+                onRenameClick: onRenameClick,
+                onExportGpxClick: onExportGpxClick,
+                onDeleteClick: onDeleteClick
+            )
 
             Button(action: onStartClick) {
                 RunvealIcon(RunvealIcons.play, tint: colors.accent.default, size: 16)
