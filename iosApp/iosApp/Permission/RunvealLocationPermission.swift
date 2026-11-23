@@ -81,6 +81,7 @@ struct RequireLocationPermissionModifier: ViewModifier {
                 set: { if !$0 { dismissed = true } }
             )) {
                 sheetContent
+                    .runvealSheetContent()
                     .presentationBackground(Color.clear)
                     .presentationDragIndicator(.hidden)
             }

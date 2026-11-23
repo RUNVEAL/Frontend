@@ -106,6 +106,7 @@ struct RecordDetailScreen: View {
                 onConfirm: { viewModel.onIntent(.renameConfirmed(name: $0)) },
                 onCancel: { viewModel.onIntent(.renameDismissed) }
             )
+            .runvealSheetContent()
             .presentationBackground(Color.clear)
             .presentationDragIndicator(.hidden)
             .presentationDetents([.height(320)])
