@@ -79,15 +79,11 @@ final class RunvealUserLocationAnnotationView: MLNUserLocationAnnotationView {
         accuracyLayer.strokeColor = UIColor.clear.cgColor
         layer.addSublayer(accuracyLayer)
 
-        let dotRect = CGRect(
-            x: (Self.canvas - Self.dotDiameter) / 2,
-            y: (Self.canvas - Self.dotDiameter) / 2,
-            width: Self.dotDiameter,
-            height: Self.dotDiameter
-        )
+        let dotRect = CGRect(x: 0, y: 0, width: Self.dotDiameter, height: Self.dotDiameter)
         // 테두리를 가운데 정렬로 그리려고 선 두께의 절반만큼 안쪽 원을 그린다 — Android 벡터가
         // 반지름 8 원에 2 선을 중앙 정렬로 얹는 것과 같은 결과다.
         let inset = Self.dotBorderWidth / 2
+        dotLayer.bounds = dotRect
         dotLayer.path = UIBezierPath(ovalIn: dotRect.insetBy(dx: inset, dy: inset)).cgPath
         dotLayer.fillColor = location.cgColor
         dotLayer.strokeColor = UIColor(colors.icon.primary).cgColor
@@ -96,11 +92,28 @@ final class RunvealUserLocationAnnotationView: MLNUserLocationAnnotationView {
 
         setUpBearingLayer()
         layer.addSublayer(bearingLayer)
+
+        setNeedsLayout()
+    }
+
+    /// 점·화살표·정확도 원을 **뷰의 실제 한가운데**에 놓는다.
+    ///
+    /// 지도는 이 뷰의 중심을 현재 위치에 맞춘다. 그래서 좌표를 56 캔버스 기준으로 박아 두면
+    /// 지도가 뷰를 다른 크기로 잡는 순간 마커가 실제 위치에서 밀린다 — 크기를 가정하지 않고
+    /// 그때그때 `bounds`에서 중심을 읽는다.
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let center = CGPoint(x: bounds.midX, y: bounds.midY)
+        withoutAnimation {
+            accuracyLayer.position = center
+            dotLayer.position = center
+            bearingLayer.position = center
+        }
     }
 
     /// 화살표 도형을 캔버스 좌표로 한 번 만들어 둔다. 회전(방위)은 레이어 변환으로 따로 준다.
     private func setUpBearingLayer() {
-        bearingLayer.frame = CGRect(x: 0, y: 0, width: Self.canvas, height: Self.canvas)
+        bearingLayer.bounds = CGRect(x: 0, y: 0, width: Self.canvas, height: Self.canvas)
         bearingLayer.isHidden = true
 
         guard let spec = RunvealIcons.polygon2.layers.first,
@@ -138,12 +151,12 @@ final class RunvealUserLocationAnnotationView: MLNUserLocationAnnotationView {
             return
         }
         let radius = CGFloat(accuracyMeters / metersPerPoint)
-        let center = CGPoint(x: Self.canvas / 2, y: Self.canvas / 2)
         accuracyLayer.isHidden = false
         // 위치가 자주 들어와서 애니메이션이 붙으면 원이 계속 울렁인다 — 즉시 반영한다.
+        // 원점 기준으로 그리고 자리는 [layoutSubviews]가 정한다.
         withoutAnimation {
             accuracyLayer.path = UIBezierPath(
-                arcCenter: center,
+                arcCenter: .zero,
                 radius: radius,
                 startAngle: 0,
                 endAngle: .pi * 2,
