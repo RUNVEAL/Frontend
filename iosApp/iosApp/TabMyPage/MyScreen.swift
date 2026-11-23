@@ -18,6 +18,11 @@ struct MyScreen: View {
 
     @State private var summary: MyRunningSummary?
 
+    // ⚠️ 테스트용 — 샘플 GPX 넣기. 번들 에셋을 읽어야 해서 데이터 레이어가 아니라 화면이 맡는다.
+    // 수천 점을 도로 인덱스에 맞춰 보느라 몇 초 걸리므로, 끝날 때까지 다시 눌러도 무시한다.
+    @State private var isImportingSampleGpx = false
+    @State private var sampleGpxToast: String?
+
     var body: some View {
         ZStack(alignment: .top) {
             RunvealTheme.colors.bg.canvas.ignoresSafeArea()
@@ -43,6 +48,16 @@ struct MyScreen: View {
                 // 않도록 높이만큼 아래 여백을 둔다.
                 .padding(.bottom, RunvealLayout.sizeTabBar + RunvealSpacing.space24)
             }
+
+            // ⚠️ 테스트용 — 샘플 GPX 넣기 결과 안내. 머지 전에 지울 것.
+            if let sampleGpxToast {
+                VStack {
+                    RunvealToast(message: sampleGpxToast)
+                        .padding(.horizontal, RunvealLayout.marginScreen)
+                        .padding(.vertical, RunvealSpacing.space16)
+                    Spacer()
+                }
+            }
         }
         .task {
             // 집계는 전국 구간 인덱스를 훑어서 메인 스레드에서 돌리면 탭 전환이 걸린다.
@@ -50,6 +65,66 @@ struct MyScreen: View {
                 IosMyPageData.shared.loadRunningSummary()
             }.value
         }
+        // 토스트 자체는 타이머를 모르는 순수 컴포넌트라 사라지는 건 여기서 재운다.
+        .task(id: sampleGpxToast) {
+            guard sampleGpxToast != nil else { return }
+            try? await Task.sleep(for: .seconds(3))
+            sampleGpxToast = nil
+        }
+    }
+
+    // MARK: - 테스트용 샘플 GPX
+
+    /// ⚠️ **테스트용** — 번들에 넣어 둔 UT 샘플 GPX를 로컬 기록으로 저장한다(`IosUtSampleGpx`).
+    /// 머지 전에 이 함수와 그 파일, 번들의 `ut-gpx` 에셋을 지울 것.
+    ///
+    /// 번들 읽기는 여기서 하고(경로를 아는 건 `RunvealBundleAsset` 쪽이다), 저장·매칭·적립은 전부
+    /// Kotlin이 맡는다 — 러닝 종료와 같은 코드를 타야 넣은 기록이 실제로 달린 기록과 똑같이 취급된다.
+    private func importSampleGpx() {
+        guard !isImportingSampleGpx else { return }
+        isImportingSampleGpx = true
+
+        Task {
+            let gpxByFileName = Self.loadSampleGpx()
+            let hierarchy = (try? RunvealBundleAsset.text(RunvealBundleAsset.koreaRegionHierarchy)) ?? ""
+            if gpxByFileName.isEmpty || hierarchy.isEmpty {
+                isImportingSampleGpx = false
+                sampleGpxToast = MyStrings.sampleGpxFailedToast
+                return
+            }
+
+            // 수천 점을 도로 인덱스에 맞춰 보느라 몇 초 걸린다 — 메인 스레드에서 돌리면 화면이 멈춘다.
+            let result = try? await Task.detached(priority: .userInitiated) {
+                try await IosUtSampleGpx.shared.importSamples(
+                    gpxByFileName: gpxByFileName,
+                    regionHierarchyJson: hierarchy
+                )
+            }.value
+
+            isImportingSampleGpx = false
+            summary = await Task.detached(priority: .userInitiated) {
+                IosMyPageData.shared.loadRunningSummary()
+            }.value
+
+            guard let result else {
+                sampleGpxToast = MyStrings.sampleGpxFailedToast
+                return
+            }
+            sampleGpxToast = result.imported > 0
+                ? MyStrings.sampleGpxImportedToast
+                : MyStrings.sampleGpxAlreadyToast
+        }
+    }
+
+    /// 번들 루트에 평평하게 복사된 `*.gpx`를 전부 읽는다(Gradle `generateRunvealBundleAssetsIos`).
+    private static func loadSampleGpx() -> [String: String] {
+        let urls = Bundle.main.urls(forResourcesWithExtension: "gpx", subdirectory: nil) ?? []
+        var result: [String: String] = [:]
+        for url in urls {
+            guard let text = try? String(contentsOf: url, encoding: .utf8) else { continue }
+            result[url.lastPathComponent] = text
+        }
+        return result
     }
 
     // MARK: - 설정
@@ -77,6 +152,16 @@ struct MyScreen: View {
                 )
                 .padding(.trailing, RunvealSpacing.space12)
             }
+
+            // ⚠️ 테스트용 — UT 샘플 기록을 로컬에 넣는다(`IosUtSampleGpx`). 머지 전에 이 줄과
+            // 그 파일, 번들의 `ut-gpx` 에셋을 지울 것.
+            RunvealListItem(
+                title: MyStrings.menuImportSampleGpx,
+                description: isImportingSampleGpx
+                    ? MyStrings.menuImportSampleGpxRunning
+                    : MyStrings.menuImportSampleGpxDescription,
+                onClick: { importSampleGpx() }
+            )
         }
         .frame(maxWidth: .infinity)
     }

@@ -39,6 +39,10 @@ val generateRunvealBundleAssetsIos = tasks.register<Sync>("generateRunvealBundle
     from(rootProject.layout.projectDirectory.dir("androidApp/core/designsystem/src/main/res/raw")) {
         include("runveal_loading_common.json")
     }
+    // ⚠️ UT 테스트용 샘플 GPX — 머지 전에 이 블록과 원본 폴더를 같이 지운다(test/ 브랜치 한정).
+    from(rootProject.layout.projectDirectory.dir("androidApp/core/map/src/main/assets/ut-gpx")) {
+        include("*.gpx")
+    }
     into(rootProject.layout.projectDirectory.dir("iosApp/iosApp/Resources/Generated"))
 }
 

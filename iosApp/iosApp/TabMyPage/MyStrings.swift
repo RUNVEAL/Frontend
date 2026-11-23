@@ -14,6 +14,14 @@ enum MyStrings {
     static let menuLocationPermissionGranted = "허용됨"
     static let menuLocationPermissionDenied = "허용 안 됨"
 
+    // ⚠️ 테스트용 — UT 샘플 GPX 넣기. 머지 전에 이 여섯 줄과 `IosUtSampleGpx`를 지울 것.
+    static let menuImportSampleGpx = "테스트 GPX 불러오기"
+    static let menuImportSampleGpxDescription = "UT 샘플 러닝 기록을 저장해요"
+    static let menuImportSampleGpxRunning = "저장하는 중…"
+    static let sampleGpxImportedToast = "테스트 기록을 저장했어요"
+    static let sampleGpxAlreadyToast = "테스트 기록이 이미 저장돼 있어요"
+    static let sampleGpxFailedToast = "테스트 기록을 저장하지 못했어요"
+
     static let termsPolicyTitle = "약관 및 정책"
     static let termsPolicyService = "서비스 이용약관"
     static let termsPolicyPrivacy = "개인정보 처리방침"
