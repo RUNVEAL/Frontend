@@ -2,7 +2,7 @@ import SharedLogic
 import SwiftUI
 
 /// B2 — 추천 코스 결과에서 카드를 눌러 들어가는 코스 상세. 지도(Map Shell)는 그대로 보이고 이 위에
-/// 뒤로가기와 바텀시트만 얹는다 — 배경을 깔지 않는다. [routeId]로 홀더에서 코스를 다시 찾아온다.
+/// 뒤로가기와 바텀시트만 얹는다 — 배경을 깔지 않는다. 코스는 [source]가 정한 곳에서 읽어 온다.
 /// Android `CourseDetailScreen`에 해당한다.
 struct CourseDetailScreen: View {
     @ObservedObject var mapState: RunvealMapState
@@ -56,7 +56,7 @@ struct CourseDetailScreen: View {
 
     private var routeLayers: [String: String] {
         guard let ready, ready.path.count >= 2 else { return [:] }
-        let route = IosRecommendedRoute(id: routeId, points: ready.path, selected: true)
+        let route = IosRecommendedRoute(id: source.id, points: ready.path, selected: true)
         return [
             RunvealMapConfig.sourceCourseDetailRoute: IosRouteGeoJson.shared.recommendedRoutes(routes: [route])
         ]
