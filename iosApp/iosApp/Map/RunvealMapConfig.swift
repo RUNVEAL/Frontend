@@ -12,6 +12,8 @@ enum RunvealMapConfig {
 
     static var seoulCityHall: LatLon { config.SEOUL_CITY_HALL }
     static var initialZoom: Double { config.INITIAL_ZOOM }
+    /// 러닝을 시작할 때 맞추는 줌 — 달리는 길이 보일 만큼 가깝게.
+    static var recordingZoom: Double { config.RECORDING_ZOOM }
     /// A3-4(줌 인) 전환 기준. 동 레이어가 사라지는 기준도 같은 값이다.
     static var zoomInThreshold: Double { config.ZOOM_IN_THRESHOLD }
     /// 다른 탭에서 홈 줌인 뷰로 보낼 때 맞추는 줌 — [zoomInThreshold]보다 넉넉히 위다.

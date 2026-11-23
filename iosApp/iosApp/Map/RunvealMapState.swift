@@ -1,6 +1,19 @@
 import SharedLogic
 import SwiftUI
 
+/// 현재 위치 추적 명령 하나 — Android `FollowCurrentLocationCommand`.
+///
+/// [id]는 같은 내용으로 다시 불렀을 때도("내 위치" 버튼 재탭) 새 명령으로 보이게 하는 구분자다 —
+/// 값이 같으면 이미 반영한 명령으로 보고 넘어가 카메라가 복귀하지 않는다.
+struct FollowCurrentLocationCommand: Equatable {
+    let id: Int
+    let isFollowing: Bool
+    /// 켜면서 맞출 줌. nil이면 지금 줌을 그대로 둔다.
+    let zoom: Double?
+    /// 끌 때 카메라 여백까지 되돌릴지.
+    let resetAnchor: Bool
+}
+
 /// 지도 위에 떠 있는 마커 하나(출발/도착 등 위치 + 종류) — Android `MapPin`.
 struct MapPin: Identifiable, Equatable {
     let id = UUID()
@@ -72,6 +85,16 @@ final class RunvealMapState: ObservableObject {
     /// Android `MapState.showsHeadingIndicator`.
     @Published var showsHeadingIndicator = false
 
+    /// 현재 위치 추적 명령 — `startFollowingCurrentLocation`/`stopFollowingCurrentLocation` 호출
+    /// 한 번이 하나를 만들고 `RunvealMap`이 적용한다.
+    @Published private(set) var followCommand: FollowCurrentLocationCommand?
+    private var followCommandCount = 0
+
+    /// 추적 중 지도 아래쪽이 가려지는 높이(러닝 패널 등) — 그만큼 카메라 여백을 줘서 현재 위치가
+    /// **가려지지 않고 보이는 영역의 가운데**에 오게 한다([focusOnBounds]의 `extraBottomPadding`과
+    /// 같은 뜻). 추적 on/off와 별개인 상태다.
+    @Published var followBottomInset: CGFloat = 0
+
     init(
         initialCenter: LatLon = RunvealMapConfig.seoulCityHall,
         initialZoom: Double = RunvealMapConfig.initialZoom
@@ -105,6 +128,39 @@ final class RunvealMapState: ObservableObject {
     func recenterToCurrentLocation(zoom: Double? = nil) {
         recenterZoom = zoom
         recenterRequestId += 1
+    }
+
+    /**
+     현재 위치를 계속 따라가는 카메라 추적을 켠다(러닝 중 지도). 방위는 북쪽으로 고정이다 —
+     달리는 방향으로 지도가 돌면 길을 알아보기 어렵다(Android `CameraMode.TRACKING_GPS_NORTH`).
+
+     지도를 드래그·핀치하면 추적이 자동으로 꺼진다. 지도는 화면보다 오래 살아 있으니, 켠 화면은
+     나갈 때 [stopFollowingCurrentLocation]으로 꼭 꺼 준다.
+
+     현재 위치를 둘 자리는 [followBottomInset]이 정한다.
+
+     - Parameter zoom: 켜면서 맞출 줌. nil이면 지금 줌을 그대로 둔다("내 위치" 버튼·러닝 재개).
+     */
+    func startFollowingCurrentLocation(zoom: Double? = nil) {
+        followCommandCount += 1
+        followCommand = FollowCurrentLocationCommand(
+            id: followCommandCount, isFollowing: true, zoom: zoom, resetAnchor: false
+        )
+    }
+
+    /**
+     추적을 끈다. 카메라는 지금 보이는 자리에 그대로 둔다 — 러닝 일시정지처럼 "따라가기만 멈추는"
+     경우다.
+
+     - Parameter resetAnchor: [followBottomInset]으로 준 카메라 여백까지 되돌릴지 — 러닝 화면을
+       나갈 때처럼 이 지도를 다른 화면에 돌려줄 때만 true로 둔다(그대로 두면 다음 화면에서도 지도가
+       계속 치우쳐 보인다).
+     */
+    func stopFollowingCurrentLocation(resetAnchor: Bool = false) {
+        followCommandCount += 1
+        followCommand = FollowCurrentLocationCommand(
+            id: followCommandCount, isFollowing: false, zoom: nil, resetAnchor: resetAnchor
+        )
     }
 
     /// [points]가 전부 화면에 보이게 카메라를 옮긴다. 2개 미만이면 무시한다.
