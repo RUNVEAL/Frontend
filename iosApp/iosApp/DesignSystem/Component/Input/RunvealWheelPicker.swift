@@ -29,16 +29,6 @@ struct RunvealWheelPicker: View {
         self.onSelectedIndexChange = onSelectedIndexChange
     }
 
-    /// 보이는 창(5줄) 안에 들어와 있는 줄인가.
-    ///
-    /// 드래그 중 끊기지 않게 창 위아래로 줄을 더 그려 두는데, 그 줄들도 **버튼**이다.
-    /// `clipped()`는 그리는 것만 자르고 터치는 그대로 남기므로, 그냥 두면 창 밖의 보이지 않는
-    /// 줄이 위에 있는 칩·버튼을 덮는다 — 그쪽을 눌러도 휠 값만 바뀌는 증상이 그것이다.
-    private func isWithinWindow(_ rowOffset: Int) -> Bool {
-        let rowCenter = CGFloat(rowOffset) * Self.rowHeight + offset
-        return abs(rowCenter) <= Self.rowHeight * CGFloat(Self.visibleRows) / 2
-    }
-
     /// 드래그 중 실제로 센터 줄에 와 있는 값 — 인덱스 커밋과는 별개로 스타일만 따라간다.
     private var centerRowOffset: Int {
         let raw = Int((-offset / Self.rowHeight).rounded())
@@ -77,26 +67,23 @@ struct RunvealWheelPicker: View {
         .offset(y: offset)
     }
 
+    /// 줄은 **그리기만** 한다 — 누르기·끌기는 휠 전체가 하나의 제스처로 받는다([dragGesture]).
+    ///
+    /// 줄마다 버튼을 두면 그 버튼이 터치를 먼저 가져가서 부모의 드래그와 싸운다. 손가락을 따라
+    /// 움직이지 못하고 손을 뗀 자리에서 한 번에 튀는 게 그 증상이다. Android도 드래그를 컨테이너
+    /// (`pointerInput` + `change.consume()`)에서 받는다.
     @ViewBuilder
     private func row(rowOffset: Int) -> some View {
         let index = selectedIndex + rowOffset
         let value = values.indices.contains(index) ? values[index] : nil
 
-        Button {
-            if value != nil { onSelectedIndexChange(index) }
-        } label: {
-            ZStack {
-                if let value {
-                    rowContent(value: value, distanceFromCenter: rowOffset - centerRowOffset)
-                }
+        ZStack {
+            if let value {
+                rowContent(value: value, distanceFromCenter: rowOffset - centerRowOffset)
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: Self.rowHeight)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .disabled(value == nil)
-        .allowsHitTesting(isWithinWindow(rowOffset))
+        .frame(maxWidth: .infinity)
+        .frame(height: Self.rowHeight)
     }
 
     @ViewBuilder
@@ -125,23 +112,50 @@ struct RunvealWheelPicker: View {
         }
     }
 
+    /// 거의 움직이지 않았으면 "누른 것"으로 본다 — 그 자리의 줄을 고른다.
+    private static let tapSlop: CGFloat = 8
+
+    /// 누르기와 끌기를 **하나의 제스처로** 받는다.
+    ///
+    /// `minimumDistance: 0`이라 손이 닿는 순간부터 받아서, 중간에 다른 뷰에 터치를 뺏기지 않고
+    /// 손가락을 그대로 따라간다. 끝에서 움직인 거리를 보고 누른 것인지 끈 것인지 가른다.
     private var dragGesture: some Gesture {
-        DragGesture()
+        DragGesture(minimumDistance: 0)
             .onChanged { gesture in
                 offset = gesture.translation.height
             }
-            .onEnded { _ in
-                let steps = Int((-offset / Self.rowHeight).rounded())
-                let newIndex = min(max(selectedIndex + steps, 0), max(values.count - 1, 0))
-                // 경계에 걸려 steps만큼 다 못 움직였으면 그만큼만 보정해서 시각 위치를 이어 붙인다.
-                let start = offset + CGFloat(newIndex - selectedIndex) * Self.rowHeight
-                if newIndex != selectedIndex { onSelectedIndexChange(newIndex) }
-                offset = start
-                // 같은 프레임에서 두 번 대입하면 SwiftUI가 합쳐 버려서 스냅 애니메이션이 안 보인다.
-                DispatchQueue.main.async {
-                    withAnimation(.spring()) { offset = 0 }
+            .onEnded { gesture in
+                if abs(gesture.translation.height) < Self.tapSlop {
+                    offset = 0
+                    selectRow(atY: gesture.startLocation.y)
+                } else {
+                    commitDrag()
                 }
             }
+    }
+
+    /// 누른 자리의 줄을 고른다. 줄 `rowOffset`은 휠 한가운데에서 `rowOffset * rowHeight`만큼
+    /// 떨어진 자리에 그려지므로, 거꾸로 환산하면 어떤 줄을 눌렀는지 나온다.
+    private func selectRow(atY y: CGFloat) {
+        let center = Self.rowHeight * CGFloat(Self.visibleRows) / 2
+        let rowOffset = Int(((y - center) / Self.rowHeight).rounded())
+        let index = selectedIndex + rowOffset
+        guard values.indices.contains(index), index != selectedIndex else { return }
+        onSelectedIndexChange(index)
+    }
+
+    /// 손을 뗐을 때 가장 가까운 값으로 확정하고 그 자리로 스냅한다(Android `onDragEnd`와 같다).
+    private func commitDrag() {
+        let steps = Int((-offset / Self.rowHeight).rounded())
+        let newIndex = min(max(selectedIndex + steps, 0), max(values.count - 1, 0))
+        // 경계에 걸려 steps만큼 다 못 움직였으면 그만큼만 보정해서 시각 위치를 이어 붙인다.
+        let start = offset + CGFloat(newIndex - selectedIndex) * Self.rowHeight
+        if newIndex != selectedIndex { onSelectedIndexChange(newIndex) }
+        offset = start
+        // 같은 프레임에서 두 번 대입하면 SwiftUI가 합쳐 버려서 스냅 애니메이션이 안 보인다.
+        DispatchQueue.main.async {
+            withAnimation(.spring()) { offset = 0 }
+        }
     }
 }
 
