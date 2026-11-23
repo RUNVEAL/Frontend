@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -81,7 +82,7 @@ private val SPLIT_GLOW_INNER_BLUR = 5.dp
 private const val SPLIT_GLOW_ALPHA = 0.45f
 
 /** 범례 선 스와치 — `ResultScreen`/`RecordingScreen`의 같은 모양. */
-private val LEGEND_SWATCH_WIDTH = 16.dp
+private val LEGEND_SWATCH_WIDTH = 14.dp
 private val LEGEND_SWATCH_HEIGHT = 3.dp
 private val LEGEND_SWATCH_HALO_SIZE = 10.dp
 private val LEGEND_SWATCH_HALO_PADDING = 3.dp
@@ -122,21 +123,23 @@ fun RecordDetailScreen(
             .fillMaxSize()
             .background(RunvealTheme.colors.bg.canvas),
     ) {
-        // 맨 뒤에 깔리는 배경 글로우 — statusBar 인셋을 안 받아서 그 밑까지 그대로 번진다.
-        // design/images/record_detail.png는 360x1011dp(화면보다 길다)라, 가로를 꽉 채우고 넘치는
+        // 맨 뒤에 깔리는 배경 글로우 — 상태바 **아래**부터 시작한다(상태바 뒤까지 번지면 시계·아이콘이
+        // 빛 위에 겹쳐 읽기 어렵다). design/images/record_detail.png는 가로를 꽉 채우고 넘치는
         // 아래쪽은 잘라 낸다(MyScreen의 mypage_bg와 같은 생각, 크기 계산만 더 단순하다).
         Image(
             painter = painterResource(R.drawable.record_detail),
             contentDescription = null,
             contentScale = ContentScale.FillWidth,
             alignment = Alignment.TopCenter,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.statusBars),
         )
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                // 탭바를 덮는 전체 화면이라 위아래 시스템 바만 피하면 된다(뒤 배경 글로우는 그 밑까지 번진다).
+                // 탭바를 덮는 전체 화면이라 위아래 시스템 바만 피하면 된다.
                 .windowInsetsPadding(WindowInsets.systemBars),
         ) {
             RunvealTopAppBar(
@@ -305,7 +308,7 @@ private fun RouteMap(request: SnapshotRequest?, modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxSize(),
         )
         Row(
-            modifier = Modifier.align(Alignment.BottomStart).padding(RunvealTheme.spacing.space16),
+            modifier = Modifier.align(Alignment.BottomStart).padding(RunvealTheme.spacing.space12),
             horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space12),
         ) {
             LegendItem(
@@ -345,7 +348,7 @@ private fun DongRateSection(dongStats: List<RecordDetailDongStat>, modifier: Mod
                 .background(colors.surface.default, shape)
                 .border(1.dp, colors.border.default, shape)
                 .padding(RunvealTheme.spacing.space16),
-            verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
+            verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
         ) {
             if (dongStats.isEmpty()) {
                 Text(

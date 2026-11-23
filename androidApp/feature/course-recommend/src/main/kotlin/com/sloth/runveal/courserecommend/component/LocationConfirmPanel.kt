@@ -13,10 +13,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.sloth.runveal.designsystem.RunvealIcons
 import com.sloth.runveal.designsystem.component.button.RunvealButtonGroup
 import com.sloth.runveal.designsystem.component.button.RunvealButtonGroupSingle
 import com.sloth.runveal.designsystem.component.button.RunvealIconButton
+import com.sloth.runveal.designsystem.component.button.RunvealIconButtonSize
 import com.sloth.runveal.designsystem.component.overlay.RunvealBottomSheet
 import com.sloth.runveal.designsystem.component.overlay.RunvealBottomSheetHeader
 import com.sloth.runveal.designsystem.component.overlay.RunvealBottomSheetHeaderType
@@ -29,6 +31,10 @@ import com.sloth.runveal.feature.courserecommend.R
  * [onMyLocationClick]을 주면 시트 우측 상단 바로 위에 "내 위치" 아이콘 버튼이 떠 있는 형태로 추가된다
  * ([MakeCoursePanel]과 같은 자리 — 다만 시트는 좌우 여백 없이 가장자리에 붙으므로 화면 여백만큼 띄운다).
  */
+/** "내 위치" 버튼이 차지하는 칸(터치 영역)과 보이는 원(44)의 차이 — 시안은 시트 위 16, 화면 오른쪽 16이다. */
+private val LOCATE_TOUCH_SIZE = 48.dp
+private val LOCATE_TOUCH_INSET = 2.dp
+
 @Composable
 fun LocationConfirmPanel(
     placeName: String,
@@ -59,13 +65,14 @@ fun LocationConfirmPanel(
 
         if (onMyLocationClick != null) {
             RunvealIconButton(
+                size = RunvealIconButtonSize.M,
                 icon = RunvealIcons.Locate,
                 contentDescription = stringResource(R.string.course_create_my_location_content_description),
                 onClick = onMyLocationClick,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .offset(y = -(RunvealTheme.layout.sizeIconButtonL + RunvealTheme.spacing.space12))
-                    .padding(end = RunvealTheme.layout.marginScreen),
+                    .offset(y = -(LOCATE_TOUCH_SIZE + RunvealTheme.spacing.space16 - LOCATE_TOUCH_INSET))
+                    .padding(end = RunvealTheme.layout.marginScreen - LOCATE_TOUCH_INSET),
             )
         }
     }

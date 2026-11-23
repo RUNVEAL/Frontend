@@ -36,5 +36,10 @@ sealed interface CourseRecommendResultState : UiState {
         val selectedRouteId: String? = null,
         /** 이 결과를 만든 B0 설정값 — 앱바 아래 칩으로 그대로 보여준다. */
         val settings: CourseRecommendSettings,
+        /** 코스 조건 설정 시트에서 고치고 있는 값. null이면 시트가 닫혀 있다 — 적용해야 [settings]가
+         * 바뀌므로, 닫으면 고치던 값은 그냥 버려진다. */
+        val filterDraft: CourseRecommendSettings? = null,
+        /** 바꾼 조건으로 다시 추천받는 중 — 그동안 로딩을 덮어 보여준다. */
+        val isReloading: Boolean = false,
     ) : CourseRecommendResultState
 }

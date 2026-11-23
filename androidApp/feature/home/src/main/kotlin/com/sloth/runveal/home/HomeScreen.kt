@@ -104,6 +104,9 @@ private const val TOAST_DURATION_MS = 3000L
  */
 private val LOCATION_BANNER_EXTRA_INSET = 56.dp
 
+/** 홈 하단 패널의 좌우 여백 — 화면 여백(16)의 예외. 위 주석 참고. */
+private val HOME_PANEL_SIDE_MARGIN = 10.dp
+
 /**
  * 홈 탭 화면 — Map Shell. 지도(`RunvealMap`)는 여기서 하나만 그리고, 탭 화면과 지도 위 흐름(홈 지도,
  * 코스 추천)은 전부 이 아래 단일 NavHost로 조립한다. 탭바 노출 규칙도 여기 한 곳에만 둔다.
@@ -211,6 +214,25 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
 
     // 지금 서 있는 동 — 조회는 홈 지도 오버레이가 하고(tab-home), 여기선 그 결과만 본다.
     val currentDong by CurrentDongHolder.state.collectAsStateWithLifecycle()
+
+    /**
+     * 위치 권한·위치 서비스를 **막 켠 경우** 동 조회를 다시 시킨다.
+     *
+     * 홈 지도 오버레이는 화면에 들어올 때 한 번만 조회하는데, 첫 실행에서는 권한 창이 아직 떠 있는
+     * 동안에 그 한 번을 써 버린다 — 현재 위치를 못 받아 조회를 건너뛰고, 그 화면은 권한 상태를
+     * 모르니 허용한 뒤에도 다시 받지 않는다. 그래서 라벨이 "현재 위치"에 그대로 멈춰 있었다.
+     *
+     * 꺼짐 → 켜짐으로 **바뀔 때만** 보낸다. 처음부터 허용된 상태면 오버레이가 제대로 조회하므로
+     * 같은 요청을 두 번 할 이유가 없다.
+     */
+    var wasLocationReady by remember {
+        mutableStateOf(locationPermissionState.isGranted && locationServicesState.isEnabled)
+    }
+    LaunchedEffect(locationPermissionState.isGranted, locationServicesState.isEnabled) {
+        val isLocationReady = locationPermissionState.isGranted && locationServicesState.isEnabled
+        if (isLocationReady && !wasLocationReady) CurrentDongHolder.requestRetry()
+        wasLocationReady = isLocationReady
+    }
     val isDongLoadFailed by CurrentDongHolder.loadFailed.collectAsStateWithLifecycle()
     // 요약 카드 퍼센트는 지도 빛을 정하는 값과 **같은 출처**를 쓴다 — 따로 세면 카드엔 8%인데
     // 지도는 다른 단계로 빛나는 식으로 어긋난다. 아직 안 만들어졌거나 0%면 0.
@@ -333,7 +355,19 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                         }
                     },
                 )
-                recordGraph(tabNavigator)
+                recordGraph(
+                    tabNavigator,
+                    // 기록이 없을 때의 "러닝 시작하기" — 홈 탭으로 옮기고 지도를 줌인 뷰까지
+                    // 확대한다. 줌인이라야 러닝 시작 버튼이 있는 오버레이가 뜬다
+                    // (ZoomedInMapOverlay는 currentZoom >= ZOOM_IN_THRESHOLD에서만 그려진다).
+                    //
+                    // 기록 탭은 빈 상태가 스택 루트라, MY 탭에서 나올 때처럼 화면을 먼저 떼어낼
+                    // 필요가 없다 — 탭만 바꾸면 된다.
+                    onStartRunningClick = {
+                        onSelectTab(0)
+                        mapState.recenterToCurrentLocation(zoom = MapConfig.HOME_ZOOM_IN)
+                    },
+                )
                 myGraph(
                     tabNavigator,
                     onLoggedOut = onLoggedOut,
@@ -357,10 +391,16 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
             toastMessage?.let { message ->
                 RunvealToast(
                     message = message,
+                    // 시안(Overlay/Toast)은 하단 — 탭바 위 8에 띄운다.
                     modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .windowInsetsPadding(WindowInsets.statusBars)
-                        .padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space16),
+                        .align(Alignment.BottomCenter)
+                        .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+                        .padding(
+                            start = RunvealTheme.layout.marginScreen,
+                            end = RunvealTheme.layout.marginScreen,
+                            bottom = RunvealTheme.spacing.space8 + RunvealTheme.layout.sizeTabBar +
+                                RunvealTheme.spacing.space8,
+                        ),
                 )
             }
 
@@ -422,8 +462,10 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                     .align(Alignment.BottomCenter)
                     .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
                     .padding(
-                        start = RunvealTheme.layout.marginScreen,
-                        end = RunvealTheme.layout.marginScreen,
+                        // 패널만 화면 좌우 여백(16)의 예외다 — 시안은 10이다. 패널이 탭바를 좌우 6씩
+                        // 감싸는 구조라, 10이어야 탭바가 다른 탭(좌우 16, 너비 328)과 같은 자리에 선다.
+                        start = HOME_PANEL_SIDE_MARGIN,
+                        end = HOME_PANEL_SIDE_MARGIN,
                         top = RunvealTheme.spacing.space8,
                         bottom = RunvealTheme.spacing.space8 - HOME_BOTTOM_PANEL_INNER_INSET,
                     )

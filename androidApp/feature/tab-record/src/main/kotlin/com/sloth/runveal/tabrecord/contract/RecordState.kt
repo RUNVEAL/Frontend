@@ -11,6 +11,9 @@ data class RecordItem(
     val distanceLabel: String,
     val durationLabel: String,
     val paceLabel: String,
+    /** "새 길 +1.30km" — 이번 러닝에서 처음 밟은 거리. 처음 간 길이 없으면 null이라 줄이 빠진다
+     * (시안 `List/List Item/Record`의 Show New Road). */
+    val newRoadLabel: String? = null,
     /** 카드 왼쪽 지도 썸네일. 매칭 경로가 없으면(매칭 실패/점 부족) null이라 플레이스홀더만 보인다. */
     val thumbnailRequest: SnapshotRequest? = null,
 )
@@ -29,6 +32,8 @@ data class RecordState(
     val runCountLabel: String = "0회",
     val totalDistanceValue: String = "0.00",
     val newRoadValue: String = "+0.00",
+    /** 이번 달에 처음 간 길이 있는지 — 요약 줄의 금색 강조를 켤지 정한다(시안: 0이면 강조 없음). */
+    val hasNewRoad: Boolean = false,
     val records: List<RecordItem> = emptyList(),
     val isLoading: Boolean = true,
 ) : UiState

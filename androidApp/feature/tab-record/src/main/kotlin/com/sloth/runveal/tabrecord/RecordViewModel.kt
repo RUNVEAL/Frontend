@@ -81,6 +81,10 @@ class RecordViewModel(
         val routes = withContext(Dispatchers.IO) { store.routesForTracks(trackIds) }
         // 그 러닝이 처음 밟은 구간 — 썸네일에서 "새로 탐험한 길"을 금색으로 덧그린다.
         val newRoads = withContext(Dispatchers.IO) { store.newRoadPathsForTracks(trackIds) }
+        // 카드에 "새 길 +1.30km"를 띄우려면 러닝 한 건씩 길이가 필요하다 — 위의 월 합계로는 못 나눈다.
+        val newRoadMetersByTrack = withContext(Dispatchers.IO) {
+            trackIds.associateWith { store.newRoadMetersForTrack(it) }
+        }
         val totalDistanceMeters = tracks.sumOf { it.distanceMeters }
 
         setState {
@@ -92,7 +96,15 @@ class RecordViewModel(
                 runCountLabel = "${tracks.size}회",
                 totalDistanceValue = "%.2f".format(totalDistanceMeters / 1000.0),
                 newRoadValue = "+%.2f".format(newRoadMeters / 1000.0),
-                records = tracks.map { toRecordItem(it, routes[it.id].orEmpty(), newRoads[it.id].orEmpty()) },
+                hasNewRoad = newRoadMeters > 0,
+                records = tracks.map {
+                    toRecordItem(
+                        track = it,
+                        route = routes[it.id].orEmpty(),
+                        newRoadPaths = newRoads[it.id].orEmpty(),
+                        newRoadMeters = newRoadMetersByTrack[it.id] ?: 0.0,
+                    )
+                },
                 isLoading = false,
             )
         }
@@ -102,6 +114,7 @@ class RecordViewModel(
         track: TrackLocalStore.TrackSummary,
         route: List<LatLon>,
         newRoadPaths: List<List<LatLon>>,
+        newRoadMeters: Double,
     ): RecordItem {
         val startedAt = Instant.ofEpochMilli(track.startedAtEpochMs).atZone(zoneId)
         return RecordItem(
@@ -112,6 +125,8 @@ class RecordViewModel(
             distanceLabel = "%.2fkm".format(track.distanceMeters / 1000.0),
             durationLabel = formatElapsed(track.elapsedMs),
             paceLabel = formatPace(track.elapsedMs, track.distanceMeters),
+            // 처음 간 길이 없는 러닝(같은 길을 또 달린 경우)은 줄 자체를 빼는 게 시안이다.
+            newRoadLabel = "새 길 +%.2fkm".format(newRoadMeters / 1000.0).takeIf { newRoadMeters > 0 },
             thumbnailRequest = route.toSnapshotRequest(
                 ownerId = track.id,
                 variant = SnapshotVariant.THUMBNAIL,

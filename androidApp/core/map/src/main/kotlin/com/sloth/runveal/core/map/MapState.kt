@@ -81,6 +81,10 @@ class MapState(
     var recenterRequestId: Int by mutableIntStateOf(0)
         internal set
 
+    /** [recenterToCurrentLocation]이 같이 맞출 줌 — null이면 지금 줌을 그대로 둔다. */
+    var recenterZoom: Double? by mutableStateOf(null)
+        internal set
+
     /** [focusOnBounds]가 마지막으로 넘긴 좌표 — [MapLibreMapView]가 이 좌표가 전부 보이게 카메라를
      * 맞춘다. */
     var boundsFocusPoints: List<LatLon>? by mutableStateOf(null)
@@ -123,8 +127,12 @@ class MapState(
 
     /** "내 위치" 버튼 등에서 호출 — 위치 권한/서비스가 꺼져 있으면 [CurrentLocationLayer]가 조용히
      * 무시한다. 현재 위치로 한 번 옮기기만 하고 계속 따라가지는 않는다 —
-     * 러닝 중처럼 따라가야 할 땐 [startFollowingCurrentLocation]을 쓴다. */
-    fun recenterToCurrentLocation() {
+     * 러닝 중처럼 따라가야 할 땐 [startFollowingCurrentLocation]을 쓴다.
+     *
+     * @param zoom 옮기면서 맞출 줌. null이면 지금 줌을 그대로 둔다("내 위치" 버튼). 다른 탭에서
+     *  홈 줌인 뷰로 보낼 때처럼 줌까지 바꿔야 하면 [MapConfig.HOME_ZOOM_IN]을 준다. */
+    fun recenterToCurrentLocation(zoom: Double? = null) {
+        recenterZoom = zoom
         recenterRequestId++
     }
 

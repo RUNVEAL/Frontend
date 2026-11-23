@@ -2,6 +2,9 @@ package com.sloth.runveal.ui.toast
 
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -15,6 +18,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.sloth.runveal.core.ui.R
 import com.sloth.runveal.designsystem.component.overlay.RunvealToast
 import com.sloth.runveal.designsystem.theme.RunvealTheme
@@ -50,11 +55,15 @@ class NotReadyToastState internal constructor() {
 fun rememberNotReadyToastState(): NotReadyToastState = remember { NotReadyToastState() }
 
 /**
- * [NotReadyToastState]가 켜지면 화면 위쪽에 토스트를 띄우고 3초 뒤 스스로 내린다.
- * 사라지는 타이머를 띄우는 쪽이 맡는 건 `RunvealToast`가 순수 컴포넌트이기 때문이다(그 주석 참고).
+ * [NotReadyToastState]가 켜지면 화면 **아래쪽**에 토스트를 띄우고 3초 뒤 스스로 내린다(시안
+ * `Overlay/Toast`: 좌우 16, 내비게이션 바 위 8). 사라지는 타이머를 띄우는 쪽이 맡는 건
+ * `RunvealToast`가 순수 컴포넌트이기 때문이다(그 주석 참고).
+ *
+ * [bottomInset]은 토스트가 가리면 안 되는 하단 UI 높이 — 탭바가 떠 있는 화면이 탭바 높이와 그
+ * 여백을 넘겨준다. 탭바가 없는 화면은 그대로 두면 된다.
  */
 @Composable
-fun BoxScope.NotReadyToastHost(state: NotReadyToastState) {
+fun BoxScope.NotReadyToastHost(state: NotReadyToastState, bottomInset: Dp = 0.dp) {
     LaunchedEffect(state.isVisible) {
         if (!state.isVisible) return@LaunchedEffect
         delay(TOAST_DURATION_MILLIS)
@@ -65,11 +74,12 @@ fun BoxScope.NotReadyToastHost(state: NotReadyToastState) {
         RunvealToast(
             message = stringResource(R.string.not_ready_toast),
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .windowInsetsPadding(WindowInsets.statusBars)
+                .align(Alignment.BottomCenter)
+                .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
                 .padding(
-                    horizontal = RunvealTheme.layout.marginScreen,
-                    vertical = RunvealTheme.spacing.space16,
+                    start = RunvealTheme.layout.marginScreen,
+                    end = RunvealTheme.layout.marginScreen,
+                    bottom = RunvealTheme.spacing.space8 + bottomInset,
                 ),
         )
     }

@@ -44,12 +44,11 @@ import com.sloth.runveal.tabrecord.component.RecordListItem
 import com.sloth.runveal.tabrecord.contract.RecordIntent
 import com.sloth.runveal.tabrecord.contract.RecordItem
 import com.sloth.runveal.tabrecord.contract.RecordState
-import com.sloth.runveal.ui.toast.NotReadyToastHost
-import com.sloth.runveal.ui.toast.rememberNotReadyToastState
 
 @Composable
 fun RecordScreen(
     onRecordClick: (String) -> Unit,
+    onStartRunningClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: RecordViewModel = viewModel(),
 ) {
@@ -61,9 +60,13 @@ fun RecordScreen(
         state = state,
         onIntent = viewModel::onIntent,
         onRecordClick = onRecordClick,
+        onStartRunningClick = onStartRunningClick,
         modifier = modifier,
     )
 }
+
+/** 상단 히어로 이미지(my_course.png) 원본 비율 — 코스 탭과 같은 그림, 같은 비율이다. */
+private const val HERO_ASPECT_RATIO = 1920f / 544f
 
 /** 앱바와 요약 사이 간격 — spacing 스케일에 13이 없어 시안 값 그대로 쓴다. */
 private val SUMMARY_TOP_GAP = 13.dp
@@ -73,16 +76,26 @@ private fun RecordScreen(
     state: RecordState,
     onIntent: (RecordIntent) -> Unit,
     onRecordClick: (String) -> Unit,
+    onStartRunningClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = RunvealTheme.colors
 
-    val notReadyToast = rememberNotReadyToastState()
     var isMonthPickerOpen by remember { mutableStateOf(false) }
     val density = LocalDensity.current
 
     Box(modifier = modifier.fillMaxSize().background(colors.bg.canvas)) {
-        NotReadyToastHost(notReadyToast)
+        // 코스 탭과 같은 히어로 이미지 — 시안(D0)도 같은 Graphic/My Course를 화면 맨 위(상태바 뒤까지)에
+        // 깐다. 원본 비율(1920:544) 그대로 보여준다.
+        Image(
+            painter = painterResource(R.drawable.my_course),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .aspectRatio(HERO_ASPECT_RATIO),
+        )
 
         Column(
             modifier = Modifier
@@ -137,6 +150,7 @@ private fun RecordScreen(
                 newRoadLabel = "새로 탐험한 길",
                 newRoadValue = state.newRoadValue,
                 newRoadUnit = "km",
+                hasNewRoad = state.hasNewRoad,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = SUMMARY_TOP_GAP)
@@ -172,6 +186,7 @@ private fun RecordScreen(
                             distanceLabel = record.distanceLabel,
                             durationLabel = record.durationLabel,
                             paceLabel = record.paceLabel,
+                            newRoadLabel = record.newRoadLabel,
                             thumbnailRequest = record.thumbnailRequest,
                             // 삭제는 상세 화면의 더보기 메뉴로 옮겼다 — 길게 누르기로는 지울 수 없다.
                             onClick = { onRecordClick(record.trackId) },
@@ -180,13 +195,13 @@ private fun RecordScreen(
                 }
             } else if (!state.isLoading) {
                 // 60dp에 맞는 spacing 토큰이 없어 그대로 하드코딩.
-                // TODO: 홈 탭으로 전환하고 러닝 기록 화면을 연다 — 탭을 넘나드는 이동이라
-                //  HomeScreen이 콜백을 내려줘야 한다. 그때까지는 "개발 중" 안내만 띄운다.
                 RunvealEmptyState(
                     title = "아직 달린 기록이 없어요",
                     description = "코스를 만들고 첫 길을 밝혀보세요",
                     actionLabel = "러닝 시작하기",
-                    onActionClick = notReadyToast::show,
+                    // 홈 탭 줌인 뷰로 보낸다 — 거기서 바로 러닝을 시작할 수 있다. 탭을 넘나드는
+                    // 이동이라 HomeScreen이 콜백을 내려준다.
+                    onActionClick = onStartRunningClick,
                     graphic = { Image(painter = painterResource(R.drawable.empty_course), contentDescription = null) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -208,6 +223,7 @@ private fun RecordScreenPreview() {
         RecordScreen(
             onIntent = {},
             onRecordClick = {},
+            onStartRunningClick = {},
             state = RecordState(
                 monthLabel = "2026년 11월",
                 selectedYear = 2026,

@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="course_recommend_result_title">추천 코스</string>
-    <string name="course_recommend_result_empty_action">다시 설정하기</string>
+    <string name="course_recommend_result_empty_action">조건 다시 설정하기</string>
+    <string name="course_recommend_result_empty_title">조건에 맞는 코스를\n찾지 못했어요</string>
+    <string name="course_recommend_result_empty_hint_loop_title">순환 코스로 찾기</string>
+    <string name="course_recommend_result_empty_hint_loop_description">도착지를 비우고 출발지로 돌아와요</string>
+    <string name="course_recommend_result_empty_hint_distance_title">거리 설정 바꾸기</string>
+    <string name="course_recommend_result_empty_hint_distance_description">도착지까지 가는 거리보다 길게 설정해요</string>
+    <string name="course_recommend_result_empty_hint_filter_title">러닝 필터 줄이기</string>
+    <string name="course_recommend_result_empty_hint_filter_description">필터를 빼면 더 많은 길에서 찾아요</string>
     <string name="course_recommend_result_course_name">코스 %1$s</string>
     <string name="course_recommend_result_avoid_visited_label">안 가본 길 우선</string>
     <string name="course_recommend_tag_park">공원</string>
