@@ -14,10 +14,21 @@ import SwiftUI
 struct RunvealHomeBottomPanel: View {
     private static let innerInset: CGFloat = 6
 
+    /// 패널 위 "내 위치" 버튼 — 시안 간격(패널 위 20, 패널 오른쪽 끝에서 10 안쪽)과, 보이는 원(44)과
+    /// 터치 칸(48)의 차이 2.
+    ///
+    /// 버튼은 **보이는 원보다 큰 터치 칸**으로 자리를 차지한다. 그래서 간격을 원 기준으로 잡으면
+    /// 그 차이만큼 패널 쪽으로 내려앉아 겹친다 — 터치 칸 크기로 띄우고 차이를 되돌려 준다.
+
     private let tabBar: AnyView
     private let banner: AnyView?
     private let summary: AnyView?
     private let onMyLocationClick: (() -> Void)?
+
+    private static let myLocationTouchSize: CGFloat = 48
+    private static let myLocationPanelGap: CGFloat = 20
+    private static let myLocationEndGap: CGFloat = 10
+    private static let myLocationTouchInset: CGFloat = 2
 
     init<TabBar: View>(
         banner: AnyView? = nil,
@@ -60,10 +71,11 @@ struct RunvealHomeBottomPanel: View {
                 RunvealIconButton(
                     icon: RunvealIcons.locate,
                     accessibilityLabel: RunvealDesignSystemStrings.homeBottomPanelMyLocationContentDescription,
+                    size: .m,
                     onClick: onMyLocationClick
                 )
-                .padding(.trailing, RunvealSpacing.space4)
-                .offset(y: -(RunvealLayout.sizeIconButtonL + RunvealSpacing.space12))
+                .padding(.trailing, Self.myLocationEndGap - Self.myLocationTouchInset)
+                .offset(y: -(Self.myLocationTouchSize + Self.myLocationPanelGap - Self.myLocationTouchInset))
             }
         }
     }

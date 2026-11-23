@@ -86,7 +86,7 @@ struct MakeCoursePanel: View {
                     accessibilityLabel: CourseRecommendStrings.myLocation,
                     onClick: onMyLocationClick
                 )
-                .alignmentGuide(.top) { $0[.bottom] + RunvealSpacing.space12 }
+                .offset(y: -(RunvealLayout.sizeIconButtonL + RunvealSpacing.space12))
             }
         }
     }
@@ -142,8 +142,8 @@ struct LocationConfirmPanel: View {
                     accessibilityLabel: CourseRecommendStrings.myLocation,
                     onClick: onMyLocationClick
                 )
-                .alignmentGuide(.top) { $0[.bottom] + RunvealSpacing.space12 }
                 .padding(.trailing, RunvealLayout.marginScreen)
+                .offset(y: -(RunvealLayout.sizeIconButtonL + RunvealSpacing.space12))
             }
         }
     }
