@@ -16,12 +16,20 @@ struct FollowCurrentLocationCommand: Equatable {
 
 /// 지도 위에 떠 있는 마커 하나(출발/도착 등 위치 + 종류) — Android `MapPin`.
 struct MapPin: Identifiable, Equatable {
-    let id = UUID()
     let location: LatLon
     let type: RunvealMapMarkerType
 
+    /// 같은 자리·같은 종류면 **같은 마커**다.
+    ///
+    /// 만들 때마다 달라지는 값(UUID 등)을 쓰면 안 된다 — 마커 목록은 화면이 다시 그려질 때마다
+    /// 새로 만들어지는데, 그걸 `onChange`가 "바뀌었다"로 보고 지도 상태를 또 갱신한다. 그 갱신이
+    /// 다시 화면을 그리게 해서 끝없이 돌고, 그동안 그 화면은 탭도 스와이프도 받지 못한다.
+    var id: String { "\(type)-\(location.lat)-\(location.lon)" }
+
     static func == (lhs: MapPin, rhs: MapPin) -> Bool {
-        lhs.id == rhs.id
+        lhs.type == rhs.type
+            && lhs.location.lat == rhs.location.lat
+            && lhs.location.lon == rhs.location.lon
     }
 }
 

@@ -4,7 +4,8 @@ import SwiftUI
 
 /// 지도 위에 떠 있는 마커 하나의 화면 좌표 — SwiftUI로 그리기 위해 지도에서 역산한 값.
 struct MapMarkerPlacement: Identifiable, Equatable {
-    let id: UUID
+    /// [MapPin.id]를 그대로 쓴다 — 자리·종류로 정해지는 값이라 다시 그려도 같다.
+    let id: String
     let type: RunvealMapMarkerType
     let style: RunvealMapMarkerStyle
     let point: CGPoint
