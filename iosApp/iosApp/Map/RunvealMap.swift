@@ -3,7 +3,7 @@ import SharedLogic
 import SwiftUI
 
 /// 지도 위에 떠 있는 마커 하나의 화면 좌표 — SwiftUI로 그리기 위해 지도에서 역산한 값.
-struct MapMarkerPlacement: Identifiable {
+struct MapMarkerPlacement: Identifiable, Equatable {
     let id: UUID
     let type: RunvealMapMarkerType
     let style: RunvealMapMarkerStyle
@@ -109,6 +109,9 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         private lazy var glowLayer = DongGlowImageLayer(provider: glowProvider)
 
         weak var mapView: MLNMapView?
+        /// 지금 화면에 떠 있는 현재 위치 마커 — 방향 화살표를 켜고 끄려고 들고 있는다.
+        /// 소유자는 지도(annotation view를 재사용·폐기한다)라 약한 참조로 둔다.
+        private weak var userLocationView: RunvealUserLocationAnnotationView?
         private var style: MLNStyle?
 
         /// 이미 반영한 one-shot 커맨드 번호 — 같은 요청을 두 번 처리하지 않게.
@@ -151,7 +154,10 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         /// SDK 기본값에 맡긴다.
         func mapView(_ mapView: MLNMapView, viewFor annotation: MLNAnnotation) -> MLNAnnotationView? {
             guard annotation is MLNUserLocation else { return nil }
-            return RunvealUserLocationAnnotationView()
+            let view = RunvealUserLocationAnnotationView()
+            view.showsBearing = state.showsHeadingIndicator
+            userLocationView = view
+            return view
         }
 
         // MARK: 카메라
@@ -215,7 +221,10 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
             currentOverlay = overlay
             // 방향 화살표는 스타일 레이어가 아니라 지도 뷰의 사용자 위치 표시 옵션이다 — 스타일이
             // 아직 안 올라왔어도 걸어 둘 수 있으므로 아래 guard 앞에서 반영한다.
+            // SDK 옵션은 켜 둬야 MapLibre가 나침반 갱신을 시작한다. 실제로 화살표를 그릴지는
+            // 우리 마커가 정한다([RunvealUserLocationAnnotationView.showsBearing]).
             mapView?.showsUserHeadingIndicator = state.showsHeadingIndicator
+            userLocationView?.showsBearing = state.showsHeadingIndicator
             guard let style else { return }
 
             applyRoadFocus(style: style, enabled: state.unexploredRoadFocus)
@@ -350,6 +359,10 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
             state.pinMarkers.forEach { append($0, .pin) }
             if let pin = state.pin { append(pin, .pin) }
 
+            // **그대로면 발행하지 않는다.** 이 함수는 `apply()` 끝에서 불리는데, `apply()`는
+            // `updateUIView`에서 불린다 — 값이 같아도 발행하면 뷰가 다시 그려지고 그게 다시
+            // `updateUIView`를 불러서, 아무것도 안 바뀌어도 지도 상태 반영이 끝없이 돈다.
+            guard markerPositions.placements != placements else { return }
             markerPositions.placements = placements
         }
 

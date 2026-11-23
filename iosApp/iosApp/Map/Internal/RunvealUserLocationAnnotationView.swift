@@ -25,6 +25,18 @@ final class RunvealUserLocationAnnotationView: MLNUserLocationAnnotationView {
     /// 화살표 이미지는 매번 그릴 필요가 없어 한 번 만들어 둔다(해상도 배율별로).
     private static var bearingImages: [CGFloat: UIImage] = [:]
 
+    /// 방향 화살표를 보일지 — `RunvealMapState.showsHeadingIndicator`가 정한다(러닝 중에만 켠다).
+    ///
+    /// SDK의 `showsUserHeadingIndicator`는 **기본 마커**가 쓰는 옵션이라, 마커를 우리 것으로
+    /// 바꾼 뒤로는 그 값에 기대지 않고 여기서 직접 정한다. 다만 그 옵션은 계속 켜 둔다 —
+    /// 그래야 MapLibre가 나침반 갱신을 시작해서 `userLocation.heading`이 들어온다.
+    var showsBearing = false {
+        didSet {
+            guard showsBearing != oldValue, let userLocation else { return }
+            updateBearing(userLocation)
+        }
+    }
+
     private let accuracyLayer = CAShapeLayer()
     private let dotLayer = CAShapeLayer()
     private let bearingView = UIImageView()
@@ -74,7 +86,6 @@ final class RunvealUserLocationAnnotationView: MLNUserLocationAnnotationView {
         layer.addSublayer(dotLayer)
 
         bearingView.frame = bounds
-        bearingView.image = Self.bearingImage(scale: traitCollection.displayScale)
         addSubview(bearingView)
     }
 
@@ -110,11 +121,16 @@ final class RunvealUserLocationAnnotationView: MLNUserLocationAnnotationView {
     /// 화살표는 **기기가 향한 방향**을 가리킨다(Android `RenderMode.COMPASS`와 같다) — 지도를
     /// 돌리면 화면 기준 각도가 달라지므로 지도 방위를 빼서 그린다.
     private func updateBearing(_ userLocation: MLNUserLocation) {
-        guard let mapView, mapView.showsUserHeadingIndicator,
+        guard showsBearing, let mapView,
               let heading = userLocation.heading,
               heading.headingAccuracy >= 0 else {
             bearingView.isHidden = true
             return
+        }
+        // 이미지는 여기서 챙긴다 — 뷰가 window에 붙기 전에는 화면 배율을 못 읽어 만들기에
+        // 실패할 수 있고, 한 번 실패한 채로 두면 화살표가 영영 안 뜬다.
+        if bearingView.image == nil {
+            bearingView.image = Self.bearingImage(scale: displayScale)
         }
         let trueHeading = heading.trueHeading >= 0 ? heading.trueHeading : heading.magneticHeading
         bearingView.isHidden = false
@@ -123,6 +139,16 @@ final class RunvealUserLocationAnnotationView: MLNUserLocationAnnotationView {
         let radians = (mapView.direction - trueHeading) * .pi / 180
         bearingView.transform = CGAffineTransform(rotationAngle: -CGFloat(radians))
         CATransaction.commit()
+    }
+
+    /// 화면 배율. 뷰가 아직 화면에 붙기 전이면 `traitCollection`이 0을 주는데, 그 값으로 그리면
+    /// 빈 이미지가 나온다 — 그럴 땐 현재 trait, 그것도 없으면 3배를 쓴다(가장 촘촘한 쪽으로 그려
+    /// 두면 어느 기기에서도 뭉개지지 않는다).
+    private var displayScale: CGFloat {
+        for candidate in [traitCollection.displayScale, UITraitCollection.current.displayScale] where candidate > 0 {
+            return candidate
+        }
+        return 3
     }
 
     private static func bearingImage(scale: CGFloat) -> UIImage? {
