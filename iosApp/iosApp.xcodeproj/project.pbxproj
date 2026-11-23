@@ -11,6 +11,7 @@
 		A1C0DE000000000000000022 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE000000000000000012 /* Lottie */; };
 		A1C0DE000000000000000023 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE000000000000000013 /* FirebaseCrashlytics */; };
 		A1C0DE000000000000000024 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE000000000000000014 /* FirebaseCore */; };
+		A1C0DE000000000000000025 /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE000000000000000015 /* FirebaseAnalyticsWithoutAdIdSupport */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +53,7 @@
 				A1C0DE000000000000000022 /* Lottie in Frameworks */,
 				A1C0DE000000000000000023 /* FirebaseCrashlytics in Frameworks */,
 				A1C0DE000000000000000024 /* FirebaseCore in Frameworks */,
+				A1C0DE000000000000000025 /* FirebaseAnalyticsWithoutAdIdSupport in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -101,6 +103,7 @@
 				A1C0DE000000000000000012 /* Lottie */,
 				A1C0DE000000000000000013 /* FirebaseCrashlytics */,
 				A1C0DE000000000000000014 /* FirebaseCore */,
+				A1C0DE000000000000000015 /* FirebaseAnalyticsWithoutAdIdSupport */,
 			);
 			productName = iosApp;
 			productReference = 88F9F68A6654612A031C497B /* Runveal.app */;
@@ -455,6 +458,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A1C0DE000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseCore;
+		};
+		A1C0DE000000000000000015 /* FirebaseAnalyticsWithoutAdIdSupport */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalyticsWithoutAdIdSupport;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
