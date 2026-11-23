@@ -61,6 +61,9 @@ struct RecordScreen: View {
     /// 목록에서 기록 하나를 눌렀다 — 상세로 올리는 건 홈 셸이 맡는다(탭 화면은 내비게이터를 모른다).
     let onRecordClick: (String) -> Void
 
+    /// 기록이 없을 때 뜨는 "러닝 시작하기" — 홈 탭 줌인 뷰로 보내는 일이라 홈 셸이 맡는다.
+    let onStartRunningClick: () -> Void
+
     @State private var summary: MonthlyRecordSummary?
     @State private var isLoading = true
     @State private var subscription: FlowSubscription?
@@ -128,7 +131,7 @@ struct RecordScreen: View {
                             title: TabRecordStrings.emptyTitle,
                             description: TabRecordStrings.emptyDescription,
                             actionLabel: TabRecordStrings.emptyAction,
-                            onActionClick: {}
+                            onActionClick: onStartRunningClick
                         ) {
                             RunvealImages.emptyCourse
                                 .resizable()

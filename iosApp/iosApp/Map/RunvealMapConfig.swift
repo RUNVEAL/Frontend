@@ -14,6 +14,8 @@ enum RunvealMapConfig {
     static var initialZoom: Double { config.INITIAL_ZOOM }
     /// A3-4(줌 인) 전환 기준. 동 레이어가 사라지는 기준도 같은 값이다.
     static var zoomInThreshold: Double { config.ZOOM_IN_THRESHOLD }
+    /// 다른 탭에서 홈 줌인 뷰로 보낼 때 맞추는 줌 — [zoomInThreshold]보다 넉넉히 위다.
+    static var homeZoomIn: Double { config.HOME_ZOOM_IN }
     static var sigunguSwitchZoom: Double { config.SIGUNGU_SWITCH_ZOOM }
     static var sidoSwitchZoom: Double { config.SIDO_SWITCH_ZOOM }
     static var minZoomPreference: Double { config.MIN_ZOOM_PREFERENCE }

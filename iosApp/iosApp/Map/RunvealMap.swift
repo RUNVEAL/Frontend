@@ -118,6 +118,8 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         private var appliedRecenterRequestId = 0
         private var appliedBoundsFocusRequestId = 0
         private var pendingRecenter = false
+        /// [pendingRecenter] 요청이 같이 맞춰야 할 줌 — nil이면 배율은 그대로 둔다.
+        private var pendingRecenterZoom: Double?
 
         private var lastOverlayBoundarySourceKey: String?
         private var glowRefreshTask: Task<Void, Never>?
@@ -169,6 +171,14 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
                 // 한 번만 따라가고 추적을 끈다 — 이후에는 사용자가 자유롭게 둘러볼 수 있게.
                 pendingRecenter = false
                 mapView.userTrackingMode = .none
+                // 줌까지 맞춰야 하는 요청이면(기록 탭 → 홈 줌인 뷰) 추적이 현위치로 옮겨 놓은
+                // 중심을 그대로 두고 배율만 바꾼다. 추적을 켜는 시점에 같이 주지 않는 이유는
+                // Android(`setCameraMode`에 zoom 인자)와 달리 MapLibre iOS에는 그런 묶음 API가
+                // 없어서다 — 따로 걸면 전환 애니메이션과 겹쳐 중간 배율에서 멈춘다.
+                if let zoom = pendingRecenterZoom {
+                    pendingRecenterZoom = nil
+                    mapView.setZoomLevel(zoom, animated: true)
+                }
             }
             refreshMarkerPositions()
             scheduleGlowRefresh()
@@ -296,6 +306,7 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
                 appliedRecenterRequestId = state.recenterRequestId
                 if state.recenterRequestId > 0 {
                     pendingRecenter = true
+                    pendingRecenterZoom = state.recenterZoom
                     mapView.userTrackingMode = .follow
                 }
             }

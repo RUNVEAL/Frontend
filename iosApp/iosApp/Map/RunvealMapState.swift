@@ -50,6 +50,9 @@ final class RunvealMapState: ObservableObject {
     /// 값 자체는 의미가 없고 변경 이벤트만 쓴다(일종의 one-shot 커맨드).
     @Published private(set) var recenterRequestId: Int = 0
 
+    /// [recenterToCurrentLocation]이 같이 맞출 줌 — nil이면 지금 줌을 그대로 둔다.
+    @Published private(set) var recenterZoom: Double?
+
     /// [focusOnBounds]가 마지막으로 넘긴 좌표 — 이 좌표가 전부 보이게 카메라를 맞춘다.
     @Published private(set) var boundsFocusPoints: [LatLon]?
 
@@ -96,7 +99,11 @@ final class RunvealMapState: ObservableObject {
     }
 
     /// "내 위치" 버튼 등에서 호출 — 위치 권한/서비스가 꺼져 있으면 지도 뷰가 조용히 무시한다.
-    func recenterToCurrentLocation() {
+    ///
+    /// [zoom]을 주면 옮기면서 그 배율로 맞춘다(기록 탭에서 홈 줌인 뷰로 보낼 때 등). nil이면 지금
+    /// 줌을 그대로 둔다 — "내 위치" 버튼은 보고 있던 배율을 유지해야 한다.
+    func recenterToCurrentLocation(zoom: Double? = nil) {
+        recenterZoom = zoom
         recenterRequestId += 1
     }
 
