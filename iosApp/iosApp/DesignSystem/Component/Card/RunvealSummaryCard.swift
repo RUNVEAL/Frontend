@@ -43,7 +43,8 @@ struct RunvealSummaryCard: View {
 
                 RunvealDongThumbnail()
 
-                RunvealIcon(RunvealIcons.chevron, tint: colors.icon.tertiary, size: RunvealLayout.sizeIcon)
+                // 오른쪽 화살표는 **지금 띄우지 않는다** — Android 요약 카드에도 없다(썸네일까지).
+                // 눌러서 들어갈 화면이 정해지면 그때 되살린다.
             }
             .padding(.horizontal, RunvealLayout.marginCardPadding)
             .padding(.vertical, RunvealSpacing.space12)
