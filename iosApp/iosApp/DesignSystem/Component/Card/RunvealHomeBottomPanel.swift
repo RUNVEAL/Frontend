@@ -87,20 +87,32 @@ struct RunvealHomeBottomPanel: View {
 struct RunvealLocationOffBanner: View {
     private let message: String
     private let actionLabel: String
+    private let icon: RunvealIconSpec
+    private let iconTint: Color?
     private let onActionClick: () -> Void
 
-    init(message: String, actionLabel: String, onActionClick: @escaping () -> Void) {
+    /// [iconTint]가 nil이면 벡터 자체 색을 쓴다 — location-off 아이콘이 그런 경우다(아래 주석).
+    /// 서버 데이터 안내처럼 다른 뜻의 배너는 [icon]과 [iconTint]를 바꿔 쓴다(Android와 같은 구조).
+    init(
+        message: String,
+        actionLabel: String,
+        icon: RunvealIconSpec = RunvealIcons.locationOff,
+        iconTint: Color? = nil,
+        onActionClick: @escaping () -> Void
+    ) {
         self.message = message
         self.actionLabel = actionLabel
+        self.icon = icon
+        self.iconTint = iconTint
         self.onActionClick = onActionClick
     }
 
     var body: some View {
         let colors = RunvealTheme.colors
         HStack(spacing: RunvealSpacing.space8) {
-            // tint를 주면 location-off 아이콘의 사선이 두꺼워 보인다 — 벡터 자체 색
-            // (전경 F4EEEA + 배경 272626 knockout)을 그대로 쓴다.
-            RunvealIcon(RunvealIcons.locationOff, size: 16)
+            // tint를 주면 location-off 아이콘의 사선이 두꺼워 보인다 — 그래서 기본은 tint 없이
+            // 벡터 자체 색(전경 F4EEEA + 배경 272626 knockout)을 그대로 쓴다.
+            RunvealIcon(icon, tint: iconTint, size: 16)
             Text(message)
                 .runvealTextStyle(RunvealTheme.typography.bodyMRegular)
                 .foregroundStyle(colors.text.secondary)

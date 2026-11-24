@@ -37,6 +37,10 @@ enum RunningStrings {
     static let resultMapAccessibilityLabel = "이번 러닝 경로 지도"
     /// 기록 상세·이미지 저장은 아직 없다 — Android도 같은 문구의 안내만 띄운다.
     static let notReady = "아직 개발 중입니다"
+
+    // 일시정지 배너 — 지도 위에 띄워 기록이 멈춘 걸 알린다(시안 C0-1).
+    static let pausedBannerTitle = "일시정지 중"
+    static let pausedBannerDescription = "러닝 기록이 멈췄어요"
 }
 
 /// 경과 시간·페이스 포맷 — 기록 화면과 결과 화면, 기록 탭이 같은 공식을 써야 한다

@@ -42,7 +42,17 @@ data class DongOverlayGeoJsonBundle(
      * 만들어 둔 빛 이미지가 자동으로 버려진다(안 그러면 새 테두리와 어긋난 채로 남는다). */
     val boundarySourceKey: String,
 ) {
+    /**
+     * 서버에서 동 경계를 못 받아 비어 있는 묶음인지([empty]로 만든 것). 참이면 동 테두리·라벨·빛이
+     * 통째로 안 보이고 탐험률이 전부 0%가 되는데, 설명이 없으면 "원래 그런 화면"처럼 보인다 —
+     * 홈이 이 값으로 "지도 데이터를 받지 못했어요" 배너를 띄운다(Android `isServerDataMissing`).
+     */
+    val isServerDataMissing: Boolean get() = boundarySourceKey == NO_BOUNDARY_SOURCE_KEY
+
     companion object {
+        /** [boundarySourceKey]가 이 값이면 동 경계가 없다는 뜻 — [isServerDataMissing] 참고. */
+        const val NO_BOUNDARY_SOURCE_KEY: String = "none"
+
         /**
          * 서버 동 경계를 못 받았을 때 — 동/시군구/시도 레이어를 비워 둔다. 지도는 그대로 뜨고 경계만
          * 안 보인다. 다음에 다시 만들 때 서버가 살아 있으면 정상으로 채워진다.
@@ -63,7 +73,7 @@ data class DongOverlayGeoJsonBundle(
                 // 경계를 못 받았으면 탐험률도 비운다 — 분자·분모는 로컬에도 있지만, 서버와 코드
                 // 체계가 어긋난 채로 숫자만 띄우면 지도는 안 빛나는데 헤더만 8%라고 하게 된다.
                 query = DongOverlayQuery.empty(),
-                boundarySourceKey = "none",
+                boundarySourceKey = NO_BOUNDARY_SOURCE_KEY,
             )
         }
     }

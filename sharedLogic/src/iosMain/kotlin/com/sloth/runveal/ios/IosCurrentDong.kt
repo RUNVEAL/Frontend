@@ -25,22 +25,46 @@ data class CurrentDong(
  *
  * 실패하면 null — 위치 권한이 없거나 서비스 지역 밖인 건 흔한 상황이라 오류로 다루지 않는다.
  */
+/**
+ * [IosCurrentDong.fetch] 결과 — 동을 못 받은 이유를 호출부가 가릴 수 있게 둘로 나눠 담는다.
+ *
+ * [dong]만으로는 **서버에서 못 받은 것**과 **서비스 지역 밖**이 구분되지 않는다(둘 다 null). 홈은
+ * 전자일 때만 "현재 위치 정보를 받지 못했어요" 배너를 띄워야 하므로 [loadFailed]를 따로 본다.
+ */
+data class CurrentDongResult(
+    val dong: CurrentDong?,
+    /** 서버에서 못 받았는지(오프라인·서버 꺼짐·타임아웃). 서비스 지역 밖은 false다 — 정상 상황이다. */
+    val loadFailed: Boolean,
+)
+
 object IosCurrentDong {
 
     private val dongApi = DongApi()
 
     @Throws(Exception::class) // 없으면 Swift의 `try?` 대신 앱이 종료된다 — IosMeta.fetchAndPublish 주석.
-    suspend fun fetch(lat: Double, lon: Double): CurrentDong? =
+    suspend fun fetch(lat: Double, lon: Double): CurrentDongResult =
         when (val result = dongApi.fetchDong(lat = lat, lon = lon)) {
             is DongResult.Success -> {
                 // 줌아웃 요약 카드도 같은 값을 쓰도록 홀더에 넘긴다(Android와 같은 경로).
                 CurrentDongHolder.publish(result.dong)
-                // 행정동만 쓴다 — 지도 위 한 줄짜리 자리라 "충청남도 천안시서북구 부성2동"은
-                // 길어서 잘리고, 줌인 헤더는 "내 동네"가 앞에 붙어 더 길어진다.
-                CurrentDong(name = result.dong.dongOnly, code = result.dong.code)
+                CurrentDongResult(
+                    // 행정동만 쓴다 — 지도 위 한 줄짜리 자리라 "충청남도 천안시서북구 부성2동"은
+                    // 길어서 잘리고, 줌인 헤더는 "내 동네"가 앞에 붙어 더 길어진다.
+                    dong = CurrentDong(name = result.dong.dongOnly, code = result.dong.code),
+                    loadFailed = false,
+                )
             }
 
-            DongResult.OutOfServiceArea -> null
-            is DongResult.Failure -> null
+            // 바다·해외처럼 **정상적으로** 동이 없는 경우 — 실패 표시를 지운다.
+            DongResult.OutOfServiceArea -> {
+                CurrentDongHolder.publishUnavailable()
+                CurrentDongResult(dong = null, loadFailed = false)
+            }
+
+            // 오프라인·서버 꺼짐 — 홈이 배너를 띄울 수 있게 실패를 남긴다.
+            is DongResult.Failure -> {
+                CurrentDongHolder.publishFailure()
+                CurrentDongResult(dong = null, loadFailed = true)
+            }
         }
 }

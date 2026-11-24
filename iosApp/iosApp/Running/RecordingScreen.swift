@@ -29,10 +29,21 @@ struct RecordingScreen: View {
     var body: some View {
         ZStack(alignment: .top) {
             if viewModel.state.phase != .idle {
-                NewRoadBadge(distanceLabel: viewModel.state.newRoadLabel)
-                    .padding(.leading, RunvealLayout.marginScreen)
-                    .padding(.top, RunvealSpacing.space16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: RunvealSpacing.space12) {
+                    // 일시정지 중에는 기록이 멈췄다는 걸 지도 위에서도 알린다(시안 C0-1) — 하단
+                    // 패널의 숫자가 멈춘 것만으로는 멈췄는지 느린지 알기 어렵다(Android와 같다).
+                    if viewModel.state.phase == .paused {
+                        RunvealNavigationBanner(
+                            icon: RunvealIcons.pause,
+                            instruction: RunningStrings.pausedBannerTitle,
+                            description: RunningStrings.pausedBannerDescription
+                        )
+                    }
+                    NewRoadBadge(distanceLabel: viewModel.state.newRoadLabel)
+                }
+                .padding(.horizontal, RunvealLayout.marginScreen)
+                .padding(.top, RunvealSpacing.space16)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             VStack {

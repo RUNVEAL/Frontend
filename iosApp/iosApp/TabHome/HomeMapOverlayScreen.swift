@@ -25,6 +25,13 @@ struct HomeMapOverlayScreen: View {
     var onCreateCourseClick: () -> Void = {}
     var onRunStartClick: () -> Void = {}
 
+    /// 동 조회가 **서버 실패**로 끝났는지 알린다 — 배너는 홈 셸이 그리고(탭 화면 밖), 조회는 여기가
+    /// 한다. 서비스 지역 밖·위치 권한 없음은 false다(정상 상황이라 안내할 게 없다).
+    var onDongLoadFailedChange: (Bool) -> Void = { _ in }
+
+    /// 셸의 "다시 시도"가 올리는 값 — 바뀔 때마다 동 조회를 다시 돌린다(값 자체는 쓰지 않는다).
+    var retryToken: Int = 0
+
     @State private var selectedToggleIndex = 0
 
     /// 현재 위치의 행정동 — 서버에 한 번 물어 둔다(`IosCurrentDong`). 못 받으면 nil이고 화면은
@@ -54,12 +61,20 @@ struct HomeMapOverlayScreen: View {
                 HomeMapOverlay(locationName: currentDong?.name ?? TabHomeStrings.currentLocation)
             }
         }
-        .task {
+        // retryToken이 바뀌면 다시 돈다 — 셸의 "다시 시도" 버튼이 그 값을 올린다.
+        .task(id: retryToken) {
             // 위치를 못 받으면(권한 없음·위치 꺼짐) 동 조회를 건너뛴다 — 흔한 상황이라 오류가 아니다.
+            // 이때는 실패로도 알리지 않는다(위치 안내 배너가 먼저 뜬다).
             guard let location = await RunvealCurrentLocation().fetch() else { return }
             // Kotlin suspend 함수는 Swift에 async throws로 들어온다(완료 핸들러가 NSError를
-            // 받기 때문) — 실패하면 동 이름 없이 두면 되므로 try?로 흘린다.
-            currentDong = try? await IosCurrentDong.shared.fetch(lat: location.lat, lon: location.lon)
+            // 받기 때문) — 던지면 못 받은 것으로 보고 실패를 알린다.
+            guard let result = try? await IosCurrentDong.shared.fetch(lat: location.lat, lon: location.lon)
+            else {
+                onDongLoadFailedChange(true)
+                return
+            }
+            currentDong = result.dong
+            onDongLoadFailedChange(result.loadFailed)
         }
         // "안 가본 길"을 고른 동안만 베이스 지도 도로를 강조한다 — 줌 아웃되거나 이 화면을 벗어나면
         // 원래대로.

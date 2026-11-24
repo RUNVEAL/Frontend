@@ -24,6 +24,13 @@ struct RunvealHomeShell: View {
 
     @State private var toastMessage: String?
 
+    /// 서버에서 동 이름을 못 받았는지 — 조회는 홈 지도 오버레이가 하고 그 결과만 올려 준다.
+    @State private var isDongLoadFailed = false
+    /// "다시 시도"를 눌러 다시 받는 중 — 누른 직후에도 같은 배너가 그대로면 눌린 줄 모른다.
+    @State private var isRetryingServerData = false
+    /// 올릴 때마다 동 조회가 다시 돈다([HomeMapOverlayScreen.retryToken]).
+    @State private var serverDataRetryToken = 0
+
     /**
      러닝을 시작하기 전에 위치가 준비됐는지 보고, 안 됐으면 그 자리에서 안내 시트를 띄운다.
      여기에 담긴 동작은 권한·위치 서비스가 갖춰지면 이어서 실행된다.
@@ -129,7 +136,10 @@ struct RunvealHomeShell: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .environment(\.runvealMapOverlayBottomInset, isLocationBannerNeeded ? Self.locationBannerExtraInset : 0)
+        // 서버 데이터 배너도 같은 자리를 차지하므로 함께 본다 — 빠뜨리면 줌인 오버레이의
+        // 하단 액션 줄이 배너와 겹친다(Android도 두 조건을 OR로 묶는다).
+        .environment(\.runvealMapOverlayBottomInset,
+                     (isLocationBannerNeeded || isServerDataMissing) ? Self.locationBannerExtraInset : 0)
         .requireLocationPermission(permissionState)
         .onAppear {
             mapData.start()
@@ -187,7 +197,9 @@ struct RunvealHomeShell: View {
                 mapState: mapState,
                 // 코스 탐색은 위치 없이도 들어갈 수 있다 — 실제로 뛸 때만 위치가 필요하다.
                 onCreateCourseClick: { navigator.push(.courseRecommend) },
-                onRunStartClick: { requireLocationForRun { navigator.push(.recording) } }
+                onRunStartClick: { requireLocationForRun { navigator.push(.recording) } },
+                onDongLoadFailedChange: { isDongLoadFailed = $0 },
+                retryToken: serverDataRetryToken
             )
         case .course:
             CourseScreen(
@@ -368,6 +380,50 @@ struct RunvealHomeShell: View {
                 }
             )
         }
+        // 위치 안내를 먼저 띄운다 — 위치를 못 받으면 동 조회를 아예 건너뛰므로, 위치가 꺼진
+        // 상태에서 "데이터를 받지 못했어요"를 먼저 보여 주면 엉뚱한 안내가 된다(Android와 같은 순서).
+        if isServerDataMissing {
+            return AnyView(
+                RunvealLocationOffBanner(
+                    message: serverDataErrorMessage,
+                    actionLabel: HomeStrings.serverDataErrorBannerAction,
+                    icon: RunvealIcons.alert,
+                    iconTint: RunvealTheme.colors.status.error,
+                    onActionClick: retryServerData
+                )
+            )
+        }
         return nil
+    }
+
+    /// 서버에서 지도 데이터를 못 받은 상태. 둘 중 하나라도 실패면 참이다 — 동 이름(`/dong`)과
+    /// 동 경계·탐험률(`/meta` + 지도 파일).
+    ///
+    /// 오버레이 묶음이 아직 nil인 건 **만들고 있는 중**이라 실패로 보지 않는다.
+    private var isServerDataMissing: Bool {
+        isDongLoadFailed || mapData.overlay?.isServerDataMissing == true
+    }
+
+    /// 둘 중 뭘 못 받았는지에 따라 문구가 다르다 — 동 이름만 실패했으면 지도는 제대로 보이는데
+    /// "지도 데이터를 못 받았다"는 틀린 안내가 된다.
+    private var serverDataErrorMessage: String {
+        if isRetryingServerData { return HomeStrings.serverDataErrorBannerMessageRetrying }
+        if mapData.overlay?.isServerDataMissing == true { return HomeStrings.serverDataErrorBannerMessageMap }
+        return HomeStrings.serverDataErrorBannerMessageDong
+    }
+
+    /// 동 조회와 지도 데이터를 다시 받는다. 받는 동안에는 문구를 "다시 받고 있어요"로 바꿔서
+    /// 누른 게 먹었다는 걸 알린다.
+    private func retryServerData() {
+        guard !isRetryingServerData else { return }
+        isRetryingServerData = true
+        // 동 조회는 탭 화면(HomeMapOverlayScreen)이 하므로 trigger만 올린다.
+        serverDataRetryToken += 1
+        Task {
+            // 지금 묶음이 반영하고 있던 기록을 그대로 유지한다 — 다른 값을 넣으면 지도 레이어가
+            // 묶음을 "낡은 것"으로 보고 또 한 번 다시 만든다.
+            await mapData.refreshOverlayFromServer()
+            isRetryingServerData = false
+        }
     }
 }
