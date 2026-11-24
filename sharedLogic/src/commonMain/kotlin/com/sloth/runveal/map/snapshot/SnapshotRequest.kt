@@ -2,8 +2,14 @@ package com.sloth.runveal.map.snapshot
 
 import com.sloth.runveal.map.LatLon
 
-/** `docs/running/COURSE_MAP_SNAPSHOT.md` §2 — 코스 목록/기록 목록 썸네일과 러닝 결과 카드. */
-enum class SnapshotVariant { THUMBNAIL, RESULT_CARD }
+/**
+ * `docs/running/COURSE_MAP_SNAPSHOT.md` §2 — 코스 목록/기록 목록 썸네일과 러닝 결과 카드.
+ *
+ * [DONG_THUMBNAIL]은 홈 요약 카드의 행정동 그림이다. 경로 한 줄이 아니라 **그 동 안의 가본 길
+ * 전체**를 그리고, 출발·도착 마커가 없다 — 그래서 같은 렌더러(캐시·중복 제거·MapSnapshotter)를
+ * 쓰면서 그릴 레이어만 다르게 간다.
+ */
+enum class SnapshotVariant { THUMBNAIL, RESULT_CARD, DONG_THUMBNAIL }
 
 data class GeoBounds(val south: Double, val west: Double, val north: Double, val east: Double)
 
@@ -21,6 +27,13 @@ data class SnapshotRequest(
     /** 러닝 기록이면 `true` — 경로를 "오늘 달린 길"(흰색)로 깔고 [highlightGeoJson]을 금색으로
      * 덧그린다. 코스(아직 달리지 않은 경로)는 `false`라 경로색 한 가지로만 그린다. */
     val isRunRoute: Boolean = false,
+    /**
+     * 동 썸네일에서 **동 밖을 덮을** 폴리곤([DongThumbnailGeometry.maskGeoJson]) — 주면 그 동 모양
+     * 으로 잘린 것처럼 보인다. 다른 variant는 null이다.
+     */
+    val dongMaskGeoJson: String? = null,
+    /** 동 썸네일에 얹을 경계선([DongThumbnailGeometry.outlineGeoJson]). 주지 않으면 안 그린다. */
+    val dongOutlineGeoJson: String? = null,
 ) {
     fun cacheKeyBase(): String = "${variant.name.lowercase()}_$ownerId"
 }
@@ -45,4 +58,18 @@ object SnapshotConfig {
     const val START_LAYER_ID = "snapshot-start-layer"
     const val END_SOURCE_ID = "snapshot-end-source"
     const val END_LAYER_ID = "snapshot-end-layer"
+
+    const val DONG_MASK_SOURCE_ID = "snapshot-dong-mask-source"
+    const val DONG_MASK_LAYER_ID = "snapshot-dong-mask-layer"
+    const val DONG_OUTLINE_SOURCE_ID = "snapshot-dong-outline-source"
+    const val DONG_OUTLINE_LAYER_ID = "snapshot-dong-outline-layer"
+
+    /**
+     * 동 썸네일의 가본 길 두께(dp). 84dp 프레임에 동 하나가 다 들어가 길이 아주 얇아지므로
+     * 코스 경로([ROUTE_WIDTH_DP]와 다른 값)보다 가늘게 둔다 — 굵으면 길이 뭉쳐 덩어리로 보인다.
+     */
+    const val DONG_ROAD_WIDTH_DP = 1.5
+
+    /** 동 경계선 두께(dp) — 작은 프레임이라 가늘게. */
+    const val DONG_OUTLINE_WIDTH_DP = 1.0
 }

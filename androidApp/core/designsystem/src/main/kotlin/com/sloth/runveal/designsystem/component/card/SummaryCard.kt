@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +26,8 @@ fun RunvealSummaryCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isMine: Boolean = false,
+    /** 썸네일 프레임 안에 그릴 것 — 동 지도 그림. 안 주면 빈 프레임만 보인다. */
+    thumbnail: @Composable BoxScope.() -> Unit = {},
 ) {
     val colors = RunvealTheme.colors
     val shape = RunvealTheme.shapes.radius24
@@ -71,7 +74,7 @@ fun RunvealSummaryCard(
             }
         }
 
-        RunvealDongThumbnail()
+        RunvealDongThumbnail(content = thumbnail)
     }
 }
 

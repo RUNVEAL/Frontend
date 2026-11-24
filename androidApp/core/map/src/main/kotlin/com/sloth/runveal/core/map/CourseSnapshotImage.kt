@@ -55,6 +55,8 @@ fun CourseSnapshotImage(
         resultEndpointStroke = colors.text.primary.toArgb(),
         newRoad = colors.map.roadNew.toArgb(),
         todayRoad = colors.map.roadToday.toArgb(),
+        dongMask = colors.bg.map.toArgb(),
+        dongOutline = colors.border.default.toArgb(),
     )
     val renderer = remember(snapshotColors) { CourseSnapshotRendererImpl(context = context, colors = snapshotColors) }
 

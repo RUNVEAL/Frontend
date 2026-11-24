@@ -22,6 +22,10 @@ data class SnapshotColors(
     /** 러닝 기록에서 처음 간 구간(금색)과 이미 가본 구간(흰색). */
     val newRoad: Int,
     val todayRoad: Int,
+    /** 동 썸네일에서 동 **밖**을 덮는 색 — 프레임 배경과 같아야 잘려 보인다(`bg.map`). */
+    val dongMask: Int,
+    /** 동 썸네일의 동 경계선 색. */
+    val dongOutline: Int,
 ) {
     companion object {
         /**
@@ -40,6 +44,10 @@ data class SnapshotColors(
             // 코스 썸네일은 러닝이 아니라서(isRunRoute=false) 아래 두 색은 실제로 쓰이지 않는다.
             newRoad = 0xFFF2E096.toInt(),
             todayRoad = 0xFFF2E096.toInt(),
+            // bg/map(neutral900)과 border/default(neutral700) — 프레임 배경과 같은 색이어야
+            // 동 모양으로 잘린 것처럼 보인다.
+            dongMask = 0xFF0E0E0E.toInt(),
+            dongOutline = 0xFF443F3D.toInt(),
         )
     }
 }

@@ -1,15 +1,11 @@
 package com.sloth.runveal.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import com.sloth.runveal.designsystem.component.overlay.RunvealLocationServicesSheet
-import com.sloth.runveal.designsystem.component.overlay.RunvealLocationPermissionSheet
-import com.sloth.runveal.designsystem.component.overlay.RunvealLocationPermissionSettingsSheet
-import androidx.compose.ui.graphics.Color
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
@@ -17,6 +13,10 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +27,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -36,6 +38,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
+import com.sloth.runveal.core.map.CourseSnapshotImage
 import com.sloth.runveal.core.map.DongAssetRepository
 import com.sloth.runveal.core.map.DongOverlayHolder
 import com.sloth.runveal.core.map.LiveRoadClassifier
@@ -53,8 +56,8 @@ import com.sloth.runveal.courserecommend.navigation.courseDetailOverlay
 import com.sloth.runveal.courserecommend.navigation.courseRecommendOverlay
 import com.sloth.runveal.courserecommend.navigation.courseRecommendResultOverlay
 import com.sloth.runveal.courserecommend.navigation.savedCourseDetailOverlay
-import com.sloth.runveal.data.local.RunvealDatabaseProvider
 import com.sloth.runveal.data.local.FileStore
+import com.sloth.runveal.data.local.RunvealDatabaseProvider
 import com.sloth.runveal.data.local.TrackLocalStore
 import com.sloth.runveal.designsystem.RunvealIcons
 import com.sloth.runveal.designsystem.component.card.RunvealHomeBottomPanel
@@ -63,19 +66,26 @@ import com.sloth.runveal.designsystem.component.card.RunvealSummaryCard
 import com.sloth.runveal.designsystem.component.navigation.RunvealTabBar
 import com.sloth.runveal.designsystem.component.navigation.RunvealTabBarContainer
 import com.sloth.runveal.designsystem.component.navigation.RunvealTabItemSpec
+import com.sloth.runveal.designsystem.component.overlay.RunvealLocationPermissionSettingsSheet
+import com.sloth.runveal.designsystem.component.overlay.RunvealLocationPermissionSheet
+import com.sloth.runveal.designsystem.component.overlay.RunvealLocationServicesSheet
 import com.sloth.runveal.designsystem.component.overlay.RunvealToast
 import com.sloth.runveal.designsystem.theme.RunvealTheme
-import com.sloth.runveal.map.MapConfig
-import com.sloth.runveal.navigation.RunVealRoute
-import com.sloth.runveal.network.dong.CurrentDongHolder
-import com.sloth.runveal.network.dong.MapCenterDongHolder
-import com.sloth.runveal.navigation.rememberRunVealNavigator
+import com.sloth.runveal.devicestate.rememberLocationServicesState
 import com.sloth.runveal.feature.home.R
 import com.sloth.runveal.map.LatLon
+import com.sloth.runveal.map.MapConfig
+import com.sloth.runveal.map.snapshot.DongThumbnailGeometry
+import com.sloth.runveal.map.snapshot.DongThumbnailShape
+import com.sloth.runveal.map.snapshot.SnapshotRequest
+import com.sloth.runveal.map.snapshot.SnapshotVariant
+import com.sloth.runveal.navigation.RunVealRoute
+import com.sloth.runveal.navigation.rememberRunVealNavigator
+import com.sloth.runveal.network.dong.CurrentDongHolder
+import com.sloth.runveal.network.dong.MapCenterDongHolder
 import com.sloth.runveal.permission.LocationPermissionState
 import com.sloth.runveal.permission.RequireLocationPermission
 import com.sloth.runveal.permission.openAppSettings
-import com.sloth.runveal.devicestate.rememberLocationServicesState
 import com.sloth.runveal.permission.rememberLocationPermissionState
 import com.sloth.runveal.recording.RecordingState
 import com.sloth.runveal.recording.TrackRecorder
@@ -242,6 +252,58 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     // 요약 카드 퍼센트는 지도 빛을 정하는 값과 **같은 출처**를 쓴다 — 따로 세면 카드엔 8%인데
     // 지도는 다른 단계로 빛나는 식으로 어긋난다. 아직 안 만들어졌거나 0%면 0.
     val overlayBundle by DongOverlayHolder.state.collectAsStateWithLifecycle()
+
+    // TODO(임시): 동 썸네일 표시 방식을 눈으로 비교하려고 버튼으로 바꿔 본다 — 하나로 정하면
+    //  이 상태와 아래 전환 버튼을 지우고 고른 방식만 남긴다.
+    var thumbnailShape by remember { mutableStateOf(DongThumbnailShape.Clipped) }
+
+    // 요약 카드 썸네일에 쓰는 "가본 길" — 지도 레이어(HomeMapLayer)가 들고 있는 것과 같은 값이지만,
+    // 그쪽은 러닝 중 실시간 선으로 바꿔치기해서 밖으로 빼면 얽힌다. 썸네일은 쌓인 길만 필요하므로
+    // 기록이 바뀔 때(latestTrackResult)만 따로 읽는다.
+    val thumbnailTrackResult by TrackResultHolder.state.collectAsStateWithLifecycle()
+    var thumbnailRoadGeoJson by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(thumbnailTrackResult) {
+        withContext(Dispatchers.IO) {
+            val store = TrackLocalStore(RunvealDatabaseProvider.database, FileStore())
+            thumbnailRoadGeoJson = DongAssetRepository(context).buildVisitedRoadGeoJson(store.visitedRoadEdges())
+        }
+    }
+
+    /**
+     * 썸네일 요청 — 동이 바뀌거나 가본 길이 늘거나 표시 방식을 바꿀 때만 다시 만든다.
+     *
+     * [SnapshotRequest.ownerId]에 동 코드와 기록 ID를 함께 넣어 캐시를 가른다 — 같은 동이라도
+     * 새로 달린 길이 생기면 그림이 달라져야 한다.
+     */
+    val dongThumbnailRequest = remember(
+        mapCenterDong?.code,
+        thumbnailRoadGeoJson,
+        thumbnailShape,
+        overlayBundle?.glowPolygonParts,
+    ) {
+        val code = mapCenterDong?.code ?: return@remember null
+        val roads = thumbnailRoadGeoJson ?: return@remember null
+        val parts = overlayBundle?.glowPolygonParts?.get(code).orEmpty()
+        val bounds = DongThumbnailGeometry.bounds(parts) ?: return@remember null
+        SnapshotRequest(
+            ownerId = "${code}_${thumbnailTrackResult?.trackId ?: "none"}_${thumbnailShape.name}",
+            variant = SnapshotVariant.DONG_THUMBNAIL,
+            routeGeoJson = roads,
+            bounds = bounds,
+            start = null,
+            end = null,
+            dongMaskGeoJson = if (thumbnailShape == DongThumbnailShape.Clipped) {
+                DongThumbnailGeometry.maskGeoJson(parts, bounds)
+            } else {
+                null
+            },
+            dongOutlineGeoJson = if (thumbnailShape == DongThumbnailShape.Outlined) {
+                DongThumbnailGeometry.outlineGeoJson(parts)
+            } else {
+                null
+            },
+        )
+    }
 
     /**
      * 서버에서 지도 데이터를 못 받은 상태. 둘 중 하나라도 실패면 참이다 — 동 이름(`/dong`)과 동
@@ -478,6 +540,15 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                 when {
                     // 홈 탭 · 줌아웃: 패널 전체(배너? + 요약 카드 + 탭바).
                     selectedIndex == 0 && !isZoomedIn -> {
+                        // TODO(임시): 썸네일 표시 방식 비교용 버튼 — 하나로 정하면 지운다.
+                        DongThumbnailShapePicker(
+                            selected = thumbnailShape,
+                            onSelect = { thumbnailShape = it },
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .windowInsetsPadding(WindowInsets.statusBars)
+                                .padding(top = RunvealTheme.spacing.space8),
+                        )
                         RunvealHomeBottomPanel(
                             banner = locationOffBanner,
                             summary = {
@@ -495,7 +566,15 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                                     // 같을 때만 붙인다 — 다른 동네를 보고 있는데 내 동네라고 하면
                                     // 틀린 말이 된다. 둘 중 하나를 아직 못 받았으면 붙이지 않는다.
                                     isMine = mapCenterDong != null && mapCenterDong?.code == currentDong?.code,
-                                )
+                                ) {
+                                    // 요청이 아직 없으면(동/가본 길/경계 중 하나라도 미도착) 빈
+                                    // 프레임만 보인다 — CourseSnapshotImage가 placeholder를 그린다.
+                                    CourseSnapshotImage(
+                                        request = dongThumbnailRequest,
+                                        contentDescription = null,
+                                        modifier = Modifier.matchParentSize(),
+                                    )
+                                }
                             },
                             tabBar = {
                                 RunvealTabBar(
@@ -669,5 +748,43 @@ private fun HomeMapLayer(
             locationPermissionGranted = locationPermissionState.isGranted,
             keepZoomedInStyle = hideOverlays,
         )
+    }
+}
+
+/**
+ * TODO(임시): 동 썸네일 표시 방식을 눈으로 비교하는 버튼 줄. 어느 쪽이 읽기 좋은지 정하면 이
+ * 컴포저블과 호출부, `DongThumbnailShape` 분기를 지우고 고른 방식만 남긴다.
+ */
+@Composable
+private fun DongThumbnailShapePicker(
+    selected: DongThumbnailShape,
+    onSelect: (DongThumbnailShape) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = RunvealTheme.colors
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
+    ) {
+        DongThumbnailShape.entries.forEach { shape ->
+            val isSelected = shape == selected
+            Text(
+                text = when (shape) {
+                    DongThumbnailShape.Clipped -> "동 모양"
+                    DongThumbnailShape.Filled -> "사각형"
+                    DongThumbnailShape.Outlined -> "사각형+선"
+                },
+                style = RunvealTheme.typography.captionSRegular,
+                color = if (isSelected) colors.text.accent else colors.text.secondary,
+                modifier = Modifier
+                    .clip(RunvealTheme.shapes.radius8)
+                    .background(
+                        if (isSelected) colors.surface.raised else colors.surface.default,
+                        RunvealTheme.shapes.radius8,
+                    )
+                    .clickable { onSelect(shape) }
+                    .padding(horizontal = RunvealTheme.spacing.space12, vertical = RunvealTheme.spacing.space8),
+            )
+        }
     }
 }
