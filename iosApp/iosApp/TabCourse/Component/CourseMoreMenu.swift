@@ -1,3 +1,4 @@
+import SharedLogic
 import SwiftUI
 
 /// 더보기 메뉴를 **어느 코스에 대해, 화면 어디에** 띄울지.
