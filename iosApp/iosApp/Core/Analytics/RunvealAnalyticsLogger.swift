@@ -7,6 +7,11 @@ import SharedLogic
 /// 이벤트 이름은 `SharedLogic`의 `RunvealAnalytics`에서 가져온다. 양 플랫폼이 같은 문자열을 써야
 /// GA4에서 한 이벤트로 합쳐지기 때문에, 여기에 문자열을 다시 적지 않는다.
 ///
+/// 링크하는 SPM product는 `FirebaseAnalytics` 하나다 — firebase-ios-sdk 13부터 이쪽이 **광고
+/// 식별자(IDFA)를 쓰지 않는 기본**이고, IDFA가 필요하면 `FirebaseAnalyticsIdentitySupport`를 따로
+/// 더한다(11.x의 `FirebaseAnalyticsWithoutAdIdSupport`가 기본이 된 셈이다). IDFA를 쓰면 ATT 동의
+/// 흐름과 App Store 개인정보 항목이 늘어나므로 더하지 않는다.
+///
 /// **수집이 꺼져 있으면(디버그 빌드) SDK가 호출을 그냥 버린다** — 호출부에서 빌드 구성을 따로
 /// 확인할 필요가 없다. 스위치는 Info.plist의 `FIREBASE_ANALYTICS_COLLECTION_ENABLED=false`이고,
 /// 릴리즈 빌드만 `iOSApp.init`에서 다시 켠다. `GoogleService-Info.plist`가 없으면 Firebase 자체가
