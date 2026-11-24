@@ -68,6 +68,7 @@ import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.map.MapConfig
 import com.sloth.runveal.navigation.RunVealRoute
 import com.sloth.runveal.network.dong.CurrentDongHolder
+import com.sloth.runveal.network.dong.MapCenterDongHolder
 import com.sloth.runveal.navigation.rememberRunVealNavigator
 import com.sloth.runveal.feature.home.R
 import com.sloth.runveal.map.LatLon
@@ -214,6 +215,10 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
 
     // 지금 서 있는 동 — 조회는 홈 지도 오버레이가 하고(tab-home), 여기선 그 결과만 본다.
     val currentDong by CurrentDongHolder.state.collectAsStateWithLifecycle()
+    // 줌아웃 요약 카드는 **지도 가운데 보이는 동**을 보여준다 — 지도를 끌어 다른 동네를
+    // 둘러보는 게 줌아웃의 목적이라, 화면에 보이는 곳의 이름·탐험률이 맞다. 조회는 지도
+    // 오버레이(tab-home)가 카메라가 멈출 때마다 하고, 여기선 그 결과만 본다.
+    val mapCenterDong by MapCenterDongHolder.state.collectAsStateWithLifecycle()
 
     /**
      * 위치 권한·위치 서비스를 **막 켠 경우** 동 조회를 다시 시킨다.
@@ -480,13 +485,16 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                                 // 아직 못 받았으면(위치 권한 없음·서비스 지역 밖) 꼬리표 없이
                                 // "내 동네"만 — 꼬리표까지 붙이면 "내 동네 내 동네"가 된다.
                                 RunvealSummaryCard(
-                                    dongName = currentDong?.dongOnly
+                                    dongName = mapCenterDong?.dongOnly
                                         ?: stringResource(R.string.home_summary_my_dong),
-                                    ratePercent = currentDong?.code
+                                    ratePercent = mapCenterDong?.code
                                         ?.let { overlayBundle?.dongPercents?.get(it) }
                                         ?: 0,
                                     onClick = {},
-                                    isMine = currentDong != null,
+                                    // "내 동네" 꼬리표는 지도 가운데가 **실제로 내가 서 있는 동**과
+                                    // 같을 때만 붙인다 — 다른 동네를 보고 있는데 내 동네라고 하면
+                                    // 틀린 말이 된다. 둘 중 하나를 아직 못 받았으면 붙이지 않는다.
+                                    isMine = mapCenterDong != null && mapCenterDong?.code == currentDong?.code,
                                 )
                             },
                             tabBar = {

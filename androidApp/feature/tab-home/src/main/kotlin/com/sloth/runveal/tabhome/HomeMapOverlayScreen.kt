@@ -45,6 +45,13 @@ internal fun HomeMapOverlayScreen(
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
     var selectedToggleIndex by remember { mutableIntStateOf(0) }
 
+    // 카메라가 멈출 때마다 지도 가운데 동을 다시 묻는다 — mapState.currentCenter는 멈출 때만
+    // 바뀌므로(OnCameraIdle) 끌고 있는 동안에는 요청이 나가지 않는다. 줌인 뷰는 내가 서 있는 동을
+    // 쓰니 줌아웃일 때만 부른다.
+    LaunchedEffect(mapState.currentCenter, isZoomedIn) {
+        if (!isZoomedIn) viewModel.loadCenterDong(mapState.currentCenter)
+    }
+
     // "안 가본 길"을 고른 동안만 베이스 지도 도로를 강조한다 — 줌 아웃되거나 이 화면을 벗어나면 원래대로.
     val unexploredRoadFocus = isZoomedIn && selectedToggleIndex == TOGGLE_INDEX_UNEXPLORED
     DisposableEffect(unexploredRoadFocus) {
@@ -54,7 +61,12 @@ internal fun HomeMapOverlayScreen(
 
     // 시군구 없이 행정동만 — 지도 위 한 줄짜리 자리라 짧은 쪽이 읽기 좋다.
     // 아직 못 받았으면(위치 권한 없음·서비스 지역 밖·일시 오류) 대체 문구를 쓴다.
+    //
+    // 줌인 뷰는 **내가 서 있는 동**([HomeMapOverlayState.dongName])을, 줌아웃 뷰는 **지도 가운데
+    // 보이는 동**([HomeMapOverlayState.centerDongName])을 쓴다 — 줌아웃에서는 지도를 끌어 다른
+    // 동네를 둘러보는 게 목적이라 화면에 보이는 곳의 이름이 맞다.
     val locationName = state.dongName ?: stringResource(R.string.home_map_current_location)
+    val centerLocationName = state.centerDongName ?: stringResource(R.string.home_map_current_location)
 
     // 탐험률·거리는 지도 빛을 정하는 값과 **같은 출처**를 쓴다 — 따로 세면 헤더엔 8%인데 지도는
     // 다른 단계로 빛나는 식으로 어긋난다. 오버레이가 아직 안 만들어졌거나 0%면 0이다.
@@ -65,7 +77,7 @@ internal fun HomeMapOverlayScreen(
     val totalKm = dongCode?.let { overlayBundle?.totalLengthsByDong?.get(it) }?.div(1000.0) ?: 0.0
 
     if (!isZoomedIn) {
-        HomeMapOverlay(locationName = locationName, modifier = modifier.fillMaxSize())
+        HomeMapOverlay(locationName = centerLocationName, modifier = modifier.fillMaxSize())
     } else {
         // TODO: 동 상세 진입(onDongClick) 추가 예정.
         ZoomedInMapOverlay(

@@ -44,6 +44,15 @@ class MapState(
     var currentZoom: Double by mutableDoubleStateOf(initialZoom)
         internal set
 
+    /**
+     * 카메라가 **멈춘** 자리의 중심 좌표(`OnCameraIdle`). 움직이는 동안에는 갱신하지 않는다 —
+     * 매 프레임 바뀌면 이 값을 보고 서버를 부르는 쪽(홈의 지도 중심 행정동)이 요청을 쏟아낸다.
+     *
+     * 첫 값은 [initialCenter]다 — 아직 아무도 지도를 움직이지 않은 상태.
+     */
+    var currentCenter: LatLon by mutableStateOf(initialCenter)
+        internal set
+
     /** 지도 위에 그릴 핀. 하위 화면(예: 출발/도착 선택)이 쓰고 지운다. */
     var pin: MapPin? by mutableStateOf(null)
 

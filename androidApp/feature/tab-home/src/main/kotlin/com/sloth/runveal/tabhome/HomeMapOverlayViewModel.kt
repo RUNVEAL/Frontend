@@ -4,12 +4,15 @@ import android.content.Context
 import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.sloth.runveal.devicestate.currentLocationOrNull
+import com.sloth.runveal.map.GeoMath
 import com.sloth.runveal.map.LatLon
 import com.sloth.runveal.network.dong.CurrentDongHolder
 import com.sloth.runveal.network.dong.DongApi
 import com.sloth.runveal.network.dong.DongResult
+import com.sloth.runveal.network.dong.MapCenterDongHolder
 import com.sloth.runveal.tabhome.contract.HomeMapOverlayState
 import com.sloth.runveal.ui.mvi.MviViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -19,6 +22,13 @@ class HomeMapOverlayViewModel : MviViewModel<Nothing, HomeMapOverlayState, Nothi
     initialState = HomeMapOverlayState(),
 ) {
     private val dongApi = DongApi()
+
+    /** 진행 중인 지도 중심 동 조회 — 카메라가 또 멈추면 앞선 요청을 버린다. */
+    private var centerDongJob: Job? = null
+
+    /** 마지막으로 조회한 지도 중심 — 이 자리에서 [CENTER_DONG_REFRESH_DISTANCE_M]을 넘게
+     * 움직였을 때만 다시 묻는다. */
+    private var lastCenterQueried: LatLon? = null
 
     override suspend fun handleIntent(intent: Nothing) = Unit
 
@@ -62,6 +72,50 @@ class HomeMapOverlayViewModel : MviViewModel<Nothing, HomeMapOverlayState, Nothi
     }
 
     /**
+     * 지도 가운데 보이는 행정동을 받아 온다 — 카메라가 멈출 때마다 화면이 부른다.
+     *
+     * **조금 움직인 건 무시한다.** 멈출 때마다 묻게 두면 지도를 조금씩 미는 동안 요청이 쏟아지는데,
+     * 줌아웃 화면에서 몇백 미터는 거의 같은 동이라 결과도 대개 똑같다. 이전에 물어본 자리에서
+     * [CENTER_DONG_REFRESH_DISTANCE_M]을 넘게 벗어났을 때만 다시 묻는다.
+     *
+     * 서비스 지역 밖(바다·해외)이나 실패면 이름을 비운다 — 옛 동 이름을 그대로 두면 지도를 바다로
+     * 끌어도 엉뚱한 동네 이름이 남는다.
+     */
+    fun loadCenterDong(center: LatLon) {
+        val last = lastCenterQueried
+        if (last != null && GeoMath.distanceMeters(last, center) < CENTER_DONG_REFRESH_DISTANCE_M) return
+        lastCenterQueried = center
+
+        centerDongJob?.cancel()
+        centerDongJob = viewModelScope.launch {
+            when (val result = dongApi.fetchDong(lat = center.lat, lon = center.lon)) {
+                is DongResult.Success -> {
+                    setState { copy(centerDongName = result.dong.dongOnly, centerDongCode = result.dong.code) }
+                    // 하단 요약 카드는 다른 모듈(feature:home)이라 상태를 직접 못 본다 — 홀더로 넘긴다.
+                    MapCenterDongHolder.publish(result.dong)
+                }
+
+                DongResult.OutOfServiceArea -> {
+                    Log.i(TAG, "지도 중심이 서비스 지역 밖 — 이름을 비운다")
+                    clearCenterDong()
+                }
+
+                is DongResult.Failure -> {
+                    Log.w(TAG, "지도 중심 동 조회 실패 — ${result.debugMessage}")
+                    // 다음에 같은 자리에서 다시 시도할 수 있게 "물어본 자리"를 되돌린다.
+                    lastCenterQueried = last
+                    clearCenterDong()
+                }
+            }
+        }
+    }
+
+    private fun clearCenterDong() {
+        setState { copy(centerDongName = null, centerDongCode = null) }
+        MapCenterDongHolder.clear()
+    }
+
+    /**
      * 현재 위치를 받는다. 권한을 막 허용한 직후에는 위치 공급자가 아직 덜 깨어나 첫 요청이 그냥
      * 빈손으로 돌아오는 일이 있어서, 몇 번 더 기다려 본다 — 한 번 만에 포기하면 라벨이 "현재 위치"
      * 에 멈춰 버린다.
@@ -78,6 +132,12 @@ class HomeMapOverlayViewModel : MviViewModel<Nothing, HomeMapOverlayState, Nothi
         return null
     }
 }
+
+/**
+ * 지도 중심 동을 다시 물어볼 최소 이동 거리(m). 줌아웃 화면에서 이 정도는 거의 같은 동이라,
+ * 넘지 않으면 묻지 않는다. 줄이면 더 민감해지고 요청이 늘어난다.
+ */
+private const val CENTER_DONG_REFRESH_DISTANCE_M = 300.0
 
 /** 현재 위치를 받아 볼 횟수 — 권한 허용 직후 공급자가 깨어나는 데 걸리는 시간만 메우면 된다. */
 private const val LOCATION_ATTEMPTS = 3

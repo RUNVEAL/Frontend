@@ -122,6 +122,10 @@ internal fun MapLibreMapView(
                     setUpInitialCamera(map, state)
                     map.addOnCameraIdleListener {
                         state.currentZoom = map.cameraPosition.zoom
+                        // 멈춘 자리의 중심 — 홈이 이 값으로 "지금 지도 가운데 보이는 행정동"을 묻는다.
+                        map.cameraPosition.target?.let {
+                            state.currentCenter = LatLon(lat = it.latitude, lon = it.longitude)
+                        }
                         cameraIdleTick++
                     }
                     map.addOnCameraMoveListener { refreshMarkerScreenOffsets() }
