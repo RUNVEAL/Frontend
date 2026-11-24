@@ -64,6 +64,8 @@ internal const val TOGGLE_INDEX_UNEXPLORED = 1
 @Composable
 fun ZoomedInMapOverlay(
     dongName: String,
+    /** 동 이름 앞에 붙는 꼬리표("내 동네" / "현위치"). 어떤 동일 때 무엇인지는 호출부가 정한다. */
+    tagLabel: String?,
     ratePercent: Int,
     exploredKm: Double,
     totalKm: Double,
@@ -84,6 +86,7 @@ fun ZoomedInMapOverlay(
         ) {
             ExploreSummaryCard(
                 dongName = dongName,
+                tagLabel = tagLabel,
                 ratePercent = ratePercent,
                 exploredKm = exploredKm,
                 totalKm = totalKm,
@@ -145,6 +148,7 @@ private fun MapActionRow(
 @Composable
 private fun ExploreSummaryCard(
     dongName: String,
+    tagLabel: String?,
     ratePercent: Int,
     exploredKm: Double,
     totalKm: Double,
@@ -169,13 +173,15 @@ private fun ExploreSummaryCard(
             horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space4),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                "내 동네",
-                style = RunvealTheme.typography.bodyLRegular,
-                color = colors.text.secondary,
-                // 시안은 색 토큰을 바꾸지 않고 글자 블록에 투명도를 건다.
-                modifier = Modifier.alpha(HEADER_SUB_TEXT_ALPHA),
-            )
+            if (tagLabel != null) {
+                Text(
+                    tagLabel,
+                    style = RunvealTheme.typography.bodyLRegular,
+                    color = colors.text.secondary,
+                    // 시안은 색 토큰을 바꾸지 않고 글자 블록에 투명도를 건다.
+                    modifier = Modifier.alpha(HEADER_SUB_TEXT_ALPHA),
+                )
+            }
             Text(dongName, style = RunvealTheme.typography.heading3, color = colors.text.primary)
         }
 

@@ -72,6 +72,7 @@ import com.sloth.runveal.designsystem.component.overlay.RunvealLocationServicesS
 import com.sloth.runveal.designsystem.component.overlay.RunvealToast
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.devicestate.rememberLocationServicesState
+import com.sloth.runveal.dong.DongExploreRate
 import com.sloth.runveal.feature.home.R
 import com.sloth.runveal.map.LatLon
 import com.sloth.runveal.map.MapConfig
@@ -257,9 +258,7 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
      * 이 동에 붙는다. 0%인 동은 [DongOverlayBundle.dongPercents]에 안 들어오므로, 비어 있으면
      * **기록이 아직 없다는 뜻**이다.
      */
-    val topExploredDongCode = overlayBundle?.dongPercents
-        ?.maxWithOrNull(compareBy({ it.value }, { it.key }))
-        ?.key
+    val topExploredDongCode = overlayBundle?.dongPercents?.let(DongExploreRate::topDongCode)
 
     /**
      * 앱을 열고 **한 번만** 지도를 맞춘다.

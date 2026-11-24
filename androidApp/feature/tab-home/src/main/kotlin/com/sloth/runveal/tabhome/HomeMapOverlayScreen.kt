@@ -15,6 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sloth.runveal.core.map.DongOverlayHolder
 import com.sloth.runveal.core.map.LocalMapState
+import com.sloth.runveal.dong.DongExploreRate
 import com.sloth.runveal.map.MapConfig
 import com.sloth.runveal.network.dong.CurrentDongHolder
 import com.sloth.runveal.feature.tabhome.R
@@ -78,6 +79,8 @@ internal fun HomeMapOverlayScreen(
     // 탐험률·거리는 지도 빛을 정하는 값과 **같은 출처**를 쓴다 — 따로 세면 헤더엔 8%인데 지도는
     // 다른 단계로 빛나는 식으로 어긋난다. 오버레이가 아직 안 만들어졌거나 0%면 0이다.
     val overlayBundle by DongOverlayHolder.state.collectAsStateWithLifecycle()
+    // 꼬리표 기준 — 홈 요약 카드와 같은 함수를 써서 두 패널이 같은 동을 "내 동네"로 본다.
+    val topExploredDongCode = overlayBundle?.dongPercents?.let(DongExploreRate::topDongCode)
     val dongCode = state.dongCode
     val ratePercent = dongCode?.let { overlayBundle?.dongPercents?.get(it) } ?: 0
     val exploredKm = dongCode?.let { overlayBundle?.walkedLengthsByDong?.get(it) }?.div(1000.0) ?: 0.0
@@ -89,6 +92,13 @@ internal fun HomeMapOverlayScreen(
         // TODO: 동 상세 진입(onDongClick) 추가 예정.
         ZoomedInMapOverlay(
             dongName = locationName,
+            // 줌인 헤더는 **내가 서 있는 동**을 보여준다 — 그 동이 탐험률 최고면 "내 동네",
+            // 아니면 "현위치"다(줌아웃 요약 카드와 같은 기준).
+            tagLabel = when {
+                state.dongCode == null -> null
+                state.dongCode == topExploredDongCode -> stringResource(R.string.home_zoomed_in_tag_my_dong)
+                else -> stringResource(R.string.home_zoomed_in_tag_current_location)
+            },
             ratePercent = ratePercent,
             exploredKm = exploredKm,
             totalKm = totalKm,
