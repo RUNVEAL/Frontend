@@ -1,6 +1,7 @@
 package com.sloth.runveal.courserecommend
 
 import android.util.Log
+import androidx.lifecycle.viewModelScope
 import com.sloth.runveal.courserecommend.contract.CourseCreateEffect
 import com.sloth.runveal.courserecommend.contract.CourseCreateIntent
 import com.sloth.runveal.courserecommend.contract.CourseCreateState
@@ -8,8 +9,12 @@ import com.sloth.runveal.courserecommend.contract.DefaultCustomDistanceIndex
 import com.sloth.runveal.courserecommend.contract.DefaultDistance
 import com.sloth.runveal.courserecommend.contract.LocationSelectionTarget
 import com.sloth.runveal.map.LatLon
+import com.sloth.runveal.network.dong.DongApi
+import com.sloth.runveal.network.dong.DongResult
 import com.sloth.runveal.ui.mvi.MviViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val TAG = "CourseRecommendDebug"
 
@@ -22,6 +27,10 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
     initialState = CourseCreateState(),
 ) {
     private val recommender = CourseRecommender()
+    private val dongApi = DongApi()
+
+    /** 진행 중인 행정동 조회 — 지도를 연달아 탭하면 앞선 요청을 버린다. */
+    private var placeNameJob: Job? = null
 
     override suspend fun handleIntent(intent: CourseCreateIntent) {
         when (intent) {
@@ -31,8 +40,16 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
             CourseCreateIntent.EndLocationClicked ->
                 setState { copy(locationSelectionTarget = LocationSelectionTarget.End) }
 
-            CourseCreateIntent.CancelLocationSelection ->
-                setState { copy(locationSelectionTarget = LocationSelectionTarget.None, pickedLocation = null) }
+            CourseCreateIntent.CancelLocationSelection -> {
+                placeNameJob?.cancel()
+                setState {
+                    copy(
+                        locationSelectionTarget = LocationSelectionTarget.None,
+                        pickedLocation = null,
+                        pickedPlaceName = null,
+                    )
+                }
+            }
 
             CourseCreateIntent.ConfirmLocationSelection -> setState {
                 when (locationSelectionTarget) {
@@ -41,6 +58,7 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
                         startLatLon = pickedLocation ?: startLatLon,
                         locationSelectionTarget = LocationSelectionTarget.None,
                         pickedLocation = null,
+                        pickedPlaceName = null,
                     )
                     LocationSelectionTarget.End -> copy(
                         endLocation = selectedPlaceName,
@@ -48,13 +66,18 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
                         endLatLon = pickedLocation ?: endLatLon,
                         locationSelectionTarget = LocationSelectionTarget.None,
                         pickedLocation = null,
+                        pickedPlaceName = null,
                     )
                     LocationSelectionTarget.None -> this
                 }
             }
 
-            is CourseCreateIntent.MapLocationPicked ->
-                setState { copy(pickedLocation = intent.location) }
+            is CourseCreateIntent.MapLocationPicked -> {
+                val location = intent.location
+                // 옛 이름을 지우고 넣는다 — 안 지우면 새로 찍은 자리에 먼 동 이름이 잠깐 남는다.
+                setState { copy(pickedLocation = location, pickedPlaceName = null) }
+                lookUpPlaceName(location)
+            }
 
             CourseCreateIntent.OpenFilterSheet -> setState { copy(showFilterSheet = true) }
             CourseCreateIntent.CloseFilterSheet -> setState { copy(showFilterSheet = false) }
@@ -97,6 +120,28 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
             CourseCreateIntent.ApplyFilterSheet -> setState { copy(showFilterSheet = false) }
 
             is CourseCreateIntent.RecommendClicked -> recommendRoutes(intent.currentLocation)
+        }
+    }
+
+    /**
+     * 탭한 자리의 행정동 이름을 받아 온다(`GET /api/v1/dong`). 못 받으면 상태를 건드리지 않아서
+     * 화면은 좌표를 그대로 보여준다 — 위치를 고르는 일 자체는 이름 없이도 되므로 오류로 다루지 않는다.
+     *
+     * 지도를 연달아 탭하면 앞선 요청을 취소하고, 그래도 늦게 도착한 응답은 좌표가 그대로인지
+     * 확인한 뒤에만 반영한다 — 취소가 응답 처리 직전에 걸리면 엉뚱한 자리의 이름이 박힌다.
+     */
+    private fun lookUpPlaceName(location: LatLon) {
+        placeNameJob?.cancel()
+        placeNameJob = viewModelScope.launch {
+            when (val result = dongApi.fetchDong(lat = location.lat, lon = location.lon)) {
+                is DongResult.Success -> setState {
+                    if (pickedLocation == location) copy(pickedPlaceName = result.dong.shortName) else this
+                }
+
+                DongResult.OutOfServiceArea -> Log.i(TAG, "서비스 지역 밖 — 좌표를 그대로 보여준다")
+
+                is DongResult.Failure -> Log.w(TAG, "동 조회 실패 — ${result.debugMessage}")
+            }
         }
     }
 

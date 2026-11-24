@@ -42,6 +42,17 @@ dependencies {
     // 그건 전이 의존이라 lint가 못 보고(MissingClass 에러), sharedLogic이 카카오를 걷어내면
     // 매니페스트만 조용히 깨진다.
     implementation(libs.kakao.sdk.user)
+
+    // Firebase Analytics. BOM이 SDK 버전을 맞춘다.
+    //
+    // 수집은 **릴리즈 빌드에서만** 켜진다 — AndroidManifest의
+    // `firebase_analytics_collection_enabled`에 아래 buildTypes가 넣어 주는 값이 그 스위치다.
+    //
+    // google-services.json이 없으면 위 플러그인이 안 붙어 Firebase 자체가 초기화되지 않고,
+    // 그러면 수집도 조용히 안 된다(앱은 그대로 돈다). 의존성만 조건부로 빼지 않는 이유는
+    // 코드가 컴파일되는지는 파일 유무와 무관해야 하기 때문이다.
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
 }
 
 android {
@@ -59,6 +70,11 @@ android {
         // 키가 없으면 빈 문자열이라 스킴이 `kakao://oauth`가 되지만, 그 상태에선 애초에
         // KakaoSdk.init도 건너뛰어서(initAuthPlatform) 카카오 로그인 자체를 못 쓴다.
         manifestPlaceholders["kakaoNativeAppKey"] = buildSecret("KAKAO_NATIVE_APP_KEY") ?: ""
+
+        // Firebase Analytics 수집 스위치(AndroidManifest의 meta-data로 들어간다). 기본은 **꺼짐**이고
+        // 아래 release에서만 켠다 — 새 buildType을 만들어도 켜 달라고 적지 않는 한 수집되지 않는다.
+        // 개발 중 기기에서 쏘는 이벤트가 지표에 섞이면 사용자 수·세션이 부풀어 보인다.
+        manifestPlaceholders["analyticsCollectionEnabled"] = false
     }
 
     /*
@@ -89,6 +105,9 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            // 배포로 나가는 빌드에서만 Analytics를 켠다(`build-debug.yml`이 assembleRelease로
+            // 만들어 Firebase App Distribution에 올리는 그 APK다).
+            manifestPlaceholders["analyticsCollectionEnabled"] = true
             // R8로 코드 축소·난독화 + 안 쓰는 리소스 제거. 규칙은 proguard-rules.pro 참고 —
             // 라이브러리 대부분은 자기 consumer 규칙을 들고 오고, 리플렉션을 쓰는
             // kotlinx.serialization(서버 모델 + 네비게이션 라우트)만 직접 지켜 준다.
