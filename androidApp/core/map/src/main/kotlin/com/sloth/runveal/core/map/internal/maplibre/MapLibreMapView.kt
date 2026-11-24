@@ -320,6 +320,14 @@ internal fun MapLibreMapView(
         if (state.recenterRequestId == 0) return@LaunchedEffect
         liveMap?.let { CurrentLocationLayer.recenter(it, state.recenterZoom) }
     }
+    // 0은 초기값(= 아직 요청 안 함) — [MapState.moveTo]가 호출될 때만 카메라를 옮긴다.
+    LaunchedEffect(state.moveToRequestId, liveMap) {
+        if (state.moveToRequestId == 0) return@LaunchedEffect
+        val map = liveMap ?: return@LaunchedEffect
+        val center = state.moveToCenter ?: return@LaunchedEffect
+        val zoom = state.moveToZoom ?: map.cameraPosition.zoom
+        map.animateCamera(CameraUpdateFactory.newLatLngZoom(center.toMapLibreLatLng(), zoom))
+    }
     // 0은 초기값(= 아직 요청 안 함) — [MapState.focusOnBounds]가 호출될 때만 카메라를 옮긴다.
     LaunchedEffect(state.boundsFocusRequestId, liveMap) {
         if (state.boundsFocusRequestId == 0) return@LaunchedEffect

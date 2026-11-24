@@ -117,6 +117,16 @@ class MapState(
     var boundsFocusRequestId: Int by mutableIntStateOf(0)
         internal set
 
+    /** [moveTo]가 마지막으로 넘긴 목표 자리와 줌. */
+    var moveToCenter: LatLon? by mutableStateOf(null)
+        internal set
+    var moveToZoom: Double? by mutableStateOf(null)
+        internal set
+
+    /** 0부터 시작 — [recenterRequestId]와 같은 one-shot 커맨드 패턴. */
+    var moveToRequestId: Int by mutableIntStateOf(0)
+        internal set
+
     private val _layers = mutableStateMapOf<String, String>()
     internal val layers: Map<String, String> get() = _layers
 
@@ -182,6 +192,18 @@ class MapState(
     fun stopFollowingCurrentLocation(resetAnchor: Boolean = false) {
         followCommandCount++
         followCommand = FollowCurrentLocationCommand.Stop(id = followCommandCount, resetAnchor = resetAnchor)
+    }
+
+    /**
+     * 지정한 자리로 카메라를 옮긴다. [focusOnBounds]와 달리 **줌을 그대로 두거나 직접 정한다** —
+     * 범위를 꽉 채우지 않아서 "그 동이 가운데 오되 줌아웃 상태 유지"가 된다(앱 시작 포커싱).
+     *
+     * @param zoom null이면 지금 줌을 유지한다.
+     */
+    fun moveTo(center: LatLon, zoom: Double? = null) {
+        moveToCenter = center
+        moveToZoom = zoom
+        moveToRequestId++
     }
 
     /** [points]가 전부 화면에 보이게 카메라를 옮긴다(추천 코스 전체가 보이게 포커싱 등). 2개 미만이면

@@ -252,6 +252,40 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     // 지도는 다른 단계로 빛나는 식으로 어긋난다. 아직 안 만들어졌거나 0%면 0.
     val overlayBundle by DongOverlayHolder.state.collectAsStateWithLifecycle()
 
+    /**
+     * 탐험률이 가장 높은 행정동 코드 — 앱을 열면 여기로 포커스하고, 요약 카드의 "내 동네" 꼬리표도
+     * 이 동에 붙는다. 0%인 동은 [DongOverlayBundle.dongPercents]에 안 들어오므로, 비어 있으면
+     * **기록이 아직 없다는 뜻**이다.
+     */
+    val topExploredDongCode = overlayBundle?.dongPercents
+        ?.maxWithOrNull(compareBy({ it.value }, { it.key }))
+        ?.key
+
+    /**
+     * 앱을 열고 **한 번만** 지도를 맞춘다.
+     *
+     *  - 기록이 있으면 탐험률이 가장 높은 동으로 — 줌은 그대로 둬서 줌아웃 상태를 유지한다.
+     *  - 기록이 없으면 현재 위치로.
+     *  - 둘 다 없으면 아무것도 하지 않는다 — `recenterToCurrentLocation`은 위치를 못 받으면 조용히
+     *    무시되므로 지도가 초기 좌표([MapConfig.SEOUL_CITY_HALL])에 그대로 남는다.
+     *
+     * 오버레이 묶음을 기다리는 이유는 탐험률과 동 경계가 거기 들어 있어서다 — 스플래시가 미리
+     * 만들어 두므로 보통 홈에 들어오는 순간 이미 있다.
+     */
+    var didInitialFocus by remember { mutableStateOf(false) }
+    LaunchedEffect(overlayBundle, didInitialFocus) {
+        if (didInitialFocus) return@LaunchedEffect
+        val bundle = overlayBundle ?: return@LaunchedEffect
+        val topCode = topExploredDongCode
+        val center = topCode?.let { code ->
+            DongThumbnailGeometry.bounds(bundle.glowPolygonParts[code].orEmpty())?.let { b ->
+                LatLon(lat = (b.south + b.north) / 2, lon = (b.west + b.east) / 2)
+            }
+        }
+        if (center != null) mapState.moveTo(center) else mapState.recenterToCurrentLocation()
+        didInitialFocus = true
+    }
+
     // 요약 카드 썸네일에 쓰는 "가본 길" — 지도 레이어(HomeMapLayer)가 들고 있는 것과 같은 값이지만,
     // 그쪽은 러닝 중 실시간 선으로 바꿔치기해서 밖으로 빼면 얽힌다. 썸네일은 쌓인 길만 필요하므로
     // 기록이 바뀔 때(latestTrackResult)만 따로 읽는다.
@@ -540,10 +574,16 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                                         ?.let { overlayBundle?.dongPercents?.get(it) }
                                         ?: 0,
                                     onClick = {},
-                                    // "내 동네" 꼬리표는 지도 가운데가 **실제로 내가 서 있는 동**과
-                                    // 같을 때만 붙인다 — 다른 동네를 보고 있는데 내 동네라고 하면
-                                    // 틀린 말이 된다. 둘 중 하나를 아직 못 받았으면 붙이지 않는다.
-                                    isMine = mapCenterDong != null && mapCenterDong?.code == currentDong?.code,
+                                    // 꼬리표는 지도 가운데 동이 무엇인지에 따라 갈린다 — 탐험률이
+                                    // 가장 높은 동이면 "내 동네", 지금 서 있는 동이면 "현위치",
+                                    // 그 밖(끌어서 둘러보는 동네)이면 안 붙인다.
+                                    tagLabel = when (mapCenterDong?.code) {
+                                        null -> null
+                                        topExploredDongCode -> stringResource(R.string.home_summary_tag_my_dong)
+                                        currentDong?.code ->
+                                            stringResource(R.string.home_summary_tag_current_location)
+                                        else -> null
+                                    },
                                 ) {
                                     // 요청이 아직 없으면(동/가본 길/경계 중 하나라도 미도착) 빈
                                     // 프레임만 보인다 — CourseSnapshotImage가 placeholder를 그린다.

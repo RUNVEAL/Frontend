@@ -25,7 +25,13 @@ fun RunvealSummaryCard(
     ratePercent: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    isMine: Boolean = false,
+    /**
+     * 동 이름 뒤에 붙는 꼬리표("내 동네" / "현위치"). null이면 안 붙는다.
+     *
+     * 어떤 동일 때 어떤 문구인지는 **호출부가 정한다** — 디자인시스템은 "꼬리표 한 줄"만 알고
+     * 그 의미(탐험률 최고 동인지, 지금 서 있는 곳인지)는 모른다.
+     */
+    tagLabel: String? = null,
     /** 썸네일 프레임 안에 그릴 것 — 동 지도 그림. 안 주면 빈 프레임만 보인다. */
     thumbnail: @Composable BoxScope.() -> Unit = {},
 ) {
@@ -50,9 +56,9 @@ fun RunvealSummaryCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(dongName, style = RunvealTheme.typography.bodyMSemibold, color = colors.text.primary)
-                if (isMine) {
+                if (tagLabel != null) {
                     Text(
-                        stringResource(R.string.dong_mine_tag),
+                        tagLabel,
                         style = RunvealTheme.typography.captionSRegular,
                         color = colors.text.tertiary,
                     )
@@ -86,7 +92,7 @@ private fun RunvealSummaryCardPreview() {
             dongName = "성수동",
             ratePercent = 37,
             onClick = {},
-            isMine = true,
+            tagLabel = "내 동네",
         )
     }
 }
