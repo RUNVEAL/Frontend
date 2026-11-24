@@ -32,6 +32,14 @@ struct RunvealDongOverlayBundle {
     /// 같은 오버레이인지"를 판단해서 괜히 다시 만들지 않는 데 쓴다.
     let builtForTrackId: String?
 
+    /// 서버에서 동 경계를 못 받아 비어 있는 묶음인지. 참이면 동 테두리·라벨·빛이 통째로 안 보이고
+    /// 탐험률이 전부 0%가 되는데, 설명이 없으면 "원래 그런 화면"처럼 보인다 — 홈이 이 값으로
+    /// "지도 데이터를 받지 못했어요" 배너를 띄운다(Android `DongOverlayBundle.isServerDataMissing`).
+    ///
+    /// 판정은 Kotlin 쪽([DongOverlayGeoJsonBundle])이 하고 여기서는 받아 둔다 — `"none"` 문자열
+    /// 비교가 두 곳으로 갈라지지 않게.
+    let isServerDataMissing: Bool
+
     init(bundle: DongOverlayGeoJsonBundle, builtForTrackId: String?) {
         dong = DongOverlayGeoJson(
             fillGeoJson: bundle.dongFillGeoJson,
@@ -48,6 +56,7 @@ struct RunvealDongOverlayBundle {
         )
         query = bundle.query
         boundarySourceKey = bundle.boundarySourceKey
+        isServerDataMissing = bundle.isServerDataMissing
         self.builtForTrackId = builtForTrackId
     }
 }

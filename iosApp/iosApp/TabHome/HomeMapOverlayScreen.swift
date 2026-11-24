@@ -31,9 +31,6 @@ struct HomeMapOverlayScreen: View {
     /// 한다. 서비스 지역 밖·위치 권한 없음은 false다(정상 상황이라 안내할 게 없다).
     var onDongLoadFailedChange: (Bool) -> Void = { _ in }
 
-    /// 셸의 "다시 시도"가 올리는 값 — 바뀔 때마다 동 조회를 다시 돌린다(값 자체는 쓰지 않는다).
-    var retryToken: Int = 0
-
     /**
      줌아웃 하단 요약 카드가 쓸 값 — 지도 가운데 동의 이름·코드와 꼬리표.
 
@@ -41,6 +38,10 @@ struct HomeMapOverlayScreen: View {
      콜백으로 올린다([onDongLoadFailedChange]와 같은 패턴).
      */
     var onSummaryChange: (DongSummary?) -> Void = { _ in }
+
+    /// 셸의 "다시 시도"가 올리는 값 — 바뀔 때마다 동 조회를 다시 돌린다(값 자체는 쓰지 않는다).
+    /// Swift는 호출 인자 순서가 선언을 따라야 해서, 콜백들을 모으고 이 값을 맨 뒤에 둔다.
+    var retryToken: Int = 0
 
     @State private var selectedToggleIndex = 0
 
