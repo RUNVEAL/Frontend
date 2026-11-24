@@ -48,6 +48,9 @@ enum CourseCreateOptions {
         return km == km.rounded() ? "\(Int(km))" : "\(km)"
     }
     static let defaultCustomDistanceIndex = 22
+
+    /// 거리를 아직 잴 수 없을 때 — 단위를 남겨 둬서 그 자리가 거리라는 건 보이게 한다(Android와 같다).
+    static let distancePlaceholder = "-km"
 }
 
 struct CourseCreateState: UiState {
@@ -89,20 +92,22 @@ struct CourseCreateState: UiState {
     }
 
     /**
-     현재 위치에서 고른 자리까지의 거리 — 선택 패널에서 동 이름 아래 줄에 쓴다. 현재 위치나 고른
-     자리가 없으면 nil이라 그 줄이 아예 안 그려진다(빈 줄이 남지 않는다).
+     현재 위치에서 고른 자리까지의 거리 — 선택 패널에서 동 이름 아래 줄에 쓴다.
+
+     아직 잴 수 없을 때도(현재 위치를 못 받았거나 자리를 안 골랐을 때) 줄을 비우지 않고
+     [CourseCreateOptions.distancePlaceholder]를 둔다 — 줄이 사라지면 사용자가 그 자리가 거리인지
+     알 수 없다.
 
      **직선거리**다(`GeoMath`) — 실제로 달릴 경로 길이가 아니다. 길을 따라가는 거리는 서버에
      물어야 하는데, 여기서 필요한 건 "고른 자리가 지금 얼마나 먼지" 감을 주는 것뿐이다.
      Android와 같은 계산·같은 문구를 쓴다.
      */
-    var selectedPlaceDistance: String? {
-        guard let from = currentLocation, let to = pickedLocation else { return nil }
-        let meters = IosGeo.shared.distanceMeters(from: from, to: to)
-        if meters >= 1000 {
-            return String(format: "현위치에서 %.1fkm", meters / 1000)
+    var selectedPlaceDistance: String {
+        guard let from = currentLocation, let to = pickedLocation else {
+            return CourseCreateOptions.distancePlaceholder
         }
-        return "현위치에서 \(Int(meters.rounded()))m"
+        let meters = IosGeo.shared.distanceMeters(from: from, to: to)
+        return String(format: "%.1fkm", meters / 1000)
     }
 
     var topBarTitle: String {

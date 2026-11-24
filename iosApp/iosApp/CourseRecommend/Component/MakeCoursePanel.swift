@@ -129,8 +129,8 @@ private struct RouteSettingRow: View {
 /// 추가된다(Android와 같은 자리 — 시트는 좌우 여백 없이 가장자리에 붙으므로 화면 여백만큼 띄운다).
 struct LocationConfirmPanel: View {
     let placeName: String
-    /// 현재 위치에서 고른 자리까지의 거리. nil이면 그 줄을 그리지 않는다(위치를 못 받은 경우).
-    let distanceLabel: String?
+    /// 현재 위치에서 고른 자리까지의 거리("0.3km"). 아직 못 재면 "-km"가 온다.
+    let distanceLabel: String
     let confirmLabel: String
     let onConfirmClick: () -> Void
     var onMyLocationClick: (() -> Void)?
