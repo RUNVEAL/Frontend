@@ -34,7 +34,16 @@ enum CourseRecommendStrings {
 
     // 추천 결과(B1)
     static let resultTitle = "추천 코스"
-    static let resultEmptyAction = "다시 설정하기"
+    static let resultEmptyAction = "조건 다시 설정하기"
+    static let resultEmptyTitle = "조건에 맞는 코스를
+찾지 못했어요"
+    // 결과 없음 안내 줄 — 각 줄이 그 줄이 말하는 것을 그대로 해 주는 버튼이다(시안 B1-1).
+    static let resultEmptyHintLoopTitle = "순환 코스로 찾기"
+    static let resultEmptyHintLoopDescription = "도착지를 비우고 출발지로 돌아와요"
+    static let resultEmptyHintDistanceTitle = "거리 설정 바꾸기"
+    static let resultEmptyHintDistanceDescription = "도착지까지 가는 거리보다 길게 설정해요"
+    static let resultEmptyHintFilterTitle = "러닝 필터 줄이기"
+    static let resultEmptyHintFilterDescription = "필터를 빼면 더 많은 길에서 찾아요"
     static func courseName(_ label: String) -> String { "코스 \(label)" }
     static let tagPark = "공원"
     static let tagRiverside = "하천길"

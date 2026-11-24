@@ -144,18 +144,24 @@ final class CourseCreateViewModel: MviViewModel<CourseCreateIntent, CourseCreate
     /// (권한 없음·위치 서비스 꺼짐 등) 임시 기본 좌표로 떨어진다.
     private func recommendRoutes(currentLocation: LatLon?) async {
         let startedAt = Date()
+        // 출발지를 안 골랐으면 이번에 실제로 쓴 현재 위치를 박아 둔다 — 안 그러면 결과 화면에서
+        // 조건만 바꿔 다시 받을 때 출발지가 비어 임시 좌표로 떨어진다(Android와 같은 이유).
         let settings = CourseRecommendSettings(
-            distanceLabel: state.distanceLabel,
+            selectedDistance: state.selectedDistance,
+            isCustomDistanceSelected: state.isCustomDistanceSelected,
+            customDistanceIndex: state.customDistanceIndex,
             avoidVisitedPreferred: state.avoidVisitedPreferred,
-            selectedFilterCount: state.selectedFilters.count
+            selectedFilters: state.selectedFilters,
+            startLatLon: state.startLatLon ?? currentLocation ?? Self.tempStartLocation,
+            endLatLon: state.endLatLon
         )
 
         do {
             let response = try await IosCourseRecommend.shared.fetchRoutes(
-                start: state.startLatLon ?? currentLocation ?? Self.tempStartLocation,
-                end: state.endLatLon,
-                distanceMeters: Int32(Self.distanceMeters(from: state.distanceLabel)),
-                preferUnexplored: state.avoidVisitedPreferred
+                start: settings.startLatLon ?? Self.tempStartLocation,
+                end: settings.endLatLon,
+                distanceMeters: Int32(settings.distanceMeters),
+                preferUnexplored: settings.avoidVisitedPreferred
             )
             CourseRecommendResultHolder.shared.publish(.success(response: response, settings: settings))
         } catch {
@@ -175,11 +181,5 @@ final class CourseCreateViewModel: MviViewModel<CourseCreateIntent, CourseCreate
             try? await Task.sleep(for: .seconds(minimum - elapsed))
         }
         sendEffect(.navigateToResult)
-    }
-
-    /// "5km"/"12.5km" → 5000/12500. 프리셋·커스텀 값 전부 0.5km 단위라 서버의 500m 단위 제약과 맞는다.
-    private static func distanceMeters(from label: String) -> Int {
-        let numeric = label.replacingOccurrences(of: "km", with: "")
-        return Int((Double(numeric) ?? 5) * 1000)
     }
 }

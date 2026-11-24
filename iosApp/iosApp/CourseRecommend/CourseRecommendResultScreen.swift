@@ -15,6 +15,10 @@ struct CourseRecommendResultScreen: View {
     /// `RunvealCourseCard`의 고정 너비(240)와 맞춰야 캐러셀 가운데 정렬 계산이 들어맞는다.
     private static let cardWidth: CGFloat = 240
 
+    /// 결과 없음 안내가 시작하는 자리 — 앱바(56) + 조건 칩 행(40 + 위아래 12씩) + 24.
+    /// 칩 행은 결과가 없어도 그대로 떠 있어서 그만큼을 비켜야 겹치지 않는다.
+    private static let emptyResultTopInset: CGFloat = 56 + 64 + 24
+
     private var ready: CourseRecommendResultReady? {
         guard case .ready(let ready) = viewModel.state else { return nil }
         return ready
@@ -30,24 +34,80 @@ struct CourseRecommendResultScreen: View {
                     .tint(RunvealTheme.colors.accent.default)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .ready(let ready):
-                VStack {
-                    Spacer()
-                    if let message = ready.emptyMessage {
-                        EmptyResult(message: message, onRetry: onClose)
-                            .padding(.horizontal, RunvealLayout.marginScreen)
-                            .padding(.vertical, RunvealSpacing.space16)
-                    } else {
+                if let message = ready.emptyMessage {
+                    // 결과가 없을 때는 캐러셀과 달리 **화면 전체**를 쓴다 — 안내와 조건 변경 줄은
+                    // 앱바 아래에서 시작하고, 버튼은 아래에 붙는다(시안 B1-1, Android와 같은 배치).
+                    EmptyResult(
+                        message: message,
+                        settings: ready.settings,
+                        onIntent: viewModel.onIntent,
+                        onRetry: onClose
+                    )
+                    .padding(.horizontal, RunvealLayout.marginScreen)
+                    .padding(.top, Self.emptyResultTopInset)
+                    .padding(.bottom, RunvealSpacing.space16)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                } else {
+                    VStack {
+                        Spacer()
                         courseCarousel(ready: ready)
                     }
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // 조건을 바꿔 다시 받는 동안 — 조건 칩과 지도는 그대로 두고 로딩만 덮는다(화면이 비면
+        // 뒤로 간 것처럼 보인다). Android도 같은 방식이다.
+        .overlay {
+            if ready?.isReloading == true {
+                ProgressView()
+                    .tint(RunvealTheme.colors.accent.default)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(RunvealTheme.colors.bg.canvas.opacity(0.6))
+            }
+        }
+        // 지도 위에 얹는다 — `.sheet`으로 띄우면 뒤 지도가 검게 보인다(`runvealBottomSheet` 참고).
+        .runvealBottomSheet(
+            isPresented: ready?.filterDraft != nil,
+            onDismiss: { viewModel.onIntent(.closeFilterSheet) }
+        ) {
+            if let draft = ready?.filterDraft {
+                filterSheet(draft: draft)
+            }
+        }
         .runvealMapLayers(mapState, routeLayers)
         .runvealMapDotMarkers(mapState, courseMarkers, owner: dotMarkersOwner)
         // 선택된 코스가 바뀌면 그 코스가 전부 보이게 카메라를 맞춘다.
         .onChange(of: ready?.selectedRouteId) { _, _ in focusSelected() }
         .onAppear { focusSelected() }
+    }
+
+    /// 코스 조건 설정 시트 — 코스 만들기에서 쓰는 것과 **같은 컴포넌트**다. 고친 값은 초안
+    /// ([CourseRecommendResultReady.filterDraft])에만 쌓였다가 "코스 조건 적용하기"를 눌러야
+    /// 서버 요청으로 나간다.
+    private func filterSheet(draft: CourseRecommendSettings) -> some View {
+        func update(_ next: CourseRecommendSettings) {
+            viewModel.onIntent(.updateFilterDraft(next))
+        }
+        return FilterBottomSheet(
+            selectedDistance: draft.selectedDistance,
+            isCustomDistanceSelected: draft.isCustomDistanceSelected,
+            customDistanceIndex: draft.customDistanceIndex,
+            avoidVisitedPreferred: draft.avoidVisitedPreferred,
+            selectedFilters: draft.selectedFilters,
+            onDistanceSelect: { update(draft.with(selectedDistance: $0, isCustomDistanceSelected: false)) },
+            onCustomDistanceChipClick: { update(draft.with(isCustomDistanceSelected: true)) },
+            onCustomDistanceIndexChange: { update(draft.with(customDistanceIndex: $0)) },
+            onAvoidVisitedPreferredChange: { update(draft.with(avoidVisitedPreferred: $0)) },
+            onFilterToggle: { filter in
+                var filters = draft.selectedFilters
+                if filters.contains(filter) { filters.remove(filter) } else { filters.insert(filter) }
+                update(draft.with(selectedFilters: filters))
+            },
+            onBack: { viewModel.onIntent(.closeFilterSheet) },
+            onReset: { viewModel.onIntent(.resetFilterDraft) },
+            onApply: { viewModel.onIntent(.applyFilterDraft) }
+        )
     }
 
     // MARK: - 지도
@@ -97,9 +157,12 @@ struct CourseRecommendResultScreen: View {
                 onLeadingClick: onClose
             )
             if let ready {
-                SettingsSummaryRow(settings: ready.settings)
-                    .padding(.horizontal, RunvealLayout.marginScreen)
-                    .padding(.vertical, RunvealSpacing.space12)
+                SettingsSummaryRow(
+                    settings: ready.settings,
+                    onTap: { viewModel.onIntent(.openFilterSheet) }
+                )
+                .padding(.horizontal, RunvealLayout.marginScreen)
+                .padding(.vertical, RunvealSpacing.space12)
             }
         }
         .frame(maxWidth: .infinity)
@@ -151,19 +214,23 @@ struct CourseRecommendResultScreen: View {
 }
 
 /// B0에서 고른 거리·안 가본 길 우선·필터 수를 그대로 보여주는 요약 칩 — 코스 만들기 바텀 패널과 같은
-/// 칩이지만 지도 위에 바로 떠서 글래스(OnMap) 스타일을 쓴다. 조회용이라 탭해도 아무 동작이 없다.
+/// B0에서 고른 거리·안 가본 길 우선·필터를 그대로 보여주는 요약 칩 — 코스 만들기 바텀 패널과 같은
+/// 칩이지만 지도 위에 바로 떠서 글래스(OnMap) 스타일을 쓴다.
+///
+/// 셋 중 아무거나 누르면 코스 조건 설정 시트가 열린다 — 어느 칩을 눌렀든 바꿀 수 있는 조건은 같다.
 private struct SettingsSummaryRow: View {
     let settings: CourseRecommendSettings
+    let onTap: () -> Void
 
     var body: some View {
         HStack(spacing: RunvealSpacing.space8) {
-            RunvealChipDropdown(label: settings.distanceLabel, usage: .onMap) {}
+            RunvealChipDropdown(label: settings.distanceLabel, usage: .onMap, onClick: onTap)
             if settings.avoidVisitedPreferred {
                 RunvealChipCondition(
                     checked: true,
                     label: CourseRecommendStrings.avoidVisitedPreferred,
                     usage: .onMap
-                ) { _ in }
+                ) { _ in onTap() }
             }
             if settings.selectedFilterCount > 0 {
                 RunvealChipCondition(
@@ -171,7 +238,7 @@ private struct SettingsSummaryRow: View {
                     label: "\(settings.selectedFilterCount)",
                     icon: .filter,
                     usage: .onMap
-                ) { _ in }
+                ) { _ in onTap() }
             }
             Spacer(minLength: 0)
         }
@@ -181,23 +248,104 @@ private struct SettingsSummaryRow: View {
 
 private struct EmptyResult: View {
     let message: String
+    let settings: CourseRecommendSettings
+    let onIntent: (CourseRecommendResultIntent) -> Void
     let onRetry: () -> Void
 
     var body: some View {
-        let colors = RunvealTheme.colors
-        VStack(spacing: RunvealSpacing.space20) {
-            Text(message)
-                .runvealTextStyle(RunvealTheme.typography.bodyLRegular)
-                .foregroundStyle(colors.text.secondary)
-                .multilineTextAlignment(.center)
-            RunvealButton(
-                label: CourseRecommendStrings.resultEmptyAction,
-                style: .gold,
-                size: .l,
-                onClick: onRetry
+        VStack(alignment: .leading, spacing: RunvealSpacing.space24) {
+            RunvealEmptyState(
+                title: CourseRecommendStrings.resultEmptyTitle,
+                // 왜 못 찾았는지는 서버·필터 상황마다 달라서 그대로 받아 설명 줄에 쓴다.
+                description: message
+            ) {
+                RunvealImages.emptyCourse
+                    .resizable()
+                    .scaledToFit()
+            }
+            EmptyResultHints(settings: settings, onIntent: onIntent)
+            Spacer(minLength: 0)
+            RunvealButtonGroup {
+                RunvealButtonGroupSingle(
+                    label: CourseRecommendStrings.resultEmptyAction,
+                    onClick: onRetry
+                )
+            }
+        }
+    }
+}
+
+/// 안내 줄 하나 — 문구와 "누르면 할 일"을 묶어 둔다.
+private struct EmptyHint: Identifiable {
+    let id = UUID()
+    let icon: RunvealIconSpec
+    let title: String
+    let description: String
+    let onClick: () -> Void
+}
+
+/**
+ 조건을 어떻게 바꾸면 되는지 알려주는 줄(시안 B1-1 "설정변경 안내"). 각 줄은 **그 줄이 말하는 것을
+ 그대로 해 주는 버튼**이다 — 순환 코스는 도착지를 비워 바로 다시 받고, 거리·필터는 코스 조건 설정
+ 시트를 띄운다(상단 조건 칩과 같은 시트).
+
+ 이미 그렇게 되어 있어서 누를 게 없는 줄은 빼놓는다 — 도착지가 없으면(이미 순환) 순환 줄을, 고른
+ 필터가 없으면 필터 줄을 숨긴다. 눌러도 아무 일도 안 나는 줄을 남기면 고장으로 보인다.
+ */
+private struct EmptyResultHints: View {
+    let settings: CourseRecommendSettings
+    let onIntent: (CourseRecommendResultIntent) -> Void
+
+    private var hints: [EmptyHint] {
+        var result: [EmptyHint] = []
+        if settings.endLatLon != nil {
+            result.append(
+                EmptyHint(
+                    icon: RunvealIcons.circulation,
+                    title: CourseRecommendStrings.resultEmptyHintLoopTitle,
+                    description: CourseRecommendStrings.resultEmptyHintLoopDescription,
+                    onClick: { onIntent(.retryAsLoopCourse) }
+                )
             )
         }
-        .padding(RunvealSpacing.space24)
-        .background(colors.surface.raised, in: RunvealShapes.radius16)
+        result.append(
+            EmptyHint(
+                icon: RunvealIcons.distance,
+                title: CourseRecommendStrings.resultEmptyHintDistanceTitle,
+                description: CourseRecommendStrings.resultEmptyHintDistanceDescription,
+                onClick: { onIntent(.openFilterSheet) }
+            )
+        )
+        if settings.selectedFilterCount > 0 {
+            result.append(
+                EmptyHint(
+                    icon: RunvealIcons.filter,
+                    title: CourseRecommendStrings.resultEmptyHintFilterTitle,
+                    description: CourseRecommendStrings.resultEmptyHintFilterDescription,
+                    onClick: { onIntent(.openFilterSheet) }
+                )
+            )
+        }
+        return result
+    }
+
+    var body: some View {
+        let colors = RunvealTheme.colors
+        let rows = hints
+        VStack(spacing: 0) {
+            ForEach(Array(rows.enumerated()), id: \.element.id) { index, hint in
+                RunvealListItem(
+                    title: hint.title,
+                    description: hint.description,
+                    leadingIcon: hint.icon,
+                    size: .l,
+                    showDivider: index != rows.count - 1,
+                    onClick: hint.onClick
+                )
+            }
+        }
+        .padding(.horizontal, RunvealSpacing.space16)
+        .background(colors.surface.default, in: RunvealShapes.radius16)
+        .overlay { RunvealShapes.radius16.stroke(colors.border.default, lineWidth: 1) }
     }
 }
