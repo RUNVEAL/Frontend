@@ -79,9 +79,10 @@ internal class CourseSnapshotRendererImpl(
     }
 
     private suspend fun renderAndCache(request: SnapshotRequest, widthPx: Int, heightPx: Int): File? {
-        // 동 썸네일만 가공 스타일(라벨 제거 + 줌인 보정 색)을 쓴다 — 한 번 받아서 재사용한다.
+        // 동 썸네일만 가공 스타일을 쓴다 — 라벨을 빼고 색을 밝게 하고, 그릴 레이어까지 JSON에
+        // 미리 넣어 둔 완성본이다(그래야 MapSnapshotter 생성자 안에서 소스를 추가하다 죽지 않는다).
         val styleJson = if (request.variant == SnapshotVariant.DONG_THUMBNAIL) {
-            ZoomedInSnapshotStyle.jsonOrNull()
+            ZoomedInSnapshotStyle.styleJson(request, colors)
         } else {
             null
         }

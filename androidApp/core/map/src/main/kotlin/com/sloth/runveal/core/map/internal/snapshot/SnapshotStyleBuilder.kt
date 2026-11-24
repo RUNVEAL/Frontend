@@ -138,10 +138,15 @@ internal object SnapshotStyleBuilder {
         colors: SnapshotColors,
         zoomedInStyleJson: String?,
     ): Style.Builder {
-        // 가공 JSON이 있으면 그걸 쓴다 — 라벨이 빠지고 건물·녹지가 줌인 보정 색이다. 못 받았으면
-        // 원본 URL로 떨어진다(라벨이 보이고 색 보정이 없지만 그림은 나온다).
+        // 완성 JSON이 왔으면 그걸로 끝이다 — 가본 길·마스크·경계선이 이미 그 안에 들어 있다.
+        // `withSource`로 더 얹으면 MapSnapshotter 생성자 안에서 스타일 로드 콜백이 동기로 돌면서
+        // native 객체가 준비되기 전에 소스를 추가하다 `invalid native peer`로 죽는다.
+        if (zoomedInStyleJson != null) return Style.Builder().fromJson(zoomedInStyleJson)
+
+        // 스타일을 못 받은 경우 — 원본 URL은 비동기로 로드되므로 아래 `withSource` 경로가 안전하다.
+        // 라벨이 보이고 색 보정이 없지만 그림 자체는 나온다.
         val builder = Style.Builder()
-            .apply { if (zoomedInStyleJson != null) fromJson(zoomedInStyleJson) else fromUri(MapConfig.STYLE_URL) }
+            .fromUri(MapConfig.STYLE_URL)
             .withSource(GeoJsonSource(SnapshotConfig.ROUTE_SOURCE_ID, request.routeGeoJson))
             .withLayer(
                 LineLayer(SnapshotConfig.ROUTE_LAYER_ID, SnapshotConfig.ROUTE_SOURCE_ID).withProperties(
