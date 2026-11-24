@@ -52,6 +52,13 @@ internal fun HomeMapOverlayScreen(
         if (!isZoomedIn) viewModel.loadCenterDong(mapState.currentCenter)
     }
 
+    // 지도 라벨도 같은 동을 "메인"으로 크게 그린다 — 패널 이름과 지도에서 도드라지는 동이 달라지면
+    // 어디를 보고 있는지 헷갈린다. 줌인에서는 동 라벨 자체가 안 보이므로 비워 둔다.
+    DisposableEffect(state.centerDongCode, isZoomedIn) {
+        mapState.mainDongCode = state.centerDongCode.takeIf { !isZoomedIn }
+        onDispose { mapState.mainDongCode = null }
+    }
+
     // "안 가본 길"을 고른 동안만 베이스 지도 도로를 강조한다 — 줌 아웃되거나 이 화면을 벗어나면 원래대로.
     val unexploredRoadFocus = isZoomedIn && selectedToggleIndex == TOGGLE_INDEX_UNEXPLORED
     DisposableEffect(unexploredRoadFocus) {

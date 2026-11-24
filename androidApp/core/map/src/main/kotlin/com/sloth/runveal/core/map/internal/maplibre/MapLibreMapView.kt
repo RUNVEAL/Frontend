@@ -244,8 +244,9 @@ internal fun MapLibreMapView(
     LaunchedEffect(style, courseGuideGeoJson, mapColors) {
         style?.let { CourseGuideLayer.apply(it, MapConfig.SOURCE_RECORDING_COURSE_GUIDE, courseGuideGeoJson, mapColors) }
     }
-    LaunchedEffect(style, dongOverlay, mapColors) {
-        style?.let { DongOverlayLayer.apply(it, dongOverlay, mapColors) }
+    // 메인 동이 바뀌면 라벨 크기가 옮겨가야 하므로 key에 넣는다.
+    LaunchedEffect(style, dongOverlay, mapColors, state.mainDongCode) {
+        style?.let { DongOverlayLayer.apply(it, dongOverlay, mapColors, state.mainDongCode) }
     }
     // 동 빛 이미지. dongOverlay(단계 변경)·카메라 멈춤(화면 범위 변경)·생성 완료 중 하나라도 바뀌면
     // 다시 계산한다(docs/DONG_GLOW_ON_DEVICE.md Step 4).

@@ -53,6 +53,15 @@ class MapState(
     var currentCenter: LatLon by mutableStateOf(initialCenter)
         internal set
 
+    /**
+     * 지금 지도 가운데 보이는 "메인" 행정동 코드([currentCenter]로 조회한 결과) — 그 동 라벨만
+     * 크고 굵게 그린다. null이면 모든 동이 같은 크기다(아직 못 받았거나 서비스 지역 밖).
+     *
+     * 조회는 홈이 하고(`HomeMapOverlayViewModel`) 여기에 올려 둔다 — 지도 레이어가 홈 화면을
+     * 직접 알지 않게.
+     */
+    var mainDongCode: String? by mutableStateOf(null)
+
     /** 지도 위에 그릴 핀. 하위 화면(예: 출발/도착 선택)이 쓰고 지운다. */
     var pin: MapPin? by mutableStateOf(null)
 

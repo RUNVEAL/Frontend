@@ -65,6 +65,10 @@ object MapConfig {
     const val LAYER_DONG_LINE: String = "dong-line"
     const val LAYER_DONG_LABEL: String = "dong-label"
 
+    /** 지도 가운데 보이는 "메인" 행정동 라벨 — 같은 소스를 쓰지만 더 크고 굵게 그린다.
+     * 한 레이어에서 피처별로 글꼴을 바꿀 수 없어 레이어를 따로 둔다. */
+    const val LAYER_DONG_LABEL_MAIN: String = "dong-label-main"
+
     const val SOURCE_SIGUNGU_LINE: String = "sigungu-line-src"
     const val SOURCE_SIGUNGU_LABEL: String = "sigungu-label-src"
     const val LAYER_SIGUNGU_LINE: String = "sigungu-line"
