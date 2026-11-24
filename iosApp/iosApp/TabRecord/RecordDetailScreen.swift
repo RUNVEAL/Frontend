@@ -18,6 +18,13 @@ struct RecordDetailScreen: View {
 
     @StateObject private var viewModel = RecordDetailViewModel()
     @State private var isNotReadyToastVisible = false
+    /// 떠 있는 더보기 메뉴가 차지할 자리. nil이면 안 떠 있다.
+    @State private var moreMenuAnchor: CGRect?
+
+    /// 더보기 아이콘 자리를 재는 기준 좌표 공간 — 화면 루트에 이름을 붙여 둔다.
+    private static let menuSpace = "record-more-menu"
+    /// 아이콘과 메뉴 사이 간격. 아이콘을 가리지 않게 **아래로** 띄운다.
+    private static let menuGap: CGFloat = 4
 
     var body: some View {
         ZStack {
@@ -49,13 +56,9 @@ struct RecordDetailScreen: View {
                     )
                     // 읽을 기록이 있을 때만 더보기를 단다 — 빈 화면에 메뉴만 떠 있을 이유가 없다.
                     if viewModel.state.ready != nil {
-                        RecordMoreMenuIcon(
-                            onRenameClick: { viewModel.onIntent(.renameClicked) },
-                            // TODO: GPX 파일은 이미 저장돼 있다(`IosRecordDetail.gpx`) — 공유 시트로
-                            //  내보내는 길만 붙이면 된다. 그때까지는 "개발 중" 안내만 띄운다.
-                            onExportGpxClick: { isNotReadyToastVisible = true },
-                            onDeleteClick: { viewModel.onIntent(.deleteClicked) }
-                        )
+                        RecordMoreMenuButton(coordinateSpace: Self.menuSpace) { anchor in
+                            moreMenuAnchor = anchor
+                        }
                         .padding(.trailing, RunvealSpacing.space4)
                     }
                 }
@@ -84,7 +87,11 @@ struct RecordDetailScreen: View {
                     Spacer()
                 }
             }
+
+            moreMenuOverlay
         }
+        // 더보기 아이콘이 자기 자리를 재는 기준 — 메뉴를 띄우는 자리와 같은 공간이어야 한다.
+        .coordinateSpace(name: Self.menuSpace)
         .task(id: trackId) { viewModel.onIntent(.load(trackId: trackId)) }
         .collectEffect(viewModel.effects) { effect in
             switch effect {
@@ -124,6 +131,47 @@ struct RecordDetailScreen: View {
             )
         }
         .onDisappear { viewModel.cancelRunningTasks() }
+    }
+
+    /// 더보기 메뉴 — **화면 루트에서** 그린다.
+    ///
+    /// 아이콘 안에서 그리면 바깥을 눌러 닫을 자리가 없고, 조상 뷰가 자르거나 나중에 그려지는
+    /// 요소가 덮을 수 있다(내 코스 탭과 같은 구조).
+    ///
+    /// 자리는 아이콘 **바로 아래**다 — 아이콘을 가리지 않아야 한다.
+    @ViewBuilder
+    private var moreMenuOverlay: some View {
+        if let anchor = moreMenuAnchor {
+            ZStack(alignment: .topLeading) {
+                // 바깥 어디를 눌러도 닫힌다. 보이지는 않지만 터치는 받아야 해서 `contentShape`를 준다.
+                //
+                // **`ignoresSafeArea`를 주지 않는다.** 그러면 이 ZStack이 화면 밖까지 커져서
+                // 기준점(top-leading)이 위로 밀리고, 아이콘 자리를 잰 좌표와 어긋난다.
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture { moreMenuAnchor = nil }
+
+                RecordMoreMenuContent(
+                    onRenameClick: {
+                        moreMenuAnchor = nil
+                        viewModel.onIntent(.renameClicked)
+                    },
+                    // TODO: GPX 파일은 이미 저장돼 있다(`IosRecordDetail.gpx`) — 공유 시트로
+                    //  내보내는 길만 붙이면 된다. 그때까지는 "개발 중" 안내만 띄운다.
+                    onExportGpxClick: {
+                        moreMenuAnchor = nil
+                        isNotReadyToastVisible = true
+                    },
+                    onDeleteClick: {
+                        moreMenuAnchor = nil
+                        viewModel.onIntent(.deleteClicked)
+                    }
+                )
+                // 오른쪽 끝을 아이콘에 맞추고, 아이콘 아래로 내린다.
+                .alignmentGuide(.leading) { dimension in -(anchor.maxX - dimension.width) }
+                .alignmentGuide(.top) { _ in -(anchor.maxY + Self.menuGap) }
+            }
+        }
     }
 
     // MARK: - 섹션
