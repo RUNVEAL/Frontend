@@ -10,6 +10,12 @@ import UIKit
 enum CourseSnapshotDiskCache {
     private static let rootDirName = "course_snapshots"
 
+    /// **iOS 렌더링 판 번호** — 합성 방식이 바뀌면 올린다. 올리면 예전에 구워 둔 이미지를 더 쓰지
+    /// 않고 다시 굽는다. 공용 `STYLE_VERSION`을 건드리면 Android 캐시까지 버리게 돼서 따로 둔다.
+    ///
+    /// 2 — 스냅샷 하단의 출처 표기 띠를 잘라 내기 시작([CourseSnapshotRenderer]).
+    private static let iosRenderVersion = 2
+
     static func fileName(
         request: SnapshotRequest,
         widthPx: Int,
@@ -17,7 +23,7 @@ enum CourseSnapshotDiskCache {
         pixelRatio: CGFloat
     ) -> String {
         let version = SnapshotConfig.shared.STYLE_VERSION
-        return "\(request.cacheKeyBase())_\(version)_\(widthPx)x\(heightPx)@\(pixelRatio).png"
+        return "\(request.cacheKeyBase())_\(version)r\(iosRenderVersion)_\(widthPx)x\(heightPx)@\(pixelRatio).png"
     }
 
     static func existingFile(
