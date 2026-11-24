@@ -34,11 +34,15 @@ internal object SnapshotStyleBuilder {
         request: SnapshotRequest,
         colors: SnapshotColors,
         endpointRadiusDp: Float,
+        /** 동 썸네일에서 쓰는 가공된 스타일 JSON([ZoomedInSnapshotStyle]). null이면 원본 URL로 떨어진다. */
+        zoomedInStyleJson: String? = null,
     ): Style.Builder {
         // 러닝 기록은 "오늘 달린 길"(흰색) 위에 "새로 탐험한 길"(금색)을 덧그려 둘을 구분한다 —
         // 결과 화면 범례가 그 두 색으로 설명하고 있어서 기본선도 범례와 같아야 한다. 아직 달리지
         // 않은 코스는 그 구분이 없어 경로색(금색) 한 가지로 그린다.
-        if (request.variant == SnapshotVariant.DONG_THUMBNAIL) return buildDongThumbnail(request, colors)
+        if (request.variant == SnapshotVariant.DONG_THUMBNAIL) {
+            return buildDongThumbnail(request, colors, zoomedInStyleJson)
+        }
 
         val baseColor = if (request.isRunRoute) colors.todayRoad else colors.route
         val builder = Style.Builder()
@@ -129,9 +133,15 @@ internal object SnapshotStyleBuilder {
      * 동 경계·채색(줌아웃의 퍼센트별 빛)은 **일부러 빼놨다.** 이 그림은 "줌인한 지도를 동 크기로
      * 본 것"이어야 해서, 그 표현이 들어가면 줌아웃 지도를 축소한 것처럼 보인다.
      */
-    private fun buildDongThumbnail(request: SnapshotRequest, colors: SnapshotColors): Style.Builder {
+    private fun buildDongThumbnail(
+        request: SnapshotRequest,
+        colors: SnapshotColors,
+        zoomedInStyleJson: String?,
+    ): Style.Builder {
+        // 가공 JSON이 있으면 그걸 쓴다 — 라벨이 빠지고 건물·녹지가 줌인 보정 색이다. 못 받았으면
+        // 원본 URL로 떨어진다(라벨이 보이고 색 보정이 없지만 그림은 나온다).
         val builder = Style.Builder()
-            .fromUri(MapConfig.STYLE_URL)
+            .apply { if (zoomedInStyleJson != null) fromJson(zoomedInStyleJson) else fromUri(MapConfig.STYLE_URL) }
             .withSource(GeoJsonSource(SnapshotConfig.ROUTE_SOURCE_ID, request.routeGeoJson))
             .withLayer(
                 LineLayer(SnapshotConfig.ROUTE_LAYER_ID, SnapshotConfig.ROUTE_SOURCE_ID).withProperties(

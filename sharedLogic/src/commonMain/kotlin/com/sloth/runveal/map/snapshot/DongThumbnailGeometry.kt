@@ -5,7 +5,7 @@ import com.sloth.runveal.map.LatLon
 
 /**
  * 행정동 썸네일(홈 요약 카드)에 쓰는 기하 계산 — 동 폴리곤에서 **범위**, **역마스크**, **외곽선**을
- * 만든다. 세 가지 표시 방식([DongThumbnailShape])이 이 결과를 나눠 쓴다.
+ * 만든다. 썸네일은 동 모양대로 잘리고 그 경계선이 얹히므로 셋을 다 쓴다.
  *
  * 계산은 양 플랫폼이 같아야 해서 commonMain에 둔다.
  */
@@ -31,7 +31,7 @@ object DongThumbnailGeometry {
     }
 
     /**
-     * 동 **밖**을 덮는 폴리곤 GeoJSON([DongThumbnailShape.Clipped]).
+     * 동 **밖**을 덮는 폴리곤 GeoJSON.
      *
      * 동 모양으로 이미지를 자르는 대신, 지도 위에 "동 밖을 가리는 뚜껑"을 덮는다 — 비트맵을 Path로
      * 깎으면 화면 좌표 변환을 직접 해야 하는데, 지도 레이어로 덮으면 좌표계가 지도와 저절로 맞는다.
@@ -54,7 +54,7 @@ object DongThumbnailGeometry {
         return """{"type":"Feature","geometry":{"type":"Polygon","coordinates":[$rings]},"properties":{}}"""
     }
 
-    /** 동 경계선 GeoJSON([DongThumbnailShape.Outlined]) — 조각마다 선 하나다. */
+    /** 동 경계선 GeoJSON — 조각마다 선 하나다. */
     fun outlineGeoJson(parts: List<DongPolygonPart>): String {
         val lines = parts.map { it.exterior }.filter { it.size >= 2 }.joinToString(",") { ring ->
             """{"type":"Feature","geometry":{"type":"LineString","coordinates":${ring.toCoordinatesJson()}},"properties":{}}"""
@@ -71,19 +71,4 @@ object DongThumbnailGeometry {
         val closed = if (first() == last()) this else this + first()
         return closed.toCoordinatesJson()
     }
-}
-
-/**
- * 동 썸네일 표시 방식. 어느 쪽이 읽기 좋은지 눈으로 비교하려고 세 가지를 다 만들어 두고 홈에서
- * 버튼으로 바꿔 본다(`HomeMapOverlayState.thumbnailShape`).
- */
-enum class DongThumbnailShape {
-    /** 동 윤곽대로 자른다 — 동 밖은 프레임 배경이 드러난다. */
-    Clipped,
-
-    /** 프레임을 가득 채운다 — 이웃 동 도로까지 들어오고 경계는 안 보인다. */
-    Filled,
-
-    /** 가득 채우고 그 동 경계선만 얹는다. */
-    Outlined,
 }

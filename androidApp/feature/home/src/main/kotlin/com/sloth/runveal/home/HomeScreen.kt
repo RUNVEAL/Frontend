@@ -76,7 +76,6 @@ import com.sloth.runveal.feature.home.R
 import com.sloth.runveal.map.LatLon
 import com.sloth.runveal.map.MapConfig
 import com.sloth.runveal.map.snapshot.DongThumbnailGeometry
-import com.sloth.runveal.map.snapshot.DongThumbnailShape
 import com.sloth.runveal.map.snapshot.SnapshotRequest
 import com.sloth.runveal.map.snapshot.SnapshotVariant
 import com.sloth.runveal.navigation.RunVealRoute
@@ -253,10 +252,6 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     // 지도는 다른 단계로 빛나는 식으로 어긋난다. 아직 안 만들어졌거나 0%면 0.
     val overlayBundle by DongOverlayHolder.state.collectAsStateWithLifecycle()
 
-    // TODO(임시): 동 썸네일 표시 방식을 눈으로 비교하려고 버튼으로 바꿔 본다 — 하나로 정하면
-    //  이 상태와 아래 전환 버튼을 지우고 고른 방식만 남긴다.
-    var thumbnailShape by remember { mutableStateOf(DongThumbnailShape.Clipped) }
-
     // 요약 카드 썸네일에 쓰는 "가본 길" — 지도 레이어(HomeMapLayer)가 들고 있는 것과 같은 값이지만,
     // 그쪽은 러닝 중 실시간 선으로 바꿔치기해서 밖으로 빼면 얽힌다. 썸네일은 쌓인 길만 필요하므로
     // 기록이 바뀔 때(latestTrackResult)만 따로 읽는다.
@@ -278,7 +273,6 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     val dongThumbnailRequest = remember(
         mapCenterDong?.code,
         thumbnailRoadGeoJson,
-        thumbnailShape,
         overlayBundle?.glowPolygonParts,
     ) {
         val code = mapCenterDong?.code ?: return@remember null
@@ -286,22 +280,15 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
         val parts = overlayBundle?.glowPolygonParts?.get(code).orEmpty()
         val bounds = DongThumbnailGeometry.bounds(parts) ?: return@remember null
         SnapshotRequest(
-            ownerId = "${code}_${thumbnailTrackResult?.trackId ?: "none"}_${thumbnailShape.name}",
+            ownerId = "${code}_${thumbnailTrackResult?.trackId ?: "none"}",
             variant = SnapshotVariant.DONG_THUMBNAIL,
             routeGeoJson = roads,
             bounds = bounds,
             start = null,
             end = null,
-            dongMaskGeoJson = if (thumbnailShape == DongThumbnailShape.Clipped) {
-                DongThumbnailGeometry.maskGeoJson(parts, bounds)
-            } else {
-                null
-            },
-            dongOutlineGeoJson = if (thumbnailShape == DongThumbnailShape.Outlined) {
-                DongThumbnailGeometry.outlineGeoJson(parts)
-            } else {
-                null
-            },
+            // 동 밖은 덮어서 안 보이게 하고, 그 동 경계선은 얹는다.
+            dongMaskGeoJson = DongThumbnailGeometry.maskGeoJson(parts, bounds),
+            dongOutlineGeoJson = DongThumbnailGeometry.outlineGeoJson(parts),
         )
     }
 
@@ -540,15 +527,6 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                 when {
                     // 홈 탭 · 줌아웃: 패널 전체(배너? + 요약 카드 + 탭바).
                     selectedIndex == 0 && !isZoomedIn -> {
-                        // TODO(임시): 썸네일 표시 방식 비교용 버튼 — 하나로 정하면 지운다.
-                        DongThumbnailShapePicker(
-                            selected = thumbnailShape,
-                            onSelect = { thumbnailShape = it },
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .windowInsetsPadding(WindowInsets.statusBars)
-                                .padding(top = RunvealTheme.spacing.space8),
-                        )
                         RunvealHomeBottomPanel(
                             banner = locationOffBanner,
                             summary = {
@@ -748,43 +726,5 @@ private fun HomeMapLayer(
             locationPermissionGranted = locationPermissionState.isGranted,
             keepZoomedInStyle = hideOverlays,
         )
-    }
-}
-
-/**
- * TODO(임시): 동 썸네일 표시 방식을 눈으로 비교하는 버튼 줄. 어느 쪽이 읽기 좋은지 정하면 이
- * 컴포저블과 호출부, `DongThumbnailShape` 분기를 지우고 고른 방식만 남긴다.
- */
-@Composable
-private fun DongThumbnailShapePicker(
-    selected: DongThumbnailShape,
-    onSelect: (DongThumbnailShape) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val colors = RunvealTheme.colors
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space8),
-    ) {
-        DongThumbnailShape.entries.forEach { shape ->
-            val isSelected = shape == selected
-            Text(
-                text = when (shape) {
-                    DongThumbnailShape.Clipped -> "동 모양"
-                    DongThumbnailShape.Filled -> "사각형"
-                    DongThumbnailShape.Outlined -> "사각형+선"
-                },
-                style = RunvealTheme.typography.captionSRegular,
-                color = if (isSelected) colors.text.accent else colors.text.secondary,
-                modifier = Modifier
-                    .clip(RunvealTheme.shapes.radius8)
-                    .background(
-                        if (isSelected) colors.surface.raised else colors.surface.default,
-                        RunvealTheme.shapes.radius8,
-                    )
-                    .clickable { onSelect(shape) }
-                    .padding(horizontal = RunvealTheme.spacing.space12, vertical = RunvealTheme.spacing.space8),
-            )
-        }
     }
 }
