@@ -29,6 +29,14 @@ final class CourseSnapshotRenderer {
     private static let thumbnailEndpointStrokeRatio: CGFloat = 2.0 / 7.0
     private static let timeout: TimeInterval = 15
 
+    /// 스냅샷 하단에 합성돼 오는 **출처 표기 띠의 높이**(pt). 넉넉하게 잡는다.
+    ///
+    /// MapLibre iOS `MLNMapSnapshotter`에는 Android의 `withLogo(false)`·`withAttribution(false)`에
+    /// 해당하는 옵션이 없다. 그래서 이 높이만큼 **위아래로 더 찍고 잘라 낸다** — 같은 양을 위아래에서
+    /// 버려야 경로가 가운데에 그대로 남는다. 출처 표기 의무는 앱의 지도 화면에 상시 떠 있는 표기로
+    /// 지킨다(Android도 썸네일에서는 끈다).
+    private static let attributionInset: CGFloat = 22
+
     /// 같은 캐시 키에 요청이 겹치면 하나만 렌더링하고 나머지는 그 결과를 같이 기다린다.
     private var inFlight: [String: Task<URL?, Never>] = [:]
 
@@ -87,12 +95,15 @@ final class CourseSnapshotRenderer {
         guard widthPx > 0, heightPx > 0, let styleURL = RunvealMapConfig.styleURL else { return nil }
         let scale = Self.pixelRatio
         let size = CGSize(width: CGFloat(widthPx) / scale, height: CGFloat(heightPx) / scale)
+        // 출처 표기를 잘라 내려고 위아래로 더 찍는다. 지도 내용이 들어갈 자리는 그만큼 세로로 넓어진다.
+        let renderSize = CGSize(width: size.width, height: size.height + Self.attributionInset * 2)
+        let renderHeightPx = Int(renderSize.height * scale)
 
         let bounds = MLNCoordinateBounds(
             sw: CLLocationCoordinate2D(latitude: request.bounds.south, longitude: request.bounds.west),
             ne: CLLocationCoordinate2D(latitude: request.bounds.north, longitude: request.bounds.east)
         )
-        let options = MLNMapSnapshotOptions(styleURL: styleURL, camera: MLNMapCamera(), size: size)
+        let options = MLNMapSnapshotOptions(styleURL: styleURL, camera: MLNMapCamera(), size: renderSize)
         options.scale = scale
 
         // `coordinateBounds`에는 최대 줌 제한이 없다 — 계산된 줌이 MAX_ZOOM을 넘으면 중심점 + 고정 줌으로
@@ -100,7 +111,7 @@ final class CourseSnapshotRenderer {
         let fitZoom = IosSnapshot.shared.zoomToFit(
             bounds: request.bounds,
             widthPx: Int32(widthPx),
-            heightPx: Int32(heightPx)
+            heightPx: Int32(renderHeightPx)
         )
         if fitZoom <= SnapshotConfig.shared.MAX_ZOOM {
             options.coordinateBounds = bounds
@@ -129,7 +140,7 @@ final class CourseSnapshotRenderer {
             }
         }
         guard let snapshot else { return nil }
-        return draw(request: request, on: snapshot, size: size, scale: scale)
+        return draw(request: request, on: snapshot, size: size, renderSize: renderSize, scale: scale)
     }
 
     /// 베이스 스냅샷 위에 경로선 → (처음 간 길) 하이라이트 → (결과 카드면) 시작·끝 점을 그린다.
@@ -137,7 +148,13 @@ final class CourseSnapshotRenderer {
     /// 러닝 기록은 "오늘 달린 길"(흰색)로 깔고 그 위에 "새로 탐험한 길"(금색)을 덧그려 둘을 구분한다 —
     /// 결과 화면 범례가 그 두 색으로 설명하고 있어서 기본선도 범례와 같아야 한다. 아직 달리지 않은
     /// 코스는 그 구분이 없어 경로색(금색) 한 가지로 그린다.
-    private func draw(request: SnapshotRequest, on snapshot: MLNMapSnapshot, size: CGSize, scale: CGFloat) -> UIImage {
+    private func draw(
+        request: SnapshotRequest,
+        on snapshot: MLNMapSnapshot,
+        size: CGSize,
+        renderSize: CGSize,
+        scale: CGFloat
+    ) -> UIImage {
         let colors = RunvealTheme.colors
         let baseColor = UIColor(request.isRunRoute ? colors.map.roadToday : colors.map.roadExplored)
         let highlightColor = UIColor(colors.map.roadNew)
@@ -149,8 +166,12 @@ final class CourseSnapshotRenderer {
         let renderer = UIGraphicsImageRenderer(size: size, format: format)
 
         return renderer.image { context in
-            snapshot.image.draw(in: CGRect(origin: .zero, size: size))
             let cgContext = context.cgContext
+            // 위로 밀어 올려서 위아래 띠를 같이 버린다 — 아래 띠에 출처 표기가 들어 있다.
+            // 좌표 변환(`snapshot.point(for:)`)은 찍은 크기 기준이라, 이 이동을 먼저 걸어 두면
+            // 배경과 경로·점이 한꺼번에 같은 만큼 따라간다.
+            cgContext.translateBy(x: 0, y: -Self.attributionInset)
+            snapshot.image.draw(in: CGRect(origin: .zero, size: renderSize))
 
             func stroke(_ lines: [[LatLon]], color: UIColor) {
                 cgContext.setStrokeColor(color.cgColor)
