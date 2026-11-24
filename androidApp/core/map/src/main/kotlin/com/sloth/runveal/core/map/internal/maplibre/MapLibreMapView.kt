@@ -84,6 +84,8 @@ internal fun MapLibreMapView(
             dongLabelPrimary = colors.text.primary.toArgb(),
             dongLabelSecondary = colors.text.secondary.toArgb(),
             sigunguLabel = colors.text.secondary.toArgb(),
+            poiLabel = colors.text.tertiary.toArgb(),
+            poiLabelHalo = colors.bg.map.toArgb(),
             recommendedRouteAlt = colors.map.routeAlt.toArgb(),
             recommendedRouteSelectedGlow = colors.map.roadNewHalo.toArgb(),
             recommendedRouteSelected = colors.map.roadNew.toArgb(),
@@ -152,6 +154,9 @@ internal fun MapLibreMapView(
                         // 그 시점엔 아직 위치 권한이 없는 게 정상이라(아래 LaunchedEffect 주석) 한 번만
                         // 시도하면 그 세션 내내 내 위치가 안 뜬다.
                         BaseStyleLabels.hide(loadedStyle)
+                        // 숨긴 라벨 대신, 줌인에서만 보이는 역·터미널 이름을 얹는다 — 베이스 스타일에
+                        // 정의가 없어서 타일 소스(`poi`)로 레이어를 직접 만든다.
+                        BaseStylePoiLabels.show(loadedStyle, mapColors)
                     }
                 }
             }
