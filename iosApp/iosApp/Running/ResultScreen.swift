@@ -7,6 +7,7 @@ struct ResultScreen: View {
     let onClose: () -> Void
 
     @StateObject private var viewModel = ResultViewModel()
+    @State private var isNotReadyToastVisible = false
 
     private static let glowWidth: CGFloat = 480
     private static let glowHeight: CGFloat = 320
@@ -15,16 +16,6 @@ struct ResultScreen: View {
         let colors = RunvealTheme.colors
         ZStack(alignment: .top) {
             colors.bg.canvas.ignoresSafeArea()
-
-            // 제일 뒤에 깔리는 배경 glow — 상태바 아래까지 그대로 번진다. 이미지 자체에 색이 이미
-            // 들어 있다(result_glow.png). 화면 너비보다 넓은 480을 그대로 유지해야 세로로 쏠리지 않는다.
-            RunvealImages.resultGlow
-                .resizable()
-                .scaledToFill()
-                .frame(width: Self.glowWidth, height: Self.glowHeight)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .ignoresSafeArea(edges: .top)
-                .allowsHitTesting(false)
 
             VStack(spacing: 0) {
                 // 앱바는 X 아이콘 하나만 보이지만 영역(56)은 그대로 차지한다 — 아래 날짜/타이틀은 그
@@ -42,16 +33,48 @@ struct ResultScreen: View {
                         .tint(colors.accent.default)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 case .ready(let ready):
-                    ResultContent(state: ready)
+                    ResultContent(state: ready) { isNotReadyToastVisible = true }
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            // 배경 glow — 상태바 아래까지 그대로 번진다. 이미지 자체에 색이 들어 있다(result_glow.png).
+            //
+            // **형제가 아니라 배경으로 깐다.** 배경은 레이아웃에 영향을 주지 않는다. 형제로 두면
+            // 고정 폭 480이 ZStack을 그만큼 넓혀서, 그 안의 앱바와 좌우 여백까지 화면 밖으로 밀린다
+            // (닫기 버튼이 사라지고 글자가 양옆으로 잘리던 원인). Android는 `requiredWidth`로 같은
+            // 일을 한다 — 화면 너비로 줄이지 않고 그대로 그리되 부모 크기는 건드리지 않는다.
+            .background(alignment: .top) {
+                RunvealImages.resultGlow
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: Self.glowWidth, height: Self.glowHeight)
+                    .ignoresSafeArea(edges: .top)
+                    .allowsHitTesting(false)
+            }
+
+            if isNotReadyToastVisible {
+                VStack {
+                    RunvealToast(message: RunningStrings.notReady)
+                        .padding(.horizontal, RunvealLayout.marginScreen)
+                        .padding(.vertical, RunvealSpacing.space16)
+                    Spacer()
                 }
             }
         }
         .onDisappear { viewModel.onDisappear() }
+        // 토스트는 타이머를 모르는 순수 컴포넌트라 사라지는 건 여기서 재운다(다른 화면과 같은 규칙).
+        .task(id: isNotReadyToastVisible) {
+            guard isNotReadyToastVisible else { return }
+            try? await Task.sleep(for: .seconds(3))
+            isNotReadyToastVisible = false
+        }
     }
 }
 
 private struct ResultContent: View {
     let state: ResultReady
+    /// 기록 상세·이미지 저장이 아직 없어서 누르면 안내만 띄운다(Android와 같다).
+    let onNotReadyClick: () -> Void
 
     private static let mapCardHeight: CGFloat = 268
     /// 디자인 값 40 — spacing 스케일에 없어 그대로 하드코딩.
@@ -94,11 +117,14 @@ private struct ResultContent: View {
                 .frame(maxWidth: .infinity)
             }
 
+            // TODO: 기록 상세 화면으로 이동 — 기록 탭의 상세를 재사용한다.
+            // TODO: 결과 카드를 이미지로 저장(공유) — 지도 스냅샷과 통계를 한 장으로 렌더링해야 한다.
+            //  둘 다 붙기 전까지는 "개발 중" 안내만 띄운다(Android도 같은 상태다).
             RunvealButtonGroupEqual(
                 firstLabel: RunningStrings.resultDetailButton,
-                onFirstClick: {},
+                onFirstClick: onNotReadyClick,
                 secondLabel: RunningStrings.resultSaveImageButton,
-                onSecondClick: {}
+                onSecondClick: onNotReadyClick
             )
             .padding(.horizontal, RunvealLayout.marginScreen)
             .padding(.vertical, RunvealSpacing.space8)
