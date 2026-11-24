@@ -1,4 +1,5 @@
 import MapLibre
+import UIKit
 
 /// 기본 스타일(OpenFreeMap dark)에 내장된 지명/도로 이름 라벨과 행정구역 경계선은 어느 줌에서든
 /// 우리 자체 라벨·테두리와 겹쳐 보이므로 모든 줌에서 항상 숨긴다. 스타일이 로드된 직후 한 번만
@@ -141,5 +142,46 @@ final class BaseStyleRoadFocus {
                 line.lineColor = original
             }
         }
+    }
+}
+
+/**
+ 줌인(러닝 포커스)에서 **역·터미널 같은 큰 기준점 이름**을 띄운다 — Android `BaseStylePoiLabels`에 해당.
+
+ 베이스 스타일(`openfreemap/dark`)에는 POI 레이어 정의가 아예 없지만 **타일 소스에는 `poi` 레이어가
+ 들어 있다** — 그래서 쓰려면 레이어를 직접 꽂아야 한다.
+
+ **줌인에서만 켠다.** 이 앱은 베이스 스타일의 지명·도로명 라벨을 전부 숨기는데([BaseStyleLabels]),
+ 줌아웃에서는 동/시군구/시도 라벨이 주인공이라 거기에 장소 이름이 섞이면 서로를 가린다. 줌인은
+ 도로가 주인공이라 역 이름이 길을 찾는 데 도움이 된다.
+ */
+enum BaseStylePoiLabels {
+    /// 동 라벨(11)보다 작게 — 기준점이지 주인공이 아니다.
+    private static let labelSize: Double = 10
+    private static let labelHaloWidth: Double = 1.2
+    private static let labelFontNames = ["Noto Sans Regular"]
+
+    static func show(style: MLNStyle, colors: RunvealMapColors) {
+        guard style.layer(withIdentifier: RunvealMapConfig.layerBasePoiLabel) == nil else { return }
+        // 베이스 스타일의 벡터 소스를 그대로 쓴다 — 타일에 `poi` 레이어가 들어 있다.
+        guard let source = style.source(withIdentifier: RunvealMapConfig.sourceBaseStyle) as? MLNVectorTileSource
+        else { return }
+
+        let layer = MLNSymbolStyleLayer(identifier: RunvealMapConfig.layerBasePoiLabel, source: source)
+        layer.sourceLayerIdentifier = RunvealMapConfig.sourceLayerBasePoi
+        layer.text = NSExpression(forKeyPath: "name")
+        layer.textFontNames = NSExpression(forConstantValue: labelFontNames)
+        layer.textFontSize = NSExpression(forConstantValue: labelSize)
+        layer.textColor = NSExpression(forConstantValue: colors.poiLabel)
+        layer.textHaloColor = NSExpression(forConstantValue: colors.poiLabelHalo)
+        layer.textHaloWidth = NSExpression(forConstantValue: labelHaloWidth)
+        // 아이콘은 그리지 않으므로 글자를 그 자리에 중앙 정렬한다 — 오프셋을 줄 기준점이 없다.
+        // 역·터미널만 — 정류장이나 상점까지 켜면 글자가 지도를 덮는다.
+        layer.predicate = NSPredicate(
+            format: "subclass IN %@",
+            RunvealMapConfig.basePoiLabelSubclasses
+        )
+        layer.minimumZoomLevel = Float(RunvealMapConfig.zoomInThreshold)
+        style.addLayer(layer)
     }
 }

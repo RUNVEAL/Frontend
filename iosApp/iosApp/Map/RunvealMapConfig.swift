@@ -58,6 +58,10 @@ enum RunvealMapConfig {
 
     static var sourceBaseStyle: String { config.SOURCE_BASE_STYLE }
     static var layerBaseBuilding: String { config.LAYER_BASE_BUILDING }
+    /// 베이스 타일의 POI 레이어 — 스타일에는 정의가 없고 타일에만 있어서 직접 레이어를 만든다.
+    static var sourceLayerBasePoi: String { config.SOURCE_LAYER_BASE_POI }
+    static var layerBasePoiLabel: String { config.LAYER_BASE_POI_LABEL }
+    static var basePoiLabelSubclasses: [String] { config.BASE_POI_LABEL_SUBCLASSES }
     static var layerBaseLandusePark: String { config.LAYER_BASE_LANDUSE_PARK }
     static var layerBaseLandcoverWood: String { config.LAYER_BASE_LANDCOVER_WOOD }
     static var layerBaseLandcoverGrass: String { config.LAYER_BASE_LANDCOVER_GRASS }

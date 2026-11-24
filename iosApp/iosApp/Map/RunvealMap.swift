@@ -154,6 +154,9 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
             // 도로 색을 바꾸기 전의 원래 색을 기억해 둬야 "안 가본 길" 토글을 끌 때 되돌릴 수 있다.
             roadFocus.rememberOriginalColors(style: style)
             BaseStyleLabels.hide(style: style)
+            // 숨긴 라벨 대신, 줌인에서만 보이는 역·터미널 이름을 얹는다 — 베이스 스타일에
+            // 정의가 없어서 타일 소스(`poi`)로 레이어를 직접 만든다.
+            BaseStylePoiLabels.show(style: style, colors: colors)
             mapView.showsUserLocation = true
 
             apply(state: state, overlay: currentOverlay)

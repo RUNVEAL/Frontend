@@ -18,6 +18,7 @@ enum RunvealDesignSystemStrings {
     static let mapMarkerStartLabel = "출발"
     static let mapMarkerEndLabel = "도착"
     static let courseListItemNotRun = "아직 안 달림"
+    static let summaryCardZoomIn = "이 동네 지도 자세히 보기"
     static let courseCardStatDistance = "거리"
     static let courseCardStatTime = "예상"
     static let courseCardStatElevation = "고도"

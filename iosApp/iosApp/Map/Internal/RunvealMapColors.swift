@@ -8,6 +8,10 @@ struct RunvealMapColors {
     let visitedRoadCore: UIColor
     let currentLocation: UIColor
     let dongLabelPrimary: UIColor
+    /// 줌인에서 띄우는 주요 장소(역·터미널) 이름. 동 라벨보다 한 단계 연하게 둔다.
+    let poiLabel: UIColor
+    /// 그 이름 글자 테두리 — 도로 위에 겹쳐도 읽히게 배경색으로 두른다.
+    let poiLabelHalo: UIColor
     let dongLabelSecondary: UIColor
     let sigunguLabel: UIColor
     let recommendedRouteAlt: UIColor
@@ -29,6 +33,8 @@ struct RunvealMapColors {
         visitedRoadCore = UIColor(colors.map.roadExplored)
         currentLocation = UIColor(colors.map.location)
         dongLabelPrimary = UIColor(colors.text.primary)
+        poiLabel = UIColor(colors.text.tertiary)
+        poiLabelHalo = UIColor(colors.bg.map)
         dongLabelSecondary = UIColor(colors.text.secondary)
         sigunguLabel = UIColor(colors.text.secondary)
         recommendedRouteAlt = UIColor(colors.map.routeAlt)
