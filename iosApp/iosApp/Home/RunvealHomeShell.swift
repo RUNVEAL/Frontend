@@ -26,6 +26,12 @@ struct RunvealHomeShell: View {
 
     /// 서버에서 동 이름을 못 받았는지 — 조회는 홈 지도 오버레이가 하고 그 결과만 올려 준다.
     @State private var isDongLoadFailed = false
+
+    /// 줌아웃 요약 카드가 그릴 값 — 같은 이유로 오버레이가 올려 준다.
+    @State private var dongSummary: DongSummary?
+
+    /// 앱을 열고 지도를 한 번만 맞췄는지.
+    @State private var didInitialFocus = false
     /// "다시 시도"를 눌러 다시 받는 중 — 누른 직후에도 같은 배너가 그대로면 눌린 줄 모른다.
     @State private var isRetryingServerData = false
     /// 올릴 때마다 동 조회가 다시 돈다([HomeMapOverlayScreen.retryToken]).
@@ -145,6 +151,10 @@ struct RunvealHomeShell: View {
             mapData.start()
             recenterOnceWhenLocationReady()
         }
+        // 오버레이 묶음이 오면 **한 번만** 지도를 맞춘다 — 탐험률과 동 경계가 거기 들어 있다.
+        // 스플래시가 미리 만들어 두므로 보통 홈에 들어오는 순간 이미 있다.
+        .onChange(of: mapData.overlay?.boundarySourceKey) { _, _ in focusInitiallyIfNeeded() }
+        .onAppear { focusInitiallyIfNeeded() }
         .onDisappear { mapData.stop() }
         // "내 코스" 탭에서 코스를 바로 시작하면(탭 화면은 내비게이터를 직접 못 만진다) 여기서 받아
         // 기록 흐름으로 넘어간다 — 코스 자체는 `SelectedCourseHolder`에 이미 담겨 있다.
@@ -199,6 +209,7 @@ struct RunvealHomeShell: View {
                 onCreateCourseClick: { navigator.push(.courseRecommend) },
                 onRunStartClick: { requireLocationForRun { navigator.push(.recording) } },
                 onDongLoadFailedChange: { isDongLoadFailed = $0 },
+                onSummaryChange: { dongSummary = $0 },
                 retryToken: serverDataRetryToken
             )
         case .course:
@@ -294,10 +305,7 @@ struct RunvealHomeShell: View {
             // 홈 탭 · 줌아웃: 패널 전체(배너? + 요약 카드 + 탭바).
             RunvealHomeBottomPanel(
                 banner: banner,
-                // TODO: 러닝 기록 연동 추가 예정(Android도 같은 TODO 상태다).
-                summary: AnyView(
-                    RunvealSummaryCard(dongName: "내 동네", ratePercent: 0, isMine: true) {}
-                ),
+                summary: AnyView(summaryCard),
                 onMyLocationClick: { mapState.recenterToCurrentLocation() }
             ) {
                 tabBar(container: .embedded)
@@ -350,6 +358,49 @@ struct RunvealHomeShell: View {
                 onCloseClick: { pendingRunStart = nil }
             )
         }
+    }
+
+    /**
+     줌아웃 하단 요약 카드 — 지도 가운데 동의 이름·탐험률·꼬리표를 보여준다.
+
+     `>`를 누르면 그 동을 가운데 두고 줌인한다(기록 탭 "러닝 시작하기"와 같은 배율). 아직 동을
+     못 받았으면 아이콘을 그리지 않는다 — 눌러도 아무 일 없는 아이콘을 남기면 고장으로 보인다.
+     */
+    /**
+     앱을 열고 처음 지도를 맞춘다.
+
+      - 기록이 있으면 탐험률이 가장 높은 동으로 — 줌은 그대로 둬서 줌아웃 상태를 유지한다.
+      - 기록이 없으면 현재 위치로.
+      - 둘 다 없으면 아무것도 하지 않는다 — `recenterToCurrentLocation`은 위치를 못 받으면 조용히
+        무시되므로 지도가 초기 좌표에 그대로 남는다.
+
+     `recenterOnceWhenLocationReady`가 따로 현재 위치로 한 번 옮기지만, 기록이 있으면 이쪽이
+     나중에 덮어쓴다 — 둘 다 "한 번만" 돌아서 서로 싸우지 않는다.
+     */
+    private func focusInitiallyIfNeeded() {
+        guard !didInitialFocus, let overlay = mapData.overlay else { return }
+        didInitialFocus = true
+        guard let topCode = overlay.query.topDongCode(),
+              let center = overlay.query.centerOf(admCd2: topCode)
+        else {
+            mapState.recenterToCurrentLocation()
+            return
+        }
+        mapState.moveTo(center: center)
+    }
+
+    @ViewBuilder
+    private var summaryCard: some View {
+        let summary = dongSummary
+        RunvealSummaryCard(
+            dongName: summary?.dongName ?? HomeStrings.summaryMyDong,
+            ratePercent: summary?.ratePercent ?? 0,
+            tagLabel: summary?.tagLabel,
+            onClick: {},
+            onChevronClick: summary == nil ? nil : {
+                mapState.moveTo(center: mapState.currentCenter, zoom: RunvealMapConfig.homeZoomIn)
+            }
+        )
     }
 
     private var locationOffBanner: AnyView? {

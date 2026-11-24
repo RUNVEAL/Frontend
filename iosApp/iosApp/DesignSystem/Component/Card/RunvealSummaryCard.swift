@@ -84,6 +84,6 @@ struct RunvealSummaryCard<Thumbnail: View>: View {
 }
 
 #Preview {
-    RunvealSummaryCard(dongName: "성수동", ratePercent: 37, isMine: true) {}
+    RunvealSummaryCard(dongName: "성수동", ratePercent: 37, tagLabel: "내 동네") {}
         .background(RunvealTheme.colors.bg.canvas)
 }

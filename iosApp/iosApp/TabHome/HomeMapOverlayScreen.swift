@@ -34,6 +34,14 @@ struct HomeMapOverlayScreen: View {
     /// 셸의 "다시 시도"가 올리는 값 — 바뀔 때마다 동 조회를 다시 돌린다(값 자체는 쓰지 않는다).
     var retryToken: Int = 0
 
+    /**
+     줌아웃 하단 요약 카드가 쓸 값 — 지도 가운데 동의 이름·코드와 꼬리표.
+
+     카드는 홈 셸이 그리고(탭 화면 밖) 조회는 여기가 하므로, Android가 홀더로 넘기는 것을 iOS는
+     콜백으로 올린다([onDongLoadFailedChange]와 같은 패턴).
+     */
+    var onSummaryChange: (DongSummary?) -> Void = { _ in }
+
     @State private var selectedToggleIndex = 0
 
     /// 현재 위치의 행정동 — 서버에 한 번 물어 둔다(`IosCurrentDong`). 못 받으면 nil이고 화면은
@@ -67,6 +75,17 @@ struct HomeMapOverlayScreen: View {
     /// 꼬리표 기준 — 홈 요약 카드와 같은 함수를 써서 두 패널이 같은 동을 "내 동네"로 본다.
     private var topExploredDongCode: String? {
         overlayHolder.bundle?.query.topDongCode()
+    }
+
+    /// 셸로 올릴 요약 — 지도 가운데 동을 아직 못 받았으면 nil이라 카드가 대체 문구를 쓴다.
+    private var summary: DongSummary? {
+        guard let dong = centerDong else { return nil }
+        return DongSummary(
+            dongName: dong.name,
+            dongCode: dong.code,
+            ratePercent: ratePercent,
+            tagLabel: dongTagLabel
+        )
     }
 
     /// 동 이름 뒤(줌아웃)·앞(줌인)에 붙는 꼬리표.
@@ -119,7 +138,14 @@ struct HomeMapOverlayScreen: View {
         .task(id: centerKey) { await loadCenterDong(mapState.currentCenter) }
         // 지도 라벨도 같은 동을 "메인"으로 크게 그린다 — 패널 이름과 지도에서 도드라지는 동이
         // 달라지면 어디를 보고 있는지 헷갈린다.
-        .onChange(of: centerDong?.code) { _, code in mapState.mainDongCode = code }
+        .onChange(of: centerDong?.code) { _, code in
+            mapState.mainDongCode = code
+            onSummaryChange(summary)
+        }
+        // 꼬리표 기준이 되는 값들도 바뀌면 다시 올린다 — 현재 위치 동은 늦게 오고, 탐험률 집계는
+        // 러닝이 끝날 때 갱신된다.
+        .onChange(of: currentDong?.code) { _, _ in onSummaryChange(summary) }
+        .onChange(of: overlayHolder.bundle?.boundarySourceKey) { _, _ in onSummaryChange(summary) }
         .onDisappear { mapState.mainDongCode = nil }
         // "안 가본 길"을 고른 동안만 베이스 지도 도로를 강조한다 — 줌 아웃되거나 이 화면을 벗어나면
         // 원래대로.
@@ -334,6 +360,19 @@ private struct MapActionButton: View {
                 .foregroundStyle(RunvealTheme.colors.text.secondary)
         }
     }
+}
+
+/**
+ 줌아웃 요약 카드가 그릴 값 한 벌 — 지도 가운데 동의 이름·탐험률과 꼬리표.
+
+ 조회는 홈 지도 오버레이가 하고 카드는 홈 셸이 그리므로, 그 사이를 이 한 덩어리로 넘긴다.
+ */
+struct DongSummary: Equatable {
+    let dongName: String
+    let dongCode: String
+    let ratePercent: Int
+    /// "내 동네" / "현위치" / nil — 판정은 오버레이 쪽이 한다(탐험률 집계와 현재 위치를 거기서 안다).
+    let tagLabel: String?
 }
 
 /// 상단 고정 헤더 카드. 아래 모서리만 둥글게(20 — 매칭되는 radius 토큰 없어 하드코딩) 상태 바에 붙는다.

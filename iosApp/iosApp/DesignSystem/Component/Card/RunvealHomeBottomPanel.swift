@@ -146,7 +146,7 @@ private var previewTabItems: [RunvealTabItemSpec] {
 #Preview {
     VStack(spacing: 24) {
         RunvealHomeBottomPanel(
-            summary: AnyView(RunvealSummaryCard(dongName: "성수동", ratePercent: 37, isMine: true) {})
+            summary: AnyView(RunvealSummaryCard(dongName: "성수동", ratePercent: 37, tagLabel: "내 동네") {})
         ) {
             RunvealTabBar(items: previewTabItems, selectedIndex: 0, container: .embedded) { _ in }
         }

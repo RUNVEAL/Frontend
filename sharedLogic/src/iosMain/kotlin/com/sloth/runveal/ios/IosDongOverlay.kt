@@ -143,6 +143,17 @@ class DongOverlayQuery internal constructor(
     /** 빛 이미지를 실제로 그릴 때만 그 동의 폴리곤을 꺼낸다 — 화면에 걸린 동만 부른다. */
     fun polygonParts(admCd2: String): List<DongPolygonPart> = partsByAdmCd2[admCd2] ?: emptyList()
 
+    /**
+     * 그 동이 전부 들어가는 범위의 가운데 좌표 — 카메라를 "그 동이 가운데 오게" 옮길 때 쓴다
+     * (앱 시작 포커스, 요약 카드의 `>` 줌인). 경계를 못 받은 동이면 null.
+     *
+     * 이미 만들어 둔 경계 박스를 쓰므로 정점을 다시 훑지 않는다. Swift가 폴리곤을 직접 받지 않게
+     * 여기서 좌표 하나로 줄여 내보낸다(위 클래스 주석의 브리지 복사 비용 참고).
+     */
+    fun centerOf(admCd2: String): LatLon? = boundsByAdmCd2[admCd2]?.let {
+        LatLon(lat = (it.minLat + it.maxLat) / 2, lon = (it.minLon + it.maxLon) / 2)
+    }
+
     /** 동 탐험률(%). 줌인 헤더의 "내 동네 N%" — 지도 빛 단계를 정하는 값 그대로다. */
     fun percentOf(admCd2: String): Int = percents[admCd2] ?: 0
 

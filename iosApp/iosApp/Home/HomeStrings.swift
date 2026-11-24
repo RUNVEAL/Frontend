@@ -2,6 +2,8 @@ import Foundation
 
 /// 홈 셸의 정적 텍스트 — Android `feature:home`의 `res/values/strings.xml`과 1:1 대응.
 enum HomeStrings {
+    /// 요약 카드에서 동 이름을 아직 못 받았을 때 — 꼬리표 없이 이 문구만 보인다.
+    static let summaryMyDong = "내 동네"
     static let locationPermissionOffBannerMessage = "위치 권한이 꺼져 있어요"
     static let locationPermissionOffBannerAction = "허용하기"
     static let locationServicesOffBannerMessage = "위치 서비스가 꺼져 있어요"
