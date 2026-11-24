@@ -84,6 +84,8 @@ internal fun MapLibreMapView(
             dongLabelPrimary = colors.text.primary.toArgb(),
             dongLabelSecondary = colors.text.secondary.toArgb(),
             sigunguLabel = colors.text.secondary.toArgb(),
+            poiLabel = colors.text.tertiary.toArgb(),
+            poiLabelHalo = colors.bg.map.toArgb(),
             recommendedRouteAlt = colors.map.routeAlt.toArgb(),
             recommendedRouteSelectedGlow = colors.map.roadNewHalo.toArgb(),
             recommendedRouteSelected = colors.map.roadNew.toArgb(),
@@ -122,6 +124,10 @@ internal fun MapLibreMapView(
                     setUpInitialCamera(map, state)
                     map.addOnCameraIdleListener {
                         state.currentZoom = map.cameraPosition.zoom
+                        // 멈춘 자리의 중심 — 홈이 이 값으로 "지금 지도 가운데 보이는 행정동"을 묻는다.
+                        map.cameraPosition.target?.let {
+                            state.currentCenter = LatLon(lat = it.latitude, lon = it.longitude)
+                        }
                         cameraIdleTick++
                     }
                     map.addOnCameraMoveListener { refreshMarkerScreenOffsets() }
@@ -148,6 +154,9 @@ internal fun MapLibreMapView(
                         // 그 시점엔 아직 위치 권한이 없는 게 정상이라(아래 LaunchedEffect 주석) 한 번만
                         // 시도하면 그 세션 내내 내 위치가 안 뜬다.
                         BaseStyleLabels.hide(loadedStyle)
+                        // 숨긴 라벨 대신, 줌인에서만 보이는 역·터미널 이름을 얹는다 — 베이스 스타일에
+                        // 정의가 없어서 타일 소스(`poi`)로 레이어를 직접 만든다.
+                        BaseStylePoiLabels.show(loadedStyle, mapColors)
                     }
                 }
             }
@@ -240,8 +249,9 @@ internal fun MapLibreMapView(
     LaunchedEffect(style, courseGuideGeoJson, mapColors) {
         style?.let { CourseGuideLayer.apply(it, MapConfig.SOURCE_RECORDING_COURSE_GUIDE, courseGuideGeoJson, mapColors) }
     }
-    LaunchedEffect(style, dongOverlay, mapColors) {
-        style?.let { DongOverlayLayer.apply(it, dongOverlay, mapColors) }
+    // 메인 동이 바뀌면 라벨 크기가 옮겨가야 하므로 key에 넣는다.
+    LaunchedEffect(style, dongOverlay, mapColors, state.mainDongCode) {
+        style?.let { DongOverlayLayer.apply(it, dongOverlay, mapColors, state.mainDongCode) }
     }
     // 동 빛 이미지. dongOverlay(단계 변경)·카메라 멈춤(화면 범위 변경)·생성 완료 중 하나라도 바뀌면
     // 다시 계산한다(docs/DONG_GLOW_ON_DEVICE.md Step 4).
@@ -314,6 +324,14 @@ internal fun MapLibreMapView(
     LaunchedEffect(state.recenterRequestId, liveMap) {
         if (state.recenterRequestId == 0) return@LaunchedEffect
         liveMap?.let { CurrentLocationLayer.recenter(it, state.recenterZoom) }
+    }
+    // 0은 초기값(= 아직 요청 안 함) — [MapState.moveTo]가 호출될 때만 카메라를 옮긴다.
+    LaunchedEffect(state.moveToRequestId, liveMap) {
+        if (state.moveToRequestId == 0) return@LaunchedEffect
+        val map = liveMap ?: return@LaunchedEffect
+        val center = state.moveToCenter ?: return@LaunchedEffect
+        val zoom = state.moveToZoom ?: map.cameraPosition.zoom
+        map.animateCamera(CameraUpdateFactory.newLatLngZoom(center.toMapLibreLatLng(), zoom))
     }
     // 0은 초기값(= 아직 요청 안 함) — [MapState.focusOnBounds]가 호출될 때만 카메라를 옮긴다.
     LaunchedEffect(state.boundsFocusRequestId, liveMap) {

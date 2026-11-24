@@ -1,15 +1,11 @@
 package com.sloth.runveal.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import com.sloth.runveal.designsystem.component.overlay.RunvealLocationServicesSheet
-import com.sloth.runveal.designsystem.component.overlay.RunvealLocationPermissionSheet
-import com.sloth.runveal.designsystem.component.overlay.RunvealLocationPermissionSettingsSheet
-import androidx.compose.ui.graphics.Color
-import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
@@ -17,6 +13,10 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +27,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -36,6 +38,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
+import com.sloth.runveal.core.map.CourseSnapshotImage
 import com.sloth.runveal.core.map.DongAssetRepository
 import com.sloth.runveal.core.map.DongOverlayHolder
 import com.sloth.runveal.core.map.LiveRoadClassifier
@@ -53,8 +56,8 @@ import com.sloth.runveal.courserecommend.navigation.courseDetailOverlay
 import com.sloth.runveal.courserecommend.navigation.courseRecommendOverlay
 import com.sloth.runveal.courserecommend.navigation.courseRecommendResultOverlay
 import com.sloth.runveal.courserecommend.navigation.savedCourseDetailOverlay
-import com.sloth.runveal.data.local.RunvealDatabaseProvider
 import com.sloth.runveal.data.local.FileStore
+import com.sloth.runveal.data.local.RunvealDatabaseProvider
 import com.sloth.runveal.data.local.TrackLocalStore
 import com.sloth.runveal.designsystem.RunvealIcons
 import com.sloth.runveal.designsystem.component.card.RunvealHomeBottomPanel
@@ -63,18 +66,27 @@ import com.sloth.runveal.designsystem.component.card.RunvealSummaryCard
 import com.sloth.runveal.designsystem.component.navigation.RunvealTabBar
 import com.sloth.runveal.designsystem.component.navigation.RunvealTabBarContainer
 import com.sloth.runveal.designsystem.component.navigation.RunvealTabItemSpec
+import com.sloth.runveal.designsystem.component.overlay.RunvealLocationPermissionSettingsSheet
+import com.sloth.runveal.designsystem.component.overlay.RunvealLocationPermissionSheet
+import com.sloth.runveal.designsystem.component.overlay.RunvealLocationServicesSheet
 import com.sloth.runveal.designsystem.component.overlay.RunvealToast
 import com.sloth.runveal.designsystem.theme.RunvealTheme
-import com.sloth.runveal.map.MapConfig
-import com.sloth.runveal.navigation.RunVealRoute
-import com.sloth.runveal.network.dong.CurrentDongHolder
-import com.sloth.runveal.navigation.rememberRunVealNavigator
+import com.sloth.runveal.devicestate.rememberLocationServicesState
+import com.sloth.runveal.dong.DongExploreRate
 import com.sloth.runveal.feature.home.R
 import com.sloth.runveal.map.LatLon
+import com.sloth.runveal.map.MapConfig
+import com.sloth.runveal.map.snapshot.DongThumbnailGeometry
+import com.sloth.runveal.map.snapshot.SnapshotRequest
+import com.sloth.runveal.map.snapshot.SnapshotVariant
+import com.sloth.runveal.map.snapshot.center
+import com.sloth.runveal.navigation.RunVealRoute
+import com.sloth.runveal.navigation.rememberRunVealNavigator
+import com.sloth.runveal.network.dong.CurrentDongHolder
+import com.sloth.runveal.network.dong.MapCenterDongHolder
 import com.sloth.runveal.permission.LocationPermissionState
 import com.sloth.runveal.permission.RequireLocationPermission
 import com.sloth.runveal.permission.openAppSettings
-import com.sloth.runveal.devicestate.rememberLocationServicesState
 import com.sloth.runveal.permission.rememberLocationPermissionState
 import com.sloth.runveal.recording.RecordingState
 import com.sloth.runveal.recording.TrackRecorder
@@ -214,6 +226,10 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
 
     // 지금 서 있는 동 — 조회는 홈 지도 오버레이가 하고(tab-home), 여기선 그 결과만 본다.
     val currentDong by CurrentDongHolder.state.collectAsStateWithLifecycle()
+    // 줌아웃 요약 카드는 **지도 가운데 보이는 동**을 보여준다 — 지도를 끌어 다른 동네를
+    // 둘러보는 게 줌아웃의 목적이라, 화면에 보이는 곳의 이름·탐험률이 맞다. 조회는 지도
+    // 오버레이(tab-home)가 카메라가 멈출 때마다 하고, 여기선 그 결과만 본다.
+    val mapCenterDong by MapCenterDongHolder.state.collectAsStateWithLifecycle()
 
     /**
      * 위치 권한·위치 서비스를 **막 켠 경우** 동 조회를 다시 시킨다.
@@ -237,6 +253,86 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     // 요약 카드 퍼센트는 지도 빛을 정하는 값과 **같은 출처**를 쓴다 — 따로 세면 카드엔 8%인데
     // 지도는 다른 단계로 빛나는 식으로 어긋난다. 아직 안 만들어졌거나 0%면 0.
     val overlayBundle by DongOverlayHolder.state.collectAsStateWithLifecycle()
+
+    /**
+     * 탐험률이 가장 높은 행정동 코드 — 앱을 열면 여기로 포커스하고, 요약 카드의 "내 동네" 꼬리표도
+     * 이 동에 붙는다. 0%인 동은 [DongOverlayBundle.dongPercents]에 안 들어오므로, 비어 있으면
+     * **기록이 아직 없다는 뜻**이다.
+     */
+    val topExploredDongCode = overlayBundle?.dongPercents?.let(DongExploreRate::topDongCode)
+
+    /**
+     * 앱을 열고 **한 번만** 지도를 맞춘다.
+     *
+     *  - 기록이 있으면 탐험률이 가장 높은 동으로 — 줌은 그대로 둬서 줌아웃 상태를 유지한다.
+     *  - 기록이 없으면 현재 위치로.
+     *  - 둘 다 없으면 아무것도 하지 않는다 — `recenterToCurrentLocation`은 위치를 못 받으면 조용히
+     *    무시되므로 지도가 초기 좌표([MapConfig.SEOUL_CITY_HALL])에 그대로 남는다.
+     *
+     * 오버레이 묶음을 기다리는 이유는 탐험률과 동 경계가 거기 들어 있어서다 — 스플래시가 미리
+     * 만들어 두므로 보통 홈에 들어오는 순간 이미 있다.
+     */
+    var didInitialFocus by remember { mutableStateOf(false) }
+    LaunchedEffect(overlayBundle, didInitialFocus) {
+        if (didInitialFocus) return@LaunchedEffect
+        val bundle = overlayBundle ?: return@LaunchedEffect
+        val topCode = topExploredDongCode
+        val center = topCode?.let { code ->
+            DongThumbnailGeometry.bounds(bundle.glowPolygonParts[code].orEmpty())?.center
+        }
+        if (center != null) mapState.moveTo(center) else mapState.recenterToCurrentLocation()
+        didInitialFocus = true
+    }
+
+    // 요약 카드 썸네일에 쓰는 "가본 길" — 지도 레이어(HomeMapLayer)가 들고 있는 것과 같은 값이지만,
+    // 그쪽은 러닝 중 실시간 선으로 바꿔치기해서 밖으로 빼면 얽힌다. 썸네일은 쌓인 길만 필요하므로
+    // 기록이 바뀔 때(latestTrackResult)만 따로 읽는다.
+    val thumbnailTrackResult by TrackResultHolder.state.collectAsStateWithLifecycle()
+    var thumbnailRoadGeoJson by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(thumbnailTrackResult) {
+        withContext(Dispatchers.IO) {
+            val store = TrackLocalStore(RunvealDatabaseProvider.database, FileStore())
+            thumbnailRoadGeoJson = DongAssetRepository(context).buildVisitedRoadGeoJson(store.visitedRoadEdges())
+        }
+    }
+
+    /**
+     * 썸네일 요청 — 동이 바뀌거나 가본 길이 늘거나 표시 방식을 바꿀 때만 다시 만든다.
+     *
+     * [SnapshotRequest.ownerId]에 동 코드와 기록 ID를 함께 넣어 캐시를 가른다 — 같은 동이라도
+     * 새로 달린 길이 생기면 그림이 달라져야 한다.
+     */
+    /**
+     * 지금 보고 있는 동의 가운데 좌표 — `>` 아이콘이 여기로 줌인한다. 경계를 아직 못 받았으면
+     * null이고, 그때는 아이콘을 그리지 않는다.
+     */
+    val mapCenterDongCenter = remember(mapCenterDong?.code, overlayBundle?.glowPolygonParts) {
+        val code = mapCenterDong?.code ?: return@remember null
+        val parts = overlayBundle?.glowPolygonParts?.get(code).orEmpty()
+        DongThumbnailGeometry.bounds(parts)?.center
+    }
+
+    val dongThumbnailRequest = remember(
+        mapCenterDong?.code,
+        thumbnailRoadGeoJson,
+        overlayBundle?.glowPolygonParts,
+    ) {
+        val code = mapCenterDong?.code ?: return@remember null
+        val roads = thumbnailRoadGeoJson ?: return@remember null
+        val parts = overlayBundle?.glowPolygonParts?.get(code).orEmpty()
+        val bounds = DongThumbnailGeometry.bounds(parts) ?: return@remember null
+        SnapshotRequest(
+            ownerId = "${code}_${thumbnailTrackResult?.trackId ?: "none"}",
+            variant = SnapshotVariant.DONG_THUMBNAIL,
+            routeGeoJson = roads,
+            bounds = bounds,
+            start = null,
+            end = null,
+            // 동 밖은 덮어서 안 보이게 하고, 그 동 경계선은 얹는다.
+            dongMaskGeoJson = DongThumbnailGeometry.maskGeoJson(parts, bounds),
+            dongOutlineGeoJson = DongThumbnailGeometry.outlineGeoJson(parts),
+        )
+    }
 
     /**
      * 서버에서 지도 데이터를 못 받은 상태. 둘 중 하나라도 실패면 참이다 — 동 이름(`/dong`)과 동
@@ -480,14 +576,36 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                                 // 아직 못 받았으면(위치 권한 없음·서비스 지역 밖) 꼬리표 없이
                                 // "내 동네"만 — 꼬리표까지 붙이면 "내 동네 내 동네"가 된다.
                                 RunvealSummaryCard(
-                                    dongName = currentDong?.dongOnly
+                                    dongName = mapCenterDong?.dongOnly
                                         ?: stringResource(R.string.home_summary_my_dong),
-                                    ratePercent = currentDong?.code
+                                    ratePercent = mapCenterDong?.code
                                         ?.let { overlayBundle?.dongPercents?.get(it) }
                                         ?: 0,
                                     onClick = {},
-                                    isMine = currentDong != null,
-                                )
+                                    // `>`를 누르면 지금 보고 있는 동을 가운데 두고 줌인한다 —
+                                    // 거기서부터 도로와 가본 길이 또렷하게 보인다.
+                                    onChevronClick = mapCenterDongCenter?.let { center ->
+                                        { mapState.moveTo(center, MapConfig.HOME_ZOOM_IN) }
+                                    },
+                                    // 꼬리표는 지도 가운데 동이 무엇인지에 따라 갈린다 — 탐험률이
+                                    // 가장 높은 동이면 "내 동네", 지금 서 있는 동이면 "현위치",
+                                    // 그 밖(끌어서 둘러보는 동네)이면 안 붙인다.
+                                    tagLabel = when (mapCenterDong?.code) {
+                                        null -> null
+                                        topExploredDongCode -> stringResource(R.string.home_summary_tag_my_dong)
+                                        currentDong?.code ->
+                                            stringResource(R.string.home_summary_tag_current_location)
+                                        else -> null
+                                    },
+                                ) {
+                                    // 요청이 아직 없으면(동/가본 길/경계 중 하나라도 미도착) 빈
+                                    // 프레임만 보인다 — CourseSnapshotImage가 placeholder를 그린다.
+                                    CourseSnapshotImage(
+                                        request = dongThumbnailRequest,
+                                        contentDescription = null,
+                                        modifier = Modifier.matchParentSize(),
+                                    )
+                                }
                             },
                             tabBar = {
                                 RunvealTabBar(

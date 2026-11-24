@@ -65,6 +65,10 @@ object MapConfig {
     const val LAYER_DONG_LINE: String = "dong-line"
     const val LAYER_DONG_LABEL: String = "dong-label"
 
+    /** 지도 가운데 보이는 "메인" 행정동 라벨 — 같은 소스를 쓰지만 더 크고 굵게 그린다.
+     * 한 레이어에서 피처별로 글꼴을 바꿀 수 없어 레이어를 따로 둔다. */
+    const val LAYER_DONG_LABEL_MAIN: String = "dong-label-main"
+
     const val SOURCE_SIGUNGU_LINE: String = "sigungu-line-src"
     const val SOURCE_SIGUNGU_LABEL: String = "sigungu-label-src"
     const val LAYER_SIGUNGU_LINE: String = "sigungu-line"
@@ -111,6 +115,23 @@ object MapConfig {
         "boundary_country_z0-4",
         "boundary_country_z5-",
     )
+
+    /**
+     * 베이스 타일의 POI 레이어(OpenMapTiles `poi`). **스타일에는 정의가 없고 타일에만 들어 있어서**,
+     * 쓰려면 레이어를 직접 추가해야 한다([LAYER_BASE_LANDCOVER_GRASS]와 같은 방식).
+     */
+    const val SOURCE_LAYER_BASE_POI: String = "poi"
+
+    /** 줌인에서만 띄우는 주요 장소 이름 레이어 — 우리가 추가하는 것이라 ID도 우리 것이다. */
+    const val LAYER_BASE_POI_LABEL: String = "runveal-poi-label"
+
+    /**
+     * 이름을 띄울 POI 종류(`poi.subclass`) — 역과 터미널만.
+     *
+     * 버스 정류장(`bus_stop`)이나 상점까지 켜면 줌인 화면이 글자로 덮여 도로와 가본 길이 안 보인다.
+     * 지금 필요한 건 "여기가 어디쯤인지" 알려주는 큰 기준점뿐이다.
+     */
+    val BASE_POI_LABEL_SUBCLASSES: List<String> = listOf("station", "bus_station")
 
     /** 기본 스타일의 vector 소스 ID. [LAYER_BASE_LANDCOVER_GRASS]처럼 새 레이어를 추가할 때 필요하다. */
     const val SOURCE_BASE_STYLE: String = "openmaptiles"

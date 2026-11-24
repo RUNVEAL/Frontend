@@ -8,6 +8,7 @@ import com.sloth.runveal.map.snapshot.SnapshotRequest
 import com.sloth.runveal.map.snapshot.SnapshotVariant
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.CircleLayer
+import org.maplibre.android.style.layers.FillLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
@@ -33,10 +34,16 @@ internal object SnapshotStyleBuilder {
         request: SnapshotRequest,
         colors: SnapshotColors,
         endpointRadiusDp: Float,
+        /** 동 썸네일에서 쓰는 가공된 스타일 JSON([ZoomedInSnapshotStyle]). null이면 원본 URL로 떨어진다. */
+        zoomedInStyleJson: String? = null,
     ): Style.Builder {
         // 러닝 기록은 "오늘 달린 길"(흰색) 위에 "새로 탐험한 길"(금색)을 덧그려 둘을 구분한다 —
         // 결과 화면 범례가 그 두 색으로 설명하고 있어서 기본선도 범례와 같아야 한다. 아직 달리지
         // 않은 코스는 그 구분이 없어 경로색(금색) 한 가지로 그린다.
+        if (request.variant == SnapshotVariant.DONG_THUMBNAIL) {
+            return buildDongThumbnail(request, colors, zoomedInStyleJson)
+        }
+
         val baseColor = if (request.isRunRoute) colors.todayRoad else colors.route
         val builder = Style.Builder()
             .fromUri(MapConfig.STYLE_URL)
@@ -116,6 +123,67 @@ internal object SnapshotStyleBuilder {
     }
 
     /** 코스 썸네일의 출발·도착 점 한 개. 테두리는 반지름에 비례해 점을 키워도 실처럼 얇아지지 않는다. */
+    /**
+     * 동 썸네일 스타일 — 베이스 지도(도로·건물) 위에 **그 동 안의 가본 길**을 얹고, 표시 방식에 따라
+     * 동 밖을 덮거나 경계선을 그린다.
+     *
+     * 출발·도착 마커와 "처음 간 길" 구분은 넣지 않는다 — 한 번의 러닝이 아니라 그 동에 쌓인 길
+     * 전체를 보여주는 그림이라 시작점이란 게 없고, 84dp에서 색을 두 가지로 나누면 둘 다 안 읽힌다.
+     *
+     * 동 경계·채색(줌아웃의 퍼센트별 빛)은 **일부러 빼놨다.** 이 그림은 "줌인한 지도를 동 크기로
+     * 본 것"이어야 해서, 그 표현이 들어가면 줌아웃 지도를 축소한 것처럼 보인다.
+     */
+    private fun buildDongThumbnail(
+        request: SnapshotRequest,
+        colors: SnapshotColors,
+        zoomedInStyleJson: String?,
+    ): Style.Builder {
+        // 완성 JSON이 왔으면 그걸로 끝이다 — 가본 길·마스크·경계선이 이미 그 안에 들어 있다.
+        // `withSource`로 더 얹으면 MapSnapshotter 생성자 안에서 스타일 로드 콜백이 동기로 돌면서
+        // native 객체가 준비되기 전에 소스를 추가하다 `invalid native peer`로 죽는다.
+        if (zoomedInStyleJson != null) return Style.Builder().fromJson(zoomedInStyleJson)
+
+        // 스타일을 못 받은 경우 — 원본 URL은 비동기로 로드되므로 아래 `withSource` 경로가 안전하다.
+        // 라벨이 보이고 색 보정이 없지만 그림 자체는 나온다.
+        val builder = Style.Builder()
+            .fromUri(MapConfig.STYLE_URL)
+            .withSource(GeoJsonSource(SnapshotConfig.ROUTE_SOURCE_ID, request.routeGeoJson))
+            .withLayer(
+                LineLayer(SnapshotConfig.ROUTE_LAYER_ID, SnapshotConfig.ROUTE_SOURCE_ID).withProperties(
+                    PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                    PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+                    PropertyFactory.lineColor(colors.route),
+                    PropertyFactory.lineWidth(SnapshotConfig.DONG_ROAD_WIDTH_DP.toFloat()),
+                ),
+            )
+
+        // 동 밖을 덮는 뚜껑 — 가본 길까지 가려야 하므로 선 **뒤에** 올린다(나중에 추가 = 위).
+        request.dongMaskGeoJson?.let { mask ->
+            builder
+                .withSource(GeoJsonSource(SnapshotConfig.DONG_MASK_SOURCE_ID, mask))
+                .withLayer(
+                    FillLayer(SnapshotConfig.DONG_MASK_LAYER_ID, SnapshotConfig.DONG_MASK_SOURCE_ID).withProperties(
+                        PropertyFactory.fillColor(colors.dongMask),
+                    ),
+                )
+        }
+
+        request.dongOutlineGeoJson?.let { outline ->
+            builder
+                .withSource(GeoJsonSource(SnapshotConfig.DONG_OUTLINE_SOURCE_ID, outline))
+                .withLayer(
+                    LineLayer(SnapshotConfig.DONG_OUTLINE_LAYER_ID, SnapshotConfig.DONG_OUTLINE_SOURCE_ID)
+                        .withProperties(
+                            PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                            PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND),
+                            PropertyFactory.lineColor(colors.dongOutline),
+                            PropertyFactory.lineWidth(SnapshotConfig.DONG_OUTLINE_WIDTH_DP.toFloat()),
+                        ),
+                )
+        }
+        return builder
+    }
+
     private fun Style.Builder.addEndpointCircle(
         sourceId: String,
         layerId: String,

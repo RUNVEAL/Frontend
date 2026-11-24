@@ -166,7 +166,7 @@ private fun RunvealHomeBottomPanelPreview() {
                     dongName = "성수동",
                     ratePercent = 37,
                     onClick = {},
-                    isMine = true,
+                    tagLabel = "내 동네",
                 )
             },
             tabBar = {
@@ -203,7 +203,7 @@ private fun RunvealHomeBottomPanelLocationOffPreview() {
                     dongName = "내 동네",
                     ratePercent = 0,
                     onClick = {},
-                    isMine = true,
+                    tagLabel = "내 동네",
                 )
             },
             tabBar = {

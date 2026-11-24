@@ -41,13 +41,39 @@ internal object DongOverlayLayer {
     private const val PERCENT_VALUE_FONT_SCALE = 14f / LABEL_SIZE_SP
     private val LABEL_FONT = arrayOf("Noto Sans Regular")
 
+    /** 메인 동 라벨 배율 — body/m-semibold(14) · num/l(32) · unit/l(20)을 기준 11로 나눈 값. */
+    private const val MAIN_NAME_FONT_SCALE = 14f / LABEL_SIZE_SP
+    private const val MAIN_PERCENT_VALUE_FONT_SCALE = 32f / LABEL_SIZE_SP
+    private const val MAIN_PERCENT_UNIT_FONT_SCALE = 20f / LABEL_SIZE_SP
+
+    /** 지도 글리프에 SemiBold가 없어 Bold로 근사한다(Regular/Bold만 제공). */
+    private val LABEL_FONT_BOLD = arrayOf("Noto Sans Bold")
+
+    /** 일반 라벨의 sortKey는 `-탐험률`이라 최솟값이 -100이다 — 그보다 작게 둬서 항상 먼저 놓인다. */
+    private const val MAIN_LABEL_SORT_KEY = -1000f
+
     private val EMPTY_FEATURE_COLLECTION_JSON = FeatureCollection.fromFeatures(emptyList()).toJson()
 
-    fun apply(style: Style, overlay: DongOverlayGeoJson?, colors: MapColors) {
+    fun apply(style: Style, overlay: DongOverlayGeoJson?, colors: MapColors, mainDongCode: String?) {
         ensureSource(style, MapConfig.SOURCE_DONG_FILL, overlay?.fillGeoJson)
         ensureSource(style, MapConfig.SOURCE_DONG_LINE, overlay?.lineGeoJson)
         ensureSource(style, MapConfig.SOURCE_DONG_LABEL, overlay?.labelGeoJson)
         ensureLayers(style, colors)
+        applyMainDong(style, mainDongCode)
+    }
+
+    /**
+     * 메인 동이 바뀔 때마다 두 라벨 레이어의 필터만 갈아 끼운다 — 일반 레이어는 그 동을 빼고,
+     * 메인 레이어는 그 동만 그린다. 같은 동이 두 크기로 겹쳐 보이지 않게 **서로 배타적**이어야 한다.
+     *
+     * 메인이 없으면(null) 일반 레이어가 전부 그리고 메인 레이어는 아무것도 그리지 않는다.
+     */
+    private fun applyMainDong(style: Style, mainDongCode: String?) {
+        val isMain = mainDongCode?.let { Expression.eq(Expression.get("adm_cd2"), Expression.literal(it)) }
+        style.getLayerAs<SymbolLayer>(MapConfig.LAYER_DONG_LABEL)
+            ?.setFilter(isMain?.let { Expression.not(it) } ?: Expression.literal(true))
+        style.getLayerAs<SymbolLayer>(MapConfig.LAYER_DONG_LABEL_MAIN)
+            ?.setFilter(isMain ?: Expression.literal(false))
     }
 
     private fun ensureSource(style: Style, sourceId: String, geoJson: String?) {
@@ -97,12 +123,53 @@ internal object DongOverlayLayer {
             layer.maxZoom = MapConfig.ZOOM_IN_THRESHOLD.toFloat()
             style.addLayer(layer)
         }
+        if (style.getLayer(MapConfig.LAYER_DONG_LABEL_MAIN) == null) {
+            val layer = SymbolLayer(MapConfig.LAYER_DONG_LABEL_MAIN, MapConfig.SOURCE_DONG_LABEL).withProperties(
+                PropertyFactory.textField(mainLabelTextField(colors)),
+                // body/m-semibold의 600을 지도에서 낼 수 없다 — 글리프에 Regular와 Bold만 있어서
+                // (SemiBold는 404) 더 굵은 쪽으로 근사한다.
+                PropertyFactory.textFont(LABEL_FONT_BOLD),
+                PropertyFactory.textSize(LABEL_SIZE_SP),
+                PropertyFactory.textColor(colors.dongLabelPrimary),
+                PropertyFactory.textJustify(Property.TEXT_JUSTIFY_CENTER),
+                // 메인 동 라벨은 겹쳐도 지지 않아야 한다 — 가장 먼저 자리를 잡게 sortKey를 최하로 둔다.
+                PropertyFactory.symbolSortKey(Expression.literal(MAIN_LABEL_SORT_KEY)),
+                // 커진 라벨이 이웃 라벨에 밀려 사라지지 않게.
+                PropertyFactory.symbolZOrder(Property.SYMBOL_Z_ORDER_SOURCE),
+            )
+            layer.minZoom = MapConfig.SIGUNGU_SWITCH_ZOOM.toFloat()
+            layer.maxZoom = MapConfig.ZOOM_IN_THRESHOLD.toFloat()
+            style.addLayerAbove(layer, MapConfig.LAYER_DONG_LABEL)
+        }
     }
 
     /**
      * 동 이름(caption/s-regular) 줄과 "12%"(num/s + unit/s) 줄. 토큰대로 숫자만 크고(14),
      * 이름과 % 기호는 작고 연한 색이다.
      */
+    /**
+     * 메인 동 라벨 — 이름 body/m-semibold(14), 숫자 num/l(32), % unit/l(20).
+     * 기준 [LABEL_SIZE_SP](11)에 각 토큰 크기를 나눈 배율을 세그먼트마다 준다.
+     */
+    private fun mainLabelTextField(colors: MapColors): Expression = Expression.format(
+        Expression.formatEntry(
+            Expression.get("name"),
+            Expression.FormatOption.formatFontScale(MAIN_NAME_FONT_SCALE.toDouble()),
+            Expression.FormatOption.formatTextColor(colors.dongLabelPrimary),
+        ),
+        Expression.formatEntry(Expression.literal("\n")),
+        Expression.formatEntry(
+            Expression.get("percentValue"),
+            Expression.FormatOption.formatFontScale(MAIN_PERCENT_VALUE_FONT_SCALE.toDouble()),
+            Expression.FormatOption.formatTextColor(colors.dongLabelPrimary),
+        ),
+        Expression.formatEntry(
+            Expression.literal("%"),
+            Expression.FormatOption.formatFontScale(MAIN_PERCENT_UNIT_FONT_SCALE.toDouble()),
+            Expression.FormatOption.formatTextColor(colors.dongLabelSecondary),
+        ),
+    )
+
     private fun labelTextField(colors: MapColors): Expression = Expression.format(
         Expression.formatEntry(Expression.get("name"), Expression.FormatOption.formatTextColor(colors.dongLabelSecondary)),
         Expression.formatEntry(Expression.literal("\n")),

@@ -85,6 +85,13 @@ fun CourseCreateScreen(
     // 인텐트가 그만큼 늦게 도착해, ViewModel 상태로만 띄우면 그 사이엔 아무 반응이 없어 보인다.
     var isRecommending by remember { mutableStateOf(false) }
 
+    // 고른 자리까지의 거리를 재려면 기준점이 필요해서 화면에 들어올 때 한 번 받아 둔다. 선택하는
+    // 동안 사용자가 크게 움직이지 않으니 한 번으로 충분하다 — 못 받으면(권한 없음·위치 꺼짐)
+    // null이라 거리 줄이 안 그려진다. 추천 요청은 그때의 최신 위치를 따로 받는다(아래 onRecommendClick).
+    LaunchedEffect(Unit) {
+        viewModel.onIntent(CourseCreateIntent.CurrentLocationResolved(context.currentLocationOrNull()))
+    }
+
     CollectEffect(viewModel.effect) { effect ->
         when (effect) {
             CourseCreateEffect.NavigateToResult -> onNavigateToResult()

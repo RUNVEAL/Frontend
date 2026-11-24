@@ -1,5 +1,6 @@
 package com.sloth.runveal.courserecommend.contract
 
+import com.sloth.runveal.map.GeoMath
 import com.sloth.runveal.map.LatLon
 import com.sloth.runveal.ui.mvi.UiState
 
@@ -26,6 +27,12 @@ internal val CustomDistanceValues = (2..84).map { step ->
 }
 internal const val DefaultCustomDistanceIndex = 22
 
+/** 거리를 아직 잴 수 없을 때 — 단위를 남겨 둬서 그 자리가 거리라는 건 보이게 한다. */
+private const val DISTANCE_PLACEHOLDER = "-km"
+
+/** 동 이름을 아직 못 받았을 때. */
+private const val PLACE_NAME_PLACEHOLDER = "-"
+
 /** 상단 앱바 제목을 바꾸는 출발/도착 선택 모드. 선택 중이 아니면 [None]. */
 enum class LocationSelectionTarget { None, Start, End }
 
@@ -40,10 +47,11 @@ data class CourseCreateState(
     val startLatLon: LatLon? = null,
     val endLatLon: LatLon? = null,
     /** [pickedLocation]이 속한 행정동 이름(`GET /api/v1/dong`) — 아직 못 받았거나 조회가 실패하면
-     * null이고, 그때는 [selectedPlaceName]이 좌표를 그대로 보여준다. */
+     * null이고, 그때는 [selectedPlaceName]이 플레이스홀더를 보여준다. */
     val pickedPlaceName: String? = null,
-    // 거리는 아직 미구현 고정 문구다 — 좌표 사이 거리를 재 주는 API가 따로 없다.
-    val selectedPlaceDistance: String = "거리 표시 미구현",
+    /** 화면이 받아 둔 현재 위치 — [selectedPlaceDistance]를 재는 기준점이다. 권한이 없거나 위치가
+     * 꺼져 있으면 null이고, 그때는 거리를 안 보여준다. */
+    val currentLocation: LatLon? = null,
     val distanceOptions: List<String> = DistanceOptions,
     val selectedDistance: String = DefaultDistance,
     val isCustomDistanceSelected: Boolean = false,
@@ -58,15 +66,37 @@ data class CourseCreateState(
         get() = if (isCustomDistanceSelected) "${customDistanceValues[customDistanceIndex]}km" else selectedDistance
 
     /**
-     * 탭한 자리의 행정동 이름([pickedPlaceName], 예: "중구 명동"). 조회 중이거나 실패했으면 좌표를
-     * 그대로 보여준다 — 이름이 안 떠도 어디를 찍었는지는 알 수 있어야 한다.
+     * 탭한 자리의 행정동 이름([pickedPlaceName], 예: "중구 명동").
+     *
+     * 조회 중이거나 실패했으면 [PLACE_NAME_PLACEHOLDER]를 둔다 — 예전에는 좌표를 그대로 보여줬지만
+     * "37.5665, 126.9780"은 읽는 사람에게 아무 뜻이 없어서 이름이 들어올 자리라는 것만 알린다.
+     *
+     * 아직 아무 자리도 안 골랐을 때는 플레이스홀더가 아니라 **할 일을 알려주는 안내**를 쓴다.
      *
      * 확정하면 이 값이 그대로 출발지/도착지 라벨로 들어간다.
      */
     val selectedPlaceName: String
-        get() = pickedPlaceName
-            ?: pickedLocation?.let { "%.4f, %.4f".format(it.lat, it.lon) }
-            ?: "위치를 선택하세요"
+        get() = when {
+            pickedPlaceName != null -> pickedPlaceName
+            pickedLocation == null -> "위치를 선택하세요"
+            else -> PLACE_NAME_PLACEHOLDER
+        }
+
+    /**
+     * 현재 위치에서 고른 자리까지의 거리 — 선택 패널에서 동 이름 아래 줄에 쓴다.
+     *
+     * 아직 잴 수 없을 때도(현재 위치를 못 받았거나 자리를 안 골랐을 때) 줄을 비우지 않고
+     * [DISTANCE_PLACEHOLDER]를 둔다 — 줄이 사라지면 사용자가 그 자리가 거리인지 알 수 없다.
+     *
+     * **직선거리**다(`GeoMath`) — 실제로 달릴 경로 길이가 아니다. 길을 따라가는 거리는 서버에
+     * 물어야 하는데, 여기서 필요한 건 "고른 자리가 지금 얼마나 먼지" 감을 주는 것뿐이다.
+     */
+    val selectedPlaceDistance: String
+        get() {
+            val from = currentLocation ?: return DISTANCE_PLACEHOLDER
+            val to = pickedLocation ?: return DISTANCE_PLACEHOLDER
+            return "%.1fkm".format(GeoMath.distanceMeters(from, to) / 1000.0)
+        }
 
     val topBarTitle: String
         get() = when (locationSelectionTarget) {

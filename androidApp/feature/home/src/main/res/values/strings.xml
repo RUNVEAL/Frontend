@@ -12,4 +12,7 @@
     <!-- 현재 동을 아직 못 받았을 때 요약 카드에 쓰는 이름. 받으면 실제 행정동 이름이 들어가고
          "내 동네" 꼬리표가 옆에 붙는다. -->
     <string name="home_summary_my_dong">내 동네</string>
+    <!-- 요약 카드 꼬리표 — 탐험률이 가장 높은 동(기본 포커스)과 지금 서 있는 동을 구분한다. -->
+    <string name="home_summary_tag_my_dong">내 동네</string>
+    <string name="home_summary_tag_current_location">현위치</string>
 </resources>

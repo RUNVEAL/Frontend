@@ -9,10 +9,13 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.systemBars
@@ -168,6 +171,8 @@ fun RecordDetailScreen(
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = RunvealTheme.layout.marginScreen)
+                        // 끝까지 내렸을 때 마지막 내용이 OS 내비게이션(제스처 바)에 가리지 않게 한다.
+                        .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
                         .padding(bottom = RunvealTheme.spacing.space24),
                     verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space24),
                 ) {
