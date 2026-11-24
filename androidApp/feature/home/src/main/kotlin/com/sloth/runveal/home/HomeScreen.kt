@@ -79,6 +79,7 @@ import com.sloth.runveal.map.MapConfig
 import com.sloth.runveal.map.snapshot.DongThumbnailGeometry
 import com.sloth.runveal.map.snapshot.SnapshotRequest
 import com.sloth.runveal.map.snapshot.SnapshotVariant
+import com.sloth.runveal.map.snapshot.center
 import com.sloth.runveal.navigation.RunVealRoute
 import com.sloth.runveal.navigation.rememberRunVealNavigator
 import com.sloth.runveal.network.dong.CurrentDongHolder
@@ -277,9 +278,7 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
         val bundle = overlayBundle ?: return@LaunchedEffect
         val topCode = topExploredDongCode
         val center = topCode?.let { code ->
-            DongThumbnailGeometry.bounds(bundle.glowPolygonParts[code].orEmpty())?.let { b ->
-                LatLon(lat = (b.south + b.north) / 2, lon = (b.west + b.east) / 2)
-            }
+            DongThumbnailGeometry.bounds(bundle.glowPolygonParts[code].orEmpty())?.center
         }
         if (center != null) mapState.moveTo(center) else mapState.recenterToCurrentLocation()
         didInitialFocus = true
@@ -303,6 +302,16 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
      * [SnapshotRequest.ownerId]에 동 코드와 기록 ID를 함께 넣어 캐시를 가른다 — 같은 동이라도
      * 새로 달린 길이 생기면 그림이 달라져야 한다.
      */
+    /**
+     * 지금 보고 있는 동의 가운데 좌표 — `>` 아이콘이 여기로 줌인한다. 경계를 아직 못 받았으면
+     * null이고, 그때는 아이콘을 그리지 않는다.
+     */
+    val mapCenterDongCenter = remember(mapCenterDong?.code, overlayBundle?.glowPolygonParts) {
+        val code = mapCenterDong?.code ?: return@remember null
+        val parts = overlayBundle?.glowPolygonParts?.get(code).orEmpty()
+        DongThumbnailGeometry.bounds(parts)?.center
+    }
+
     val dongThumbnailRequest = remember(
         mapCenterDong?.code,
         thumbnailRoadGeoJson,
@@ -573,6 +582,11 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                                         ?.let { overlayBundle?.dongPercents?.get(it) }
                                         ?: 0,
                                     onClick = {},
+                                    // `>`를 누르면 지금 보고 있는 동을 가운데 두고 줌인한다 —
+                                    // 거기서부터 도로와 가본 길이 또렷하게 보인다.
+                                    onChevronClick = mapCenterDongCenter?.let { center ->
+                                        { mapState.moveTo(center, MapConfig.HOME_ZOOM_IN) }
+                                    },
                                     // 꼬리표는 지도 가운데 동이 무엇인지에 따라 갈린다 — 탐험률이
                                     // 가장 높은 동이면 "내 동네", 지금 서 있는 동이면 "현위치",
                                     // 그 밖(끌어서 둘러보는 동네)이면 안 붙인다.

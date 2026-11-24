@@ -72,3 +72,10 @@ object DongThumbnailGeometry {
         return closed.toCoordinatesJson()
     }
 }
+
+/**
+ * 범위의 가운데 좌표. 카메라를 "그 동이 가운데 오게" 옮길 때 쓴다(앱 시작 포커스, 요약 카드의
+ * `>` 줌인) — 같은 식이 여러 곳에 흩어지지 않게 한 곳에 둔다.
+ */
+val GeoBounds.center: LatLon
+    get() = LatLon(lat = (south + north) / 2, lon = (west + east) / 2)

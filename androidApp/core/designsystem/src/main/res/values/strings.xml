@@ -3,6 +3,7 @@
     <string name="run_start_button_default_label">러닝 시작</string>
     <string name="run_pause_button_default_label">일시정지</string>
     <string name="dong_mine_tag">내 동네</string>
+    <string name="summary_card_zoom_in_content_description">이 동네 지도 자세히 보기</string>
     <string name="percent_unit">%</string>
     <string name="legend_new">새로 탐험한 길</string>
     <string name="legend_today">오늘 달린 길</string>
