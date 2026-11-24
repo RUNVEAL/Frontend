@@ -3,7 +3,6 @@ package com.sloth.runveal.courserecommend.contract
 import com.sloth.runveal.map.GeoMath
 import com.sloth.runveal.map.LatLon
 import com.sloth.runveal.ui.mvi.UiState
-import kotlin.math.roundToInt
 
 internal val DistanceOptions = listOf("3km", "5km", "7km", "10km")
 internal const val DefaultDistance = "5km"
@@ -28,13 +27,8 @@ internal val CustomDistanceValues = (2..84).map { step ->
 }
 internal const val DefaultCustomDistanceIndex = 22
 
-/**
- * 현재 위치에서 얼마나 떨어졌는지 — 1km부터는 소수 한 자리 km, 그보다 가까우면 m로 보여준다.
- * "0.3km"보다 "320m"가 걸어서 갈 만한 거리인지 바로 읽힌다.
- */
-private fun distanceLabel(meters: Double): String =
-    if (meters >= 1000) "현위치에서 %.1fkm".format(meters / 1000.0)
-    else "현위치에서 ${meters.roundToInt()}m"
+/** 거리를 아직 잴 수 없을 때 — 단위를 남겨 둬서 그 자리가 거리라는 건 보이게 한다. */
+private const val DISTANCE_PLACEHOLDER = "-km"
 
 /** 상단 앱바 제목을 바꾸는 출발/도착 선택 모드. 선택 중이 아니면 [None]. */
 enum class LocationSelectionTarget { None, Start, End }
@@ -80,17 +74,19 @@ data class CourseCreateState(
             ?: "위치를 선택하세요"
 
     /**
-     * 현재 위치에서 고른 자리까지의 거리 — 선택 패널에서 동 이름 아래 줄에 쓴다. 현재 위치나 고른
-     * 자리가 없으면 null이라 그 줄이 아예 안 그려진다(빈 줄이 남지 않는다).
+     * 현재 위치에서 고른 자리까지의 거리 — 선택 패널에서 동 이름 아래 줄에 쓴다.
+     *
+     * 아직 잴 수 없을 때도(현재 위치를 못 받았거나 자리를 안 골랐을 때) 줄을 비우지 않고
+     * [DISTANCE_PLACEHOLDER]를 둔다 — 줄이 사라지면 사용자가 그 자리가 거리인지 알 수 없다.
      *
      * **직선거리**다(`GeoMath`) — 실제로 달릴 경로 길이가 아니다. 길을 따라가는 거리는 서버에
      * 물어야 하는데, 여기서 필요한 건 "고른 자리가 지금 얼마나 먼지" 감을 주는 것뿐이다.
      */
-    val selectedPlaceDistance: String?
+    val selectedPlaceDistance: String
         get() {
-            val from = currentLocation ?: return null
-            val to = pickedLocation ?: return null
-            return distanceLabel(GeoMath.distanceMeters(from, to))
+            val from = currentLocation ?: return DISTANCE_PLACEHOLDER
+            val to = pickedLocation ?: return DISTANCE_PLACEHOLDER
+            return "%.1fkm".format(GeoMath.distanceMeters(from, to) / 1000.0)
         }
 
     val topBarTitle: String

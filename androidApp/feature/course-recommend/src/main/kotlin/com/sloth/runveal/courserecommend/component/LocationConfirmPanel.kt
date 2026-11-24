@@ -38,8 +38,8 @@ private val LOCATE_TOUCH_INSET = 2.dp
 @Composable
 fun LocationConfirmPanel(
     placeName: String,
-    /** 현재 위치에서 고른 자리까지의 거리. null이면 그 줄을 그리지 않는다(위치를 못 받은 경우). */
-    distanceLabel: String?,
+    /** 현재 위치에서 고른 자리까지의 거리("0.3km"). 아직 못 재면 "-km"가 온다. */
+    distanceLabel: String,
     confirmLabel: String,
     onConfirmClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -85,7 +85,7 @@ private fun LocationConfirmPanelPreview() {
     RunvealTheme {
         LocationConfirmPanel(
             placeName = "성동구 성수 1가 1동",
-            distanceLabel = "현위치에서 120m",
+            distanceLabel = "0.1km",
             confirmLabel = "이 위치를 출발지로 설정하기",
             onConfirmClick = {},
             onMyLocationClick = {},
