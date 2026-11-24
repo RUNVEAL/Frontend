@@ -72,6 +72,11 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
                 }
             }
 
+            is CourseCreateIntent.CurrentLocationResolved -> {
+                val location = intent.location
+                setState { copy(currentLocation = location) }
+            }
+
             is CourseCreateIntent.MapLocationPicked -> {
                 val location = intent.location
                 // 옛 이름을 지우고 넣는다 — 안 지우면 새로 찍은 자리에 먼 동 이름이 잠깐 남는다.

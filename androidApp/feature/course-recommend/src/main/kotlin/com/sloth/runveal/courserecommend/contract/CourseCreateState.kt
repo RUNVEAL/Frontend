@@ -1,7 +1,9 @@
 package com.sloth.runveal.courserecommend.contract
 
+import com.sloth.runveal.map.GeoMath
 import com.sloth.runveal.map.LatLon
 import com.sloth.runveal.ui.mvi.UiState
+import kotlin.math.roundToInt
 
 internal val DistanceOptions = listOf("3km", "5km", "7km", "10km")
 internal const val DefaultDistance = "5km"
@@ -26,6 +28,14 @@ internal val CustomDistanceValues = (2..84).map { step ->
 }
 internal const val DefaultCustomDistanceIndex = 22
 
+/**
+ * 현재 위치에서 얼마나 떨어졌는지 — 1km부터는 소수 한 자리 km, 그보다 가까우면 m로 보여준다.
+ * "0.3km"보다 "320m"가 걸어서 갈 만한 거리인지 바로 읽힌다.
+ */
+private fun distanceLabel(meters: Double): String =
+    if (meters >= 1000) "현위치에서 %.1fkm".format(meters / 1000.0)
+    else "현위치에서 ${meters.roundToInt()}m"
+
 /** 상단 앱바 제목을 바꾸는 출발/도착 선택 모드. 선택 중이 아니면 [None]. */
 enum class LocationSelectionTarget { None, Start, End }
 
@@ -42,8 +52,9 @@ data class CourseCreateState(
     /** [pickedLocation]이 속한 행정동 이름(`GET /api/v1/dong`) — 아직 못 받았거나 조회가 실패하면
      * null이고, 그때는 [selectedPlaceName]이 좌표를 그대로 보여준다. */
     val pickedPlaceName: String? = null,
-    // 거리는 아직 미구현 고정 문구다 — 좌표 사이 거리를 재 주는 API가 따로 없다.
-    val selectedPlaceDistance: String = "거리 표시 미구현",
+    /** 화면이 받아 둔 현재 위치 — [selectedPlaceDistance]를 재는 기준점이다. 권한이 없거나 위치가
+     * 꺼져 있으면 null이고, 그때는 거리를 안 보여준다. */
+    val currentLocation: LatLon? = null,
     val distanceOptions: List<String> = DistanceOptions,
     val selectedDistance: String = DefaultDistance,
     val isCustomDistanceSelected: Boolean = false,
@@ -67,6 +78,20 @@ data class CourseCreateState(
         get() = pickedPlaceName
             ?: pickedLocation?.let { "%.4f, %.4f".format(it.lat, it.lon) }
             ?: "위치를 선택하세요"
+
+    /**
+     * 현재 위치에서 고른 자리까지의 거리 — 선택 패널에서 동 이름 아래 줄에 쓴다. 현재 위치나 고른
+     * 자리가 없으면 null이라 그 줄이 아예 안 그려진다(빈 줄이 남지 않는다).
+     *
+     * **직선거리**다(`GeoMath`) — 실제로 달릴 경로 길이가 아니다. 길을 따라가는 거리는 서버에
+     * 물어야 하는데, 여기서 필요한 건 "고른 자리가 지금 얼마나 먼지" 감을 주는 것뿐이다.
+     */
+    val selectedPlaceDistance: String?
+        get() {
+            val from = currentLocation ?: return null
+            val to = pickedLocation ?: return null
+            return distanceLabel(GeoMath.distanceMeters(from, to))
+        }
 
     val topBarTitle: String
         get() = when (locationSelectionTarget) {
