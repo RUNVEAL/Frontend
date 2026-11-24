@@ -1,6 +1,7 @@
 package com.sloth.runveal.running
 
 import androidx.lifecycle.viewModelScope
+import com.sloth.runveal.analytics.RunvealAnalyticsLogger
 import com.sloth.runveal.recording.RecordingSavePolicy
 import com.sloth.runveal.recording.RecordingState as TrackRecordingState
 import com.sloth.runveal.recording.TrackRecorder
@@ -31,6 +32,14 @@ class RecordingViewModel : MviViewModel<RecordingIntent, RecordingState, Recordi
     initialState = initialRecordingState(),
 ) {
     init {
+        // 러닝 기록 화면 진입 — ViewModel이 만들어지는 이 시점이 곧 화면이 열린 시점이고, 들어온
+        // 길(자유 러닝/코스)도 여기서 알 수 있다(위 initialRecordingState가 홀더에서 꺼내 둔다).
+        //
+        // 네비게이션 호출부가 아니라 여기서 쏘는 이유: 기록 화면으로 오는 길이 넷이고
+        // (홈 줌인, 추천 코스 상세, 내 코스 상세, 내 코스 목록) 그중 일부는 다른 모듈에 있어서,
+        // 호출부마다 심으면 새 길이 생길 때 조용히 빠진다. 화면은 한 곳이니 여기가 빠뜨릴 수 없다.
+        RunvealAnalyticsLogger.logRunStart(hasCourse = currentState.selectedCoursePath != null)
+
         viewModelScope.launch {
             TrackRecorder.state.collect { recording ->
                 setState {

@@ -17,6 +17,8 @@ android {
 
 dependencies {
     implementation(project(":sharedLogic"))
+    // 러닝 기록 화면 진입 이벤트(run_start) — Firebase는 이 모듈이 아니라 core:analytics가 안다.
+    implementation(project(":androidApp:core:analytics"))
     implementation(project(":androidApp:core:designsystem"))
     implementation(project(":androidApp:core:map"))
     implementation(project(":androidApp:core:navigation"))
