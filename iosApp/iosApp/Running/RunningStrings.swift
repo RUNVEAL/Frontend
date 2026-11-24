@@ -35,6 +35,8 @@ enum RunningStrings {
     static let resultSaveImageButton = "이미지 저장하기"
     static let resultCloseAccessibilityLabel = "닫기"
     static let resultMapAccessibilityLabel = "이번 러닝 경로 지도"
+    /// 기록 상세·이미지 저장은 아직 없다 — Android도 같은 문구의 안내만 띄운다.
+    static let notReady = "아직 개발 중입니다"
 }
 
 /// 경과 시간·페이스 포맷 — 기록 화면과 결과 화면, 기록 탭이 같은 공식을 써야 한다
