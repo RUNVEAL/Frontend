@@ -17,7 +17,6 @@ enum CourseRecommendStrings {
     static let hintPickEnd = "지도를 탭해 도착지를 선택하세요"
     static let pickLocation = "위치를 선택하세요"
     /// 좌표→실제 주소/동 이름 변환은 서버·앱 모두에 아직 없다(API.md §1 — 제3자 지오코딩 API를 안 씀).
-    static let distanceNotImplemented = "거리 표시 미구현"
     static let myLocation = "내 위치"
     static let recommendAction = "경로 추천 받기"
     static let avoidVisitedPreferred = "안 가본 길 우선"

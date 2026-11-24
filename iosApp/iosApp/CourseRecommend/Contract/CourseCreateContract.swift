@@ -8,6 +8,9 @@ enum CourseCreateIntent: UiIntent {
     case confirmLocationSelection
     /// 출발/도착 선택 모드에서 지도를 탭했을 때 — 확정 전까지의 임시 좌표.
     case mapLocationPicked(LatLon)
+
+    /// 화면이 받아 둔 현재 위치 — 고른 자리까지의 거리를 재는 데 쓴다(못 받았으면 nil).
+    case currentLocationResolved(LatLon?)
     case openFilterSheet
     case closeFilterSheet
     case selectPresetDistance(String)
@@ -59,6 +62,9 @@ struct CourseCreateState: UiState {
     /// [pickedLocation]이 속한 행정동 이름(`GET /api/v1/dong`) — 아직 못 받았거나 조회가 실패하면
     /// nil이고, 그때는 [selectedPlaceName]이 좌표를 그대로 보여준다.
     var pickedPlaceName: String?
+    /// 화면이 받아 둔 현재 위치 — [selectedPlaceDistance]를 재는 기준점이다. 권한이 없거나 위치가
+    /// 꺼져 있으면 nil이고, 그때는 거리를 안 보여준다.
+    var currentLocation: LatLon?
     var selectedDistance = CourseCreateOptions.defaultDistance
     var isCustomDistanceSelected = false
     var customDistanceIndex = CourseCreateOptions.defaultCustomDistanceIndex
@@ -80,6 +86,23 @@ struct CourseCreateState: UiState {
         if let pickedPlaceName { return pickedPlaceName }
         guard let pickedLocation else { return CourseRecommendStrings.pickLocation }
         return String(format: "%.4f, %.4f", pickedLocation.lat, pickedLocation.lon)
+    }
+
+    /**
+     현재 위치에서 고른 자리까지의 거리 — 선택 패널에서 동 이름 아래 줄에 쓴다. 현재 위치나 고른
+     자리가 없으면 nil이라 그 줄이 아예 안 그려진다(빈 줄이 남지 않는다).
+
+     **직선거리**다(`GeoMath`) — 실제로 달릴 경로 길이가 아니다. 길을 따라가는 거리는 서버에
+     물어야 하는데, 여기서 필요한 건 "고른 자리가 지금 얼마나 먼지" 감을 주는 것뿐이다.
+     Android와 같은 계산·같은 문구를 쓴다.
+     */
+    var selectedPlaceDistance: String? {
+        guard let from = currentLocation, let to = pickedLocation else { return nil }
+        let meters = IosGeo.shared.distanceMeters(from: from, to: to)
+        if meters >= 1000 {
+            return String(format: "현위치에서 %.1fkm", meters / 1000)
+        }
+        return "현위치에서 \(Int(meters.rounded()))m"
     }
 
     var topBarTitle: String {

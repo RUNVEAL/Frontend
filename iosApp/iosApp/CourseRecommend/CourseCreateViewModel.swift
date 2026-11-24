@@ -56,6 +56,9 @@ final class CourseCreateViewModel: MviViewModel<CourseCreateIntent, CourseCreate
                 return next
             }
 
+        case .currentLocationResolved(let location):
+            setState { var s = $0; s.currentLocation = location; return s }
+
         case .mapLocationPicked(let location):
             // 옛 이름을 지우고 넣는다 — 안 지우면 새로 찍은 자리에 먼 동 이름이 잠깐 남는다.
             setState { state in
