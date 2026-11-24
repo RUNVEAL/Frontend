@@ -51,6 +51,9 @@ enum CourseCreateOptions {
 
     /// 거리를 아직 잴 수 없을 때 — 단위를 남겨 둬서 그 자리가 거리라는 건 보이게 한다(Android와 같다).
     static let distancePlaceholder = "-km"
+
+    /// 동 이름을 아직 못 받았을 때(Android와 같다).
+    static let placeNamePlaceholder = "-"
 }
 
 struct CourseCreateState: UiState {
@@ -63,7 +66,7 @@ struct CourseCreateState: UiState {
     var startLatLon: LatLon?
     var endLatLon: LatLon?
     /// [pickedLocation]이 속한 행정동 이름(`GET /api/v1/dong`) — 아직 못 받았거나 조회가 실패하면
-    /// nil이고, 그때는 [selectedPlaceName]이 좌표를 그대로 보여준다.
+    /// nil이고, 그때는 [selectedPlaceName]이 플레이스홀더를 보여준다.
     var pickedPlaceName: String?
     /// 화면이 받아 둔 현재 위치 — [selectedPlaceDistance]를 재는 기준점이다. 권한이 없거나 위치가
     /// 꺼져 있으면 nil이고, 그때는 거리를 안 보여준다.
@@ -81,14 +84,19 @@ struct CourseCreateState: UiState {
             : selectedDistance
     }
 
-    /// 탭한 자리의 행정동 이름([pickedPlaceName], 예: "중구 명동"). 조회 중이거나 실패했으면 좌표를
-    /// 그대로 보여준다 — 이름이 안 떠도 어디를 찍었는지는 알 수 있어야 한다.
+    /// 탭한 자리의 행정동 이름([pickedPlaceName], 예: "중구 명동").
+    ///
+    /// 조회 중이거나 실패했으면 [CourseCreateOptions.placeNamePlaceholder]를 둔다 — 예전에는 좌표를
+    /// 그대로 보여줬지만 "37.5665, 126.9780"은 읽는 사람에게 아무 뜻이 없어서 이름이 들어올
+    /// 자리라는 것만 알린다.
+    ///
+    /// 아직 아무 자리도 안 골랐을 때는 플레이스홀더가 아니라 **할 일을 알려주는 안내**를 쓴다.
     ///
     /// 확정하면 이 값이 그대로 출발지/도착지 라벨로 들어간다.
     var selectedPlaceName: String {
         if let pickedPlaceName { return pickedPlaceName }
-        guard let pickedLocation else { return CourseRecommendStrings.pickLocation }
-        return String(format: "%.4f, %.4f", pickedLocation.lat, pickedLocation.lon)
+        guard pickedLocation != nil else { return CourseRecommendStrings.pickLocation }
+        return CourseCreateOptions.placeNamePlaceholder
     }
 
     /**
