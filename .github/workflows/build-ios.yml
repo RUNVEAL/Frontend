@@ -1,7 +1,7 @@
 name: build-ios
 
 # QA 배포용 iOS 워크플로우 — **Firebase App Distribution까지만** 한다.
-# App Store/TestFlight 업로드는 release-ios.yml로 분리했다(실수로 스토어에 올라가지 않게).
+# App Store 제출용 IPA는 release-ios.yml이 만든다(업로드는 하지 않고 아티팩트로만 — 직접 올린다).
 #
 # 로컬에 Mac이 없어서 **이 워크플로우가 iOS의 유일한 컴파일러**다 — Swift 오류를 여기서 잡는다.
 # Android는 build-debug.yml(ubuntu)에서 따로 돌린다.
