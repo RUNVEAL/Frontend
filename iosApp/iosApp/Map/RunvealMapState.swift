@@ -44,6 +44,19 @@ final class RunvealMapState: ObservableObject {
 
     @Published private(set) var currentZoom: Double
 
+    /// 카메라가 **멈춘** 자리의 중심 좌표. 움직이는 동안에는 갱신하지 않는다 — 매 프레임 바뀌면
+    /// 이 값을 보고 서버를 부르는 쪽(홈의 지도 중심 행정동)이 요청을 쏟아낸다.
+    @Published private(set) var currentCenter: LatLon
+
+    /// 지금 지도 가운데 보이는 "메인" 행정동 코드 — 그 동 라벨만 크고 굵게 그린다.
+    /// nil이면 모든 동이 같은 크기다(아직 못 받았거나 서비스 지역 밖).
+    @Published var mainDongCode: String?
+
+    /// [moveTo]가 마지막으로 넘긴 목표 자리와 줌.
+    @Published private(set) var moveToCenter: LatLon?
+    @Published private(set) var moveToZoom: Double?
+    @Published private(set) var moveToRequestId: Int = 0
+
     /// 지도 위에 그릴 핀. 하위 화면(예: 출발/도착 선택)이 쓰고 지운다.
     @Published var pin: MapPin?
 
@@ -110,6 +123,7 @@ final class RunvealMapState: ObservableObject {
         self.initialCenter = initialCenter
         self.initialZoom = initialZoom
         self.currentZoom = initialZoom
+        self.currentCenter = initialCenter
     }
 
     /// 줌인(러닝 포커스) 상태인지 — 탭바·오버레이 전환 기준.
@@ -124,6 +138,24 @@ final class RunvealMapState: ObservableObject {
     }
 
     /// 지도 뷰가 카메라 이동이 멈출 때마다 알려준다.
+    /// 지도 뷰가 카메라 이동이 멈출 때마다 알려준다 — 중심이 실제로 달라졌을 때만 발행한다.
+    func updateCenter(_ center: LatLon) {
+        guard currentCenter.lat != center.lat || currentCenter.lon != center.lon else { return }
+        currentCenter = center
+    }
+
+    /**
+     지정한 자리로 카메라를 옮긴다. `focusOnBounds`와 달리 **줌을 그대로 두거나 직접 정한다** —
+     범위를 꽉 채우지 않아서 "그 동이 가운데 오되 줌아웃 상태 유지"가 된다(앱 시작 포커싱).
+
+     - Parameter zoom: nil이면 지금 줌을 유지한다.
+     */
+    func moveTo(center: LatLon, zoom: Double? = nil) {
+        moveToCenter = center
+        moveToZoom = zoom
+        moveToRequestId += 1
+    }
+
     func updateZoom(_ zoom: Double) {
         guard abs(zoom - currentZoom) > 0.0001 else { return }
         currentZoom = zoom

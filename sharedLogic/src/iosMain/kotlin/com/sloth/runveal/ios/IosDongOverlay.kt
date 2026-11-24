@@ -2,6 +2,7 @@ package com.sloth.runveal.ios
 
 import com.sloth.runveal.dong.DongBoundary
 import com.sloth.runveal.dong.DongBoundaryParser
+import com.sloth.runveal.dong.DongExploreRate
 import com.sloth.runveal.dong.DongPolygonPart
 import com.sloth.runveal.dong.Polylabel
 import com.sloth.runveal.dong.region.RegionHierarchy
@@ -144,6 +145,14 @@ class DongOverlayQuery internal constructor(
 
     /** 동 탐험률(%). 줌인 헤더의 "내 동네 N%" — 지도 빛 단계를 정하는 값 그대로다. */
     fun percentOf(admCd2: String): Int = percents[admCd2] ?: 0
+
+    /**
+     * 탐험률이 가장 높은 행정동 코드 — 홈이 앱 시작 포커스와 "내 동네" 꼬리표의 기준으로 쓴다.
+     * 비어 있으면 **기록이 아직 없다**는 뜻이다(0%인 동은 집계에 안 들어온다).
+     *
+     * Swift가 Kotlin `Map`을 직접 다루지 않게 여기서 감싼다([percentOf]와 같은 이유).
+     */
+    fun topDongCode(): String? = DongExploreRate.topDongCode(percents)
 
     /** [percentOf]의 분자 — 그 동에서 "가본 길" 길이(m). */
     fun walkedMetersOf(admCd2: String): Double = walkedLengths[admCd2] ?: 0.0

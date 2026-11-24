@@ -118,6 +118,7 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         /// 이미 반영한 one-shot 커맨드 번호 — 같은 요청을 두 번 처리하지 않게.
         private var appliedRecenterRequestId = 0
         private var appliedBoundsFocusRequestId = 0
+        private var appliedMoveToRequestId = 0
         private var pendingRecenter = false
         /// [pendingRecenter] 요청이 같이 맞춰야 할 줌 — nil이면 배율은 그대로 둔다.
         private var pendingRecenterZoom: Double?
@@ -174,6 +175,9 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
 
         func mapView(_ mapView: MLNMapView, regionDidChangeAnimated animated: Bool) {
             state.updateZoom(mapView.zoomLevel)
+            // 멈춘 자리의 중심 — 홈이 이 값으로 "지금 지도 가운데 보이는 행정동"을 묻는다.
+            let center = mapView.centerCoordinate
+            state.updateCenter(LatLon(lat: center.latitude, lon: center.longitude))
             clampToKoreaBoundsIfNeeded(mapView)
             if let zoom = pendingFollowZoom {
                 // 추적을 켜는 시점에 같이 주면 전환 애니메이션에 묻힌다 — 아래 한 번 옮기기와 같은 이유로
@@ -334,6 +338,18 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
             // 추적 중에 패널 높이가 바뀌면 카메라 여백만 다시 반영한다.
             if isFollowRequested, state.followBottomInset != appliedFollowBottomInset {
                 applyFollowBottomInset(state.followBottomInset, mapView: mapView)
+            }
+
+            if state.moveToRequestId != appliedMoveToRequestId {
+                appliedMoveToRequestId = state.moveToRequestId
+                if state.moveToRequestId > 0, let target = state.moveToCenter {
+                    // 줌을 안 주면 지금 배율을 유지한다 — 줌아웃 상태에서 자리만 옮기는 경우다.
+                    mapView.setCenter(
+                        target.coordinate,
+                        zoomLevel: state.moveToZoom ?? mapView.zoomLevel,
+                        animated: true,
+                    )
+                }
             }
 
             if state.boundsFocusRequestId != appliedBoundsFocusRequestId {

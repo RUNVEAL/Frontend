@@ -3,10 +3,12 @@ import SwiftUI
 
 enum TabHomeStrings {
     static let currentLocation = "현재 위치"
+    // 동 이름에 붙는 꼬리표 — 탐험률 최고 동이면 "내 동네", 지금 서 있는 동이면 "현위치".
+    static let tagMyDong = "내 동네"
+    static let tagCurrentLocation = "현위치"
     static let headline = "오늘도 새로운 길을\n밝혀볼까요?"
     static let toggleExplored = "탐험한 길"
     static let toggleUnexplored = "안 가본 길"
-    static let myNeighborhood = "내 동네"
     static let exploredSuffix = "탐험했어요"
     static let createCourse = "코스 만들기"
     static let myLocation = "내 위치"
@@ -38,15 +40,50 @@ struct HomeMapOverlayScreen: View {
     /// 대체 문구를 쓴다.
     @State private var currentDong: CurrentDong?
 
+    /// 지도 가운데 보이는 행정동 — 카메라가 멈출 때마다 다시 받는다. **줌인·줌아웃 두 패널이
+    /// 모두 이 값을 쓴다**(이름·탐험률·거리). 지도를 끌어 다른 동네를 둘러보는 게 목적이라,
+    /// 어느 줌에서든 화면에 보이는 곳의 이름이 맞다.
+    @State private var centerDong: CurrentDong?
+
+    /// 마지막으로 중심 동을 물어본 자리 — 여기서 [centerDongRefreshDistanceM]을 넘게 움직였을
+    /// 때만 다시 묻는다.
+    @State private var lastCenterQueried: LatLon?
+
     /// 스플래시가 미리 만들어 둔 오버레이 — 탐험률·거리를 여기서 꺼낸다.
     @ObservedObject private var overlayHolder = RunvealDongOverlayHolder.shared
+
+    /**
+     지도 중심 동을 다시 물어볼 최소 이동 거리(m). 줌아웃 화면에서 이 정도는 거의 같은 동이라,
+     넘지 않으면 묻지 않는다 — 멈출 때마다 묻게 두면 지도를 조금씩 미는 동안 요청이 쏟아진다.
+     Android와 같은 값이다.
+     */
+    private static let centerDongRefreshDistanceM: Double = 300
+
+    /// `.task(id:)`에 쓸 키 — `LatLon`은 Kotlin 타입이라 Equatable을 기대할 수 없어 문자열로 만든다.
+    private var centerKey: String {
+        "\(mapState.currentCenter.lat),\(mapState.currentCenter.lon)"
+    }
+
+    /// 꼬리표 기준 — 홈 요약 카드와 같은 함수를 써서 두 패널이 같은 동을 "내 동네"로 본다.
+    private var topExploredDongCode: String? {
+        overlayHolder.bundle?.query.topDongCode()
+    }
+
+    /// 동 이름 뒤(줌아웃)·앞(줌인)에 붙는 꼬리표.
+    private var dongTagLabel: String? {
+        guard let code = centerDong?.code else { return nil }
+        if code == topExploredDongCode { return TabHomeStrings.tagMyDong }
+        if code == currentDong?.code { return TabHomeStrings.tagCurrentLocation }
+        return nil
+    }
 
     var body: some View {
         Group {
             if mapState.isZoomedIn {
                 // TODO: 동 상세 진입은 아직 — Android도 `onDongClick = {}`으로 비워 둔 상태다.
                 ZoomedInMapOverlay(
-                    dongName: currentDong?.name ?? TabHomeStrings.currentLocation,
+                    dongName: centerDong?.name ?? TabHomeStrings.currentLocation,
+                    tagLabel: dongTagLabel,
                     ratePercent: ratePercent,
                     exploredKm: exploredKm,
                     totalKm: totalKm,
@@ -58,7 +95,7 @@ struct HomeMapOverlayScreen: View {
                     onMyLocationClick: { mapState.recenterToCurrentLocation() }
                 )
             } else {
-                HomeMapOverlay(locationName: currentDong?.name ?? TabHomeStrings.currentLocation)
+                HomeMapOverlay(locationName: centerDong?.name ?? TabHomeStrings.currentLocation)
             }
         }
         // retryToken이 바뀌면 다시 돈다 — 셸의 "다시 시도" 버튼이 그 값을 올린다.
@@ -76,6 +113,14 @@ struct HomeMapOverlayScreen: View {
             currentDong = result.dong
             onDongLoadFailedChange(result.loadFailed)
         }
+        // 카메라가 멈출 때마다 지도 가운데 동을 다시 묻는다 — `currentCenter`는 멈출 때만 바뀌므로
+        // (regionDidChangeAnimated) 끌고 있는 동안에는 요청이 나가지 않는다. 줌인·줌아웃 두 패널이
+        // 모두 이 값을 쓰므로 줌 상태를 가리지 않는다.
+        .task(id: centerKey) { await loadCenterDong(mapState.currentCenter) }
+        // 지도 라벨도 같은 동을 "메인"으로 크게 그린다 — 패널 이름과 지도에서 도드라지는 동이
+        // 달라지면 어디를 보고 있는지 헷갈린다.
+        .onChange(of: centerDong?.code) { _, code in mapState.mainDongCode = code }
+        .onDisappear { mapState.mainDongCode = nil }
         // "안 가본 길"을 고른 동안만 베이스 지도 도로를 강조한다 — 줌 아웃되거나 이 화면을 벗어나면
         // 원래대로.
         .onChange(of: unexploredRoadFocus) { _, focus in
@@ -87,20 +132,48 @@ struct HomeMapOverlayScreen: View {
 
     // 탐험률·거리는 지도 빛과 **같은 집계**에서 꺼낸다 — 다른 데서 계산하면 헤더는 8%인데 지도는
     // 안 빛나는 상태가 된다. 동 코드를 아직 못 받았거나 그 동이 집계에 없으면 0으로 둔다.
+    //
+    // 기준은 **지도 가운데 동**이다 — 이름은 가운데 동인데 퍼센트가 내가 선 동이면 둘이 어긋난다.
     private var ratePercent: Int {
-        guard let code = currentDong?.code else { return 0 }
+        guard let code = centerDong?.code else { return 0 }
         // Kotlin `Int`는 Swift에 `Int32`로 넘어온다.
         return Int(overlayHolder.bundle?.query.percentOf(admCd2: code) ?? 0)
     }
 
     private var exploredKm: Double {
-        guard let code = currentDong?.code else { return 0 }
+        guard let code = centerDong?.code else { return 0 }
         return (overlayHolder.bundle?.query.walkedMetersOf(admCd2: code) ?? 0) / 1000.0
     }
 
     private var totalKm: Double {
-        guard let code = currentDong?.code else { return 0 }
+        guard let code = centerDong?.code else { return 0 }
         return (overlayHolder.bundle?.query.totalMetersOf(admCd2: code) ?? 0) / 1000.0
+    }
+
+    /**
+     지도 가운데 동을 받아 온다.
+
+     **조금 움직인 건 무시한다** — 멈출 때마다 묻게 두면 지도를 조금씩 미는 동안 요청이 쏟아지는데,
+     줌아웃 화면에서 몇백 미터는 거의 같은 동이라 결과도 대개 똑같다.
+
+     서비스 지역 밖(바다·해외)이나 실패면 이름을 비운다 — 옛 이름을 그대로 두면 지도를 바다로
+     끌어도 엉뚱한 동네 이름이 남는다. 실패한 경우에는 "물어본 자리"를 되돌려 같은 자리에서 다시
+     시도할 수 있게 한다.
+     */
+    private func loadCenterDong(_ center: LatLon) async {
+        if let last = lastCenterQueried,
+           IosGeo.shared.distanceMeters(from: last, to: center) < Self.centerDongRefreshDistanceM {
+            return
+        }
+        lastCenterQueried = center
+        guard let dong = try? await IosMapCenterDong.shared.fetch(lat: center.lat, lon: center.lon) else {
+            lastCenterQueried = nil
+            centerDong = nil
+            return
+        }
+        // 그 사이 지도를 더 끌었으면 버린다 — 늦게 온 응답이 지금 보는 곳과 다른 동일 수 있다.
+        guard lastCenterQueried?.lat == center.lat, lastCenterQueried?.lon == center.lon else { return }
+        centerDong = dong
     }
 
     private var unexploredRoadFocus: Bool {
@@ -177,6 +250,8 @@ private struct CurrentLocationLabel: View {
 /// A3-4(줌 인) 오버레이. 지도/탭바는 제외, 요약 카드 + 하단 액션 줄만 담당.
 private struct ZoomedInMapOverlay: View {
     let dongName: String
+    /// 동 이름 앞에 붙는 꼬리표("내 동네" / "현위치"). nil이면 안 붙는다.
+    let tagLabel: String?
     let ratePercent: Int
     let exploredKm: Double
     let totalKm: Double
@@ -194,6 +269,7 @@ private struct ZoomedInMapOverlay: View {
             VStack(alignment: .leading, spacing: RunvealSpacing.space16) {
                 ExploreSummaryCard(
                     dongName: dongName,
+                    tagLabel: tagLabel,
                     ratePercent: ratePercent,
                     exploredKm: exploredKm,
                     totalKm: totalKm,
@@ -263,6 +339,7 @@ private struct MapActionButton: View {
 /// 상단 고정 헤더 카드. 아래 모서리만 둥글게(20 — 매칭되는 radius 토큰 없어 하드코딩) 상태 바에 붙는다.
 private struct ExploreSummaryCard: View {
     let dongName: String
+    let tagLabel: String?
     let ratePercent: Int
     let exploredKm: Double
     let totalKm: Double
@@ -280,9 +357,11 @@ private struct ExploreSummaryCard: View {
         VStack(alignment: .leading, spacing: RunvealSpacing.space8) {
             Button(action: onClick) {
                 HStack(spacing: RunvealSpacing.space4) {
-                    Text(TabHomeStrings.myNeighborhood)
-                        .runvealTextStyle(RunvealTheme.typography.bodyLRegular)
-                        .foregroundStyle(colors.text.secondary)
+                    if let tagLabel {
+                        Text(tagLabel)
+                            .runvealTextStyle(RunvealTheme.typography.bodyLRegular)
+                            .foregroundStyle(colors.text.secondary)
+                    }
                     Text(dongName)
                         .runvealTextStyle(RunvealTheme.typography.heading3)
                         .foregroundStyle(colors.text.primary)
