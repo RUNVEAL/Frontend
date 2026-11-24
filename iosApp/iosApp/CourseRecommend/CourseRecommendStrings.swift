@@ -34,8 +34,7 @@ enum CourseRecommendStrings {
     // 추천 결과(B1)
     static let resultTitle = "추천 코스"
     static let resultEmptyAction = "조건 다시 설정하기"
-    static let resultEmptyTitle = "조건에 맞는 코스를
-찾지 못했어요"
+    static let resultEmptyTitle = "조건에 맞는 코스를\n찾지 못했어요"
     // 결과 없음 안내 줄 — 각 줄이 그 줄이 말하는 것을 그대로 해 주는 버튼이다(시안 B1-1).
     static let resultEmptyHintLoopTitle = "순환 코스로 찾기"
     static let resultEmptyHintLoopDescription = "도착지를 비우고 출발지로 돌아와요"
