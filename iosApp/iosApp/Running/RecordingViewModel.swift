@@ -18,6 +18,13 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
         initial.selectedCourseIsLoop = selected?.isLoop ?? false
         super.init(initialState: initial)
 
+        // 러닝 기록 화면 진입 — 뷰모델이 만들어지는 이 시점이 곧 화면이 열린 시점이고, 들어온
+        // 길(자유 러닝/코스)도 위에서 홀더에서 꺼낸 값으로 알 수 있다.
+        //
+        // 네비게이션 호출부가 아니라 여기서 쏘는 이유는 Android와 같다 — 기록 화면으로 오는 길이
+        // 여럿이라 호출부마다 심으면 새 길이 생길 때 조용히 빠진다.
+        RunvealAnalyticsLogger.logRunStart(hasCourse: initial.selectedCoursePath != nil)
+
         observeRecording()
         observeNewRoad()
         startTicker()
