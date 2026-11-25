@@ -106,6 +106,8 @@ final class CourseDetailViewModel: MviViewModel<CourseDetailIntent, CourseDetail
         }.value
         guard let courseId else { return }
 
+        // 위의 `!ready.isSaved` 가드 때문에 중복 탭으로는 두 번 오지 않는다.
+        RunvealAnalyticsLogger.logCourseSave()
         await prerenderThumbnail(courseId: courseId, path: ready.path, isLoop: ready.isLoop)
         setState { state in
             guard case .ready(var next) = state else { return state }

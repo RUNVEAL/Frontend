@@ -264,6 +264,7 @@ struct CourseScreen: View {
     /// 코스 상세의 "이 코스로 러닝 시작"과 같은 패턴 — 기록 화면이 점선 안내선과 출발·도착 핀을
     /// 그리는 데 쓴다. 순환 코스는 도착 핀을 생략해야 해서 isLoop도 같이 넘긴다.
     private func start(course: SavedCourseItem) {
+        RunvealAnalyticsLogger.logCourseStart(fromRecommend: false)
         SelectedCourseHolder.shared.publish(path: course.path, isLoop: course.isLoop)
         // 탭 화면에서는 기록 화면으로 직접 못 가므로, 홈 셸이 보는 홀더에 담아 두고 탭을 홈으로
         // 돌린 뒤 기록 흐름으로 들어간다 — Android는 탭 NavHost가 같은 그래프라 바로 navigate한다.

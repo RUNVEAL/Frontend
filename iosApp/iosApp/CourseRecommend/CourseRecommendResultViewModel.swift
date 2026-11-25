@@ -75,8 +75,10 @@ final class CourseRecommendResultViewModel: MviViewModel<
                 distanceMeters: Int32(settings.distanceMeters),
                 preferUnexplored: settings.avoidVisitedPreferred
             )
+            RunvealAnalyticsLogger.logCourseRecommend(resultCount: response.routes.count)
             result = .success(response: response, settings: settings)
         } catch {
+            RunvealAnalyticsLogger.logCourseRecommend(resultCount: nil)
             result = .failure(
                 message: error.localizedDescription.isEmpty
                     ? CourseRecommendStrings.recommendFailed

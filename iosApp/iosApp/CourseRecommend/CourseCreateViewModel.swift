@@ -166,8 +166,13 @@ final class CourseCreateViewModel: MviViewModel<CourseCreateIntent, CourseCreate
                 distanceMeters: Int32(settings.distanceMeters),
                 preferUnexplored: settings.avoidVisitedPreferred
             )
+            // 결과 화면의 "조건 바꿔 다시 받기"도 같은 이벤트를 쏜다
+            // (CourseRecommendResultViewModel) — 둘이 함께 추천 성공률의 분모다.
+            RunvealAnalyticsLogger.logCourseRecommend(resultCount: response.routes.count)
             CourseRecommendResultHolder.shared.publish(.success(response: response, settings: settings))
         } catch {
+            // nil은 "요청 자체가 실패" — 결과 0개와 구분해서 보낸다.
+            RunvealAnalyticsLogger.logCourseRecommend(resultCount: nil)
             CourseRecommendResultHolder.shared.publish(
                 .failure(
                     message: error.localizedDescription.isEmpty

@@ -117,6 +117,7 @@ struct CourseDetailScreen: View {
                                 primaryLabel: CourseRecommendStrings.startRunningAction,
                                 onPrimaryClick: {
                                     // 코스 경로를 기록 화면에 넘기기만 한다.
+                                    RunvealAnalyticsLogger.logCourseStart(fromRecommend: true)
                                     SelectedCourseHolder.shared.publish(path: ready.path, isLoop: ready.isLoop)
                                     onStartRunning()
                                 }

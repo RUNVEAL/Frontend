@@ -21,6 +21,9 @@ struct iOSApp: App {
         if Bundle.main.url(forResource: "GoogleService-Info", withExtension: "plist") != nil {
             FirebaseApp.configure()
             enableAnalyticsOnReleaseBuildsOnly()
+            // 러닝 종료(run_complete)는 화면이 아니라 홀더를 구독해서 쏜다 — 이유는
+            // `startWatchingRunCompletions` 주석에 있다. Firebase 초기화 뒤에 걸어야 한다.
+            RunvealAnalyticsLogger.startWatchingRunCompletions()
         } else {
             print("[Firebase] GoogleService-Info.plist가 번들에 없어 초기화를 건너뛴다 — 크래시 리포트가 수집되지 않는다.")
         }
