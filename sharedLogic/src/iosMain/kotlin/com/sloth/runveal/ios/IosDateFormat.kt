@@ -3,6 +3,7 @@ package com.sloth.runveal.ios
 import platform.Foundation.NSCalendar
 import platform.Foundation.NSCalendarUnitDay
 import platform.Foundation.NSCalendarUnitHour
+import platform.Foundation.NSCalendarUnitMinute
 import platform.Foundation.NSCalendarUnitMonth
 import platform.Foundation.NSCalendarUnitWeekday
 import platform.Foundation.NSCalendarUnitYear
@@ -22,11 +23,16 @@ internal object IosDateFormat {
 
     private val calendar: NSCalendar get() = NSCalendar.currentCalendar
 
+    /**
+     * 쓰는 항목을 **빠짐없이** 넣어야 한다 — 요청하지 않은 항목은 `NSDateComponents`가
+     * `NSDateComponentUndefined`(= Long.MAX_VALUE)를 돌려줘서, 기록 상세의 분이
+     * "10:9223372036854775807"로 찍히던 적이 있다.
+     */
     private fun components(epochMs: Long): NSDateComponents {
         val date = NSDate.dateWithTimeIntervalSince1970(epochMs / 1000.0)
         return calendar.components(
             NSCalendarUnitYear or NSCalendarUnitMonth or NSCalendarUnitDay or
-                NSCalendarUnitHour or NSCalendarUnitWeekday,
+                NSCalendarUnitHour or NSCalendarUnitMinute or NSCalendarUnitWeekday,
             fromDate = date,
         )
     }
@@ -131,7 +137,7 @@ internal object IosDateFormat {
         return "$minutes'${pad2(seconds.toLong())}″"
     }
 
-    /** "2026.11.20 12:34" — 기록 상세 상단. */
+    /** "2026.11.20 12:34" — 기록 상세 상단. Android `yyyy.MM.dd HH:mm`과 같다. */
     fun dateTimeLabel(epochMs: Long): String {
         val parts = components(epochMs)
         return "${parts.year}." + pad2(parts.month) + "." + pad2(parts.day) +
