@@ -16,6 +16,14 @@ data class DongResponse(
     val gu: String,
     /** 사람이 읽는 전체 이름 — 예: "서울특별시 종로구 사직동". 화면에는 [shortName]을 쓴다. */
     val name: String,
+    /**
+     * 좌표 근처의 도로명 — 예: "한보라2로". **이름 있는 도로가 없으면 null이다**(작은 골목·샛길).
+     *
+     * 화면에는 [roadOrDongName]을 쓴다 — null을 그대로 두면 빈칸이 된다. 기본값을 둔 이유는 이
+     * 필드가 나중에 추가됐기 때문이다: 서버가 안 내려주던 때의 응답(또는 테스트 픽스처)도 그대로
+     * 읽혀야 한다.
+     */
+    val road: String? = null,
 ) {
     /**
      * 시도를 뺀 이름 — 예: "서울특별시 종로구 사직동" → "종로구 사직동".
@@ -41,6 +49,22 @@ data class DongResponse(
      */
     val dongOnly: String
         get() = name.split(" ").lastOrNull { it.isNotBlank() } ?: name
+
+    /**
+     * 고른 자리를 가리키는 이름 — 도로명([road])이 있으면 그걸, 없으면 [shortName]을 쓴다.
+     *
+     * 코스 만들기의 출발지·도착지 선택이 이 값을 보여준다. 길 위의 한 점을 고르는 일이라 "한보라2로"
+     * 처럼 도로명이 가장 정확한데, 이름 있는 도로가 없는 골목이면 서버가 [road]를 비워 보낸다 —
+     * 그때 빈칸을 두면 어디를 고른 건지 아예 알 수 없으니 동 이름으로 메운다.
+     *
+     * [dongOnly]가 아니라 [shortName]으로 메운다 — 출발지와 도착지가 서로 다른 구일 수 있어서
+     * 동 이름만으로는 어느 쪽을 고른 건지 가려지지 않는다.
+     *
+     * 빈 문자열도 없는 것으로 본다 — 서버가 도로명을 못 찾았을 때 null 대신 ""를 줄 여지가 있고,
+     * 그 경우까지 빈칸으로 새면 같은 증상이 된다.
+     */
+    val roadOrDongName: String
+        get() = road?.takeIf { it.isNotBlank() } ?: shortName
 }
 
 /** `GET /api/v1/dong` 결과. 실패를 예외로 던지지 않고 타입으로 나눠, 호출부가 "서비스 지역 밖"과

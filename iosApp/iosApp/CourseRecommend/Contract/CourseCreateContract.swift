@@ -84,7 +84,7 @@ struct CourseCreateState: UiState {
             : selectedDistance
     }
 
-    /// 탭한 자리의 행정동 이름([pickedPlaceName], 예: "중구 명동").
+    /// 탭한 자리의 이름([pickedPlaceName]) — 도로명이 있으면 "한보라2로", 없으면 "중구 명동".
     ///
     /// 조회 중이거나 실패했으면 [CourseCreateOptions.placeNamePlaceholder]를 둔다 — 예전에는 좌표를
     /// 그대로 보여줬지만 "37.5665, 126.9780"은 읽는 사람에게 아무 뜻이 없어서 이름이 들어올
