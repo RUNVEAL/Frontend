@@ -12,8 +12,15 @@ enum TabHomeStrings {
     static let exploredSuffix = "탐험했어요"
     static let createCourse = "코스 만들기"
     static let myLocation = "내 위치"
+    /// "누적 35.1km" / "전체 128.4km" — **소수 한 자리까지만**. 미터 단위 원자료를 그대로 쓰면
+    /// "3.4821…km"가 된다(Android `appendDistanceLine`과 같은 규칙).
     static func cumulative(_ exploredKm: Double, _ totalKm: Double) -> String {
-        "누적 \(exploredKm)km\n전체 \(totalKm)km"
+        "누적 \(kilometerLabel(exploredKm))\n전체 \(kilometerLabel(totalKm))"
+    }
+
+    /// 홈에서 쓰는 거리 표기 — 값이 얼마든 소수 한 자리로 끊는다.
+    static func kilometerLabel(_ km: Double) -> String {
+        String(format: "%.1fkm", km)
     }
 }
 
