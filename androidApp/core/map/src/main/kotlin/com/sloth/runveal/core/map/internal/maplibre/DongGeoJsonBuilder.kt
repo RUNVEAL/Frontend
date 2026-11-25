@@ -28,6 +28,10 @@ internal object DongGeoJsonBuilder {
          * GeoJSON을 따로 한 번 더 파싱하면 전국 데이터를 두 번 읽게 되고, 전처리(ring 방향 정규화)가
          * 어긋날 여지도 생긴다. */
         val polygonPartsByAdmCd2: Map<String, List<DongPolygonPart>>,
+        /** 동 코드 -> 행정동 이름("부성2동"). 지도 라벨에 쓰는 것과 **같은 이름**을 홈 요약 카드도
+         * 쓸 수 있게 밖으로 돌려준다 — 좌표로 `/api/v1/dong`을 또 부르지 않아도 되고, 지도에 적힌
+         * 이름과 카드 이름이 어긋날 일도 없다. */
+        val nameByAdmCd2: Map<String, String>,
     )
 
     fun build(boundaries: List<DongBoundary>, rawBoundaryGeoJson: String, percents: Map<String, Int>): Result {
@@ -40,6 +44,7 @@ internal object DongGeoJsonBuilder {
             lineGeoJson = buildLineGeoJson(partsByAdmCd2, percents),
             labelGeoJson = buildLabelGeoJson(partsByAdmCd2, nameByAdmCd2, percents),
             polygonPartsByAdmCd2 = partsByAdmCd2,
+            nameByAdmCd2 = nameByAdmCd2,
         )
     }
 
