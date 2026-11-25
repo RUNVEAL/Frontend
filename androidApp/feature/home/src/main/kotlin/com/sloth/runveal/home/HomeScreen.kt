@@ -81,6 +81,7 @@ import com.sloth.runveal.map.snapshot.SnapshotRequest
 import com.sloth.runveal.map.snapshot.SnapshotVariant
 import com.sloth.runveal.map.snapshot.center
 import com.sloth.runveal.navigation.RunVealRoute
+import com.sloth.runveal.navigation.BackStackDebugLog
 import com.sloth.runveal.navigation.rememberRunVealNavigator
 import com.sloth.runveal.network.dong.CurrentDongHolder
 import com.sloth.runveal.permission.LocationPermissionState
@@ -126,6 +127,9 @@ private val HOME_PANEL_SIDE_MARGIN = 10.dp
 @Composable
 internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) {
     val tabNavigator = rememberRunVealNavigator()
+
+    // TEMP DEBUG — 뒤로가기 증상 진단용. 원인을 확인하면 이 줄과 BackStackDebugLog.kt를 지운다.
+    BackStackDebugLog(label = "탭  ", navController = tabNavigator.navController)
     val mapState = rememberMapState()
     val locationPermissionState = rememberLocationPermissionState()
     // 권한(앱)과 위치 서비스(기기)는 서로 다른 상태라 따로 본다 — 둘 중 하나만 꺼져 있어도 위치를 못 받는다.
