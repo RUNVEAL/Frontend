@@ -12,8 +12,10 @@ on:
 
   # dev는 Android용 통합 브랜치다. iOS 작업은 dev-ios에서 하고 테스트가 끝나면 dev로 머지한다 —
   # iOS 컴파일 검사는 .github/workflows/build-ios.yml이 dev-ios 푸시·PR에서 돌린다.
+  # Android 작업은 dev-android에서 하고 검증 뒤 dev로 머지한다 — 양쪽 다 걸어서, 작업 중에도
+  # 머지된 뒤에도 빌드가 깨진 걸 바로 본다(ubuntu 러너라 macOS와 달리 비용 부담이 없다).
   push:
-    branches: [ dev ]
+    branches: [ dev-android, dev ]
 
 concurrency:
   group: build-debug-${{ github.ref }}

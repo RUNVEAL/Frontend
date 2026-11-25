@@ -36,10 +36,10 @@ on:
         default: compile
 
   # 로컬에 Mac이 없어 이 워크플로우가 iOS의 유일한 컴파일러이므로, dev-ios에 커밋하면
-  # Swift 오류를 바로 보도록 push에 걸어둔다. dev(Android)에는 걸지 않는다.
+  # Swift 오류를 바로 보도록 push에 걸어둔다.
   #
-  # PR에는 걸지 않는다 — macOS 러너는 분당 10배로 과금돼서, Android PR까지 iOS 빌드를
-  # 끌고 가면 비용만 든다. iOS는 dev-ios push에서 확인하고 dev로 머지한다.
+  # dev(통합)와 dev-android에는 걸지 않는다 — macOS 러너는 분당 10배로 과금되고, dev로 올라오는
+  # iOS 커밋은 이미 dev-ios에서 이 검사를 통과한 것이라 다시 돌릴 이유가 없다. PR에도 걸지 않는다.
   #
   # 로컬에 Mac이 없어 이 워크플로우가 iOS의 유일한 컴파일러다 — dev-ios에 직접 커밋하면
   # 컴파일부터 Firebase 배포까지 한 번에 돌려서 아이폰에서 바로 확인한다.
