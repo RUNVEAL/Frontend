@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.sloth.runveal.analytics.RunvealAnalyticsLogger
 import com.sloth.runveal.core.map.LocalMapState
 import com.sloth.runveal.core.map.MapDotMarkers
 import com.sloth.runveal.core.map.MapLayerSpec
@@ -182,6 +183,7 @@ fun CourseDetailScreen(
                                     primaryLabel = stringResource(R.string.course_detail_start_running_action),
                                     // 코스 경로를 기록 화면에 넘기기만 한다 — 가이드/오버레이 적용은 보류.
                                     onPrimaryClick = {
+                                        RunvealAnalyticsLogger.logCourseStart(fromRecommend = true)
                                         SelectedCourseHolder.publish(current.path, current.isLoop)
                                         onStartRunning()
                                     },

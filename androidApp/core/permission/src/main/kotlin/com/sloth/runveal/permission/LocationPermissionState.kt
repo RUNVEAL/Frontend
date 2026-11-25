@@ -23,6 +23,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import com.sloth.runveal.analytics.RunvealAnalyticsLogger
 
 private val LOCATION_PERMISSIONS = arrayOf(
     Manifest.permission.ACCESS_FINE_LOCATION,
@@ -66,6 +67,9 @@ fun rememberLocationPermissionState(): LocationPermissionState {
     var permanentlyDenied by remember { mutableStateOf(context.isPermanentlyDenied(activity, granted)) }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         granted = result.values.any { it }
+        // 여기는 **다이얼로그에 답한 순간**만 지난다 — 아래 ON_RESUME 재확인(설정 앱에서 바꾸고
+        // 돌아온 경우)에는 심지 않는다. 첫 실행 이탈 지점을 보려는 값이라 "물었을 때의 답"만 센다.
+        RunvealAnalyticsLogger.logLocationPermission(granted)
         permanentlyDenied = context.isPermanentlyDenied(activity, granted)
     }
 

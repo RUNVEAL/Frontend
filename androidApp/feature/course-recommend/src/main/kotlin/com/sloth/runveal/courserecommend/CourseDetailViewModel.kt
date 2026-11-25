@@ -1,6 +1,7 @@
 package com.sloth.runveal.courserecommend
 
 import android.util.Log
+import com.sloth.runveal.analytics.RunvealAnalyticsLogger
 import com.sloth.runveal.auth.AndroidAppContextHolder
 import com.sloth.runveal.core.map.CourseSnapshotRenderer
 import com.sloth.runveal.courserecommend.contract.CourseDetailIntent
@@ -189,6 +190,8 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
             milestones = json.encodeToString(ListSerializer(MilestoneDto.serializer()), route.milestones),
         )
         prerenderThumbnail(courseId, ready.path, isLoop = route.type == "LOOP")
+        // 위의 `if (ready.isSaved) return` 때문에 중복 탭으로는 두 번 오지 않는다.
+        RunvealAnalyticsLogger.logCourseSave()
         setState { if (this is CourseDetailState.Ready) copy(isSaved = true) else this }
     }
 

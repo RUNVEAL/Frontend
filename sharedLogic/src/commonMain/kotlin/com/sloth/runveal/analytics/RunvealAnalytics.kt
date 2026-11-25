@@ -32,4 +32,63 @@ object RunvealAnalytics {
      * 순환 여부만 넘기므로 기록 화면에서는 구분할 방법이 없다.
      */
     const val SOURCE_COURSE: String = "course"
+
+    /**
+     * 러닝을 끝내고 **기록이 저장됐다**. 저장 기준(100m·1분, `RecordingSavePolicy`)에 못 미쳐 버려진
+     * 러닝은 오지 않는다 — [EVENT_RUN_START] 대비로 완주율을 보려면 "기록이 남은 러닝"이 분모여야
+     * 한다. Health Connect로 들여온 기록도 오지 않는다(앱에서 달린 게 아니다).
+     */
+    const val EVENT_RUN_COMPLETE: String = "run_complete"
+
+    /** 달린 거리(m, 정수). 킬로미터 대신 미터로 보낸다 — GA4에서 합·평균을 낼 때 단위가 섞이지 않는다. */
+    const val PARAM_DISTANCE_M: String = "distance_m"
+
+    /** 걸린 시간(초, 정수). */
+    const val PARAM_DURATION_SEC: String = "duration_sec"
+
+    /** 이번에 처음 간 길의 길이(m, 정수) — 결과 화면의 "새로 탐험한 길"과 같은 값이다. */
+    const val PARAM_NEW_ROAD_M: String = "new_road_m"
+
+    /** 경로 추천을 받았다(설정 화면의 "경로 추천 받기", 결과 화면의 조건 바꿔 다시 받기 둘 다). */
+    const val EVENT_COURSE_RECOMMEND: String = "course_recommend"
+
+    /** 받아 온 코스 수. 0이면 조건에 맞는 코스가 없었다는 뜻이다([PARAM_STATUS]와 같이 봐야 한다). */
+    const val PARAM_RESULT_COUNT: String = "result_count"
+
+    /**
+     * 추천 요청이 됐는지([STATUS_OK]) 실패했는지([STATUS_ERROR]).
+     *
+     * [PARAM_RESULT_COUNT]만으로는 "서버가 죽어서 0"과 "조건이 너무 좁아서 0"이 같아 보인다 —
+     * 추천 성공률을 보려면 둘을 갈라야 한다(고쳐야 할 곳이 서버인지 추천 조건인지가 다르다).
+     */
+    const val PARAM_STATUS: String = "status"
+    const val STATUS_OK: String = "ok"
+    const val STATUS_ERROR: String = "error"
+
+    /**
+     * "이 코스로 러닝 시작"을 눌렀다 — [EVENT_RUN_START]`(source=course)`와 **다른 지점**이다.
+     * 이건 버튼을 누른 순간이고, 그쪽은 기록 화면이 실제로 열린 순간이다. 둘의 차이가 위치 권한
+     * 시트에서 되돌아간 사람 수다.
+     */
+    const val EVENT_COURSE_START: String = "course_start"
+
+    /** 추천받은 코스에서 시작([PARAM_SOURCE]) — 추천 실사용률의 분자다. */
+    const val SOURCE_RECOMMEND: String = "recommend"
+
+    /** 저장해 둔 "내 코스"에서 시작([PARAM_SOURCE]). */
+    const val SOURCE_SAVED: String = "saved"
+
+    /** 추천 코스를 저장했다. 이미 저장한 코스를 다시 눌러도(중복 탭) 한 번만 온다. */
+    const val EVENT_COURSE_SAVE: String = "course_save"
+
+    /**
+     * 위치 권한 **시스템 다이얼로그에 답했다**([PARAM_RESULT]). 설정 앱에서 바꾸고 돌아온 경우는
+     * 오지 않는다 — 첫 실행 이탈 지점을 보려는 이벤트라 "물었을 때 뭐라 답했는지"만 센다.
+     */
+    const val EVENT_LOCATION_PERMISSION: String = "location_permission"
+
+    /** 권한 응답 — [PERMISSION_GRANTED]/[PERMISSION_DENIED]. */
+    const val PARAM_RESULT: String = "result"
+    const val PERMISSION_GRANTED: String = "granted"
+    const val PERMISSION_DENIED: String = "denied"
 }
