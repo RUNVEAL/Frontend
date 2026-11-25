@@ -3,7 +3,6 @@ package com.sloth.runveal.core.map.internal.maplibre
 import com.sloth.runveal.map.MapConfig
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
-import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.layers.SymbolLayer
 
@@ -23,9 +22,6 @@ internal object BaseStylePoiLabels {
     /** 동 라벨(11)보다 작게 — 기준점이지 주인공이 아니다. */
     private const val LABEL_SIZE_SP = 10f
 
-    /** 글자가 아이콘 자리(점) 아래에 붙게. 단위는 em이라 글자 크기에 비례한다. */
-    private val LABEL_OFFSET_EM = arrayOf(0f, 0.8f)
-
     private const val LABEL_HALO_WIDTH_DP = 1.2f
 
     private val LABEL_FONT = arrayOf("Noto Sans Regular")
@@ -40,8 +36,7 @@ internal object BaseStylePoiLabels {
             PropertyFactory.textColor(colors.poiLabel),
             PropertyFactory.textHaloColor(colors.poiLabelHalo),
             PropertyFactory.textHaloWidth(LABEL_HALO_WIDTH_DP),
-            PropertyFactory.textAnchor(Property.TEXT_ANCHOR_TOP),
-            PropertyFactory.textOffset(LABEL_OFFSET_EM),
+            // 아이콘은 그리지 않으므로 글자를 그 자리에 중앙 정렬한다 — 오프셋을 줄 기준점이 없다.
             // 겹치면 지운다(기본값) — 글자가 서로 포개지면 둘 다 못 읽는다.
             PropertyFactory.textAllowOverlap(false),
         )
