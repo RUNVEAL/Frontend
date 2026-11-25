@@ -103,6 +103,8 @@ class DongOverlayQuery internal constructor(
     private val percents: Map<String, Int>,
     private val walkedLengths: Map<String, Double>,
     private val totalLengths: Map<String, Double>,
+    /** 코드 -> 행정동 이름("부성2동"). 지도 라벨에 쓰는 것과 같은 이름이다 — [nameOf] 참고. */
+    private val names: Map<String, String>,
 ) {
 
     /**
@@ -171,6 +173,14 @@ class DongOverlayQuery internal constructor(
     /** [percentOf]의 분모 — 그 동 전체 도로 길이(m). */
     fun totalMetersOf(admCd2: String): Double = totalLengths[admCd2] ?: 0.0
 
+    /**
+     * 행정동 이름("부성2동") — 지도 라벨이 쓰는 이름 그대로다. 경계를 못 받은 동이면 null.
+     *
+     * 요약 카드가 **코드만 아는 동**(탐험률이 가장 높은 동)의 이름을 꺼낼 때 쓴다. 좌표로
+     * `/api/v1/dong`을 다시 묻지 않아도 되고, 지도에 적힌 이름과 카드 이름이 어긋나지도 않는다.
+     */
+    fun nameOf(admCd2: String): String? = names[admCd2]
+
     private class BoundsBox(
         val minLat: Double,
         val minLon: Double,
@@ -199,7 +209,7 @@ class DongOverlayQuery internal constructor(
     companion object {
         /** 동 경계를 못 받았을 때 — 무엇을 물어도 비어 있다고 답한다. */
         fun empty(): DongOverlayQuery =
-            DongOverlayQuery(emptyMap(), emptyMap(), emptyMap(), emptyMap(), emptyMap())
+            DongOverlayQuery(emptyMap(), emptyMap(), emptyMap(), emptyMap(), emptyMap(), emptyMap())
     }
 }
 
@@ -273,6 +283,7 @@ object IosDongOverlayBuilder {
                 percents = dongPercents,
                 walkedLengths = walkedLengthsByDong,
                 totalLengths = totalLengthsByDong,
+                names = dongNames,
             ),
             boundarySourceKey = boundarySourceKey,
         )

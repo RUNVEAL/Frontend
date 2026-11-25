@@ -78,14 +78,32 @@ struct HomeMapOverlayScreen: View {
         overlayHolder.bundle?.query.topDongCode()
     }
 
-    /// 셸로 올릴 요약 — 지도 가운데 동을 아직 못 받았으면 nil이라 카드가 대체 문구를 쓴다.
+    /**
+     셸의 하단 요약 카드가 쓸 값 — **지도를 움직여도 바뀌지 않는다.**
+
+     지도 가운데 동을 따라가게 두면 다른 동네를 둘러보는 동안 "내 동네" 카드가 그 동네 카드로
+     바뀐다. 어디를 보고 있는지는 좌측 상단 위치 라벨이 알려주므로 카드는 **내 기준**에 머문다 —
+     기록이 있으면 탐험률이 가장 높은 동("내 동네"), 없으면 지금 서 있는 동("현위치"). 둘 다
+     없으면 nil이라 카드가 대체 문구를 쓴다(Android `HomePanelDong`과 같은 기준).
+     */
     private var summary: DongSummary? {
-        guard let dong = centerDong else { return nil }
+        let query = overlayHolder.bundle?.query
+        // 이름까지 있어야 쓴다 — 이름을 못 찾으면 코드와 다른 동을 가리키게 된다.
+        if let query, let topCode = query.topDongCode(), let name = query.nameOf(admCd2: topCode) {
+            return DongSummary(
+                dongName: name,
+                dongCode: topCode,
+                // Kotlin `Int`는 Swift에 `Int32`로 넘어온다.
+                ratePercent: Int(query.percentOf(admCd2: topCode)),
+                tagLabel: TabHomeStrings.tagMyDong
+            )
+        }
+        guard let dong = currentDong else { return nil }
         return DongSummary(
             dongName: dong.name,
             dongCode: dong.code,
-            ratePercent: ratePercent,
-            tagLabel: dongTagLabel
+            ratePercent: Int(query?.percentOf(admCd2: dong.code) ?? 0),
+            tagLabel: TabHomeStrings.tagCurrentLocation
         )
     }
 
@@ -141,12 +159,13 @@ struct HomeMapOverlayScreen: View {
         // 달라지면 어디를 보고 있는지 헷갈린다.
         .onChange(of: centerDong?.code) { _, code in
             mapState.mainDongCode = code
-            onSummaryChange(summary)
         }
-        // 꼬리표 기준이 되는 값들도 바뀌면 다시 올린다 — 현재 위치 동은 늦게 오고, 탐험률 집계는
-        // 러닝이 끝날 때 갱신된다.
-        .onChange(of: currentDong?.code) { _, _ in onSummaryChange(summary) }
-        .onChange(of: overlayHolder.bundle?.boundarySourceKey) { _, _ in onSummaryChange(summary) }
+        // 카드 값은 **계산된 값 자체**를 기준으로 올린다 — 현재 위치 동이 늦게 오든 탐험률 집계가
+        // 러닝 끝에 갱신되든 한 군데서 잡히고, 클로저가 옛 상태를 읽어 한 박자 늦게 올리는 일도
+        // 없다. `initial: true`로 화면에 들어올 때 한 번 올린다 — 스플래시가 오버레이를 미리
+        // 만들어 둬서 홈에 들어온 뒤로 아무것도 안 바뀌는 경우가 흔한데, 그때 안 올리면 카드가
+        // 빈 채로 남는다.
+        .onChange(of: summary, initial: true) { _, new in onSummaryChange(new) }
         .onDisappear { mapState.mainDongCode = nil }
         // "안 가본 길"을 고른 동안만 베이스 지도 도로를 강조한다 — 줌 아웃되거나 이 화면을 벗어나면
         // 원래대로.
@@ -364,7 +383,7 @@ private struct MapActionButton: View {
 }
 
 /**
- 줌아웃 요약 카드가 그릴 값 한 벌 — 지도 가운데 동의 이름·탐험률과 꼬리표.
+ 줌아웃 요약 카드가 그릴 값 한 벌 — 카드가 가리키는 동의 이름·탐험률과 꼬리표.
 
  조회는 홈 지도 오버레이가 하고 카드는 홈 셸이 그리므로, 그 사이를 이 한 덩어리로 넘긴다.
  */

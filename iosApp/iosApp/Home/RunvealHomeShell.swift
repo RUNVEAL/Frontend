@@ -392,14 +392,21 @@ struct RunvealHomeShell: View {
     @ViewBuilder
     private var summaryCard: some View {
         let summary = dongSummary
+        // `>`는 **카드가 가리키는 동**을 가운데 두고 줌인한다 — 지도를 어디로 끌어 뒀든 상관없다
+        // (카드는 지도를 따라가지 않으므로, 지금 화면 중심으로 줌인하면 엉뚱한 동네로 간다).
+        // 경계를 못 받은 동이면 좌표가 없어 아이콘을 그리지 않는다.
+        let chevronTarget: LatLon? = summary.flatMap { card in
+            mapData.overlay?.query.centerOf(admCd2: card.dongCode)
+        }
+        let onChevronClick: (() -> Void)? = chevronTarget.map { target in
+            { mapState.moveTo(center: target, zoom: RunvealMapConfig.homeZoomIn) }
+        }
         RunvealSummaryCard(
             dongName: summary?.dongName ?? HomeStrings.summaryMyDong,
             ratePercent: summary?.ratePercent ?? 0,
             tagLabel: summary?.tagLabel,
             onClick: {},
-            onChevronClick: summary == nil ? nil : {
-                mapState.moveTo(center: mapState.currentCenter, zoom: RunvealMapConfig.homeZoomIn)
-            }
+            onChevronClick: onChevronClick
         )
     }
 
