@@ -12,4 +12,6 @@ import com.sloth.runveal.dong.DongPolygonPart
 data class DongOverlayResult(
     val overlay: DongOverlayGeoJson,
     val polygonPartsByAdmCd2: Map<String, List<DongPolygonPart>>,
+    /** 동 코드 -> 행정동 이름("부성2동") — 지도 라벨과 홈 요약 카드가 같은 이름을 쓰게 한다. */
+    val nameByAdmCd2: Map<String, String>,
 )

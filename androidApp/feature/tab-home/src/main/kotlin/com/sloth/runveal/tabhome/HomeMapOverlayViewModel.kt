@@ -9,7 +9,6 @@ import com.sloth.runveal.map.LatLon
 import com.sloth.runveal.network.dong.CurrentDongHolder
 import com.sloth.runveal.network.dong.DongApi
 import com.sloth.runveal.network.dong.DongResult
-import com.sloth.runveal.network.dong.MapCenterDongHolder
 import com.sloth.runveal.tabhome.contract.HomeMapOverlayState
 import com.sloth.runveal.ui.mvi.MviViewModel
 import kotlinx.coroutines.Job
@@ -91,8 +90,6 @@ class HomeMapOverlayViewModel : MviViewModel<Nothing, HomeMapOverlayState, Nothi
             when (val result = dongApi.fetchDong(lat = center.lat, lon = center.lon)) {
                 is DongResult.Success -> {
                     setState { copy(centerDongName = result.dong.dongOnly, centerDongCode = result.dong.code) }
-                    // 하단 요약 카드는 다른 모듈(feature:home)이라 상태를 직접 못 본다 — 홀더로 넘긴다.
-                    MapCenterDongHolder.publish(result.dong)
                 }
 
                 DongResult.OutOfServiceArea -> {
@@ -112,7 +109,6 @@ class HomeMapOverlayViewModel : MviViewModel<Nothing, HomeMapOverlayState, Nothi
 
     private fun clearCenterDong() {
         setState { copy(centerDongName = null, centerDongCode = null) }
-        MapCenterDongHolder.clear()
     }
 
     /**

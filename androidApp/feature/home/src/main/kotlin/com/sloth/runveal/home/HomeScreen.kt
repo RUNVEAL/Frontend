@@ -83,7 +83,6 @@ import com.sloth.runveal.map.snapshot.center
 import com.sloth.runveal.navigation.RunVealRoute
 import com.sloth.runveal.navigation.rememberRunVealNavigator
 import com.sloth.runveal.network.dong.CurrentDongHolder
-import com.sloth.runveal.network.dong.MapCenterDongHolder
 import com.sloth.runveal.permission.LocationPermissionState
 import com.sloth.runveal.permission.RequireLocationPermission
 import com.sloth.runveal.permission.openAppSettings
@@ -226,10 +225,6 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
 
     // 지금 서 있는 동 — 조회는 홈 지도 오버레이가 하고(tab-home), 여기선 그 결과만 본다.
     val currentDong by CurrentDongHolder.state.collectAsStateWithLifecycle()
-    // 줌아웃 요약 카드는 **지도 가운데 보이는 동**을 보여준다 — 지도를 끌어 다른 동네를
-    // 둘러보는 게 줌아웃의 목적이라, 화면에 보이는 곳의 이름·탐험률이 맞다. 조회는 지도
-    // 오버레이(tab-home)가 카메라가 멈출 때마다 하고, 여기선 그 결과만 본다.
-    val mapCenterDong by MapCenterDongHolder.state.collectAsStateWithLifecycle()
 
     /**
      * 위치 권한·위치 서비스를 **막 켠 경우** 동 조회를 다시 시킨다.
@@ -297,27 +292,48 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     }
 
     /**
+     * 하단 요약 카드가 가리키는 동 — **지도를 움직여도 바뀌지 않는다.**
+     *
+     * 지도 가운데 동을 따라가게 두면 다른 동네를 둘러보는 동안 "내 동네" 카드가 그 동네 카드로
+     * 바뀐다. 어디를 보고 있는지는 좌측 상단 위치 라벨이 알려주므로, 카드는 **내 기준**에 머문다 —
+     * 기록이 있으면 탐험률이 가장 높은 동, 없으면 지금 서 있는 동(앱 시작 포커싱과 같은 기준).
+     *
+     * 이름은 번들에서 꺼낸다([DongOverlayBundle.dongNames]) — 지도 라벨과 같은 이름이고, 좌표로
+     * `/api/v1/dong`을 또 부르지 않아도 된다. 둘 다 없으면 null이라 카드가 대체 문구를 쓴다.
+     */
+    val panelDong = remember(topExploredDongCode, overlayBundle?.dongNames, currentDong) {
+        val topCode = topExploredDongCode
+        val topName = topCode?.let { overlayBundle?.dongNames?.get(it) }
+        // 코드만 있고 이름이 없으면 쓰지 않는다 — 이름과 퍼센트가 다른 동을 가리키게 된다.
+        if (topCode != null && topName != null) {
+            return@remember HomePanelDong(topCode, topName, isTopExplored = true)
+        }
+        val dong = currentDong ?: return@remember null
+        HomePanelDong(dong.code, dong.dongOnly, isTopExplored = false)
+    }
+
+    /**
+     * 카드가 가리키는 동의 가운데 좌표 — `>` 아이콘이 여기로 줌인한다. 경계를 아직 못 받았으면
+     * null이고, 그때는 아이콘을 그리지 않는다.
+     */
+    val panelDongCenter = remember(panelDong?.code, overlayBundle?.glowPolygonParts) {
+        val code = panelDong?.code ?: return@remember null
+        val parts = overlayBundle?.glowPolygonParts?.get(code).orEmpty()
+        DongThumbnailGeometry.bounds(parts)?.center
+    }
+
+    /**
      * 썸네일 요청 — 동이 바뀌거나 가본 길이 늘거나 표시 방식을 바꿀 때만 다시 만든다.
      *
      * [SnapshotRequest.ownerId]에 동 코드와 기록 ID를 함께 넣어 캐시를 가른다 — 같은 동이라도
      * 새로 달린 길이 생기면 그림이 달라져야 한다.
      */
-    /**
-     * 지금 보고 있는 동의 가운데 좌표 — `>` 아이콘이 여기로 줌인한다. 경계를 아직 못 받았으면
-     * null이고, 그때는 아이콘을 그리지 않는다.
-     */
-    val mapCenterDongCenter = remember(mapCenterDong?.code, overlayBundle?.glowPolygonParts) {
-        val code = mapCenterDong?.code ?: return@remember null
-        val parts = overlayBundle?.glowPolygonParts?.get(code).orEmpty()
-        DongThumbnailGeometry.bounds(parts)?.center
-    }
-
     val dongThumbnailRequest = remember(
-        mapCenterDong?.code,
+        panelDong?.code,
         thumbnailRoadGeoJson,
         overlayBundle?.glowPolygonParts,
     ) {
-        val code = mapCenterDong?.code ?: return@remember null
+        val code = panelDong?.code ?: return@remember null
         val roads = thumbnailRoadGeoJson ?: return@remember null
         val parts = overlayBundle?.glowPolygonParts?.get(code).orEmpty()
         val bounds = DongThumbnailGeometry.bounds(parts) ?: return@remember null
@@ -576,26 +592,24 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                                 // 아직 못 받았으면(위치 권한 없음·서비스 지역 밖) 꼬리표 없이
                                 // "내 동네"만 — 꼬리표까지 붙이면 "내 동네 내 동네"가 된다.
                                 RunvealSummaryCard(
-                                    dongName = mapCenterDong?.dongOnly
+                                    dongName = panelDong?.name
                                         ?: stringResource(R.string.home_summary_my_dong),
-                                    ratePercent = mapCenterDong?.code
+                                    ratePercent = panelDong?.code
                                         ?.let { overlayBundle?.dongPercents?.get(it) }
                                         ?: 0,
                                     onClick = {},
-                                    // `>`를 누르면 지금 보고 있는 동을 가운데 두고 줌인한다 —
-                                    // 거기서부터 도로와 가본 길이 또렷하게 보인다.
-                                    onChevronClick = mapCenterDongCenter?.let { center ->
+                                    // `>`를 누르면 이 카드의 동을 가운데 두고 줌인한다 — 거기서부터
+                                    // 도로와 가본 길이 또렷하게 보인다.
+                                    onChevronClick = panelDongCenter?.let { center ->
                                         { mapState.moveTo(center, MapConfig.HOME_ZOOM_IN) }
                                     },
-                                    // 꼬리표는 지도 가운데 동이 무엇인지에 따라 갈린다 — 탐험률이
-                                    // 가장 높은 동이면 "내 동네", 지금 서 있는 동이면 "현위치",
-                                    // 그 밖(끌어서 둘러보는 동네)이면 안 붙인다.
-                                    tagLabel = when (mapCenterDong?.code) {
-                                        null -> null
-                                        topExploredDongCode -> stringResource(R.string.home_summary_tag_my_dong)
-                                        currentDong?.code ->
-                                            stringResource(R.string.home_summary_tag_current_location)
-                                        else -> null
+                                    // 기록이 있어 탐험률 최고 동을 가리키면 "내 동네", 기록이 없어
+                                    // 지금 서 있는 동을 가리키면 "현위치".
+                                    tagLabel = when {
+                                        panelDong == null -> null
+                                        panelDong.isTopExplored ->
+                                            stringResource(R.string.home_summary_tag_my_dong)
+                                        else -> stringResource(R.string.home_summary_tag_current_location)
                                     },
                                 ) {
                                     // 요청이 아직 없으면(동/가본 길/경계 중 하나라도 미도착) 빈
@@ -781,3 +795,18 @@ private fun HomeMapLayer(
         )
     }
 }
+
+/**
+ * 홈 줌아웃 하단 요약 카드가 가리키는 동.
+ *
+ * 코드·이름을 같이 들고 다니는 이유: 이름은 오버레이 번들에서, 퍼센트는 탐험률 집계에서 꺼내는데
+ * 둘을 따로 고르면 "이름은 A동인데 퍼센트는 B동" 같은 상태가 생긴다.
+ *
+ * [isTopExplored]가 참이면 기록 기준(탐험률이 가장 높은 동)이라 꼬리표가 "내 동네", 거짓이면
+ * 기록이 없어 지금 서 있는 동을 가리키는 것이라 "현위치"다.
+ */
+private data class HomePanelDong(
+    val code: String,
+    val name: String,
+    val isTopExplored: Boolean,
+)
