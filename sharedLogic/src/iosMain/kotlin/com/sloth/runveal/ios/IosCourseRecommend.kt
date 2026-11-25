@@ -38,6 +38,7 @@ object IosCourseRecommend {
      * [end]는 지도에서 도착지를 직접 고른 경우에만 넘긴다 — 안 고르면 null이라 자동으로 순환(LOOP)
      * 코스가 된다(§3.3.1). 화면 라벨(한글)인 필터는 서버 필터 코드와 1:1로 안 맞아서 아직 안 보낸다.
      */
+    @Throws(Exception::class) // 없으면 Swift catch 대신 앱이 종료된다 — IosMeta.fetchAndPublish 주석.
     suspend fun fetchRoutes(
         start: LatLon,
         end: LatLon?,
@@ -129,9 +130,16 @@ object IosCourseRecommend {
         return courseId
     }
 
-    /** 저장 직후 "내 코스" 탭 썸네일을 미리 만들 때 쓰는 요청. */
-    fun thumbnailRequest(courseId: String, path: List<LatLon>): SnapshotRequest? =
-        IosSnapshot.request(path, courseId, SnapshotVariant.THUMBNAIL)
+    /** 저장 직후 "내 코스" 탭 썸네일을 미리 만들 때 쓰는 요청. 목록에서 다시 만들 때와 같은
+     *  조건이어야 캐시가 맞는다([IosCourseList]) — 순환 코스면 도착 점을 빼고 출발만 찍는다. */
+    fun thumbnailRequest(courseId: String, path: List<LatLon>, isLoop: Boolean): SnapshotRequest? =
+        IosSnapshot.request(
+            points = path,
+            ownerId = courseId,
+            variant = SnapshotVariant.THUMBNAIL,
+            withStartMarker = true,
+            withEndMarker = !isLoop,
+        )
 
     /** `RouteDto.path`(GeoJSON `[lng, lat]`)를 지도에 그릴 좌표로. */
     fun pathOf(route: RouteDto): List<LatLon> =

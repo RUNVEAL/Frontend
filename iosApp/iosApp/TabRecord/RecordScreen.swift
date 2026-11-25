@@ -3,12 +3,54 @@ import SwiftUI
 
 enum TabRecordStrings {
     static let title = "기록"
-    static let monthlyRunPrefix = "이번 달 러닝"
+    /// 요약 줄 앞머리 — 보고 있는 달이 늘 이번 달은 아니라서 그 달을 가리키는 말을 끼운다.
+    static func runCountPrefix(_ periodLabel: String) -> String { "\(periodLabel) 러닝" }
+    static let previousYear = "이전 해"
+    static let nextYear = "다음 해"
+    static let monthPicker = "달 선택"
+    static func yearLabel(_ year: Int) -> String { "\(year)년" }
+    static func monthLabel(_ month: Int) -> String { "\(month)월" }
     static let newRoadLabel = "새로 탐험한 길"
     static let distanceUnit = "km"
     static let emptyTitle = "아직 달린 기록이 없어요"
     static let emptyDescription = "코스를 만들고 첫 길을 밝혀보세요"
     static let emptyAction = "러닝 시작하기"
+
+    // MARK: 기록 상세
+
+    /// 요약의 "새로 탐험한 길"과 달리 상세는 수치 옆 짧은 라벨이라 따로 둔다.
+    static let detailNewRoadLabel = "새 길"
+    static let elapsedLabel = "러닝 시간"
+    static let paceLabel = "평균 페이스"
+    static let caloriesLabel = "칼로리"
+    static let mapLabel = "이 러닝의 경로 지도"
+    static let legendNew = "새로 탐험한 길"
+    static let legendToday = "오늘 달린 길"
+    static let dongRateTitle = "탐험률 변화"
+    static let dongRateEmpty = "이 러닝으로 집계된 동네가 없어요"
+    static let splitsTitle = "구간 기록"
+    static let splitsEmpty = "1km를 넘겨야 구간 기록이 생겨요"
+    static let rateArrow = "→"
+    static func percent(_ value: Int) -> String { "\(value)%" }
+
+    static let moreLabel = "더보기"
+    static let moreRename = "이름 수정"
+    static let moreExportGpx = "GPX 내보내기"
+    static let moreDelete = "삭제"
+
+    static let renameSheetTitle = "기록 이름 수정"
+    static let renameInputLabel = "기록 이름"
+    static let renameInputPlaceholder = "기록 이름을 입력하세요"
+    static let renameCancel = "취소"
+    static let renameConfirm = "저장"
+
+    static let deleteDialogTitle = "러닝을 기록을 삭제할까요?"
+    static let deleteDialogDescription = "삭제하면 해당 러닝이 목록에서 사라져요."
+    static let deleteDialogConfirm = "삭제"
+    static let deleteDialogCancel = "취소"
+
+    /// 아직 기능이 안 붙은 버튼을 눌렀을 때 — 붙는 대로 해당 호출부에서 제거한다.
+    static let notReady = "아직 개발 중입니다"
 }
 
 /// "기록" 탭 — Android `RecordScreen` + `RecordViewModel`에 해당한다.
@@ -16,9 +58,22 @@ enum TabRecordStrings {
 /// 러닝을 끝내면 최종 매칭 후 결과가 `TrackResultHolder`에 publish된다 — 그걸 구독해 그때마다 DB를
 /// 다시 읽어, 방금 끝낸 러닝이 목록과 월간 요약에 바로 올라오게 한다.
 struct RecordScreen: View {
+    /// 목록에서 기록 하나를 눌렀다 — 상세로 올리는 건 홈 셸이 맡는다(탭 화면은 내비게이터를 모른다).
+    let onRecordClick: (String) -> Void
+
+    /// 기록이 없을 때 뜨는 "러닝 시작하기" — 홈 탭 줌인 뷰로 보내는 일이라 홈 셸이 맡는다.
+    let onStartRunningClick: () -> Void
+
     @State private var summary: MonthlyRecordSummary?
     @State private var isLoading = true
     @State private var subscription: FlowSubscription?
+
+    /// 보고 있는 달. 0이면 아직 안 골랐다는 뜻이라 이번 달을 읽는다.
+    @State private var shownYear = 0
+    @State private var shownMonth = 0
+    @State private var isMonthPickerOpen = false
+    /// 월 선택 패널을 앱바 **바로 아래**에 놓으려고 재는 값 — 앱바 높이는 글꼴·안전 영역에 따라 달라진다.
+    @State private var appBarHeight: CGFloat = 0
 
     var body: some View {
         let colors = RunvealTheme.colors
@@ -31,10 +86,18 @@ struct RecordScreen: View {
                         title: TabRecordStrings.title,
                         metaLabel: summary?.monthLabel ?? "",
                         titleStyle: RunvealTheme.typography.heading1,
-                        onMetaLabelClick: {}
+                        onMetaLabelClick: { isMonthPickerOpen = true }
                     )
+                    .background {
+                        GeometryReader { geometry in
+                            Color.clear
+                                .onAppear { appBarHeight = geometry.size.height }
+                                .onChange(of: geometry.size.height) { _, height in appBarHeight = height }
+                        }
+                    }
 
                     MonthlyRunningSummary(
+                        periodLabel: summary?.periodLabel ?? "이번 달",
                         runCountLabel: summary?.runCountLabel ?? "0회",
                         totalDistanceValue: summary?.totalDistanceValue ?? "0.00",
                         newRoadValue: summary?.newRoadValue ?? "+0.00"
@@ -43,7 +106,9 @@ struct RecordScreen: View {
 
                     RunvealImages.record
                         .resizable()
-                        .aspectRatio(1816.0 / 405.0, contentMode: .fill)
+                        // 가로를 채우고 높이는 비율로 — `.fill`은 제안 공간을 덮도록 키워서
+                        // 세로가 넉넉한 자리에선 가로로 터진다(CourseScreen 히어로 주석 참고).
+                        .aspectRatio(1816.0 / 405.0, contentMode: .fit)
                         .frame(maxWidth: .infinity)
                         .clipShape(RunvealShapes.radius16)
                         .padding(.horizontal, RunvealLayout.marginScreen)
@@ -56,6 +121,8 @@ struct RecordScreen: View {
                         VStack(spacing: -12) {
                             ForEach(items, id: \.trackId) { item in
                                 RecordListItemRow(item: item)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { onRecordClick(item.trackId) }
                             }
                         }
                         .padding(.horizontal, RunvealLayout.marginScreen)
@@ -64,7 +131,7 @@ struct RecordScreen: View {
                             title: TabRecordStrings.emptyTitle,
                             description: TabRecordStrings.emptyDescription,
                             actionLabel: TabRecordStrings.emptyAction,
-                            onActionClick: {}
+                            onActionClick: onStartRunningClick
                         ) {
                             RunvealImages.emptyCourse
                                 .resizable()
@@ -77,6 +144,31 @@ struct RecordScreen: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, RunvealLayout.sizeTabBar + RunvealSpacing.space24)
+            }
+
+            if isMonthPickerOpen {
+                // 바깥을 탭하면 닫힌다(Android Popup의 focusable과 같은 역할). 투명해도 터치를
+                // 받으려면 모양을 줘야 한다.
+                Color.clear
+                    .contentShape(Rectangle())
+                    .ignoresSafeArea()
+                    .onTapGesture { isMonthPickerOpen = false }
+
+                MonthPicker(
+                    selectedYear: Int(summary?.selectedYear ?? 0),
+                    selectedMonth: Int(summary?.selectedMonth ?? 0),
+                    onSelect: { year, month in
+                        isMonthPickerOpen = false
+                        shownYear = year
+                        shownMonth = month
+                        Task { await reload() }
+                    }
+                )
+                .accessibilityLabel(TabRecordStrings.monthPicker)
+                // 앱바 바로 아래, 화면 좌우 여백에 맞춰 왼쪽에 붙인다.
+                .padding(.leading, RunvealLayout.marginScreen)
+                .padding(.top, appBarHeight + RunvealSpacing.space4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             }
         }
         .onAppear { observe() }
@@ -94,8 +186,14 @@ struct RecordScreen: View {
     }
 
     private func reload() async {
+        let year = shownYear
+        let month = shownMonth
         let loaded = await Task.detached(priority: .userInitiated) {
-            IosRecordList.shared.loadThisMonth()
+            // Kotlin `Int`는 Swift에 `Int32`로 넘어간다.
+            if year > 0 {
+                return IosRecordList.shared.load(year: Int32(year), month: Int32(month))
+            }
+            return IosRecordList.shared.loadThisMonth()
         }.value
         summary = loaded
         isLoading = false
@@ -104,6 +202,8 @@ struct RecordScreen: View {
 
 /// 기록 탭 앱바 바로 아래, 이번 달 러닝 총 거리 + 새로 탐험한 길 요약(가운데 정렬).
 private struct MonthlyRunningSummary: View {
+    /// "이번 달"처럼 어느 달인지 가리키는 앞머리 — 달을 고를 수 있어서 늘 이번 달은 아니다.
+    let periodLabel: String
     let runCountLabel: String
     let totalDistanceValue: String
     let newRoadValue: String
@@ -114,7 +214,7 @@ private struct MonthlyRunningSummary: View {
         VStack(spacing: 9) {
             VStack(spacing: RunvealSpacing.space4) {
                 HStack(spacing: RunvealSpacing.space4) {
-                    Text(TabRecordStrings.monthlyRunPrefix)
+                    Text(TabRecordStrings.runCountPrefix(periodLabel))
                         .runvealTextStyle(RunvealTheme.typography.bodyLRegular)
                         .foregroundStyle(colors.text.secondary)
                     Text(runCountLabel)

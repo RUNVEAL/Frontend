@@ -2,11 +2,12 @@ import SharedLogic
 import SwiftUI
 
 /// B2 — 추천 코스 결과에서 카드를 눌러 들어가는 코스 상세. 지도(Map Shell)는 그대로 보이고 이 위에
-/// 뒤로가기와 바텀시트만 얹는다 — 배경을 깔지 않는다. [routeId]로 홀더에서 코스를 다시 찾아온다.
+/// 뒤로가기와 바텀시트만 얹는다 — 배경을 깔지 않는다. 코스는 [source]가 정한 곳에서 읽어 온다.
 /// Android `CourseDetailScreen`에 해당한다.
 struct CourseDetailScreen: View {
     @ObservedObject var mapState: RunvealMapState
-    let routeId: String
+    /// 추천 결과에서 왔는지, "내 코스"에서 왔는지 — 읽어 오는 곳이 달라진다.
+    let source: CourseDetailSource
     let onBack: () -> Void
     let onStartRunning: () -> Void
 
@@ -46,7 +47,7 @@ struct CourseDetailScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .runvealMapLayers(mapState, routeLayers)
         .runvealMapDotMarkers(mapState, courseMarkers, owner: dotMarkersOwner)
-        .task { viewModel.onIntent(.load(routeId: routeId)) }
+        .task { viewModel.onIntent(.load(source: source)) }
         .onChange(of: sheetHeight) { _, _ in focusCourse() }
         .onChange(of: ready?.path.count) { _, _ in focusCourse() }
     }
@@ -55,7 +56,7 @@ struct CourseDetailScreen: View {
 
     private var routeLayers: [String: String] {
         guard let ready, ready.path.count >= 2 else { return [:] }
-        let route = IosRecommendedRoute(id: routeId, points: ready.path, selected: true)
+        let route = IosRecommendedRoute(id: source.id, points: ready.path, selected: true)
         return [
             RunvealMapConfig.sourceCourseDetailRoute: IosRouteGeoJson.shared.recommendedRoutes(routes: [route])
         ]
@@ -93,7 +94,9 @@ struct CourseDetailScreen: View {
                 Spacer()
                 RunvealBottomSheet(
                     header: {
-                        Text(CourseRecommendStrings.courseName(ready.courseLabel))
+                        // 저장된 코스는 저장해 둔 이름을 그대로 쓴다 — "코스 {이름}"으로 조합하면
+                        // "코스 코스 A"가 된다.
+                        Text(ready.savedCourseName ?? CourseRecommendStrings.courseName(ready.courseLabel))
                             .runvealTextStyle(RunvealTheme.typography.heading2)
                             .foregroundStyle(RunvealTheme.colors.text.primary)
                     },
@@ -114,6 +117,7 @@ struct CourseDetailScreen: View {
                                 primaryLabel: CourseRecommendStrings.startRunningAction,
                                 onPrimaryClick: {
                                     // 코스 경로를 기록 화면에 넘기기만 한다.
+                                    RunvealAnalyticsLogger.logCourseStart(fromRecommend: true)
                                     SelectedCourseHolder.shared.publish(path: ready.path, isLoop: ready.isLoop)
                                     onStartRunning()
                                 }

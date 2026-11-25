@@ -24,6 +24,19 @@ struct RunvealHomeShell: View {
 
     @State private var toastMessage: String?
 
+    /// 서버에서 동 이름을 못 받았는지 — 조회는 홈 지도 오버레이가 하고 그 결과만 올려 준다.
+    @State private var isDongLoadFailed = false
+
+    /// 줌아웃 요약 카드가 그릴 값 — 같은 이유로 오버레이가 올려 준다.
+    @State private var dongSummary: DongSummary?
+
+    /// 앱을 열고 지도를 한 번만 맞췄는지.
+    @State private var didInitialFocus = false
+    /// "다시 시도"를 눌러 다시 받는 중 — 누른 직후에도 같은 배너가 그대로면 눌린 줄 모른다.
+    @State private var isRetryingServerData = false
+    /// 올릴 때마다 동 조회가 다시 돈다([HomeMapOverlayScreen.retryToken]).
+    @State private var serverDataRetryToken = 0
+
     /**
      러닝을 시작하기 전에 위치가 준비됐는지 보고, 안 됐으면 그 자리에서 안내 시트를 띄운다.
      여기에 담긴 동작은 권한·위치 서비스가 갖춰지면 이어서 실행된다.
@@ -45,6 +58,27 @@ struct RunvealHomeShell: View {
         }
     }
 
+    /// 위치가 준비된 뒤 한 번만 현재 위치로 옮겼는가 — 앱을 켠 뒤 처음 한 번이다.
+    @State private var didRecenterOnLocationReady = false
+
+    /**
+     위치 권한과 위치 서비스가 모두 갖춰지면 지도를 **기본 위치(서울시청)에서 현재 위치로** 한 번
+     옮긴다.
+
+     지도는 권한을 받기 **전에** 떠 있다 — 권한 안내 시트가 지도 위에 뜨기 때문이다. 그래서 허용한
+     뒤에 옮겨 주는 경로가 없으면 앱을 다시 켤 때까지 기본 위치에 머문다. 이미 허용된 상태로 켰을
+     때도 첫 등장에서 한 번 옮긴다(Android `CurrentLocationLayer.activate`가 켜지면서 `trackOnce`로
+     하는 일과 같다).
+
+     계속 따라가지는 않는다 — 한 번 옮기고 나면 사용자가 자유롭게 둘러볼 수 있어야 한다.
+     */
+    private func recenterOnceWhenLocationReady() {
+        guard !didRecenterOnLocationReady else { return }
+        guard permissionState.isGranted, permissionState.isLocationServicesEnabled else { return }
+        didRecenterOnLocationReady = true
+        mapState.recenterToCurrentLocation()
+    }
+
     /// 시트에서 허용·켜기를 마치면 다시 누르게 하지 않고 바로 잇는다.
     private func resumePendingRunIfReady() {
         guard let proceed = pendingRunStart else { return }
@@ -57,10 +91,11 @@ struct RunvealHomeShell: View {
         !permissionState.isGranted || !permissionState.isLocationServicesEnabled
     }
 
-    /// 코스 추천 흐름(만들기/결과/상세)에 들어가 있으면 지역 오버레이를 숨긴다.
+    /// 지도를 깔고 그 위에 올라가는 코스 흐름 — 추천(만들기·결과·상세)과 "내 코스"에서 들어가는
+    /// 코스 상세. 어느 쪽이든 동 경계·라벨을 걷어 코스에만 집중하게 한다(Android와 같은 규칙).
     private var isCourseRecommendFlow: Bool {
         switch navigator.currentOverlay {
-        case .courseRecommend, .courseRecommendResult, .courseDetail:
+        case .courseRecommend, .courseRecommendResult, .courseDetail, .savedCourseDetail:
             return true
         default:
             return false
@@ -107,9 +142,19 @@ struct RunvealHomeShell: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .environment(\.runvealMapOverlayBottomInset, isLocationBannerNeeded ? Self.locationBannerExtraInset : 0)
+        // 서버 데이터 배너도 같은 자리를 차지하므로 함께 본다 — 빠뜨리면 줌인 오버레이의
+        // 하단 액션 줄이 배너와 겹친다(Android도 두 조건을 OR로 묶는다).
+        .environment(\.runvealMapOverlayBottomInset,
+                     (isLocationBannerNeeded || isServerDataMissing) ? Self.locationBannerExtraInset : 0)
         .requireLocationPermission(permissionState)
-        .onAppear { mapData.start() }
+        .onAppear {
+            mapData.start()
+            recenterOnceWhenLocationReady()
+        }
+        // 오버레이 묶음이 오면 **한 번만** 지도를 맞춘다 — 탐험률과 동 경계가 거기 들어 있다.
+        // 스플래시가 미리 만들어 두므로 보통 홈에 들어오는 순간 이미 있다.
+        .onChange(of: mapData.overlay?.boundarySourceKey) { _, _ in focusInitiallyIfNeeded() }
+        .onAppear { focusInitiallyIfNeeded() }
         .onDisappear { mapData.stop() }
         // "내 코스" 탭에서 코스를 바로 시작하면(탭 화면은 내비게이터를 직접 못 만진다) 여기서 받아
         // 기록 흐름으로 넘어간다 — 코스 자체는 `SelectedCourseHolder`에 이미 담겨 있다.
@@ -125,16 +170,22 @@ struct RunvealHomeShell: View {
         }
         // 러닝 시작을 눌렀는데 위치가 준비 안 된 경우 — 무엇이 모자란지에 맞는 시트를 띄운다.
         // 권한을 먼저 보고, 권한이 있으면 위치 서비스를 본다(둘 중 하나만 꺼져도 좌표를 못 받는다).
-        .sheet(isPresented: Binding(get: { pendingRunStart != nil },
-                                    set: { if !$0 { pendingRunStart = nil } })) {
+        // 지도 위에 얹는다 — `.sheet`으로 띄우면 뒤 지도가 검게 보인다(`runvealBottomSheet` 참고).
+        .runvealBottomSheet(
+            isPresented: pendingRunStart != nil,
+            onDismiss: { pendingRunStart = nil }
+        ) {
             runStartLocationSheet
-                .presentationBackground(.clear)
-                .presentationDetents([.height(Self.locationSheetHeight)])
-                .presentationDragIndicator(.hidden)
         }
         // 시트에서 허용·켜기를 마치고 돌아오면 미뤄 둔 러닝 시작을 잇는다.
-        .onChange(of: permissionState.isGranted) { _, _ in resumePendingRunIfReady() }
-        .onChange(of: permissionState.isLocationServicesEnabled) { _, _ in resumePendingRunIfReady() }
+        .onChange(of: permissionState.isGranted) { _, _ in
+            recenterOnceWhenLocationReady()
+            resumePendingRunIfReady()
+        }
+        .onChange(of: permissionState.isLocationServicesEnabled) { _, _ in
+            recenterOnceWhenLocationReady()
+            resumePendingRunIfReady()
+        }
     }
 
     // MARK: - 탭/오버레이 콘텐츠
@@ -156,12 +207,26 @@ struct RunvealHomeShell: View {
                 mapState: mapState,
                 // 코스 탐색은 위치 없이도 들어갈 수 있다 — 실제로 뛸 때만 위치가 필요하다.
                 onCreateCourseClick: { navigator.push(.courseRecommend) },
-                onRunStartClick: { requireLocationForRun { navigator.push(.recording) } }
+                onRunStartClick: { requireLocationForRun { navigator.push(.recording) } },
+                onDongLoadFailedChange: { isDongLoadFailed = $0 },
+                onSummaryChange: { dongSummary = $0 },
+                retryToken: serverDataRetryToken
             )
         case .course:
-            CourseScreen(onCreateCourseClick: { navigator.push(.courseRecommend) })
+            CourseScreen(
+                onCreateCourseClick: { navigator.push(.courseRecommend) },
+                onCourseClick: { course in navigator.push(.savedCourseDetail(courseId: course.id)) }
+            )
         case .record:
-            RecordScreen()
+            RecordScreen(
+                onRecordClick: { trackId in navigator.push(.recordDetail(trackId: trackId)) },
+                // 기록이 없을 때의 "러닝 시작하기" — 홈 탭으로 옮기고 지도를 줌인 뷰까지 확대한다.
+                // 줌인이라야 러닝 시작 버튼이 있는 오버레이가 뜬다(Android와 같은 흐름).
+                onStartRunningClick: {
+                    navigator.select(tab: .home)
+                    mapState.recenterToCurrentLocation(zoom: RunvealMapConfig.homeZoomIn)
+                }
+            )
         case .my:
             MyScreen(
                 permissionState: permissionState,
@@ -188,12 +253,25 @@ struct RunvealHomeShell: View {
         case .courseDetail(let routeId):
             CourseDetailScreen(
                 mapState: mapState,
-                routeId: routeId,
+                source: .recommended(id: routeId),
                 onBack: { navigator.pop() },
                 // 코스 추천 흐름 스택을 전부 지우고 들어간다 — 안 지우면 러닝 종료 후 뒤로가기/닫기로
                 // 홈이 아니라 코스 추천 화면으로 돌아간다.
                 // 코스 상세에서 "이 코스로 러닝 시작" — 여기서부터 위치가 필요하다.
                 onStartRunning: { requireLocationForRun { navigator.replaceStack(with: .recording) } }
+            )
+        case .savedCourseDetail(let courseId):
+            CourseDetailScreen(
+                mapState: mapState,
+                source: .saved(id: courseId),
+                onBack: { navigator.pop() },
+                // 상세를 먼저 떼어낸다 — 러닝이 끝나고 돌아올 자리는 "내 코스" 목록이다.
+                onStartRunning: {
+                    requireLocationForRun {
+                        navigator.pop()
+                        navigator.push(.recording)
+                    }
+                }
             )
         case .recording:
             RecordingScreen(
@@ -209,6 +287,8 @@ struct RunvealHomeShell: View {
             )
         case .result:
             ResultScreen(onClose: { navigator.popToTab() })
+        case .recordDetail(let trackId):
+            RecordDetailScreen(trackId: trackId, onBack: { navigator.pop() })
         case .termsDetail(let item):
             TermsDetailScreen(item: item, onBack: { navigator.pop() })
         }
@@ -225,10 +305,7 @@ struct RunvealHomeShell: View {
             // 홈 탭 · 줌아웃: 패널 전체(배너? + 요약 카드 + 탭바).
             RunvealHomeBottomPanel(
                 banner: banner,
-                // TODO: 러닝 기록 연동 추가 예정(Android도 같은 TODO 상태다).
-                summary: AnyView(
-                    RunvealSummaryCard(dongName: "내 동네", ratePercent: 0, isMine: true) {}
-                ),
+                summary: AnyView(summaryCard),
                 onMyLocationClick: { mapState.recenterToCurrentLocation() }
             ) {
                 tabBar(container: .embedded)
@@ -263,9 +340,6 @@ struct RunvealHomeShell: View {
         }
     }
 
-    /// 지도 위 안내 시트 높이 — 디자인시스템 바텀시트가 자체 높이를 가져서 detent로 고정해 준다.
-    private static let locationSheetHeight: CGFloat = 420
-
     @ViewBuilder
     private var runStartLocationSheet: some View {
         if permissionState.isPermanentlyDenied {
@@ -284,6 +358,56 @@ struct RunvealHomeShell: View {
                 onCloseClick: { pendingRunStart = nil }
             )
         }
+    }
+
+    /**
+     줌아웃 하단 요약 카드 — 지도 가운데 동의 이름·탐험률·꼬리표를 보여준다.
+
+     `>`를 누르면 그 동을 가운데 두고 줌인한다(기록 탭 "러닝 시작하기"와 같은 배율). 아직 동을
+     못 받았으면 아이콘을 그리지 않는다 — 눌러도 아무 일 없는 아이콘을 남기면 고장으로 보인다.
+     */
+    /**
+     앱을 열고 처음 지도를 맞춘다.
+
+      - 기록이 있으면 탐험률이 가장 높은 동으로 — 줌은 그대로 둬서 줌아웃 상태를 유지한다.
+      - 기록이 없으면 현재 위치로.
+      - 둘 다 없으면 아무것도 하지 않는다 — `recenterToCurrentLocation`은 위치를 못 받으면 조용히
+        무시되므로 지도가 초기 좌표에 그대로 남는다.
+
+     `recenterOnceWhenLocationReady`가 따로 현재 위치로 한 번 옮기지만, 기록이 있으면 이쪽이
+     나중에 덮어쓴다 — 둘 다 "한 번만" 돌아서 서로 싸우지 않는다.
+     */
+    private func focusInitiallyIfNeeded() {
+        guard !didInitialFocus, let overlay = mapData.overlay else { return }
+        didInitialFocus = true
+        guard let topCode = overlay.query.topDongCode(),
+              let center = overlay.query.centerOf(admCd2: topCode)
+        else {
+            mapState.recenterToCurrentLocation()
+            return
+        }
+        mapState.moveTo(center: center)
+    }
+
+    @ViewBuilder
+    private var summaryCard: some View {
+        let summary = dongSummary
+        // `>`는 **카드가 가리키는 동**을 가운데 두고 줌인한다 — 지도를 어디로 끌어 뒀든 상관없다
+        // (카드는 지도를 따라가지 않으므로, 지금 화면 중심으로 줌인하면 엉뚱한 동네로 간다).
+        // 경계를 못 받은 동이면 좌표가 없어 아이콘을 그리지 않는다.
+        let chevronTarget: LatLon? = summary.flatMap { card in
+            mapData.overlay?.query.centerOf(admCd2: card.dongCode)
+        }
+        let onChevronClick: (() -> Void)? = chevronTarget.map { target in
+            { mapState.moveTo(center: target, zoom: RunvealMapConfig.homeZoomIn) }
+        }
+        RunvealSummaryCard(
+            dongName: summary?.dongName ?? HomeStrings.summaryMyDong,
+            ratePercent: summary?.ratePercent ?? 0,
+            tagLabel: summary?.tagLabel,
+            onClick: {},
+            onChevronClick: onChevronClick
+        )
     }
 
     private var locationOffBanner: AnyView? {
@@ -314,6 +438,50 @@ struct RunvealHomeShell: View {
                 }
             )
         }
+        // 위치 안내를 먼저 띄운다 — 위치를 못 받으면 동 조회를 아예 건너뛰므로, 위치가 꺼진
+        // 상태에서 "데이터를 받지 못했어요"를 먼저 보여 주면 엉뚱한 안내가 된다(Android와 같은 순서).
+        if isServerDataMissing {
+            return AnyView(
+                RunvealLocationOffBanner(
+                    message: serverDataErrorMessage,
+                    actionLabel: HomeStrings.serverDataErrorBannerAction,
+                    icon: RunvealIcons.alert,
+                    iconTint: RunvealTheme.colors.status.error,
+                    onActionClick: retryServerData
+                )
+            )
+        }
         return nil
+    }
+
+    /// 서버에서 지도 데이터를 못 받은 상태. 둘 중 하나라도 실패면 참이다 — 동 이름(`/dong`)과
+    /// 동 경계·탐험률(`/meta` + 지도 파일).
+    ///
+    /// 오버레이 묶음이 아직 nil인 건 **만들고 있는 중**이라 실패로 보지 않는다.
+    private var isServerDataMissing: Bool {
+        isDongLoadFailed || mapData.overlay?.isServerDataMissing == true
+    }
+
+    /// 둘 중 뭘 못 받았는지에 따라 문구가 다르다 — 동 이름만 실패했으면 지도는 제대로 보이는데
+    /// "지도 데이터를 못 받았다"는 틀린 안내가 된다.
+    private var serverDataErrorMessage: String {
+        if isRetryingServerData { return HomeStrings.serverDataErrorBannerMessageRetrying }
+        if mapData.overlay?.isServerDataMissing == true { return HomeStrings.serverDataErrorBannerMessageMap }
+        return HomeStrings.serverDataErrorBannerMessageDong
+    }
+
+    /// 동 조회와 지도 데이터를 다시 받는다. 받는 동안에는 문구를 "다시 받고 있어요"로 바꿔서
+    /// 누른 게 먹었다는 걸 알린다.
+    private func retryServerData() {
+        guard !isRetryingServerData else { return }
+        isRetryingServerData = true
+        // 동 조회는 탭 화면(HomeMapOverlayScreen)이 하므로 trigger만 올린다.
+        serverDataRetryToken += 1
+        Task {
+            // 지금 묶음이 반영하고 있던 기록을 그대로 유지한다 — 다른 값을 넣으면 지도 레이어가
+            // 묶음을 "낡은 것"으로 보고 또 한 번 다시 만든다.
+            await mapData.refreshOverlayFromServer()
+            isRetryingServerData = false
+        }
     }
 }

@@ -1,14 +1,35 @@
 import SharedLogic
 import SwiftUI
 
+/// 현재 위치 추적 명령 하나 — Android `FollowCurrentLocationCommand`.
+///
+/// [id]는 같은 내용으로 다시 불렀을 때도("내 위치" 버튼 재탭) 새 명령으로 보이게 하는 구분자다 —
+/// 값이 같으면 이미 반영한 명령으로 보고 넘어가 카메라가 복귀하지 않는다.
+struct FollowCurrentLocationCommand: Equatable {
+    let id: Int
+    let isFollowing: Bool
+    /// 켜면서 맞출 줌. nil이면 지금 줌을 그대로 둔다.
+    let zoom: Double?
+    /// 끌 때 카메라 여백까지 되돌릴지.
+    let resetAnchor: Bool
+}
+
 /// 지도 위에 떠 있는 마커 하나(출발/도착 등 위치 + 종류) — Android `MapPin`.
 struct MapPin: Identifiable, Equatable {
-    let id = UUID()
     let location: LatLon
     let type: RunvealMapMarkerType
 
+    /// 같은 자리·같은 종류면 **같은 마커**다.
+    ///
+    /// 만들 때마다 달라지는 값(UUID 등)을 쓰면 안 된다 — 마커 목록은 화면이 다시 그려질 때마다
+    /// 새로 만들어지는데, 그걸 `onChange`가 "바뀌었다"로 보고 지도 상태를 또 갱신한다. 그 갱신이
+    /// 다시 화면을 그리게 해서 끝없이 돌고, 그동안 그 화면은 탭도 스와이프도 받지 못한다.
+    var id: String { "\(type)-\(location.lat)-\(location.lon)" }
+
     static func == (lhs: MapPin, rhs: MapPin) -> Bool {
-        lhs.id == rhs.id
+        lhs.type == rhs.type
+            && lhs.location.lat == rhs.location.lat
+            && lhs.location.lon == rhs.location.lon
     }
 }
 
@@ -22,6 +43,19 @@ final class RunvealMapState: ObservableObject {
     let initialZoom: Double
 
     @Published private(set) var currentZoom: Double
+
+    /// 카메라가 **멈춘** 자리의 중심 좌표. 움직이는 동안에는 갱신하지 않는다 — 매 프레임 바뀌면
+    /// 이 값을 보고 서버를 부르는 쪽(홈의 지도 중심 행정동)이 요청을 쏟아낸다.
+    @Published private(set) var currentCenter: LatLon
+
+    /// 지금 지도 가운데 보이는 "메인" 행정동 코드 — 그 동 라벨만 크고 굵게 그린다.
+    /// nil이면 모든 동이 같은 크기다(아직 못 받았거나 서비스 지역 밖).
+    @Published var mainDongCode: String?
+
+    /// [moveTo]가 마지막으로 넘긴 목표 자리와 줌.
+    @Published private(set) var moveToCenter: LatLon?
+    @Published private(set) var moveToZoom: Double?
+    @Published private(set) var moveToRequestId: Int = 0
 
     /// 지도 위에 그릴 핀. 하위 화면(예: 출발/도착 선택)이 쓰고 지운다.
     @Published var pin: MapPin?
@@ -50,6 +84,9 @@ final class RunvealMapState: ObservableObject {
     /// 값 자체는 의미가 없고 변경 이벤트만 쓴다(일종의 one-shot 커맨드).
     @Published private(set) var recenterRequestId: Int = 0
 
+    /// [recenterToCurrentLocation]이 같이 맞출 줌 — nil이면 지금 줌을 그대로 둔다.
+    @Published private(set) var recenterZoom: Double?
+
     /// [focusOnBounds]가 마지막으로 넘긴 좌표 — 이 좌표가 전부 보이게 카메라를 맞춘다.
     @Published private(set) var boundsFocusPoints: [LatLon]?
 
@@ -63,6 +100,22 @@ final class RunvealMapState: ObservableObject {
     /// 하위 화면이 선언한 선 레이어 — 소스 ID → GeoJSON.
     @Published private(set) var layers: [String: String] = [:]
 
+    /// 현재 위치 마커에 "지금 바라보는 방향" 화살표를 띄울지(러닝 중). 기기 나침반(지자기 센서)을
+    /// 따라 도는 부채꼴이 마커 둘레에 붙는다 — 달리는 방향(GPS 진행 방향)이 아니라 **기기가 향한
+    /// 쪽**이다. 홈 지도처럼 둘러보기만 하는 화면에서는 꺼 둔다(가만히 서 있어도 계속 떨린다).
+    /// Android `MapState.showsHeadingIndicator`.
+    @Published var showsHeadingIndicator = false
+
+    /// 현재 위치 추적 명령 — `startFollowingCurrentLocation`/`stopFollowingCurrentLocation` 호출
+    /// 한 번이 하나를 만들고 `RunvealMap`이 적용한다.
+    @Published private(set) var followCommand: FollowCurrentLocationCommand?
+    private var followCommandCount = 0
+
+    /// 추적 중 지도 아래쪽이 가려지는 높이(러닝 패널 등) — 그만큼 카메라 여백을 줘서 현재 위치가
+    /// **가려지지 않고 보이는 영역의 가운데**에 오게 한다([focusOnBounds]의 `extraBottomPadding`과
+    /// 같은 뜻). 추적 on/off와 별개인 상태다.
+    @Published var followBottomInset: CGFloat = 0
+
     init(
         initialCenter: LatLon = RunvealMapConfig.seoulCityHall,
         initialZoom: Double = RunvealMapConfig.initialZoom
@@ -70,6 +123,7 @@ final class RunvealMapState: ObservableObject {
         self.initialCenter = initialCenter
         self.initialZoom = initialZoom
         self.currentZoom = initialZoom
+        self.currentCenter = initialCenter
     }
 
     /// 줌인(러닝 포커스) 상태인지 — 탭바·오버레이 전환 기준.
@@ -84,14 +138,69 @@ final class RunvealMapState: ObservableObject {
     }
 
     /// 지도 뷰가 카메라 이동이 멈출 때마다 알려준다.
+    /// 지도 뷰가 카메라 이동이 멈출 때마다 알려준다 — 중심이 실제로 달라졌을 때만 발행한다.
+    func updateCenter(_ center: LatLon) {
+        guard currentCenter.lat != center.lat || currentCenter.lon != center.lon else { return }
+        currentCenter = center
+    }
+
+    /**
+     지정한 자리로 카메라를 옮긴다. `focusOnBounds`와 달리 **줌을 그대로 두거나 직접 정한다** —
+     범위를 꽉 채우지 않아서 "그 동이 가운데 오되 줌아웃 상태 유지"가 된다(앱 시작 포커싱).
+
+     - Parameter zoom: nil이면 지금 줌을 유지한다.
+     */
+    func moveTo(center: LatLon, zoom: Double? = nil) {
+        moveToCenter = center
+        moveToZoom = zoom
+        moveToRequestId += 1
+    }
+
     func updateZoom(_ zoom: Double) {
         guard abs(zoom - currentZoom) > 0.0001 else { return }
         currentZoom = zoom
     }
 
     /// "내 위치" 버튼 등에서 호출 — 위치 권한/서비스가 꺼져 있으면 지도 뷰가 조용히 무시한다.
-    func recenterToCurrentLocation() {
+    ///
+    /// [zoom]을 주면 옮기면서 그 배율로 맞춘다(기록 탭에서 홈 줌인 뷰로 보낼 때 등). nil이면 지금
+    /// 줌을 그대로 둔다 — "내 위치" 버튼은 보고 있던 배율을 유지해야 한다.
+    func recenterToCurrentLocation(zoom: Double? = nil) {
+        recenterZoom = zoom
         recenterRequestId += 1
+    }
+
+    /**
+     현재 위치를 계속 따라가는 카메라 추적을 켠다(러닝 중 지도). 방위는 북쪽으로 고정이다 —
+     달리는 방향으로 지도가 돌면 길을 알아보기 어렵다(Android `CameraMode.TRACKING_GPS_NORTH`).
+
+     지도를 드래그·핀치하면 추적이 자동으로 꺼진다. 지도는 화면보다 오래 살아 있으니, 켠 화면은
+     나갈 때 [stopFollowingCurrentLocation]으로 꼭 꺼 준다.
+
+     현재 위치를 둘 자리는 [followBottomInset]이 정한다.
+
+     - Parameter zoom: 켜면서 맞출 줌. nil이면 지금 줌을 그대로 둔다("내 위치" 버튼·러닝 재개).
+     */
+    func startFollowingCurrentLocation(zoom: Double? = nil) {
+        followCommandCount += 1
+        followCommand = FollowCurrentLocationCommand(
+            id: followCommandCount, isFollowing: true, zoom: zoom, resetAnchor: false
+        )
+    }
+
+    /**
+     추적을 끈다. 카메라는 지금 보이는 자리에 그대로 둔다 — 러닝 일시정지처럼 "따라가기만 멈추는"
+     경우다.
+
+     - Parameter resetAnchor: [followBottomInset]으로 준 카메라 여백까지 되돌릴지 — 러닝 화면을
+       나갈 때처럼 이 지도를 다른 화면에 돌려줄 때만 true로 둔다(그대로 두면 다음 화면에서도 지도가
+       계속 치우쳐 보인다).
+     */
+    func stopFollowingCurrentLocation(resetAnchor: Bool = false) {
+        followCommandCount += 1
+        followCommand = FollowCurrentLocationCommand(
+            id: followCommandCount, isFollowing: false, zoom: nil, resetAnchor: resetAnchor
+        )
     }
 
     /// [points]가 전부 화면에 보이게 카메라를 옮긴다. 2개 미만이면 무시한다.

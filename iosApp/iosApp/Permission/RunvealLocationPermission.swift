@@ -26,7 +26,14 @@ final class RunvealLocationPermissionState: NSObject, ObservableObject, CLLocati
         refresh()
     }
 
+    /// 우리가 띄운 시스템 다이얼로그의 답을 기다리는 중인지. `locationManagerDidChangeAuthorization`
+    /// 은 앱이 켜질 때도, 설정 앱에서 바꾸고 돌아올 때도 불려서 그대로 쓰면 "물었을 때의 답"이 아닌
+    /// 것까지 섞인다 — Android는 launcher 콜백이 이 역할을 공짜로 해 준다.
+    private var awaitingPermissionAnswer = false
+
     func request() {
+        // 이미 답한 상태면 다이얼로그가 안 뜨므로 응답도 없다 — 그때는 기다리지 않는다.
+        awaitingPermissionAnswer = manager.authorizationStatus == .notDetermined
         manager.requestWhenInUseAuthorization()
     }
 
@@ -56,6 +63,13 @@ final class RunvealLocationPermissionState: NSObject, ObservableObject, CLLocati
     // MARK: - CLLocationManagerDelegate
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+        if awaitingPermissionAnswer, status != .notDetermined {
+            awaitingPermissionAnswer = false
+            RunvealAnalyticsLogger.logLocationPermission(
+                granted: status == .authorizedWhenInUse || status == .authorizedAlways
+            )
+        }
         refresh()
     }
 }
@@ -76,13 +90,12 @@ struct RequireLocationPermissionModifier: ViewModifier {
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { state.refresh() }
             }
-            .sheet(isPresented: Binding(
-                get: { !state.isGranted && !dismissed },
-                set: { if !$0 { dismissed = true } }
-            )) {
+            // 지도 위에 얹는다 — `.sheet`으로 띄우면 뒤 지도가 검게 보인다(`runvealBottomSheet` 참고).
+            .runvealBottomSheet(
+                isPresented: !state.isGranted && !dismissed,
+                onDismiss: { dismissed = true }
+            ) {
                 sheetContent
-                    .presentationBackground(Color.clear)
-                    .presentationDragIndicator(.hidden)
             }
     }
 
@@ -93,13 +106,11 @@ struct RequireLocationPermissionModifier: ViewModifier {
                 onSettingsClick: { state.openSettings() },
                 onCloseClick: { dismissed = true }
             )
-            .presentationDetents([.height(320)])
         } else {
             RunvealLocationPermissionSheet(
                 onAllowClick: { state.request() },
                 onLaterClick: { dismissed = true }
             )
-            .presentationDetents([.height(520)])
         }
     }
 }

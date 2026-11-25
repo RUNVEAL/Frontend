@@ -15,6 +15,9 @@ struct MakeCoursePanel: View {
     let onAvoidVisitedPreferredChange: (Bool) -> Void
     let onFilterClick: () -> Void
     let onRecommendClick: () -> Void
+    /// 주면 패널 우측 상단 바로 위에 "내 위치" 아이콘 버튼이 떠 있는 형태로 추가된다(Android와 같다).
+    /// 기본값이 있는 프로퍼티는 **맨 뒤**에 둔다 — memberwise init 인자 순서가 선언 순서라서다.
+    var onMyLocationClick: (() -> Void)?
 
     var body: some View {
         let colors = RunvealTheme.colors
@@ -76,6 +79,16 @@ struct MakeCoursePanel: View {
         .background(colors.surface.default, in: RunvealShapes.radius32)
         .overlay { RunvealShapes.radius32.stroke(colors.border.default, lineWidth: 1) }
         .clipShape(RunvealShapes.radius32)
+        .overlay(alignment: .topTrailing) {
+            if let onMyLocationClick {
+                RunvealIconButton(
+                    icon: RunvealIcons.locate,
+                    accessibilityLabel: CourseRecommendStrings.myLocation,
+                    onClick: onMyLocationClick
+                )
+                .offset(y: -(RunvealLayout.sizeIconButtonL + RunvealSpacing.space12))
+            }
+        }
     }
 }
 
@@ -111,13 +124,32 @@ private struct RouteSettingRow: View {
 }
 
 /// 출발/도착 위치 선택 모드일 때 지도 위에 뜨는 하단 시트 — 선택한 지점 정보 + 확정 버튼.
+///
+/// [onMyLocationClick]을 주면 시트 우측 상단 바로 위에 "내 위치" 아이콘 버튼이 떠 있는 형태로
+/// 추가된다(Android와 같은 자리 — 시트는 좌우 여백 없이 가장자리에 붙으므로 화면 여백만큼 띄운다).
 struct LocationConfirmPanel: View {
     let placeName: String
+    /// 현재 위치에서 고른 자리까지의 거리("0.3km"). 아직 못 재면 "-km"가 온다.
     let distanceLabel: String
     let confirmLabel: String
     let onConfirmClick: () -> Void
+    var onMyLocationClick: (() -> Void)?
 
     var body: some View {
+        sheet.overlay(alignment: .topTrailing) {
+            if let onMyLocationClick {
+                RunvealIconButton(
+                    icon: RunvealIcons.locate,
+                    accessibilityLabel: CourseRecommendStrings.myLocation,
+                    onClick: onMyLocationClick
+                )
+                .padding(.trailing, RunvealLayout.marginScreen)
+                .offset(y: -(RunvealLayout.sizeIconButtonL + RunvealSpacing.space12))
+            }
+        }
+    }
+
+    private var sheet: some View {
         RunvealBottomSheet(
             header: {
                 RunvealBottomSheetHeader(type: .title, title: placeName, subtitle: distanceLabel)

@@ -52,15 +52,22 @@ struct CourseCreateScreen: View {
         }
         .onChange(of: viewModel.state.startLatLon) { _, _ in updatePinMarkers() }
         .onChange(of: viewModel.state.endLatLon) { _, _ in updatePinMarkers() }
+        // 고른 자리까지의 거리를 재려면 기준점이 필요해서 화면에 들어올 때 한 번 받아 둔다. 선택하는
+        // 동안 사용자가 크게 움직이지 않으니 한 번으로 충분하다 — 못 받으면(권한 없음·위치 꺼짐)
+        // nil이라 거리 줄이 안 그려진다. 추천 요청은 그때의 최신 위치를 따로 받는다(recommend()).
+        .task {
+            viewModel.onIntent(.currentLocationResolved(await currentLocation.fetch()))
+        }
         .onDisappear {
             mapState.pin = nil
             mapState.pinMarkers = []
             viewModel.cancelRunningTasks()
         }
-        .sheet(isPresented: Binding(
-            get: { viewModel.state.showFilterSheet },
-            set: { if !$0 { viewModel.onIntent(.closeFilterSheet) } }
-        )) {
+        // 지도 위에 얹는다 — `.sheet`으로 띄우면 뒤 지도가 검게 보인다(`runvealBottomSheet` 참고).
+        .runvealBottomSheet(
+            isPresented: viewModel.state.showFilterSheet,
+            onDismiss: { viewModel.onIntent(.closeFilterSheet) }
+        ) {
             FilterBottomSheet(
                 selectedDistance: viewModel.state.selectedDistance,
                 isCustomDistanceSelected: viewModel.state.isCustomDistanceSelected,
@@ -76,8 +83,6 @@ struct CourseCreateScreen: View {
                 onReset: { viewModel.onIntent(.resetFilterSheet) },
                 onApply: { viewModel.onIntent(.applyFilterSheet) }
             )
-            .presentationBackground(Color.clear)
-            .presentationDragIndicator(.hidden)
         }
     }
 
@@ -116,7 +121,8 @@ struct CourseCreateScreen: View {
                 onDistanceClick: { viewModel.onIntent(.openFilterSheet) },
                 onAvoidVisitedPreferredChange: { viewModel.onIntent(.setAvoidVisitedPreferred($0)) },
                 onFilterClick: { viewModel.onIntent(.openFilterSheet) },
-                onRecommendClick: recommend
+                onRecommendClick: recommend,
+                onMyLocationClick: { mapState.recenterToCurrentLocation() }
             )
             .padding(.horizontal, RunvealLayout.marginScreen)
             .padding(.vertical, RunvealSpacing.space8)
@@ -124,9 +130,10 @@ struct CourseCreateScreen: View {
             // 바텀시트 베이스라 MakeCoursePanel과 달리 좌우 여백 없이 가장자리에 붙는다.
             LocationConfirmPanel(
                 placeName: viewModel.state.selectedPlaceName,
-                distanceLabel: CourseRecommendStrings.distanceNotImplemented,
+                distanceLabel: viewModel.state.selectedPlaceDistance,
                 confirmLabel: viewModel.state.locationConfirmLabel,
-                onConfirmClick: { viewModel.onIntent(.confirmLocationSelection) }
+                onConfirmClick: { viewModel.onIntent(.confirmLocationSelection) },
+                onMyLocationClick: { mapState.recenterToCurrentLocation() }
             )
         }
     }

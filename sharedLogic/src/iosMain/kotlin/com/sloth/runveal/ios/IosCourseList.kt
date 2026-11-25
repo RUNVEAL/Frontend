@@ -49,9 +49,34 @@ object IosCourseList {
                 notRunLabel = "아직 안달림",
                 path = path,
                 isLoop = row.route_type == "LOOP",
-                snapshotRequest = IosSnapshot.request(path, row.id, SnapshotVariant.THUMBNAIL),
+                // 코스 썸네일엔 출발·도착 점을 같이 찍는다 — 순환 코스는 도착이 곧 출발이라
+                // 출발 점만 남는다(`toSnapshotRequest`가 같은 자리면 도착을 뺀다).
+                snapshotRequest = IosSnapshot.request(
+                    points = path,
+                    ownerId = row.id,
+                    variant = SnapshotVariant.THUMBNAIL,
+                    withStartMarker = true,
+                    withEndMarker = row.route_type != "LOOP",
+                ),
             )
         }
+
+    /**
+     * 코스 이름을 바꾼다. 공백만 들어오면 아무것도 하지 않는다 — 화면의 "저장" 버튼도 같은 조건으로
+     * 꺼져 있다(Android `CourseListViewModel.renameCourse`와 같다).
+     *
+     * 썸네일은 경로로 캐시되니 이름이 바뀌어도 그대로 쓴다.
+     */
+    fun rename(courseId: String, name: String) {
+        val newName = name.trim()
+        if (newName.isEmpty()) return
+        RunvealDatabaseProvider.database.courseQueries.renameCourse(name = newName, id = courseId)
+    }
+
+    /** 코스 행을 지운다. 썸네일 캐시 정리는 호출하는 쪽(Swift `CourseSnapshotRenderer`)이 맡는다. */
+    fun delete(courseId: String) {
+        RunvealDatabaseProvider.database.courseQueries.deleteCourse(courseId)
+    }
 
     /** `course.coordinates` 컬럼("[[lon,lat],…]")을 되돌린다 — GeoJSON 좌표 순서라 반대로 매핑한다. */
     private fun decodeCoordinates(raw: String): List<LatLon> =

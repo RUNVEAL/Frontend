@@ -10,8 +10,11 @@
  * 320x320 → 자연 크기 320pt), Android가 `Modifier.size(80.dp)`로 감싸 둔 것과 같은 크기를
  * `.frame(width:height:)`로 직접 줘야 한다.
  *
- * Xcode는 File System Synchronized Group 안의 리소스를 번들 루트에 평평하게 복사하므로,
- * 하위 폴더에 있어도 `Image("splash")`로 바로 찾을 수 있다.
+ * Xcode는 File System Synchronized Group 안의 리소스를 번들 루트에 평평하게 복사하므로, 하위 폴더에
+ * 있어도 파일 이름만으로 찾을 수 있다. 다만 **`Image("splash")`로는 안 뜬다** — SwiftUI의
+ * `Image(_:bundle:)`은 에셋 카탈로그만 보고, 카탈로그 밖 낱개 파일은 조용히 빈 칸으로 남긴다.
+ * 그래서 UIKit 조회를 거치는 `RunvealBundleImage`(iosApp/iosApp/Core/RunvealBundleImage.swift)를
+ * 부르는 코드를 만든다.
  */
 
 import java.io.File
@@ -43,7 +46,7 @@ abstract class GenerateRunvealImagesSwiftTask : DefaultTask() {
             val name = image.nameWithoutExtension
             """
             |    /// design/images/${image.name} — 크기는 호출하는 쪽에서 `.frame(width:height:)`로 지정한다.
-            |    static var ${propertyName(name)}: Image { Image("$name") }
+            |    static var ${propertyName(name)}: Image { RunvealBundleImage.image("$name", "${image.extension.lowercase()}") }
             """.trimMargin()
         }
         return """

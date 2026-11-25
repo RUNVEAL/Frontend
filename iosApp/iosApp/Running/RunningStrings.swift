@@ -7,6 +7,14 @@ enum RunningStrings {
     static let recordingDistanceUnit = "km"
     static let recordingStopButton = "종료하기"
     static let recordingResumeButton = "재개"
+    static let recordingFinishDialogTitle = "러닝을 끝낼까요?"
+    static let recordingFinishDialogDescription = "지금까지 달린 기록이 저장되고 탐험 지도에 반영돼요."
+    static let recordingFinishDialogConfirm = "끝내기"
+    static let recordingFinishDialogCancel = "취소"
+    static let recordingFinishDialogUnsavedTitle = "러닝 기록이 너무 짧아요"
+    static let recordingFinishDialogUnsavedDescription = "100m 또는 1분 미만은 저장되지 않아요."
+    static let recordingFinishDialogUnsavedConfirm = "저장 없이 종료"
+    static let recordingFinishDialogUnsavedCancel = "계속 달리기"
     static let recordingLegendTodayLabel = "오늘 달린 길"
     static let recordingLegendNewLabel = "새로 탐험한 길"
     static let recordingLegendCourseLabel = "추천 코스"
@@ -27,6 +35,12 @@ enum RunningStrings {
     static let resultSaveImageButton = "이미지 저장하기"
     static let resultCloseAccessibilityLabel = "닫기"
     static let resultMapAccessibilityLabel = "이번 러닝 경로 지도"
+    /// 기록 상세·이미지 저장은 아직 없다 — Android도 같은 문구의 안내만 띄운다.
+    static let notReady = "아직 개발 중입니다"
+
+    // 일시정지 배너 — 지도 위에 띄워 기록이 멈춘 걸 알린다(시안 C0-1).
+    static let pausedBannerTitle = "일시정지 중"
+    static let pausedBannerDescription = "러닝 기록이 멈췄어요"
 }
 
 /// 경과 시간·페이스 포맷 — 기록 화면과 결과 화면, 기록 탭이 같은 공식을 써야 한다

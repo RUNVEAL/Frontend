@@ -31,7 +31,15 @@ object IosSnapshot {
         ownerId: String,
         variant: SnapshotVariant,
         newRoadPaths: List<List<LatLon>>? = null,
-    ): SnapshotRequest? = points.toSnapshotRequest(ownerId, variant, newRoadPaths)
+        withStartMarker: Boolean = false,
+        withEndMarker: Boolean = false,
+    ): SnapshotRequest? = points.toSnapshotRequest(
+        ownerId = ownerId,
+        variant = variant,
+        newRoadPaths = newRoadPaths,
+        withStartMarker = withStartMarker,
+        withEndMarker = withEndMarker,
+    )
 
     /**
      * 조각으로 나뉜 경로용 — 러닝 결과가 쓴다.

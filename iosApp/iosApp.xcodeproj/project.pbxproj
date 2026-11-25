@@ -9,6 +9,9 @@
 /* Begin PBXBuildFile section */
 		A1C0DE000000000000000021 /* MapLibre in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE000000000000000011 /* MapLibre */; };
 		A1C0DE000000000000000022 /* Lottie in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE000000000000000012 /* Lottie */; };
+		A1C0DE000000000000000023 /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE000000000000000013 /* FirebaseCrashlytics */; };
+		A1C0DE000000000000000024 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE000000000000000014 /* FirebaseCore */; };
+		A1C0DE000000000000000025 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = A1C0DE000000000000000015 /* FirebaseAnalytics */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -48,6 +51,9 @@
 			files = (
 				A1C0DE000000000000000021 /* MapLibre in Frameworks */,
 				A1C0DE000000000000000022 /* Lottie in Frameworks */,
+				A1C0DE000000000000000023 /* FirebaseCrashlytics in Frameworks */,
+				A1C0DE000000000000000024 /* FirebaseCore in Frameworks */,
+				A1C0DE000000000000000025 /* FirebaseAnalytics in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -95,6 +101,9 @@
 			packageProductDependencies = (
 				A1C0DE000000000000000011 /* MapLibre */,
 				A1C0DE000000000000000012 /* Lottie */,
+				A1C0DE000000000000000013 /* FirebaseCrashlytics */,
+				A1C0DE000000000000000014 /* FirebaseCore */,
+				A1C0DE000000000000000015 /* FirebaseAnalytics */,
 			);
 			productName = iosApp;
 			productReference = 88F9F68A6654612A031C497B /* Runveal.app */;
@@ -127,6 +136,7 @@
 			packageReferences = (
 				A1C0DE000000000000000001 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */,
 				A1C0DE000000000000000002 /* XCRemoteSwiftPackageReference "lottie-ios" */,
+				A1C0DE000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A0B30ACB1FF18B38DCE63575 /* Products */;
@@ -417,6 +427,15 @@
 				minimumVersion = 4.5.0;
 			};
 		};
+		A1C0DE000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
+			requirement = {
+				kind = versionRange;
+				maximumVersion = 99.0.0;
+				minimumVersion = 11.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -429,6 +448,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A1C0DE000000000000000002 /* XCRemoteSwiftPackageReference "lottie-ios" */;
 			productName = Lottie;
+		};
+		A1C0DE000000000000000013 /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
+		};
+		A1C0DE000000000000000014 /* FirebaseCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCore;
+		};
+		A1C0DE000000000000000015 /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A1C0DE000000000000000003 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

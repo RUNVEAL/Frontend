@@ -21,21 +21,24 @@ struct RunvealDongOverlayBundle {
     let dong: DongOverlayGeoJson
     let sigungu: RegionOverlayGeoJson
     let sido: RegionOverlayGeoJson
-    /// 빛 이미지 생성에 쓰는, 구멍을 보존한 전국 동 폴리곤 — 테두리 선과 같은 정점을 쓴다.
-    let glowPolygonParts: [String: [DongPolygonPart]]
-    /// 행정동 코드 → 단계(0~6). 빛 이미지를 올릴 동을 고르는 데 쓴다.
-    let dongLevels: [String: Int]
-    /// 행정동 코드 → 탐험률(%). 줌인 헤더가 "내 동네 N%"를 여기서 꺼내 써서 지도 밝기와 어긋나지 않는다.
-    let dongPercents: [String: Int]
-    /// 위 퍼센트의 분자·분모(m) — 헤더의 "누적 N km / 전체 N km"가 같은 값을 쓴다.
-    let walkedLengthsByDong: [String: Double]
-    let totalLengthsByDong: [String: Double]
+    /// 전국 동의 폴리곤·단계·탐험률을 묻는 창구 — **Swift `Dictionary`로 복사하지 않는다.**
+    /// 캐스팅하면 전국 3천여 동의 딕셔너리·배열이 전부 브리지를 넘어오고, 좌표는 그래도 Kotlin
+    /// 객체로 남아 정점을 훑는 쪽이 메인 스레드를 길게 잡는다(`DongOverlayQuery` 주석).
+    let query: DongOverlayQuery
     /// `"asset"` 또는 `"server:<지도 버전>"`. 빛 이미지 캐시 키에 들어가, 서버가 경계를 고쳐
     /// 배포하면 옛 이미지를 쓰지 않는다.
     let boundarySourceKey: String
     /// 이 묶음을 만들 때 반영돼 있던 마지막 러닝 기록의 ID(없으면 nil) — 홈이 "지금 내 기록 상태와
     /// 같은 오버레이인지"를 판단해서 괜히 다시 만들지 않는 데 쓴다.
     let builtForTrackId: String?
+
+    /// 서버에서 동 경계를 못 받아 비어 있는 묶음인지. 참이면 동 테두리·라벨·빛이 통째로 안 보이고
+    /// 탐험률이 전부 0%가 되는데, 설명이 없으면 "원래 그런 화면"처럼 보인다 — 홈이 이 값으로
+    /// "지도 데이터를 받지 못했어요" 배너를 띄운다(Android `DongOverlayBundle.isServerDataMissing`).
+    ///
+    /// 판정은 Kotlin 쪽([DongOverlayGeoJsonBundle])이 하고 여기서는 받아 둔다 — `"none"` 문자열
+    /// 비교가 두 곳으로 갈라지지 않게.
+    let isServerDataMissing: Bool
 
     init(bundle: DongOverlayGeoJsonBundle, builtForTrackId: String?) {
         dong = DongOverlayGeoJson(
@@ -51,12 +54,9 @@ struct RunvealDongOverlayBundle {
             lineGeoJson: bundle.sidoLineGeoJson,
             labelGeoJson: bundle.sidoLabelGeoJson
         )
-        glowPolygonParts = bundle.dongPolygonPartsByAdmCd2 as? [String: [DongPolygonPart]] ?? [:]
-        dongLevels = (bundle.dongLevelByAdmCd2 as? [String: NSNumber] ?? [:]).mapValues { $0.intValue }
-        dongPercents = (bundle.dongPercents as? [String: NSNumber] ?? [:]).mapValues { $0.intValue }
-        walkedLengthsByDong = (bundle.walkedLengthsByDong as? [String: NSNumber] ?? [:]).mapValues { $0.doubleValue }
-        totalLengthsByDong = (bundle.totalLengthsByDong as? [String: NSNumber] ?? [:]).mapValues { $0.doubleValue }
+        query = bundle.query
         boundarySourceKey = bundle.boundarySourceKey
+        isServerDataMissing = bundle.isServerDataMissing
         self.builtForTrackId = builtForTrackId
     }
 }

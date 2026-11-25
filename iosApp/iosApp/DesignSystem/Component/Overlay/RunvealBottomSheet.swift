@@ -50,8 +50,15 @@ struct RunvealBottomSheet<Header: View, Content: View, Footer: View>: View {
         }
         .padding(.top, RunvealSpacing.space12)
         .frame(maxWidth: .infinity)
-        .background(colors.surface.raised, in: shape)
+        // 내용을 먼저 둥글게 자르고 **그 뒤에** 배경을 깐다 — 순서를 바꾸면 clipShape가 아래
+        // 배경의 확장분까지 잘라낸다.
         .clipShape(shape)
+        // **배경만 OS 내비게이션 바(제스처 바) 뒤까지 채운다** — 그래야 그 영역도 시트와 같은
+        // 색으로 보인다. 내용은 safe area 위에 그대로 남으므로 버튼이 가려지지 않는다.
+        // Android가 배경을 먼저 칠하고 그 위에 navigationBars 인셋을 더하는 것과 같은 결과다.
+        .background {
+            shape.fill(colors.surface.raised).ignoresSafeArea(edges: .bottom)
+        }
     }
 }
 

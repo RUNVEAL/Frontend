@@ -26,11 +26,80 @@ final class CourseRecommendResultViewModel: MviViewModel<
     override func handleIntent(_ intent: CourseRecommendResultIntent) async {
         switch intent {
         case .selectRoute(let routeId):
-            setState { state in
-                guard case .ready(var ready) = state else { return state }
-                ready.selectedRouteId = routeId
-                return .ready(ready)
-            }
+            updateReady { $0.selectedRouteId = routeId }
+
+        case .openFilterSheet:
+            updateReady { $0.filterDraft = $0.settings }
+
+        case .closeFilterSheet:
+            updateReady { $0.filterDraft = nil }
+
+        case .updateFilterDraft(let draft):
+            updateReady { $0.filterDraft = draft }
+
+        case .resetFilterDraft:
+            // 출발·도착지는 코스 만들기에서 고른 값이라 그대로 두고, 고를 수 있는 조건만 되돌린다.
+            updateReady { $0.filterDraft = ($0.filterDraft ?? $0.settings).resetToDefaults() }
+
+        case .applyFilterDraft:
+            guard case .ready(let ready) = state, let draft = ready.filterDraft else { return }
+            await recommend(with: draft)
+
+        case .retryAsLoopCourse:
+            // 도착지만 비우고 나머지 조건은 그대로 — 안내 줄이 말하는 "출발지로 돌아오는 코스"다.
+            guard case .ready(let ready) = state else { return }
+            await recommend(with: ready.settings.with(clearEnd: true))
+        }
+    }
+
+    /**
+     주어진 조건으로 다시 추천받는다. 결과는 홀더에 publish하고 **상태도 직접 갈아 끼운다** —
+     조건만 바꾸고 결과가 똑같이 오면 `@Published`가 같은 값이라 보고 흘릴 수 있어서, 위 구독만
+     믿으면 로딩이 영영 안 걷힌다(Android도 같은 이유로 둘 다 한다).
+
+     다시 받는 동안에도 조건 칩과 지도는 그대로 두고 로딩만 덮는다.
+     */
+    private func recommend(with settings: CourseRecommendSettings) async {
+        setState { state in
+            guard case .ready(var ready) = state else { return state }
+            ready.filterDraft = nil
+            ready.isReloading = true
+            return .ready(ready)
+        }
+
+        let result: CourseRecommendResult
+        do {
+            let response = try await IosCourseRecommend.shared.fetchRoutes(
+                start: settings.startLatLon ?? Self.fallbackStart,
+                end: settings.endLatLon,
+                distanceMeters: Int32(settings.distanceMeters),
+                preferUnexplored: settings.avoidVisitedPreferred
+            )
+            RunvealAnalyticsLogger.logCourseRecommend(resultCount: response.routes.count)
+            result = .success(response: response, settings: settings)
+        } catch {
+            RunvealAnalyticsLogger.logCourseRecommend(resultCount: nil)
+            result = .failure(
+                message: error.localizedDescription.isEmpty
+                    ? CourseRecommendStrings.recommendFailed
+                    : error.localizedDescription,
+                settings: settings
+            )
+        }
+        // 홀더에도 올려 둔다 — 코스 상세가 여기서 routeId로 코스를 찾는다.
+        CourseRecommendResultHolder.shared.publish(result)
+        setState { _ in .ready(Self.ready(from: result)) }
+    }
+
+    /// 출발지가 비는 일은 없어야 하지만(코스 만들기에서 박아 둔다), 혹시 비면 추천을 아예 못 하는
+    /// 대신 성수동 인근을 쓴다 — `CourseCreateViewModel`의 임시 기본 좌표와 같다.
+    private static let fallbackStart = LatLon(lat: 37.5445, lon: 127.0557)
+
+    private func updateReady(_ block: (inout CourseRecommendResultReady) -> Void) {
+        setState { state in
+            guard case .ready(var ready) = state else { return state }
+            block(&ready)
+            return .ready(ready)
         }
     }
 

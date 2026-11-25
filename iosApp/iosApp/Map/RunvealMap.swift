@@ -3,8 +3,9 @@ import SharedLogic
 import SwiftUI
 
 /// 지도 위에 떠 있는 마커 하나의 화면 좌표 — SwiftUI로 그리기 위해 지도에서 역산한 값.
-struct MapMarkerPlacement: Identifiable {
-    let id: UUID
+struct MapMarkerPlacement: Identifiable, Equatable {
+    /// [MapPin.id]를 그대로 쓴다 — 자리·종류로 정해지는 값이라 다시 그려도 같다.
+    let id: String
     let type: RunvealMapMarkerType
     let style: RunvealMapMarkerStyle
     let point: CGPoint
@@ -109,12 +110,25 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
         private lazy var glowLayer = DongGlowImageLayer(provider: glowProvider)
 
         weak var mapView: MLNMapView?
+        /// 지금 화면에 떠 있는 현재 위치 마커 — 방향 화살표를 켜고 끄려고 들고 있는다.
+        /// 소유자는 지도(annotation view를 재사용·폐기한다)라 약한 참조로 둔다.
+        private weak var userLocationView: RunvealUserLocationAnnotationView?
         private var style: MLNStyle?
 
         /// 이미 반영한 one-shot 커맨드 번호 — 같은 요청을 두 번 처리하지 않게.
         private var appliedRecenterRequestId = 0
         private var appliedBoundsFocusRequestId = 0
+        private var appliedMoveToRequestId = 0
         private var pendingRecenter = false
+        /// [pendingRecenter] 요청이 같이 맞춰야 할 줌 — nil이면 배율은 그대로 둔다.
+        private var pendingRecenterZoom: Double?
+
+        private var appliedFollowCommandId = 0
+        /// 우리가 추적을 켠 상태인가 — "한 번 옮기기"([pendingRecenter])와 구분하는 데 쓴다.
+        private var isFollowRequested = false
+        /// 추적을 켜면서 맞춰야 할 줌 — [pendingRecenterZoom]과 같은 이유로 전환이 끝난 뒤에 건다.
+        private var pendingFollowZoom: Double?
+        private var appliedFollowBottomInset: CGFloat = 0
 
         private var lastOverlayBoundarySourceKey: String?
         private var glowRefreshTask: Task<Void, Never>?
@@ -140,20 +154,53 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
             // 도로 색을 바꾸기 전의 원래 색을 기억해 둬야 "안 가본 길" 토글을 끌 때 되돌릴 수 있다.
             roadFocus.rememberOriginalColors(style: style)
             BaseStyleLabels.hide(style: style)
+            // 숨긴 라벨 대신, 줌인에서만 보이는 역·터미널 이름을 얹는다 — 베이스 스타일에
+            // 정의가 없어서 타일 소스(`poi`)로 레이어를 직접 만든다.
+            BaseStylePoiLabels.show(style: style, colors: colors)
             mapView.showsUserLocation = true
 
             apply(state: state, overlay: currentOverlay)
+        }
+
+        // MARK: 현재 위치 마커
+
+        /// 현재 위치만 우리 마커로 바꾼다 — 나머지 annotation은 쓰지 않으므로 nil을 돌려줘
+        /// SDK 기본값에 맡긴다.
+        func mapView(_ mapView: MLNMapView, viewFor annotation: MLNAnnotation) -> MLNAnnotationView? {
+            guard annotation is MLNUserLocation else { return nil }
+            let view = RunvealUserLocationAnnotationView()
+            view.showsBearing = state.showsHeadingIndicator
+            userLocationView = view
+            return view
         }
 
         // MARK: 카메라
 
         func mapView(_ mapView: MLNMapView, regionDidChangeAnimated animated: Bool) {
             state.updateZoom(mapView.zoomLevel)
+            // 멈춘 자리의 중심 — 홈이 이 값으로 "지금 지도 가운데 보이는 행정동"을 묻는다.
+            let center = mapView.centerCoordinate
+            state.updateCenter(LatLon(lat: center.latitude, lon: center.longitude))
             clampToKoreaBoundsIfNeeded(mapView)
+            if let zoom = pendingFollowZoom {
+                // 추적을 켜는 시점에 같이 주면 전환 애니메이션에 묻힌다 — 아래 한 번 옮기기와 같은 이유로
+                // 전환이 끝난 이 시점에 배율만 따로 건다. 중심은 추적이 계속 맞춰 준다.
+                pendingFollowZoom = nil
+                mapView.setZoomLevel(zoom, animated: true)
+            }
             if pendingRecenter {
                 // 한 번만 따라가고 추적을 끈다 — 이후에는 사용자가 자유롭게 둘러볼 수 있게.
+                // 러닝처럼 계속 따라가야 하는 중이면 끄지 않는다.
                 pendingRecenter = false
-                mapView.userTrackingMode = .none
+                if !isFollowRequested { mapView.userTrackingMode = .none }
+                // 줌까지 맞춰야 하는 요청이면(기록 탭 → 홈 줌인 뷰) 추적이 현위치로 옮겨 놓은
+                // 중심을 그대로 두고 배율만 바꾼다. 추적을 켜는 시점에 같이 주지 않는 이유는
+                // Android(`setCameraMode`에 zoom 인자)와 달리 MapLibre iOS에는 그런 묶음 API가
+                // 없어서다 — 따로 걸면 전환 애니메이션과 겹쳐 중간 배율에서 멈춘다.
+                if let zoom = pendingRecenterZoom {
+                    pendingRecenterZoom = nil
+                    mapView.setZoomLevel(zoom, animated: true)
+                }
             }
             refreshMarkerPositions()
             scheduleGlowRefresh()
@@ -163,15 +210,31 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
             refreshMarkerPositions()
         }
 
+        /// [clampToKoreaBoundsIfNeeded]가 부른 `setCenter` 안인가 — 재진입을 막는다.
+        private var isClampingToKorea = false
+
         /// MapLibre iOS에는 Android의 `setLatLngBoundsForCameraTarget`에 해당하는 API가 없어서,
         /// 카메라가 멈출 때 한국 범위를 벗어났으면 되돌린다.
+        ///
+        /// **자기가 부른 `setCenter` 안에서는 다시 들어오지 않는다.** MapLibre가 카메라를 옮길 수 없는
+        /// 상태(뷰 크기가 아직 0×0, 또는 줌이 낮아 세계 전체가 화면에 들어가 위도가 0에 고정)에서는
+        /// `setCenter`가 위치를 못 바꾼 채 `regionDidChangeAnimated`를 **동기로** 다시 부른다. 그러면
+        /// 여기서 또 옮기라고 하고, 끝없이 반복돼 스택이 넘쳐 홈 진입 때 앱이 죽었다.
+        /// 비교에 오차를 두는 것도 같은 이유다 — 되돌아온 경도가 124.49999999999999처럼 미세하게 달라
+        /// 정확히 비교하면 "아직 밖"으로 보고 계속 옮긴다.
         private func clampToKoreaBoundsIfNeeded(_ mapView: MLNMapView) {
+            guard !isClampingToKorea else { return }
             let northWest = RunvealMapConfig.koreaBoundsNorthWest
             let southEast = RunvealMapConfig.koreaBoundsSouthEast
             let center = mapView.centerCoordinate
             let clampedLat = min(max(center.latitude, southEast.lat), northWest.lat)
             let clampedLon = min(max(center.longitude, northWest.lon), southEast.lon)
-            guard clampedLat != center.latitude || clampedLon != center.longitude else { return }
+            let epsilon = 1e-6
+            guard abs(clampedLat - center.latitude) > epsilon || abs(clampedLon - center.longitude) > epsilon else {
+                return
+            }
+            isClampingToKorea = true
+            defer { isClampingToKorea = false }
             mapView.setCenter(
                 CLLocationCoordinate2D(latitude: clampedLat, longitude: clampedLon),
                 animated: true
@@ -188,6 +251,12 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
 
         func apply(state: RunvealMapState, overlay: RunvealDongOverlayBundle?) {
             currentOverlay = overlay
+            // 방향 화살표는 스타일 레이어가 아니라 지도 뷰의 사용자 위치 표시 옵션이다 — 스타일이
+            // 아직 안 올라왔어도 걸어 둘 수 있으므로 아래 guard 앞에서 반영한다.
+            // SDK 옵션은 켜 둬야 MapLibre가 나침반 갱신을 시작한다. 실제로 화살표를 그릴지는
+            // 우리 마커가 정한다([RunvealUserLocationAnnotationView.showsBearing]).
+            mapView?.showsUserHeadingIndicator = state.showsHeadingIndicator
+            userLocationView?.showsBearing = state.showsHeadingIndicator
             guard let style else { return }
 
             applyRoadFocus(style: style, enabled: state.unexploredRoadFocus)
@@ -259,7 +328,30 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
                 appliedRecenterRequestId = state.recenterRequestId
                 if state.recenterRequestId > 0 {
                     pendingRecenter = true
+                    pendingRecenterZoom = state.recenterZoom
                     mapView.userTrackingMode = .follow
+                }
+            }
+
+            if let command = state.followCommand, command.id != appliedFollowCommandId {
+                appliedFollowCommandId = command.id
+                applyFollow(command, mapView: mapView)
+            }
+
+            // 추적 중에 패널 높이가 바뀌면 카메라 여백만 다시 반영한다.
+            if isFollowRequested, state.followBottomInset != appliedFollowBottomInset {
+                applyFollowBottomInset(state.followBottomInset, mapView: mapView)
+            }
+
+            if state.moveToRequestId != appliedMoveToRequestId {
+                appliedMoveToRequestId = state.moveToRequestId
+                if state.moveToRequestId > 0, let target = state.moveToCenter {
+                    // 줌을 안 주면 지금 배율을 유지한다 — 줌아웃 상태에서 자리만 옮기는 경우다.
+                    mapView.setCenter(
+                        target.coordinate,
+                        zoomLevel: state.moveToZoom ?? mapView.zoomLevel,
+                        animated: true,
+                    )
                 }
             }
 
@@ -269,6 +361,33 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
                     focus(mapView: mapView, points: points, extraBottomPadding: state.boundsFocusExtraBottomPadding)
                 }
             }
+        }
+
+        /// 현재 위치 추적을 켜고 끈다 — Android `CurrentLocationLayer.startFollowing`/`stopFollowing`.
+        ///
+        /// `.follow`는 **북쪽 고정**으로 따라간다(`.followWithHeading`은 지도가 같이 돌아서 안 쓴다).
+        private func applyFollow(_ command: FollowCurrentLocationCommand, mapView: MLNMapView) {
+            isFollowRequested = command.isFollowing
+            if command.isFollowing {
+                // 한 번 옮기기 요청이 걸려 있었다면 버린다 — 계속 따라가는 쪽이 이긴다.
+                pendingRecenter = false
+                pendingRecenterZoom = nil
+                pendingFollowZoom = command.zoom
+                mapView.userTrackingMode = .follow
+                applyFollowBottomInset(state.followBottomInset, mapView: mapView)
+            } else {
+                pendingFollowZoom = nil
+                mapView.userTrackingMode = .none
+                if command.resetAnchor {
+                    applyFollowBottomInset(0, mapView: mapView)
+                }
+            }
+        }
+
+        /// 하단 패널에 가리는 만큼 카메라 아래 여백을 줘서, 현재 위치가 보이는 영역의 가운데에 오게 한다.
+        private func applyFollowBottomInset(_ inset: CGFloat, mapView: MLNMapView) {
+            appliedFollowBottomInset = inset
+            mapView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: inset, right: 0)
         }
 
         /// 코스 선이 화면 가장자리에 딱 붙지 않게 주는 여백.
@@ -322,6 +441,10 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
             state.pinMarkers.forEach { append($0, .pin) }
             if let pin = state.pin { append(pin, .pin) }
 
+            // **그대로면 발행하지 않는다.** 이 함수는 `apply()` 끝에서 불리는데, `apply()`는
+            // `updateUIView`에서 불린다 — 값이 같아도 발행하면 뷰가 다시 그려지고 그게 다시
+            // `updateUIView`를 불러서, 아무것도 안 바뀌어도 지도 상태 반영이 끝없이 돈다.
+            guard markerPositions.placements != placements else { return }
             markerPositions.placements = placements
         }
 
@@ -339,8 +462,7 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
                 await self.glowLayer.refresh(
                     style: style,
                     mapView: mapView,
-                    levels: overlay?.dongLevels ?? [:],
-                    polygonParts: overlay?.glowPolygonParts ?? [:],
+                    query: overlay?.query,
                     boundarySourceKey: overlay?.boundarySourceKey ?? ""
                 )
             }

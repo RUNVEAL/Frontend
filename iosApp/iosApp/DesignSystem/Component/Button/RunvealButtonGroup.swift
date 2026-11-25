@@ -129,22 +129,28 @@ struct RunvealButtonGroupEqual: View {
     private let secondLabel: String
     private let onSecondClick: () -> Void
 
+    /// 오른쪽(주) 버튼만 끈다 — 입력이 비었을 때처럼 "취소는 언제나 되는" 자리에 쓴다
+    /// (Android `RunvealButtonGroupEqual`의 `enabled`와 같은 뜻).
+    private let enabled: Bool
+
     init(
         firstLabel: String,
         onFirstClick: @escaping () -> Void,
         secondLabel: String,
-        onSecondClick: @escaping () -> Void
+        onSecondClick: @escaping () -> Void,
+        enabled: Bool = true
     ) {
         self.firstLabel = firstLabel
         self.onFirstClick = onFirstClick
         self.secondLabel = secondLabel
         self.onSecondClick = onSecondClick
+        self.enabled = enabled
     }
 
     var body: some View {
         HStack(spacing: RunvealSpacing.space8) {
             RunvealButton(label: firstLabel, style: .secondary, fillWidth: true, onClick: onFirstClick)
-            RunvealButton(label: secondLabel, style: .gold, fillWidth: true, onClick: onSecondClick)
+            RunvealButton(label: secondLabel, style: .gold, enabled: enabled, fillWidth: true, onClick: onSecondClick)
         }
         .frame(maxWidth: .infinity)
     }

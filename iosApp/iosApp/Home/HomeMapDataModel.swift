@@ -51,6 +51,23 @@ final class HomeMapDataModel: ObservableObject {
         (isRecordingOrPaused || hideRegionOverlays) ? nil : overlay
     }
 
+    /// 서버에서 동 경계·탐험률을 다시 받아 오버레이를 새로 만든다 — 홈의 "다시 시도" 배너가 부른다.
+    ///
+    /// 지금 묶음이 반영하고 있던 기록([latestTrackId])을 그대로 넘긴다 — 다른 값을 넣으면
+    /// [observeTrackResult]가 묶음을 "낡은 것"으로 보고 또 한 번 다시 만든다.
+    ///
+    /// 실패하면 오버레이를 그대로 둔다. 비워 버리면 지금 보이던 동 테두리까지 사라져서, 다시
+    /// 시도를 누른 쪽이 더 나빠진다.
+    func refreshOverlayFromServer() async {
+        do {
+            let bundle = try await RunvealDongOverlayLoader.load(builtForTrackId: latestTrackId)
+            RunvealDongOverlayHolder.shared.publish(bundle)
+            overlay = bundle
+        } catch {
+            print("[HomeMap] 동 오버레이 다시 받기 실패: \(error)")
+        }
+    }
+
     // MARK: - 가본 길
 
     private func reloadVisitedRoad() {

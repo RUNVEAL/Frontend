@@ -14,10 +14,21 @@ import SwiftUI
 struct RunvealHomeBottomPanel: View {
     private static let innerInset: CGFloat = 6
 
+    /// 패널 위 "내 위치" 버튼 — 시안 간격(패널 위 20, 패널 오른쪽 끝에서 10 안쪽)과, 보이는 원(44)과
+    /// 터치 칸(48)의 차이 2.
+    ///
+    /// 버튼은 **보이는 원보다 큰 터치 칸**으로 자리를 차지한다. 그래서 간격을 원 기준으로 잡으면
+    /// 그 차이만큼 패널 쪽으로 내려앉아 겹친다 — 터치 칸 크기로 띄우고 차이를 되돌려 준다.
+
     private let tabBar: AnyView
     private let banner: AnyView?
     private let summary: AnyView?
     private let onMyLocationClick: (() -> Void)?
+
+    private static let myLocationTouchSize: CGFloat = 48
+    private static let myLocationPanelGap: CGFloat = 20
+    private static let myLocationEndGap: CGFloat = 10
+    private static let myLocationTouchInset: CGFloat = 2
 
     init<TabBar: View>(
         banner: AnyView? = nil,
@@ -60,10 +71,11 @@ struct RunvealHomeBottomPanel: View {
                 RunvealIconButton(
                     icon: RunvealIcons.locate,
                     accessibilityLabel: RunvealDesignSystemStrings.homeBottomPanelMyLocationContentDescription,
+                    size: .m,
                     onClick: onMyLocationClick
                 )
-                .padding(.trailing, RunvealSpacing.space4)
-                .offset(y: -(RunvealLayout.sizeIconButtonL + RunvealSpacing.space12))
+                .padding(.trailing, Self.myLocationEndGap - Self.myLocationTouchInset)
+                .offset(y: -(Self.myLocationTouchSize + Self.myLocationPanelGap - Self.myLocationTouchInset))
             }
         }
     }
@@ -75,20 +87,32 @@ struct RunvealHomeBottomPanel: View {
 struct RunvealLocationOffBanner: View {
     private let message: String
     private let actionLabel: String
+    private let icon: RunvealIconSpec
+    private let iconTint: Color?
     private let onActionClick: () -> Void
 
-    init(message: String, actionLabel: String, onActionClick: @escaping () -> Void) {
+    /// [iconTint]가 nil이면 벡터 자체 색을 쓴다 — location-off 아이콘이 그런 경우다(아래 주석).
+    /// 서버 데이터 안내처럼 다른 뜻의 배너는 [icon]과 [iconTint]를 바꿔 쓴다(Android와 같은 구조).
+    init(
+        message: String,
+        actionLabel: String,
+        icon: RunvealIconSpec = RunvealIcons.locationOff,
+        iconTint: Color? = nil,
+        onActionClick: @escaping () -> Void
+    ) {
         self.message = message
         self.actionLabel = actionLabel
+        self.icon = icon
+        self.iconTint = iconTint
         self.onActionClick = onActionClick
     }
 
     var body: some View {
         let colors = RunvealTheme.colors
         HStack(spacing: RunvealSpacing.space8) {
-            // tint를 주면 location-off 아이콘의 사선이 두꺼워 보인다 — 벡터 자체 색
-            // (전경 F4EEEA + 배경 272626 knockout)을 그대로 쓴다.
-            RunvealIcon(RunvealIcons.locationOff, size: 16)
+            // tint를 주면 location-off 아이콘의 사선이 두꺼워 보인다 — 그래서 기본은 tint 없이
+            // 벡터 자체 색(전경 F4EEEA + 배경 272626 knockout)을 그대로 쓴다.
+            RunvealIcon(icon, tint: iconTint, size: 16)
             Text(message)
                 .runvealTextStyle(RunvealTheme.typography.bodyMRegular)
                 .foregroundStyle(colors.text.secondary)
@@ -122,7 +146,7 @@ private var previewTabItems: [RunvealTabItemSpec] {
 #Preview {
     VStack(spacing: 24) {
         RunvealHomeBottomPanel(
-            summary: AnyView(RunvealSummaryCard(dongName: "성수동", ratePercent: 37, isMine: true) {})
+            summary: AnyView(RunvealSummaryCard(dongName: "성수동", ratePercent: 37, tagLabel: "내 동네") {})
         ) {
             RunvealTabBar(items: previewTabItems, selectedIndex: 0, container: .embedded) { _ in }
         }
