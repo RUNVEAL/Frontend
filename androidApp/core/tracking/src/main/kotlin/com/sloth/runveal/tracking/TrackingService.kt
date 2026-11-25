@@ -40,6 +40,7 @@ import com.sloth.runveal.result.DongRateChange
 import com.sloth.runveal.result.DongRateChanges
 import com.sloth.runveal.result.LiveMatchHolder
 import com.sloth.runveal.result.LiveNewRoadHolder
+import com.sloth.runveal.analytics.RunvealAnalyticsLogger
 import com.sloth.runveal.result.TrackResult
 import com.sloth.runveal.result.TrackResultHolder
 import java.util.UUID
@@ -331,6 +332,12 @@ class TrackingService : Service() {
         routePaths: List<List<LatLon>>,
         newRoadPaths: List<List<LatLon>> = emptyList(),
     ) {
+        // 러닝 1회당 꼭 한 번 지나는 자리다 — 위 세 분기(점 부족·매칭 성공·매칭 실패)가 서로
+        // 배타적이고, 저장하지 않는 러닝은 `stopTracking(saveRecord = false)`에서 여기까지 오지
+        // 않는다. 화면이 아니라 여기서 쏘는 이유는 run_start와 같다: 결과 화면은 다시 들어올 수
+        // 있어서 그쪽에 심으면 한 러닝이 여러 번 셰어진다.
+        RunvealAnalyticsLogger.logRunComplete(distanceMeters, elapsedMs, newRoadMeters)
+
         TrackResultHolder.publish(
             TrackResult(
                 trackId = finished.id,

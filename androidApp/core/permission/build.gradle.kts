@@ -11,6 +11,8 @@ dependencies {
     // Health Connect 권한 판단(HealthConnectAvailability)과 권한 묶음(HealthConnectPermissions).
     implementation(project(":androidApp:core:health"))
     implementation(project(":sharedLogic"))
+    // 위치 권한 응답 이벤트(location_permission) — Firebase는 core:analytics만 안다.
+    implementation(project(":androidApp:core:analytics"))
 
     implementation(libs.androidx.activity.compose)
     implementation(libs.compose.material3)

@@ -1,6 +1,7 @@
 package com.sloth.runveal.courserecommend
 
 import android.util.Log
+import com.sloth.runveal.analytics.RunvealAnalyticsLogger
 import com.sloth.runveal.courserecommend.contract.FilterServerCodes
 import com.sloth.runveal.data.local.RunvealDatabaseProvider
 import com.sloth.runveal.dong.SegmentCoverageMatcher
@@ -60,9 +61,14 @@ internal class CourseRecommender {
             ),
         )
         Log.i(TAG, "추천 성공 routes=${response.routes.size} warnings=${response.warnings}")
+        // 호출부(설정 화면의 "경로 추천 받기", 결과 화면의 조건 바꿔 다시 받기)마다 심지 않고
+        // 여기 한 곳에 둔다 — 추천을 받는 길이 늘어나도 조용히 빠지지 않는다(run_start와 같은 이유).
+        RunvealAnalyticsLogger.logCourseRecommend(response.routes.size)
         CourseRecommendResult.Success(response, settings)
     } catch (e: Exception) {
         Log.w(TAG, "추천 실패", e)
+        // null은 "요청 자체가 실패" — 결과 0개와 구분해서 보낸다.
+        RunvealAnalyticsLogger.logCourseRecommend(resultCount = null)
         // 예외 메시지(HTTP 상태·스택 등)를 그대로 쓰면 화면에 에러 코드가 뜬다 — 사유는 로그에만
         // 남기고 화면엔 사람이 읽는 문구를 보낸다.
         CourseRecommendResult.Failure(RECOMMEND_FAILURE_MESSAGE, settings)

@@ -20,6 +20,8 @@ dependencies {
     implementation(project(":androidApp:core:navigation"))
     implementation(project(":androidApp:core:map"))
     implementation(project(":sharedLogic"))
+    // 내 코스에서 러닝 시작 이벤트(course_start) — Firebase는 core:analytics만 안다.
+    implementation(project(":androidApp:core:analytics"))
 
     implementation(libs.androidx.navigation.compose)
     implementation(libs.compose.material3)

@@ -21,6 +21,8 @@ dependencies {
     implementation(project(":androidApp:core:devicestate"))
     implementation(project(":androidApp:core:navigation"))
     implementation(project(":sharedLogic"))
+    // 추천·저장·코스 시작 이벤트 — Firebase는 core:analytics만 안다.
+    implementation(project(":androidApp:core:analytics"))
 
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.navigation.compose)
