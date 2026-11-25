@@ -1,5 +1,8 @@
 package com.sloth.runveal.home
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -421,6 +424,15 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                 navController = tabNavigator.navController,
                 startDestination = RunVealRoute.HomeTab.Home,
                 modifier = Modifier.fillMaxSize(),
+                // 기본 전환은 뒤로 갈 때 나가는 화면을 **축소**시킨다(`scaleOut`). 이 앱은 지도 위에
+                // 화면을 얹는 구조라 창이 쪼그라들었다 펴지는 것처럼 보여 산만하다 — 크기를 건드리지
+                // 않는 페이드만 쓴다. 제스처로 뒤로 갈 때(예측 뒤로가기)도 같은 전환을 탄다.
+                enterTransition = { fadeIn(tween(NAV_TRANSITION_MILLIS)) },
+                exitTransition = { fadeOut(tween(NAV_TRANSITION_MILLIS)) },
+                popEnterTransition = { fadeIn(tween(NAV_TRANSITION_MILLIS)) },
+                popExitTransition = { fadeOut(tween(NAV_TRANSITION_MILLIS)) },
+                predictivePopEnterTransition = { fadeIn(tween(NAV_TRANSITION_MILLIS)) },
+                predictivePopExitTransition = { fadeOut(tween(NAV_TRANSITION_MILLIS)) },
             ) {
                 navigation<RunVealRoute.HomeTab.Home>(startDestination = RunVealRoute.HomeTab.HomeMap) {
                     homeMapOverlay(
@@ -834,3 +846,9 @@ private fun NavDestination.isMapDestination(): Boolean =
         hasRoute<RunVealRoute.HomeTab.CourseDetail>() ||
         hasRoute<RunVealRoute.HomeTab.SavedCourseDetail>() ||
         hasRoute<RunVealRoute.HomeTab.Recording>()
+
+/**
+ * 탭 NavHost의 화면 전환 길이(ms). 기본값(700ms)은 이 앱에서 너무 길다 — 지도를 깔고 그 위를 덮는
+ * 구조라, 전환이 길수록 덮개가 걷히기 전 어중간한 구간이 오래 보인다.
+ */
+private const val NAV_TRANSITION_MILLIS = 220
