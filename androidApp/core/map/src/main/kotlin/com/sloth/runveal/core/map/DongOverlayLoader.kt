@@ -33,6 +33,9 @@ data class DongOverlayBundle(
      * 여기서 꺼내 쓰므로, 카드 숫자와 지도 밝기가 어긋날 수 없다. 0%인 동은 들어 있지 않다
      * ([DongExploreRate.percents]) — 없으면 0으로 읽으면 된다. */
     val dongPercents: Map<String, Int>,
+    /** 동 코드 -> 행정동 이름("부성2동"). 지도 라벨이 쓰는 이름 그대로다 — 홈 요약 카드가 고정된
+     * 기준 동("내 동네")의 이름을 좌표 조회 없이 꺼내 쓴다. 경계를 못 받았으면 비어 있다. */
+    val dongNames: Map<String, String>,
     /** 동별 "가본 길" 길이(m)와 전체 도로 길이(m) — [dongPercents]의 분자·분모 그대로다. 줌인 헤더의
      * "누적 N km / 전체 N km"가 퍼센트와 어긋나지 않게 같은 값을 쓴다. 분모는 서버 `index.json` →
      * 로컬 구간 인덱스 → 번들 추정치 순으로 정해진다. */
@@ -66,6 +69,7 @@ data class DongOverlayBundle(
             // 분자·분모는 로컬에도 있지만, 서버와 코드 체계가 어긋난 채로 숫자만 띄우면
             // 지도는 안 빛나는데 카드만 8%라고 하는 상태가 된다.
             dongPercents = emptyMap(),
+            dongNames = emptyMap(),
             walkedLengthsByDong = emptyMap(),
             totalLengthsByDong = emptyMap(),
             builtForTrackId = builtForTrackId,
@@ -118,6 +122,7 @@ suspend fun loadDongOverlayBundle(context: Context, builtForTrackId: String?): D
             sigunguOverlay = repository.buildSigunguOverlay(dongPercents),
             sidoOverlay = repository.buildSidoOverlay(dongPercents),
             dongPercents = dongPercents,
+            dongNames = dong.nameByAdmCd2,
             walkedLengthsByDong = walkedLengths,
             totalLengthsByDong = totalLengths,
             builtForTrackId = builtForTrackId,

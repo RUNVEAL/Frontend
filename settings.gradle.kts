@@ -36,6 +36,7 @@ dependencyResolutionManagement {
 }
 
 include(":androidApp:app")
+include(":androidApp:core:analytics")
 include(":androidApp:core:designsystem")
 include(":androidApp:core:devicestate")
 include(":androidApp:core:health")

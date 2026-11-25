@@ -9,6 +9,20 @@ package com.sloth.runveal.dong
  * 빛나면 안 된다.
  */
 object DongExploreRate {
+    /**
+     * 탐험률이 가장 높은 행정동 코드 — 홈이 앱 시작 포커스와 "내 동네" 꼬리표의 기준으로 쓴다.
+     *
+     * [percents]는 0%인 동을 담지 않으므로([percents] 참고), 비어 있으면 **기록이 아직 없다**는 뜻이다.
+     *
+     * 같은 퍼센트가 여럿이면 코드가 작은 쪽으로 고정한다 — 안 그러면 묶음을 다시 만들 때마다 기준
+     * 동이 바뀌어 포커스와 꼬리표가 흔들린다.
+     */
+    fun topDongCode(percents: Map<String, Int>): String? =
+        percents.entries.minWithOrNull(
+            // 퍼센트 내림차순 → 코드 오름차순으로 세워 첫 번째를 고른다(= 최고 퍼센트, 같으면 작은 코드).
+            compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key },
+        )?.key
+
     fun percentOf(walkedMeters: Double, totalMeters: Double): Int =
         if (totalMeters <= 0.0) 0 else ((walkedMeters / totalMeters) * 100).toInt().coerceIn(0, 100)
 

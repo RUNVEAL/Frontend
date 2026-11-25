@@ -147,6 +147,7 @@ class DongAssetRepository(private val context: Context) {
                 labelGeoJson = result.labelGeoJson,
             ),
             polygonPartsByAdmCd2 = result.polygonPartsByAdmCd2,
+            nameByAdmCd2 = result.nameByAdmCd2,
         )
     }
 

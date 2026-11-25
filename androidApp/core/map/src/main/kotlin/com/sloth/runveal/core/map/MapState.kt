@@ -44,6 +44,24 @@ class MapState(
     var currentZoom: Double by mutableDoubleStateOf(initialZoom)
         internal set
 
+    /**
+     * 카메라가 **멈춘** 자리의 중심 좌표(`OnCameraIdle`). 움직이는 동안에는 갱신하지 않는다 —
+     * 매 프레임 바뀌면 이 값을 보고 서버를 부르는 쪽(홈의 지도 중심 행정동)이 요청을 쏟아낸다.
+     *
+     * 첫 값은 [initialCenter]다 — 아직 아무도 지도를 움직이지 않은 상태.
+     */
+    var currentCenter: LatLon by mutableStateOf(initialCenter)
+        internal set
+
+    /**
+     * 지금 지도 가운데 보이는 "메인" 행정동 코드([currentCenter]로 조회한 결과) — 그 동 라벨만
+     * 크고 굵게 그린다. null이면 모든 동이 같은 크기다(아직 못 받았거나 서비스 지역 밖).
+     *
+     * 조회는 홈이 하고(`HomeMapOverlayViewModel`) 여기에 올려 둔다 — 지도 레이어가 홈 화면을
+     * 직접 알지 않게.
+     */
+    var mainDongCode: String? by mutableStateOf(null)
+
     /** 지도 위에 그릴 핀. 하위 화면(예: 출발/도착 선택)이 쓰고 지운다. */
     var pin: MapPin? by mutableStateOf(null)
 
@@ -81,6 +99,10 @@ class MapState(
     var recenterRequestId: Int by mutableIntStateOf(0)
         internal set
 
+    /** [recenterToCurrentLocation]이 같이 맞출 줌 — null이면 지금 줌을 그대로 둔다. */
+    var recenterZoom: Double? by mutableStateOf(null)
+        internal set
+
     /** [focusOnBounds]가 마지막으로 넘긴 좌표 — [MapLibreMapView]가 이 좌표가 전부 보이게 카메라를
      * 맞춘다. */
     var boundsFocusPoints: List<LatLon>? by mutableStateOf(null)
@@ -93,6 +115,16 @@ class MapState(
 
     /** 0부터 시작 — [recenterRequestId]와 같은 one-shot 커맨드 패턴. */
     var boundsFocusRequestId: Int by mutableIntStateOf(0)
+        internal set
+
+    /** [moveTo]가 마지막으로 넘긴 목표 자리와 줌. */
+    var moveToCenter: LatLon? by mutableStateOf(null)
+        internal set
+    var moveToZoom: Double? by mutableStateOf(null)
+        internal set
+
+    /** 0부터 시작 — [recenterRequestId]와 같은 one-shot 커맨드 패턴. */
+    var moveToRequestId: Int by mutableIntStateOf(0)
         internal set
 
     private val _layers = mutableStateMapOf<String, String>()
@@ -123,8 +155,12 @@ class MapState(
 
     /** "내 위치" 버튼 등에서 호출 — 위치 권한/서비스가 꺼져 있으면 [CurrentLocationLayer]가 조용히
      * 무시한다. 현재 위치로 한 번 옮기기만 하고 계속 따라가지는 않는다 —
-     * 러닝 중처럼 따라가야 할 땐 [startFollowingCurrentLocation]을 쓴다. */
-    fun recenterToCurrentLocation() {
+     * 러닝 중처럼 따라가야 할 땐 [startFollowingCurrentLocation]을 쓴다.
+     *
+     * @param zoom 옮기면서 맞출 줌. null이면 지금 줌을 그대로 둔다("내 위치" 버튼). 다른 탭에서
+     *  홈 줌인 뷰로 보낼 때처럼 줌까지 바꿔야 하면 [MapConfig.HOME_ZOOM_IN]을 준다. */
+    fun recenterToCurrentLocation(zoom: Double? = null) {
+        recenterZoom = zoom
         recenterRequestId++
     }
 
@@ -156,6 +192,18 @@ class MapState(
     fun stopFollowingCurrentLocation(resetAnchor: Boolean = false) {
         followCommandCount++
         followCommand = FollowCurrentLocationCommand.Stop(id = followCommandCount, resetAnchor = resetAnchor)
+    }
+
+    /**
+     * 지정한 자리로 카메라를 옮긴다. [focusOnBounds]와 달리 **줌을 그대로 두거나 직접 정한다** —
+     * 범위를 꽉 채우지 않아서 "그 동이 가운데 오되 줌아웃 상태 유지"가 된다(앱 시작 포커싱).
+     *
+     * @param zoom null이면 지금 줌을 유지한다.
+     */
+    fun moveTo(center: LatLon, zoom: Double? = null) {
+        moveToCenter = center
+        moveToZoom = zoom
+        moveToRequestId++
     }
 
     /** [points]가 전부 화면에 보이게 카메라를 옮긴다(추천 코스 전체가 보이게 포커싱 등). 2개 미만이면

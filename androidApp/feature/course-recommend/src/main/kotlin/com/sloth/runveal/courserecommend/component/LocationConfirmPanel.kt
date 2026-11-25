@@ -38,6 +38,7 @@ private val LOCATE_TOUCH_INSET = 2.dp
 @Composable
 fun LocationConfirmPanel(
     placeName: String,
+    /** 현재 위치에서 고른 자리까지의 거리("0.3km"). 아직 못 재면 "-km"가 온다. */
     distanceLabel: String,
     confirmLabel: String,
     onConfirmClick: () -> Unit,

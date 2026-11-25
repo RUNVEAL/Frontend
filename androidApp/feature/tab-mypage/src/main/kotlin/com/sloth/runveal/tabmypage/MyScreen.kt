@@ -175,6 +175,9 @@ fun MyScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = RunvealTheme.layout.marginScreen)
+                    // 끝까지 내렸을 때 마지막 줄이 탭바·OS 내비게이션에 가리지 않게 — 탭바도
+                    // 이 inset 위에 떠 있어서 둘을 더해야 맞는다.
+                    .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
                     .padding(bottom = RunvealTheme.layout.sizeTabBar + RunvealTheme.spacing.space24),
                 verticalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space32),
             ) {

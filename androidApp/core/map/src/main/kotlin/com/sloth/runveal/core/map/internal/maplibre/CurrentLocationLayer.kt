@@ -61,10 +61,13 @@ internal object CurrentLocationLayer {
 
     /** "내 위치" 버튼 — [activate]로 이미 켜져 있는 컴포넌트를 재사용해 같은 one-shot 추적을 다시 돌린다.
      * 권한이 없거나 위치 컴포넌트가 아직 활성화되지 않았으면([activate]가 조용히 return한 경우) 아무
-     * 일도 하지 않는다. */
-    fun recenter(map: MapLibreMap) {
+     * 일도 하지 않는다.
+     *
+     * [zoom]을 주면 옮기면서 그 줌으로 맞춘다(기록 탭에서 홈 줌인 뷰로 보낼 때 등). null이면 지금
+     * 줌을 그대로 둔다 — "내 위치" 버튼은 보고 있던 배율을 유지해야 한다. */
+    fun recenter(map: MapLibreMap, zoom: Double? = null) {
         if (!map.locationComponent.isLocationComponentActivated) return
-        trackOnce(map.locationComponent)
+        trackOnce(map.locationComponent, zoom)
     }
 
     /**
@@ -148,9 +151,21 @@ internal object CurrentLocationLayer {
         locationComponent.renderMode = if (visible) RenderMode.COMPASS else RenderMode.NORMAL
     }
 
-    private fun trackOnce(locationComponent: LocationComponent) {
+    /**
+     * 현재 위치로 카메라를 한 번만 옮긴다 — 전환이 끝나면 추적 모드를 바로 꺼서([CameraMode.NONE])
+     * 그 뒤로는 위치가 바뀌어도 카메라가 따라가지 않는다.
+     *
+     * [zoom]은 추적 모드에서만 반영되므로 모드를 켜는 [LocationComponent.setCameraMode] 인자로 같이
+     * 넘긴다 — 모드를 끈 뒤에 따로 주면 조용히 무시된다([startFollowing]과 같은 제약). 전환이
+     * 끝나고 모드를 꺼도 그 사이 맞춰진 카메라는 그대로 남는다.
+     */
+    private fun trackOnce(locationComponent: LocationComponent, zoom: Double? = null) {
         locationComponent.setCameraMode(
             CameraMode.TRACKING,
+            FOLLOW_TRANSITION_DURATION_MS,
+            zoom,
+            null, // bearing — 돌리지 않는다.
+            null, // tilt — 기울이지 않는다.
             object : OnLocationCameraTransitionListener {
                 override fun onLocationCameraTransitionFinished(cameraMode: Int) {
                     locationComponent.cameraMode = CameraMode.NONE

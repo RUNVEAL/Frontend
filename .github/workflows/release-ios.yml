@@ -1,39 +1,35 @@
 name: release-ios
 
-# App Store Connect(TestFlight) 배포용 iOS 워크플로우.
+# App Store 제출용 IPA를 만드는 iOS 워크플로우. **업로드는 하지 않는다** — 아티팩트로 받아
+# Transporter나 Xcode Organizer로 직접 올린다.
+#
 # QA 배포(Firebase App Distribution)와 Swift 컴파일 검사는 build-ios.yml에 있다.
 #
-#   archive     — 아카이브 → App Store IPA를 아티팩트로만 남긴다(업로드 없음). 서명 시험용.
-#   testflight  — + App Store Connect 업로드. 처리가 끝나면 TestFlight에 뜬다.
+# 예전에는 `xcrun altool`로 App Store Connect에 바로 올리는 모드(testflight)가 있었는데 걷어냈다 —
+# 그 경로는 App Store Connect API 키(APPSTORE_KEY_ID/ISSUER_ID/PRIVATE_KEY)를 더 요구하고, 키가
+# 없으면 빌드가 끝까지 돌고 마지막에 실패했다. 수동 업로드로 바꾸면 서명 시크릿만 있으면 된다.
 #
-# **수동 실행만 한다.** 스토어 업로드는 되돌릴 수 없고 빌드 번호를 태우므로, 푸시나 PR로
-# 자동 실행되지 않게 일부러 트리거를 workflow_dispatch 하나만 둔다.
+# **수동 실행만 한다.** 빌드 번호(run_number)를 태우므로 푸시나 PR로 자동 실행되지 않게
+# 트리거를 workflow_dispatch 하나만 둔다.
 #
-# **App Store 프로파일을 쓴다.** 이 프로파일로 만든 IPA는 기기에 바로 설치할 수 없다 —
-# 테스터에게 직접 내려주는 건 build-ios.yml의 Ad Hoc IPA다.
+# **App Store 프로파일을 쓴다.** 이 프로파일로 만든 IPA는 기기에 바로 설치할 수 없다 — 스토어에
+# 올리는 용도다. 테스터 기기에 직접 내려주는 건 build-ios.yml의 Ad Hoc IPA다.
 #
 # 서명 단계가 build-ios.yml과 겹치지만 composite action으로 묶지 않았다 — 두 파일 모두
 # 위에서 아래로 읽어 바로 디버깅할 수 있는 쪽이 낫다고 봤다. 인증서 절차를 바꿀 땐 두 곳을 같이 고친다.
 
 on:
+  # 하는 일이 하나(아카이브 → IPA 아티팩트)라 고를 모드가 없다.
   workflow_dispatch:
-    inputs:
-      mode:
-        description: '어디까지 할지'
-        type: choice
-        options:
-          - archive      # 아카이브, App Store IPA를 아티팩트로만
-          - testflight   # + App Store Connect 업로드
-        default: archive
 
 concurrency:
-  # QA 빌드와 섞이지 않게 그룹을 따로 둔다. 진행 중인 업로드를 취소하면 빌드 번호만 태우므로
+  # QA 빌드와 섞이지 않게 그룹을 따로 둔다. 돌던 빌드를 취소하면 그 빌드 번호는 버려지므로
   # cancel-in-progress는 켜지 않는다.
   group: release-ios-${{ github.ref }}
 
 jobs:
   release:
-    name: 아카이브 · App Store IPA · TestFlight
+    name: 아카이브 · App Store IPA(수동 업로드용)
     runs-on: macos-15
     timeout-minutes: 120
     env:
@@ -41,10 +37,7 @@ jobs:
       NETWORK_BASE_URL: ${{ secrets.NETWORK_BASE_URL || vars.NETWORK_BASE_URL }}
       # 식별자라 비밀이 아니다 — Variables에 둬도 된다.
       IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID || vars.IOS_TEAM_ID }}
-      APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID || vars.APPSTORE_KEY_ID }}
-      APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID || vars.APPSTORE_ISSUER_ID }}
       # 아래는 Secrets 전용.
-      APPSTORE_PRIVATE_KEY_BASE64: ${{ secrets.APPSTORE_PRIVATE_KEY_BASE64 }}
       IOS_DIST_CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
       IOS_DIST_CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
       IOS_PROVISIONING_PROFILE_APPSTORE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_APPSTORE_BASE64 }}
@@ -74,14 +67,14 @@ jobs:
           xcodebuild -showsdks 2>&1 | grep -i iphoneos | tee -a "$RUNNER_TEMP/xcodebuild.log" || true
 
       - name: 설정값 확인
-        # 스토어에 올라갈 빌드는 값이 하나라도 비면 만들지 않는다 — 서버 주소 없는 IPA가
-        # TestFlight에 올라가면 빌드 번호만 태우고 다시 올려야 한다.
+        # 스토어에 올라갈 빌드는 값이 하나라도 비면 만들지 않는다 — 서버 주소 없는 IPA를 받아
+        # 올리면 빌드 번호만 태우고 다시 올려야 한다. 90분 걸리는 아카이브 **전에** 확인한다.
+        #
+        # 전부 서명에 필요한 값이다. App Store Connect API 키는 자동 업로드를 걷어내면서 같이
+        # 빠졌다 — 수동 업로드는 Transporter가 로그인으로 처리한다.
         run: |
           required="NETWORK_BASE_URL IOS_TEAM_ID IOS_DIST_CERT_P12_BASE64 IOS_DIST_CERT_PASSWORD
                     IOS_PROVISIONING_PROFILE_APPSTORE_BASE64"
-          case "${{ inputs.mode }}" in
-            testflight) required="$required APPSTORE_KEY_ID APPSTORE_ISSUER_ID APPSTORE_PRIVATE_KEY_BASE64" ;;
-          esac
 
           missing=""
           for name in $required; do
@@ -209,27 +202,15 @@ jobs:
           retention-days: 30
 
       - name: dSYM 아티팩트 업로드
-        # ExportOptions의 uploadSymbols로 App Store Connect에도 올라가지만, 업로드가 실패하거나
-        # 나중에 다른 도구로 심볼화해야 할 때를 대비해 아카이브에서 꺼내 따로 보관한다.
+        # 크래시 심볼화에 필요하다. 자동 업로드를 걷어낸 뒤로는 **이 아티팩트가 유일한 경로**다 —
+        # Transporter로 IPA만 올리면 Crashlytics에 심볼이 안 들어가니, 크래시를 읽어야 하면
+        # 여기서 내려받아 따로 올려야 한다(upload-symbols).
         uses: actions/upload-artifact@v4
         with:
           name: runveal-ios-dsyms-build${{ github.run_number }}
           path: ${{ runner.temp }}/Runveal.xcarchive/dSYMs
           if-no-files-found: warn
           retention-days: 30
-
-      - name: TestFlight 업로드
-        if: ${{ inputs.mode == 'testflight' }}
-        run: |
-          mkdir -p "$HOME/private_keys"
-          echo "$APPSTORE_PRIVATE_KEY_BASE64" | base64 --decode > "$HOME/private_keys/AuthKey_$APPSTORE_KEY_ID.p8"
-          chmod 600 "$HOME/private_keys/AuthKey_$APPSTORE_KEY_ID.p8"
-
-          IPA=$(ls "$RUNNER_TEMP"/export-appstore/*.ipa | head -n1)
-          # --apiKey는 ~/private_keys/AuthKey_<KEY_ID>.p8을 알아서 찾는다.
-          xcrun altool --upload-app -f "$IPA" -t ios \
-            --apiKey "$APPSTORE_KEY_ID" \
-            --apiIssuer "$APPSTORE_ISSUER_ID"
 
       - name: 실패 시 오류만 추려 보기
         # xcodebuild 로그는 수천 줄이라 Actions 화면에서 error: 줄을 찾기 어렵다. 실패했을 때만
@@ -262,13 +243,12 @@ jobs:
           echo "--- 오류 줄 ---"
           echo "$ERRORS"
 
-      - name: 키체인·프로파일·API 키 정리
+      - name: 키체인·프로파일 정리
         if: always()
         run: |
           security delete-keychain "$KEYCHAIN" 2>/dev/null || true
           rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision || true
           rm -f "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/"*.mobileprovision || true
-          rm -rf "$HOME/private_keys" || true
 
       - name: 요약
         if: always()
@@ -276,12 +256,15 @@ jobs:
           {
             echo "### iOS 스토어 빌드 ${{ github.run_number }}"
             echo ""
-            echo "- 모드: \`${{ inputs.mode }}\`"
-            echo "- 배포: App Store Connect / TestFlight"
+            echo "- 서명: App Store 프로파일 (기기에 직접 설치되지 않습니다)"
             echo "- 빌드 번호: \`${{ github.run_number }}\`"
             echo "- 커밋: \`${{ github.sha }}\`"
-            if [ "${{ inputs.mode }}" = "testflight" ]; then
-              echo ""
-              echo "업로드 후 Apple이 처리를 마쳐야 TestFlight에 보입니다(보통 수 분~수십 분)."
-            fi
+            echo ""
+            echo "**업로드는 자동으로 되지 않습니다.** 직접 올리세요."
+            echo ""
+            echo "1. 이 실행의 Artifacts에서 \`runveal-ios-appstore-build${{ github.run_number }}\` 내려받기"
+            echo "2. Transporter(Mac App Store) 또는 Xcode Organizer로 IPA 업로드"
+            echo "3. Apple 처리가 끝나면 TestFlight에 보입니다(보통 수 분~수십 분)"
+            echo ""
+            echo "빌드 번호가 이미 올라간 번호와 겹치면 Apple이 거부합니다 — 그때는 이 워크플로우를 다시 돌리세요."
           } >> "$GITHUB_STEP_SUMMARY"

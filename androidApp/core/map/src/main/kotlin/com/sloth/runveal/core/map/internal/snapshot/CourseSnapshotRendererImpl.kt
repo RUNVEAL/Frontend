@@ -6,6 +6,7 @@ import com.sloth.runveal.core.map.CourseSnapshotRenderer
 import com.sloth.runveal.core.map.SnapshotColors
 import com.sloth.runveal.map.snapshot.SnapshotConfig
 import com.sloth.runveal.map.snapshot.SnapshotRequest
+import com.sloth.runveal.map.snapshot.SnapshotVariant
 import com.sloth.runveal.map.snapshot.zoomToFit
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
@@ -78,7 +79,16 @@ internal class CourseSnapshotRendererImpl(
     }
 
     private suspend fun renderAndCache(request: SnapshotRequest, widthPx: Int, heightPx: Int): File? {
-        val bitmap = withTimeoutOrNull(SNAPSHOT_TIMEOUT_MS) { snapshot(request, widthPx, heightPx) } ?: return null
+        // 동 썸네일만 가공 스타일을 쓴다 — 라벨을 빼고 색을 밝게 하고, 그릴 레이어까지 JSON에
+        // 미리 넣어 둔 완성본이다(그래야 MapSnapshotter 생성자 안에서 소스를 추가하다 죽지 않는다).
+        val styleJson = if (request.variant == SnapshotVariant.DONG_THUMBNAIL) {
+            ZoomedInSnapshotStyle.styleJson(request, colors)
+        } else {
+            null
+        }
+        val bitmap = withTimeoutOrNull(SNAPSHOT_TIMEOUT_MS) {
+            snapshot(request, widthPx, heightPx, styleJson)
+        } ?: return null
         return withContext(Dispatchers.IO) {
             CourseSnapshotDiskCache.write(context, request, bitmap, widthPx, heightPx, density)
         }
@@ -94,13 +104,19 @@ internal class CourseSnapshotRendererImpl(
     }
 
     /** `MapSnapshotter`는 메인 스레드에서 만들고 시작해야 한다. */
-    private suspend fun snapshot(request: SnapshotRequest, widthPx: Int, heightPx: Int): Bitmap? =
+    private suspend fun snapshot(
+        request: SnapshotRequest,
+        widthPx: Int,
+        heightPx: Int,
+        zoomedInStyleJson: String?,
+    ): Bitmap? =
         withContext(Dispatchers.Main.immediate) {
             suspendCancellableCoroutine { continuation ->
                 val styleBuilder = SnapshotStyleBuilder.build(
                     request = request,
                     colors = colors,
                     endpointRadiusDp = endpointRadiusDp(heightPx),
+                    zoomedInStyleJson = zoomedInStyleJson,
                 )
                 val options = MapSnapshotter.Options(widthPx, heightPx)
                     .withPixelRatio(density)

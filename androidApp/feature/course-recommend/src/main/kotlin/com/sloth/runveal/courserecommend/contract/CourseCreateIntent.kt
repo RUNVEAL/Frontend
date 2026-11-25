@@ -10,6 +10,9 @@ sealed interface CourseCreateIntent : UiIntent {
     data object ConfirmLocationSelection : CourseCreateIntent
     /** 출발/도착 선택 모드에서 지도를 탭했을 때 — 확정 전까지의 임시 좌표. */
     data class MapLocationPicked(val location: LatLon) : CourseCreateIntent
+
+    /** 화면이 받아 둔 현재 위치 — 고른 자리까지의 거리를 재는 데 쓴다(못 받았으면 null). */
+    data class CurrentLocationResolved(val location: LatLon?) : CourseCreateIntent
     data object OpenFilterSheet : CourseCreateIntent
     data object CloseFilterSheet : CourseCreateIntent
     data class SelectPresetDistance(val distance: String) : CourseCreateIntent
