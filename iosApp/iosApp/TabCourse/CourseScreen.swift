@@ -14,6 +14,7 @@ enum TabCourseStrings {
     static let more = "더보기"
     static let startWithThisCourse = "이 코스로 러닝 시작"
     static let startNow = "바로 시작"
+    static let courseDetail = "코스 상세"
     static let moreRename = "이름 수정"
     static let moreExportGpx = "GPX 내보내기"
     static let moreDelete = "삭제"
@@ -34,17 +35,35 @@ enum TabCourseStrings {
 /// 탭을 나갔다 들어올 때마다 다시 불러온다 — 그 사이 새로 저장한 코스가 반영돼야 한다.
 struct CourseScreen: View {
     let onCreateCourseClick: () -> Void
-    /// 목록에서 한 건을 누르면 코스 상세로 — 값은 id만 넘기고 화면이 로컬 DB에서 다시 읽는다.
+    /// 줄 오른쪽 아이콘을 누르면 코스 상세로 — 값은 id만 넘기고 화면이 로컬 DB에서 다시 읽는다.
+    /// 줄 전체를 누르는 건 상세로 가지 않고 위 큰 카드를 그 코스로 바꾸는 동작이라, 화면 안에서 끝낸다.
     let onCourseClick: (SavedCourseItem) -> Void
 
     @State private var courses: [SavedCourseItem] = []
     @State private var isLoading = true
+    /// 목록에서 고른 코스의 ID — 위 큰 카드가 이걸 띄운다([featuredCourse]).
+    @State private var selectedCourseId: String?
     /// 더보기에서 고른 코스 — 이름 수정 시트/삭제 다이얼로그가 어떤 코스인지 들고 있는다.
     @State private var renameTarget: SavedCourseItem?
     @State private var deleteTarget: SavedCourseItem?
     @State private var isNotReadyToastVisible = false
     /// 떠 있는 더보기 메뉴 — 어느 코스의 어느 자리인지. nil이면 안 떠 있다.
     @State private var moreMenu: CourseMoreMenuTarget?
+
+    /**
+     위 큰 카드에 띄울 코스 — 목록에서 고른 것, 아직 아무것도 안 골랐으면 가장 최근에 저장한
+     코스(목록 첫 줄, `최근 저장순`)다.
+
+     **ID로** 들고 있는 이유: 목록은 이름을 바꾸거나 코스를 지울 때마다 다시 불러오면서(`reload`)
+     항목을 새로 만든다 — 객체를 들고 있으면 이름을 바꾼 뒤에도 카드에 옛 제목이 남는다. 고른
+     코스를 지웠으면 ID를 못 찾으니 기본값으로 돌아간다(Android `CourseScreen`과 같은 방식).
+     */
+    private var featuredCourse: SavedCourseItem? {
+        if let id = selectedCourseId, let found = courses.first(where: { $0.id == id }) {
+            return found
+        }
+        return courses.first
+    }
 
     /// 더보기 아이콘 자리를 재는 기준 좌표 공간 — 화면 루트에 이름을 붙여 둔다.
     private static let menuSpace = "course-more-menu"
@@ -78,7 +97,7 @@ struct CourseScreen: View {
                         CourseTopBarActionButton(onClick: onCreateCourseClick)
                     }
 
-                    if let featured = courses.first {
+                    if let featured = featuredCourse {
                         CourseRecommendationCard(
                             badgeLabel: TabCourseStrings.recommendBadge,
                             course: featured,
@@ -106,8 +125,8 @@ struct CourseScreen: View {
                                     onMoreTap: { anchor in
                                         moreMenu = CourseMoreMenuTarget(course: course, anchor: anchor)
                                     },
-                                    onClick: { onCourseClick(course) },
-                                    onStartClick: { start(course: course) }
+                                    onClick: { selectedCourseId = course.id },
+                                    onDetailClick: { onCourseClick(course) }
                                 )
                             }
                         }
@@ -429,9 +448,14 @@ private struct SavedCourseListItem: View {
     let course: SavedCourseItem
     let menuSpace: String
     let onMoreTap: (CGRect) -> Void
-    /// 줄 전체를 눌렀을 때 — 코스 상세로 간다.
+    /// 줄 전체를 눌렀을 때 — 위 큰 카드를 이 코스로 바꾼다.
     let onClick: () -> Void
-    let onStartClick: () -> Void
+    /// 오른쪽 원형 아이콘을 눌렀을 때 — 코스 상세로 간다.
+    ///
+    /// 아이콘은 재생(▶) 그대로다. 줄에서 바로 달리기 시작하던 자리였는데, 줄 탭이 "위 카드 바꾸기"가
+    /// 되면서 상세로 들어갈 자리가 필요해져 이쪽으로 옮겼다 — 달리기 시작은 위 큰 카드의 같은
+    /// 아이콘(`CourseRecommendationCard`)이 맡는다.
+    let onDetailClick: () -> Void
 
     var body: some View {
         let colors = RunvealTheme.colors
@@ -465,7 +489,7 @@ private struct SavedCourseListItem: View {
 
             CourseMoreMenuButton(coordinateSpace: menuSpace, onTap: onMoreTap)
 
-            Button(action: onStartClick) {
+            Button(action: onDetailClick) {
                 RunvealIcon(RunvealIcons.play, tint: colors.accent.default, size: 16)
                     .frame(width: 44, height: 44)
                     .background(colors.surface.default, in: RunvealShapes.full)
@@ -473,11 +497,11 @@ private struct SavedCourseListItem: View {
                     .contentShape(RunvealShapes.full)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(TabCourseStrings.startNow)
+            .accessibilityLabel(TabCourseStrings.courseDetail)
         }
         .padding(.vertical, RunvealSpacing.space12)
         .frame(maxWidth: .infinity)
-        // 줄 전체가 눌리되 안쪽 버튼(더보기·바로 시작)이 먼저 받는다 — Button으로 감싸면 그
+        // 줄 전체가 눌리되 안쪽 버튼(더보기·코스 상세)이 먼저 받는다 — Button으로 감싸면 그
         // 버튼들이 묻히므로 탭 제스처를 쓴다.
         .contentShape(Rectangle())
         .onTapGesture(perform: onClick)
