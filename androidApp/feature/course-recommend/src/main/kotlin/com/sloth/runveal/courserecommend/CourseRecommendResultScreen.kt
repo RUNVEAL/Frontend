@@ -33,10 +33,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -133,9 +137,27 @@ fun CourseRecommendResultScreen(
         )
     }
     MapDotMarkers(courseMarkers)
-    LaunchedEffect(readyState?.selectedRouteId, readyState?.routes) {
+
+    /**
+     * 지도 위에 얹히는 UI 높이 — 경로를 그 **안쪽**에 맞추려고 실제로 재서 쓴다.
+     *
+     * 상단은 앱바 + 조건 칩 줄, 하단은 코스 카드 줄이다. 둘 다 내용에 따라 높이가 달라서(칩 개수,
+     * 카드 글자 줄 수, 상태바·내비게이션 바 높이) 상수로 박으면 기기마다 어긋난다.
+     */
+    var topChromeHeightPx by remember { mutableIntStateOf(0) }
+    var bottomCardsHeightPx by remember { mutableIntStateOf(0) }
+
+    // 시안(B1) 기준 — 경로는 칩 줄 아래 16, 카드 위 16, 좌우 16 안쪽에 들어와야 한다.
+    val density = LocalDensity.current
+    val routeMargin = RunvealTheme.layout.marginScreen
+    LaunchedEffect(readyState?.selectedRouteId, readyState?.routes, topChromeHeightPx, bottomCardsHeightPx) {
         val selected = readyState?.routes?.firstOrNull { it.routeId == readyState.selectedRouteId } ?: return@LaunchedEffect
-        mapState.focusOnBounds(selected.path)
+        mapState.focusOnBounds(
+            points = selected.path,
+            horizontalPadding = routeMargin,
+            topPadding = with(density) { topChromeHeightPx.toDp() } + routeMargin,
+            bottomPadding = with(density) { bottomCardsHeightPx.toDp() } + routeMargin,
+        )
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -158,7 +180,8 @@ fun CourseRecommendResultScreen(
                         Modifier
                     },
                 )
-                .windowInsetsPadding(WindowInsets.statusBars),
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .onSizeChanged { topChromeHeightPx = it.height },
         ) {
             RunvealTopAppBar(
                 leading = RunvealTopAppBarLeading.Back,
@@ -201,7 +224,8 @@ fun CourseRecommendResultScreen(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
                             .fillMaxWidth()
-                            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
+                            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+                            .onSizeChanged { bottomCardsHeightPx = it.height },
                     ) {
                         // 화면 가운데에 카드 하나가 오게 좌우 패딩을 "뷰포트 - 카드" 절반씩 준다. 화면이
                         // 좁아 음수가 나오면 기본 마진으로 떨어진다.

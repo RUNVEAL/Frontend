@@ -108,9 +108,18 @@ class MapState(
     var boundsFocusPoints: List<LatLon>? by mutableStateOf(null)
         internal set
 
-    /** [focusOnBounds]의 [extraBottomPadding] — 하단을 덮는 바텀시트 등 때문에 화면 아래쪽은 안 보일 때,
-     * 그 높이만큼 아래 여백을 더 줘서 "보이는 영역(위쪽)"에 좌표가 맞춰지게 한다. */
-    var boundsFocusExtraBottomPadding: Dp by mutableStateOf(0.dp)
+    /**
+     * [focusOnBounds]가 쓸 네 방향 여백. 경로가 가장자리에 딱 붙지 않게 하는 기본 여백에 더해,
+     * **화면 위아래를 덮는 UI(앱바·칩 줄·하단 카드)만큼 더 비워 두는** 데 쓴다 — 안 비우면 경로가
+     * 그 UI 뒤로 숨어서 일부만 보인다.
+     */
+    var boundsFocusHorizontalPadding: Dp by mutableStateOf(BOUNDS_FOCUS_PADDING)
+        internal set
+
+    var boundsFocusTopPadding: Dp by mutableStateOf(BOUNDS_FOCUS_PADDING)
+        internal set
+
+    var boundsFocusBottomPadding: Dp by mutableStateOf(BOUNDS_FOCUS_PADDING)
         internal set
 
     /** 0부터 시작 — [recenterRequestId]와 같은 one-shot 커맨드 패턴. */
@@ -206,13 +215,25 @@ class MapState(
         moveToRequestId++
     }
 
-    /** [points]가 전부 화면에 보이게 카메라를 옮긴다(추천 코스 전체가 보이게 포커싱 등). 2개 미만이면
-     * 무시한다. [extraBottomPadding]을 주면 그만큼 아래 여백을 더 둬서, 화면 하단을 덮는 바텀시트
-     * 같은 오버레이가 있어도 코스가 그 위쪽(보이는 영역)에 맞춰지게 한다. */
-    fun focusOnBounds(points: List<LatLon>, extraBottomPadding: Dp = 0.dp) {
+    /**
+     * [points]가 전부 화면에 보이게 카메라를 옮긴다(추천 코스 전체가 보이게 포커싱 등). 2개 미만이면
+     * 무시한다.
+     *
+     * 여백은 **화면 가장자리에서 얼마나 떨어뜨릴지**다. 지도 위에 앱바·칩 줄·하단 카드가 얹히는
+     * 화면은 그 높이를 더해서 넘겨야 경로가 가려지지 않는다 — 기본값([BOUNDS_FOCUS_PADDING])은
+     * 아무것도 안 덮을 때 가장자리에 딱 붙지 않을 만큼이다.
+     */
+    fun focusOnBounds(
+        points: List<LatLon>,
+        horizontalPadding: Dp = BOUNDS_FOCUS_PADDING,
+        topPadding: Dp = BOUNDS_FOCUS_PADDING,
+        bottomPadding: Dp = BOUNDS_FOCUS_PADDING,
+    ) {
         if (points.size < 2) return
         boundsFocusPoints = points
-        boundsFocusExtraBottomPadding = extraBottomPadding
+        boundsFocusHorizontalPadding = horizontalPadding
+        boundsFocusTopPadding = topPadding
+        boundsFocusBottomPadding = bottomPadding
         boundsFocusRequestId++
     }
 }
@@ -233,3 +254,6 @@ val LocalMapState = staticCompositionLocalOf<MapState> {
  * NavHost 안 화면이 그 패널과 겹치지 않게 띄워야 할 때 쓴다. Map Shell 밖에서는 항상 0.dp.
  */
 val LocalMapOverlayBottomInset = compositionLocalOf { 0.dp }
+
+/** [MapState.focusOnBounds]의 기본 여백 — 경로가 화면 가장자리에 딱 붙지 않을 만큼. */
+val BOUNDS_FOCUS_PADDING = 48.dp

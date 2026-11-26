@@ -47,7 +47,6 @@ import org.maplibre.android.maps.Style
 import kotlin.math.roundToInt
 
 /** [LatLngBounds]로 카메라를 맞출 때 코스 선이 화면 가장자리에 딱 붙지 않게 주는 여백. */
-private const val BOUNDS_FOCUS_PADDING_DP = 48f
 
 @Composable
 internal fun MapLibreMapView(
@@ -340,10 +339,11 @@ internal fun MapLibreMapView(
         val points = state.boundsFocusPoints ?: return@LaunchedEffect
         val boundsBuilder = LatLngBounds.Builder()
         points.forEach { boundsBuilder.include(it.toMapLibreLatLng()) }
-        val paddingPx = with(density) { BOUNDS_FOCUS_PADDING_DP.dp.toPx() }.roundToInt()
-        val extraBottomPx = with(density) { state.boundsFocusExtraBottomPadding.toPx() }.roundToInt()
+        val horizontalPx = with(density) { state.boundsFocusHorizontalPadding.toPx() }.roundToInt()
+        val topPx = with(density) { state.boundsFocusTopPadding.toPx() }.roundToInt()
+        val bottomPx = with(density) { state.boundsFocusBottomPadding.toPx() }.roundToInt()
         map.animateCamera(
-            CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), paddingPx, paddingPx, paddingPx, paddingPx + extraBottomPx),
+            CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), horizontalPx, topPx, horizontalPx, bottomPx),
         )
     }
 }
