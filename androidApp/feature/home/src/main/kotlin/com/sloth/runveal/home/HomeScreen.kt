@@ -70,7 +70,6 @@ import com.sloth.runveal.designsystem.component.navigation.RunvealTabItemSpec
 import com.sloth.runveal.designsystem.component.overlay.RunvealLocationPermissionSettingsSheet
 import com.sloth.runveal.designsystem.component.overlay.RunvealLocationPermissionSheet
 import com.sloth.runveal.designsystem.component.overlay.RunvealLocationServicesSheet
-import com.sloth.runveal.designsystem.component.overlay.RunvealToast
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.devicestate.rememberLocationServicesState
 import com.sloth.runveal.dong.DongExploreRate
@@ -108,7 +107,6 @@ import kotlinx.coroutines.withContext
 private val HOME_BOTTOM_PANEL_INNER_INSET = 6.dp
 
 /** 토스트가 떠 있는 시간 — 디자인시스템 토스트 주석의 "3초"를 그대로 따른다. */
-private const val TOAST_DURATION_MS = 3000L
 
 /**
  * 줌인 오버레이의 하단 액션 줄이 하단 패널 배너(위치 안내·서버 데이터 안내) 때문에 더 높아진 패널과
@@ -221,16 +219,6 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     val isMapDestination = visibleEntries.isEmpty() ||
         visibleEntries.all { it.destination.isMapDestination() }
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
-
-    // 너무 짧아 저장하지 않은 러닝처럼, 화면 전환만으로는 이유를 알 수 없는 경우에만 띄우는 안내.
-    // 토스트 자체는 타이머를 모르는 순수 컴포넌트라 사라지는 건 여기서 재운다.
-    val discardedToastMessage = stringResource(R.string.home_recording_discarded_toast)
-    var toastMessage by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(toastMessage) {
-        if (toastMessage == null) return@LaunchedEffect
-        delay(TOAST_DURATION_MS)
-        toastMessage = null
-    }
 
     // 지금 서 있는 동 — 조회는 홈 지도 오버레이가 하고(tab-home), 여기선 그 결과만 본다.
     val currentDong by CurrentDongHolder.state.collectAsStateWithLifecycle()
@@ -461,13 +449,13 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                                 popUpTo(RunVealRoute.HomeTab.Recording) { inclusive = true }
                             }
                         },
-                        // 저장하지 않은 러닝은 결과 화면이 없으니 홈 지도로 되돌리고, 왜 기록이 안
-                        // 남았는지 토스트로 알려준다.
+                        // 저장하지 않은 러닝은 결과 화면이 없으니 홈 지도로 되돌리기만 한다. 왜
+                        // 안 남았는지는 바로 앞의 종료 다이얼로그("러닝 기록이 너무 짧아요")가 이미
+                        // 알려 줘서, 돌아온 뒤에 토스트로 한 번 더 말하지 않는다.
                         onDiscarded = {
                             tabNavigator.navController.navigate(RunVealRoute.HomeTab.HomeMap) {
                                 popUpTo(RunVealRoute.HomeTab.Recording) { inclusive = true }
                             }
-                            toastMessage = discardedToastMessage
                         },
                     )
                     resultOverlay(onClose = tabNavigator::popBackStack)
@@ -513,22 +501,6 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                         tabNavigator.navController.popBackStack(RunVealRoute.HomeTab.My, inclusive = false)
                         onSelectTab(0)
                     },
-                )
-            }
-
-            toastMessage?.let { message ->
-                RunvealToast(
-                    message = message,
-                    // 시안(Overlay/Toast)은 하단 — 탭바 위 8에 띄운다.
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
-                        .padding(
-                            start = RunvealTheme.layout.marginScreen,
-                            end = RunvealTheme.layout.marginScreen,
-                            bottom = RunvealTheme.spacing.space8 + RunvealTheme.layout.sizeTabBar +
-                                RunvealTheme.spacing.space8,
-                        ),
                 )
             }
 
