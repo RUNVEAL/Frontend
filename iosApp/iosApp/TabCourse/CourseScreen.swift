@@ -154,11 +154,13 @@ struct CourseScreen: View {
             }
 
             if isNotReadyToastVisible {
+                // 시안은 토스트를 **하단**에 둔다(`Overlay/Toast`: "하단 GNB(또는 하단 버튼) 위 8").
+                // 이 화면은 탭바가 떠 있어서 그 높이만큼 더 띄운다(Android `bottomInset`과 같다).
                 VStack {
+                    Spacer()
                     RunvealToast(message: TabCourseStrings.notReady)
                         .padding(.horizontal, RunvealLayout.marginScreen)
-                        .padding(.vertical, RunvealSpacing.space16)
-                    Spacer()
+                        .padding(.bottom, RunvealLayout.sizeTabBar + RunvealSpacing.space8)
                 }
             }
 
