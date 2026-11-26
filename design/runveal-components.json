@@ -2294,6 +2294,7 @@
         ]
       },
       "layout": {
+        "width": "화면 너비 - 좌우 {layout.margin.screen}",
         "paddingVertical": "{primitive.space.12}",
         "paddingHorizontal": "{primitive.space.16}",
         "gap": "{primitive.space.12}",
