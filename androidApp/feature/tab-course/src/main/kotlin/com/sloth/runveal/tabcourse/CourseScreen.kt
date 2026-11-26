@@ -314,6 +314,9 @@ private fun CourseRenameModalSheet(
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Color.Transparent,
         dragHandle = null,
+        // 기본 inset을 끄고 시트 배경이 OS 내비게이션 바 뒤까지 그대로 채우게 한다 — inset은 시트 안
+        // 버튼에만 준다(RequireLocationPermission과 같은 컨벤션).
+        contentWindowInsets = { WindowInsets(0) },
     ) {
         CourseRenameSheet(initialName = courseName, onConfirm = onConfirm, onCancel = onDismiss)
     }
