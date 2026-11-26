@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
@@ -81,6 +82,7 @@ import com.sloth.runveal.map.snapshot.SnapshotRequest
 import com.sloth.runveal.map.snapshot.SnapshotVariant
 import com.sloth.runveal.map.snapshot.center
 import com.sloth.runveal.navigation.RunVealRoute
+import com.sloth.runveal.navigation.RunvealNavTransitions
 import com.sloth.runveal.navigation.rememberRunVealNavigator
 import com.sloth.runveal.network.dong.CurrentDongHolder
 import com.sloth.runveal.permission.LocationPermissionState
@@ -203,14 +205,21 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
         !isRecordDetail &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() != true &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Result>() != true
-    // 지도가 보여야 하는 목적지인지. 지도는 항상 그려 두고(끄면 MapLibre가 매번 스타일을 다시
-    // 로드한다) 지도를 쓰지 않는 화면에서만 위를 덮는다 — 그래야 화면 전환 중 양쪽이 반투명해지는
-    // 구간에 뒤의 지도가 비치지 않는다. currentDestination이 아직 null인 첫 프레임은 시작 목적지가
-    // HomeMap이라 덮지 않는다.
-    val isMapDestination = currentDestination == null ||
-        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.HomeMap>() == true ||
-        isCourseFlowOverMap ||
-        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() == true
+    /**
+     * 지도가 보여야 하는 목적지인지. 지도는 항상 그려 두고(끄면 MapLibre가 매번 스타일을 다시
+     * 로드한다) 지도를 쓰지 않는 화면에서만 위를 덮는다 — 그래야 화면 전환 중 양쪽이 반투명해지는
+     * 구간에 뒤의 지도가 비치지 않는다.
+     *
+     * 기준이 `currentBackStackEntry`가 **아니라** `visibleEntries`다. 앞의 것은 뒤로가기를 누른
+     * 즉시 바뀌어서, 그걸로 덮개를 걷으면 **아직 사라지는 중인 화면** 뒤로 지도가 비친다 — MY에서
+     * 홈으로 돌아올 때 MY 본문과 홈 지도가 한 화면에 겹쳐 보이던 원인이다. `visibleEntries`는
+     * 전환이 끝날 때까지 나가는 화면도 들고 있어서, 그 화면이 다 사라진 뒤에야 덮개가 걷힌다.
+     *
+     * 비어 있는 첫 프레임은 시작 목적지가 HomeMap이라 덮지 않는다.
+     */
+    val visibleEntries by tabNavigator.navController.visibleEntries.collectAsStateWithLifecycle()
+    val isMapDestination = visibleEntries.isEmpty() ||
+        visibleEntries.all { it.destination.isMapDestination() }
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
 
     // 너무 짧아 저장하지 않은 러닝처럼, 화면 전환만으로는 이유를 알 수 없는 경우에만 띄우는 안내.
@@ -409,6 +418,13 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                 navController = tabNavigator.navController,
                 startDestination = RunVealRoute.HomeTab.Home,
                 modifier = Modifier.fillMaxSize(),
+                // 앱 최상위 NavHost와 같은 전환을 쓴다 — 이유는 [RunvealNavTransitions] 참고.
+                enterTransition = { RunvealNavTransitions.enter },
+                exitTransition = { RunvealNavTransitions.exit },
+                popEnterTransition = { RunvealNavTransitions.enter },
+                popExitTransition = { RunvealNavTransitions.exit },
+                predictivePopEnterTransition = { RunvealNavTransitions.enter },
+                predictivePopExitTransition = { RunvealNavTransitions.exit },
             ) {
                 navigation<RunVealRoute.HomeTab.Home>(startDestination = RunVealRoute.HomeTab.HomeMap) {
                     homeMapOverlay(
@@ -810,3 +826,15 @@ private data class HomePanelDong(
     val name: String,
     val isTopExplored: Boolean,
 )
+
+/**
+ * 이 목적지가 지도를 깔고 보여주는 화면인지 — 홈 지도, 지도 위에 올라가는 코스 흐름, 러닝 기록.
+ * 나머지(탭 목록, 약관, 기록 상세, 러닝 결과)는 지도를 쓰지 않으므로 그 위를 덮는다.
+ */
+private fun NavDestination.isMapDestination(): Boolean =
+    hasRoute<RunVealRoute.HomeTab.HomeMap>() ||
+        hasRoute<RunVealRoute.HomeTab.CourseRecommend>() ||
+        hasRoute<RunVealRoute.HomeTab.CourseRecommendResult>() ||
+        hasRoute<RunVealRoute.HomeTab.CourseDetail>() ||
+        hasRoute<RunVealRoute.HomeTab.SavedCourseDetail>() ||
+        hasRoute<RunVealRoute.HomeTab.Recording>()

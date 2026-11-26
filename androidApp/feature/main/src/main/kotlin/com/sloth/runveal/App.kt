@@ -11,6 +11,7 @@ import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.home.navigation.homeGraph
 import com.sloth.runveal.navigation.RunVealNavigator
 import com.sloth.runveal.navigation.RunVealRoute
+import com.sloth.runveal.navigation.RunvealNavTransitions
 import com.sloth.runveal.navigation.rememberRunVealNavigator
 import com.sloth.runveal.onboarding.navigation.onboardingGraph
 import com.sloth.runveal.sign.signin.navigation.signInGraph
@@ -32,6 +33,14 @@ internal fun App(
             NavHost(
                 navController = navigator.navController,
                 startDestination = RunVealRoute.Main.Splash,
+                // 홈 탭 NavHost와 같은 전환 — 이유는 [RunvealNavTransitions] 참고. 한쪽만 바꿔 두면
+                // 같은 뒤로가기인데 온보딩·가입 흐름과 탭 안의 움직임이 달라진다.
+                enterTransition = { RunvealNavTransitions.enter },
+                exitTransition = { RunvealNavTransitions.exit },
+                popEnterTransition = { RunvealNavTransitions.enter },
+                popExitTransition = { RunvealNavTransitions.exit },
+                predictivePopEnterTransition = { RunvealNavTransitions.enter },
+                predictivePopExitTransition = { RunvealNavTransitions.exit },
             ) {
                 splashGraph(navigator = navigator)
                 onboardingGraph(navigator = navigator)
