@@ -39,6 +39,6 @@ enum RunvealDesignSystemStrings {
     // 위치 서비스(기기 GPS) 꺼짐 — 권한과 다른 상태라 문구를 따로 둔다.
     static let locationServicesSheetTitle = "위치 서비스가 꺼져 있어요!"
     static let locationServicesSheetDescription = "현재 위치를 확인하려면 \n기기 설정에서 위치 서비스를 켜 주세요."
-    static let locationServicesSheetPrimary = "설정으로 이동"
+    static let locationServicesSheetPrimary = "위치 서비스 켜기"
     static let locationServicesSheetSecondary = "닫기"
 }
