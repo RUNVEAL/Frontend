@@ -9,7 +9,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.NavHost
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.home.navigation.homeGraph
-import com.sloth.runveal.navigation.BackStackDebugLog
 import com.sloth.runveal.navigation.RunVealNavigator
 import com.sloth.runveal.navigation.RunVealRoute
 import com.sloth.runveal.navigation.RunvealNavTransitions
@@ -26,9 +25,6 @@ import com.sloth.runveal.ui.network.NetworkErrorOverlay
 internal fun App(
     navigator: RunVealNavigator = rememberRunVealNavigator()
 ) {
-    // TEMP DEBUG — 뒤로가기 증상 진단용. 원인을 확인하면 이 줄과 BackStackDebugLog.kt를 지운다.
-    BackStackDebugLog(label = "바깥", navController = navigator.navController)
-
     RunvealTheme {
         // NavHost 자체는 화면 전환 중 두 목적지가 겹치지 않는 순간이 있어 그때 창 배경이 드러난다.
         // 뒤에 bg/canvas를 깔아 스플래시 → 로그인/홈 전환에서 밝은 색이 번쩍이지 않게 한다.
