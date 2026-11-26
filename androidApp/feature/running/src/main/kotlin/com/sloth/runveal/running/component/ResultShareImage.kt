@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -63,18 +64,32 @@ fun ResultShareImage(
                 .height(HERO_HEIGHT),
         )
 
-        // 달린 날짜 — 우측 상단. 저장한 날이 아니라 **달린 날**이다([ResultState.Ready.shareDateLabel]).
-        Text(
-            text = state.shareDateLabel,
-            style = RunvealTheme.typography.bodyMRegular,
-            color = colors.text.secondary,
+        // 맨 윗줄 — 왼쪽 로고, 오른쪽 날짜. 따로 배치하지 않고 한 Row에 넣는 이유: 글자와 이미지는
+        // 높이가 달라서 각자 top 여백으로 맞추면 눈높이가 어긋난다.
+        Row(
             modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = SIDE_MARGIN, end = SIDE_MARGIN),
-        )
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .padding(top = SIDE_MARGIN, start = SIDE_MARGIN, end = SIDE_MARGIN),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // 로고는 원본 비율 그대로. 높이만 정하고 너비는 비율에서 따라오게 둬서, 원본이 바뀌어도
+            // 찌그러지지 않는다.
+            Image(
+                painter = painterResource(R.drawable.runveal_logo),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.height(LOGO_HEIGHT).aspectRatio(LOGO_ASPECT_RATIO),
+            )
 
-        // TODO: 우측 상단 아이콘 — 시안 확정되면 날짜 옆에 붙인다.
-        // TODO: 우측 상단 이미지 — 시안 확정되면 추가한다.
+            // 저장한 날이 아니라 **달린 날**이다([ResultState.Ready.shareDateLabel]).
+            Text(
+                text = state.shareDateLabel,
+                style = RunvealTheme.typography.bodyMRegular,
+                color = colors.text.secondary,
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -212,6 +227,10 @@ internal val IMAGE_HEIGHT = 640.dp
 
 /** 저장 배율. 360x640dp를 3배로 그려 1080x1920px로 내보낸다. */
 internal const val RESULT_IMAGE_SCALE = 3
+
+/** 로고 원본이 366x60px이고 xxxhdpi(4배) 리소스라, 자연 크기가 91.5x15dp다. 그 높이를 그대로 쓴다. */
+private val LOGO_HEIGHT = 15.dp
+private const val LOGO_ASPECT_RATIO = 366f / 60f
 
 private val HERO_WIDTH = 480.dp
 private val HERO_HEIGHT = 136.dp
