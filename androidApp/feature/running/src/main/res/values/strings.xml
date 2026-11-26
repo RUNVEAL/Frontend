@@ -38,4 +38,8 @@
     <string name="result_map_content_description">이번 러닝 경로 지도</string>
     <!-- 저장 이미지에서 지나간 동이 여럿일 때 — 첫 동만 적고 나머지는 개수로 줄인다. -->
     <string name="result_share_more_dong_format">외 %1$d개 동</string>
+    <!-- 결과 이미지 저장 안내 -->
+    <string name="result_save_image_success">사진에 저장했어요</string>
+    <string name="result_save_image_failure">저장하지 못했어요</string>
+    <string name="result_save_image_permission_denied">저장하려면 저장 공간 권한이 필요해요</string>
 </resources>

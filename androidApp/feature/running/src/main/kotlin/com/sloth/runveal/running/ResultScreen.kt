@@ -1,5 +1,10 @@
 package com.sloth.runveal.running
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,7 +31,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -43,7 +53,22 @@ import com.sloth.runveal.designsystem.component.button.RunvealButtonGroupEqual
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
 import com.sloth.runveal.designsystem.component.overlay.RunvealLoading
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.ContextCompat
+import com.sloth.runveal.designsystem.component.overlay.RunvealToast
 import com.sloth.runveal.designsystem.theme.RunvealTheme
+import com.sloth.runveal.running.component.IMAGE_HEIGHT
+import com.sloth.runveal.running.component.IMAGE_WIDTH
+import com.sloth.runveal.running.component.RESULT_IMAGE_SCALE
+import com.sloth.runveal.running.component.ResultShareImage
+import com.sloth.runveal.running.image.captureComposable
+import com.sloth.runveal.running.image.isLegacyStoragePermissionNeeded
+import com.sloth.runveal.running.image.saveBitmapToGallery
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import com.sloth.runveal.feature.running.R
 import com.sloth.runveal.map.snapshot.SnapshotRequest
 import com.sloth.runveal.running.contract.ResultDongStat
@@ -74,6 +99,59 @@ fun ResultScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewModel: 
 
     val notReadyToast = rememberNotReadyToastState()
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    // 저장은 큰 비트맵을 만들고 파일까지 쓴다 — 끝나기 전에 또 누르면 같은 그림을 두 장 만든다.
+    var isSavingImage by remember { mutableStateOf(false) }
+    // 저장 결과 안내. 토스트는 타이머를 모르는 순수 컴포넌트라 사라지는 건 여기서 재운다
+    // (`RunvealToast` 주석, 다른 화면과 같은 방식).
+    var toastMessageRes by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(toastMessageRes) {
+        if (toastMessageRes == null) return@LaunchedEffect
+        delay(SAVE_TOAST_DURATION_MILLIS)
+        toastMessageRes = null
+    }
+
+    val readyState = state as? ResultState.Ready
+
+    fun saveImage() {
+        val current = readyState ?: return
+        if (isSavingImage) return
+        isSavingImage = true
+        scope.launch {
+            val bitmap = captureComposable(
+                context = context,
+                width = IMAGE_WIDTH,
+                height = IMAGE_HEIGHT,
+                scale = RESULT_IMAGE_SCALE,
+            ) {
+                // 캡처용 컴포지션은 화면과 따로 돌아서 테마가 안 깔려 있다 — 여기서 다시 씌운다.
+                RunvealTheme { ResultShareImage(state = current) }
+            }
+            val saved = bitmap != null && saveBitmapToGallery(context, bitmap, shareImageFileName())
+            // 1080x1920 ARGB는 8MB쯤 된다 — 저장이 끝나면 바로 놓아준다.
+            bitmap?.recycle()
+            toastMessageRes =
+                if (saved) R.string.result_save_image_success else R.string.result_save_image_failure
+            isSavingImage = false
+        }
+    }
+
+    // Android 9 이하만 저장소 권한을 받는다([isLegacyStoragePermissionNeeded]).
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) saveImage() else toastMessageRes = R.string.result_save_image_permission_denied
+    }
+
+    val onSaveImageClick = {
+        if (isLegacyStoragePermissionNeeded() && !context.hasWriteStoragePermission()) {
+            storagePermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            saveImage()
+        }
+    }
+
     Box(modifier = modifier.fillMaxSize().background(colors.bg.canvas)) {
         // 제일 뒤에 깔리는 배경 glow — statusBar 인셋을 안 받아서 그 밑까지 그대로 번진다. 이미지 자체에
         // 색이 이미 들어 있다(result_glow.png). RESULT_GLOW_WIDTH(480dp)가 화면 너비보다 넓은데, width()를
@@ -103,12 +181,28 @@ fun ResultScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewModel: 
                 is ResultState.Ready -> ResultContent(
                     state = current,
                     onNotReadyClick = notReadyToast::show,
+                    onSaveImageClick = onSaveImageClick,
                     modifier = Modifier.weight(1f).fillMaxWidth(),
                 )
             }
         }
 
         NotReadyToastHost(notReadyToast)
+
+        toastMessageRes?.let { messageRes ->
+            RunvealToast(
+                message = stringResource(messageRes),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+                    .padding(
+                        start = RunvealTheme.layout.marginScreen,
+                        end = RunvealTheme.layout.marginScreen,
+                        // 저장 버튼 바로 위에 띄운다 — 버튼을 가리면 눌린 건지 알 수 없다.
+                        bottom = RunvealTheme.spacing.space8 + SAVE_TOAST_BUTTON_INSET,
+                    ),
+            )
+        }
     }
 }
 
@@ -116,6 +210,7 @@ fun ResultScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewModel: 
 private fun ResultContent(
     state: ResultState.Ready,
     onNotReadyClick: () -> Unit,
+    onSaveImageClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = RunvealTheme.colors
@@ -165,13 +260,12 @@ private fun ResultContent(
         }
 
         // TODO: 기록 상세 화면으로 이동 — 기록 탭의 상세가 생기면 그 화면을 재사용한다.
-        // TODO: 결과 카드를 이미지로 저장(공유) — 지도 스냅샷과 통계를 한 장으로 렌더링해야 한다.
-        //  둘 다 붙기 전까지는 "개발 중" 안내만 띄운다.
+        //  붙기 전까지는 "개발 중" 안내만 띄운다.
         RunvealButtonGroupEqual(
             firstLabel = stringResource(R.string.result_detail_button),
             onFirstClick = onNotReadyClick,
             secondLabel = stringResource(R.string.result_save_image_button),
-            onSecondClick = onNotReadyClick,
+            onSecondClick = onSaveImageClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
@@ -346,6 +440,7 @@ private fun ResultScreenPreview() {
     RunvealTheme {
         ResultContent(
             onNotReadyClick = {},
+            onSaveImageClick = {},
             state = ResultState.Ready(
                 dateLabel = "10월 25일 일요일 저녁 러닝",
                 newRoadLabel = "1.3",
@@ -365,3 +460,20 @@ private fun ResultScreenPreview() {
         )
     }
 }
+
+/** 저장 결과 토스트 노출 시간 — 앱 안 다른 토스트와 같은 값. */
+private const val SAVE_TOAST_DURATION_MILLIS = 3000L
+
+/** 저장 버튼 높이 + 여백 — 토스트를 그 위로 띄운다. */
+private val SAVE_TOAST_BUTTON_INSET = 72.dp
+
+/** 갤러리에서 언제 달린 기록인지 알아볼 수 있게 저장 시각을 파일 이름에 넣는다. */
+private fun shareImageFileName(): String {
+    val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+    return "runveal_" + stamp + ".png"
+}
+
+/** Android 9 이하에서만 묻는다 — 10부터는 MediaStore가 권한 없이 받아 준다. */
+private fun Context.hasWriteStoragePermission(): Boolean =
+    ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+        PackageManager.PERMISSION_GRANTED
