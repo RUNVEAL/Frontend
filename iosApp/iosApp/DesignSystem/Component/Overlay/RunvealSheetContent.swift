@@ -37,6 +37,12 @@ private struct RunvealSheetContentModifier: ViewModifier {
                 }
             )
             .presentationDetents(contentHeight > 0 ? [.height(contentHeight)] : [.medium])
+            // **쓸어올려도 시트가 커지지 않는다.** 기본값(`.resizes`)이면 손잡이를 위로 끌 때 시트가
+            // 따라 올라가는데, 올라갈 자리(더 큰 detent)가 없어서 카드만 바닥에서 떠 보인다.
+            // `.scrolls`는 쓸어올림을 "내용 스크롤"로 돌려서 시트 크기를 건드리지 않는다 —
+            // 끌어내려 닫기는 크기 조절이 아니라 그대로 남는다.
+            // Android `skipPartiallyExpanded = true`와 같은 결과다(중간 단계도, 키울 자리도 없다).
+            .presentationContentInteraction(.scrolls)
             .presentationBackground(.clear)
             .presentationDragIndicator(.hidden)
     }
