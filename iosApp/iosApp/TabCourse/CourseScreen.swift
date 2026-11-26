@@ -105,7 +105,9 @@ struct CourseScreen: View {
                             onMoreTap: { anchor in
                                 moreMenu = CourseMoreMenuTarget(course: featured, anchor: anchor)
                             },
-                            onStartClick: { start(course: featured) }
+                            onStartClick: { start(course: featured) },
+                            // 카드를 누르면 코스 상세로 — 목록 줄의 오른쪽 아이콘과 같은 자리로 간다.
+                            onClick: { onCourseClick(featured) }
                         )
                         .padding(.horizontal, RunvealLayout.marginScreen)
 
@@ -335,6 +337,9 @@ private struct CourseRecommendationCard: View {
     let menuSpace: String
     let onMoreTap: (CGRect) -> Void
     let onStartClick: () -> Void
+    /// 카드(버튼 바깥)를 눌렀을 때 — 코스 상세로 간다. 안쪽 버튼이 먼저 이벤트를 받으므로
+    /// 더보기·바로 시작을 눌러도 여기가 같이 불리지 않는다.
+    let onClick: () -> Void
 
     private static let mapHeight: CGFloat = 160
 
@@ -413,6 +418,10 @@ private struct CourseRecommendationCard: View {
         .background(colors.surface.default, in: RunvealShapes.radius24)
         .overlay { RunvealShapes.radius24.stroke(colors.border.default, lineWidth: 1) }
         .clipShape(RunvealShapes.radius24)
+        // 카드 전체가 눌리되 안쪽 버튼(더보기·바로 시작)이 먼저 받는다 — Button으로 감싸면 그
+        // 버튼들이 묻히므로 탭 제스처를 쓴다(`SavedCourseListItem`과 같다).
+        .contentShape(RunvealShapes.radius24)
+        .onTapGesture(perform: onClick)
     }
 }
 
