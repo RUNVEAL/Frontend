@@ -358,7 +358,13 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
             if state.boundsFocusRequestId != appliedBoundsFocusRequestId {
                 appliedBoundsFocusRequestId = state.boundsFocusRequestId
                 if state.boundsFocusRequestId > 0, let points = state.boundsFocusPoints, points.count >= 2 {
-                    focus(mapView: mapView, points: points, extraBottomPadding: state.boundsFocusExtraBottomPadding)
+                    focus(
+                        mapView: mapView,
+                        points: points,
+                        horizontalPadding: state.boundsFocusHorizontalPadding,
+                        topPadding: state.boundsFocusTopPadding,
+                        bottomPadding: state.boundsFocusBottomPadding
+                    )
                 }
             }
         }
@@ -390,10 +396,13 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
             mapView.contentInset = UIEdgeInsets(top: 0, left: 0, bottom: inset, right: 0)
         }
 
-        /// 코스 선이 화면 가장자리에 딱 붙지 않게 주는 여백.
-        private static let boundsFocusPadding: CGFloat = 48
-
-        private func focus(mapView: MLNMapView, points: [LatLon], extraBottomPadding: CGFloat) {
+        private func focus(
+            mapView: MLNMapView,
+            points: [LatLon],
+            horizontalPadding: CGFloat,
+            topPadding: CGFloat,
+            bottomPadding: CGFloat
+        ) {
             var minLat = points[0].lat
             var maxLat = points[0].lat
             var minLon = points[0].lon
@@ -408,14 +417,13 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
                 sw: CLLocationCoordinate2D(latitude: minLat, longitude: minLon),
                 ne: CLLocationCoordinate2D(latitude: maxLat, longitude: maxLon)
             )
-            let padding = Self.boundsFocusPadding
             mapView.setVisibleCoordinateBounds(
                 bounds,
                 edgePadding: UIEdgeInsets(
-                    top: padding,
-                    left: padding,
-                    bottom: padding + extraBottomPadding,
-                    right: padding
+                    top: topPadding,
+                    left: horizontalPadding,
+                    bottom: bottomPadding,
+                    right: horizontalPadding
                 ),
                 animated: true,
                 completionHandler: nil

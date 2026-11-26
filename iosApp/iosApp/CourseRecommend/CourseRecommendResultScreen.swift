@@ -11,6 +11,13 @@ struct CourseRecommendResultScreen: View {
 
     @StateObject private var viewModel = CourseRecommendResultViewModel()
     @State private var dotMarkersOwner = UUID()
+    /// 지도 위에 얹히는 UI 높이 — 경로를 그 **안쪽**에 맞추려고 실제로 재서 쓴다.
+    ///
+    /// 위는 앱바 + 조건 칩 줄, 아래는 코스 카드 줄이다. 둘 다 내용에 따라 높이가 달라서(칩 개수,
+    /// 카드 글자 줄 수, 안전 영역) 상수로 박으면 기기마다 어긋난다. 처음엔 아직 못 재서 0 —
+    /// 측정되면 한 번 더 맞춘다(Android `CourseRecommendResultScreen`과 같은 방식).
+    @State private var topChromeHeight: CGFloat = 0
+    @State private var bottomCardsHeight: CGFloat = 0
 
     /// `RunvealCourseCard`의 고정 너비(240)와 맞춰야 캐러셀 가운데 정렬 계산이 들어맞는다.
     private static let cardWidth: CGFloat = 240
@@ -27,6 +34,13 @@ struct CourseRecommendResultScreen: View {
     var body: some View {
         ZStack(alignment: .top) {
             topBar
+                .background(
+                    GeometryReader { geometry in
+                        Color.clear
+                            .onAppear { topChromeHeight = geometry.size.height }
+                            .onChange(of: geometry.size.height) { _, height in topChromeHeight = height }
+                    }
+                )
 
             switch viewModel.state {
             case .loading:
@@ -51,6 +65,15 @@ struct CourseRecommendResultScreen: View {
                     VStack {
                         Spacer()
                         courseCarousel(ready: ready)
+                            .background(
+                                GeometryReader { geometry in
+                                    Color.clear
+                                        .onAppear { bottomCardsHeight = geometry.size.height }
+                                        .onChange(of: geometry.size.height) { _, height in
+                                            bottomCardsHeight = height
+                                        }
+                                }
+                            )
                     }
                 }
             }
@@ -79,6 +102,8 @@ struct CourseRecommendResultScreen: View {
         .runvealMapDotMarkers(mapState, courseMarkers, owner: dotMarkersOwner)
         // 선택된 코스가 바뀌면 그 코스가 전부 보이게 카메라를 맞춘다.
         .onChange(of: ready?.selectedRouteId) { _, _ in focusSelected() }
+        .onChange(of: topChromeHeight) { _, _ in focusSelected() }
+        .onChange(of: bottomCardsHeight) { _, _ in focusSelected() }
         .onAppear { focusSelected() }
     }
 
@@ -143,7 +168,14 @@ struct CourseRecommendResultScreen: View {
 
     private func focusSelected() {
         guard let selected = ready?.selectedRoute, selected.path.count >= 2 else { return }
-        mapState.focusOnBounds(points: selected.path)
+        // 시안(B1) 기준 — 경로는 조건 칩 줄 아래 16, 코스 카드 위 16, 좌우 16 안쪽에 들어와야 한다.
+        let margin = RunvealLayout.marginScreen
+        mapState.focusOnBounds(
+            points: selected.path,
+            horizontalPadding: margin,
+            topPadding: topChromeHeight + margin,
+            bottomPadding: bottomCardsHeight + margin
+        )
     }
 
     // MARK: - 조각
