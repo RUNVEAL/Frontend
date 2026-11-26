@@ -188,6 +188,8 @@ private fun CourseListContent(
                     notRunLabel = featured.notRunLabel,
                     moreMenu = moreMenuFor(featured),
                     onStartClick = { onStartCourse(featured) },
+                    // 카드를 누르면 코스 상세로 — 목록 줄의 오른쪽 아이콘과 같은 자리로 간다.
+                    onClick = { onCourseDetailClick(featured) },
                     thumbnailRequest = featured.snapshotRequest,
                     modifier = Modifier
                         .fillMaxWidth()
