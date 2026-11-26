@@ -39,6 +39,8 @@ class ResultViewModel : MviViewModel<Nothing, ResultState, Nothing>(initialState
                 variant = SnapshotVariant.RESULT_CARD,
                 newRoadPaths = result.newRoadPaths,
             ),
+            routePaths = result.routePaths,
+            newRoadPaths = result.newRoadPaths,
         )
     }
 

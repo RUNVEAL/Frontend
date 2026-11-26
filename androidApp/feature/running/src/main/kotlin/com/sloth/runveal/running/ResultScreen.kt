@@ -358,6 +358,8 @@ private fun ResultScreenPreview() {
                 elapsedLabel = "31:40",
                 paceLabel = "6'05″",
                 mapSnapshotRequest = null,
+                routePaths = emptyList(),
+                newRoadPaths = emptyList(),
             ),
             modifier = Modifier.fillMaxSize(),
         )
