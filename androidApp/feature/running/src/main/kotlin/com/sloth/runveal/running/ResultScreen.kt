@@ -443,6 +443,7 @@ private fun ResultScreenPreview() {
             onSaveImageClick = {},
             state = ResultState.Ready(
                 dateLabel = "10월 25일 일요일 저녁 러닝",
+                shareDateLabel = "2026.10.25",
                 newRoadLabel = "1.3",
                 dongStats = listOf(
                     ResultDongStat("성수동", 37, 39),

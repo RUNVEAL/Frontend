@@ -29,6 +29,7 @@ class ResultViewModel : MviViewModel<Nothing, ResultState, Nothing>(initialState
         val distanceKm = result.distanceMeters / 1000.0
         return ResultState.Ready(
             dateLabel = formatDate(result.startedAtEpochMs),
+            shareDateLabel = formatShareDate(result.startedAtEpochMs),
             newRoadLabel = "%.1f".format(result.newRoadMeters / 1000.0),
             dongStats = result.dongStats.map { ResultDongStat(it.name, it.beforePercent, it.afterPercent) },
             distanceLabel = "%.2f".format(distanceKm),
@@ -42,6 +43,12 @@ class ResultViewModel : MviViewModel<Nothing, ResultState, Nothing>(initialState
             routePaths = result.routePaths,
             newRoadPaths = result.newRoadPaths,
         )
+    }
+
+    /** 저장 이미지용 날짜 — "2026.10.25". 자릿수가 고정이라 길이가 들쭉날쭉하지 않다. */
+    private fun formatShareDate(epochMs: Long): String {
+        val dateTime = Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault())
+        return "%04d.%02d.%02d".format(dateTime.year, dateTime.monthValue, dateTime.dayOfMonth)
     }
 
     private fun formatDate(epochMs: Long): String {

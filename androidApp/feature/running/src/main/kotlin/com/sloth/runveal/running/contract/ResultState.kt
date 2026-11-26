@@ -13,6 +13,14 @@ sealed interface ResultState : UiState {
 
     data class Ready(
         val dateLabel: String,
+        /**
+         * 저장 이미지 우측 상단에 찍는 날짜("2026.10.25").
+         *
+         * 화면에 쓰는 [dateLabel]("10월 25일 일요일 저녁 러닝")과 따로 두는 이유: 이미지에는 한 줄에
+         * 들어가는 짧은 형식이 필요하고, 기준도 **저장한 날이 아니라 달린 날**이라 러닝 시작 시각에서
+         * 뽑는다(나중에 결과를 다시 열어도 그날 날짜가 찍힌다).
+         */
+        val shareDateLabel: String,
         val newRoadLabel: String,
         val dongStats: List<ResultDongStat>,
         val distanceLabel: String,

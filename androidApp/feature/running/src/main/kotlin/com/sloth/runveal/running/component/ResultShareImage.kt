@@ -63,7 +63,17 @@ fun ResultShareImage(
                 .height(HERO_HEIGHT),
         )
 
-        // TODO: 우측 상단 아이콘 — 시안 확정되면 추가한다.
+        // 달린 날짜 — 우측 상단. 저장한 날이 아니라 **달린 날**이다([ResultState.Ready.shareDateLabel]).
+        Text(
+            text = state.shareDateLabel,
+            style = RunvealTheme.typography.bodyMRegular,
+            color = colors.text.secondary,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = SIDE_MARGIN, end = SIDE_MARGIN),
+        )
+
+        // TODO: 우측 상단 아이콘 — 시안 확정되면 날짜 옆에 붙인다.
         // TODO: 우측 상단 이미지 — 시안 확정되면 추가한다.
 
         Column(
@@ -224,6 +234,7 @@ private fun ResultShareImagePreview() {
         ResultShareImage(
             state = ResultState.Ready(
                 dateLabel = "화요일 저녁",
+                shareDateLabel = "2026.10.25",
                 newRoadLabel = "1.3",
                 dongStats = emptyList(),
                 distanceLabel = "5.21",
