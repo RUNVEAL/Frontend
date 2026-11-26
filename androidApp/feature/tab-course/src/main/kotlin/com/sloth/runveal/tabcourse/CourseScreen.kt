@@ -146,12 +146,6 @@ private fun CourseListContent(
     }
 
     Box(modifier = modifier.fillMaxSize().background(colors.bg.canvas)) {
-        // 탭바 위에 띄운다 — 탭바는 Map Shell이 이 화면 위에 겹쳐 그린다.
-        NotReadyToastHost(
-            notReadyToast,
-            bottomInset = RunvealTheme.layout.sizeTabBar + RunvealTheme.spacing.space8,
-        )
-
         // statusBar 영역까지 포함해서 화면 맨 위부터 깔리는 히어로 이미지 — 원본 비율(1920:544)대로 보여준다.
         Image(
             painter = painterResource(R.drawable.my_course),
@@ -237,6 +231,14 @@ private fun CourseListContent(
                 }
             }
         }
+
+        // 목록보다 **뒤에** 그려야 위에 뜬다 — Box는 나중에 그린 자식이 위다. 앞에 두면 스크롤
+        // 목록에 가려서, 눌렀는데 아무 일도 안 일어난 것처럼 보인다.
+        // 탭바 위에 띄운다 — 탭바는 Map Shell이 이 화면 위에 겹쳐 그린다.
+        NotReadyToastHost(
+            notReadyToast,
+            bottomInset = RunvealTheme.layout.sizeTabBar + RunvealTheme.spacing.space8,
+        )
 
         // RunvealDialog는 내용만 그리는 컴포넌트다(그 KDoc 참고) — Compose의 Dialog로 감싸
         // 바깥 탭·뒤로가기로 닫히게 한다(MyScreen의 로그아웃 다이얼로그와 같은 방식).
