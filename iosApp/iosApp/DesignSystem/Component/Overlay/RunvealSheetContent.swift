@@ -15,6 +15,8 @@ import UIKit
 /// 동작은 양쪽 다 없고, 핸들은 카드가 직접 그리는 표시다.
 ///
 /// **끌어서 움직이는 것도 막는다**([SheetDragDisabler]) — 닫기는 바깥 누르기와 시트 안 버튼이 맡는다.
+/// 그래도 들리는 경우를 대비해 바닥에 드러나는 띠를 시트 색으로 채워 둔다([SheetBottomFiller]) —
+/// 들린 게 "시트가 길어진 것"처럼 보여야 한다.
 extension View {
     func runvealSheetContent() -> some View {
         modifier(RunvealSheetContentModifier())
@@ -45,9 +47,10 @@ private struct RunvealSheetContentModifier: ViewModifier {
             .presentationContentInteraction(.scrolls)
             .presentationBackground(.clear)
             .presentationDragIndicator(.hidden)
-            // `.scrolls`만으로는 **쓸어올려 detent를 키우는 것**만 막힌다 — 시트를 통째로 끌어
-            // 움직이는 제스처는 그대로 남아서, 손잡이를 위로 끌면 카드가 바닥에서 들린다.
+            // `.scrolls`는 **detent를 키우는 것**만 막는다 — 시트를 통째로 끄는 제스처는 따로 끈다.
             .background(SheetDragDisabler())
+            // 그래도 들리는 경우(제스처를 못 찾았을 때)를 대비해 바닥 띠를 시트 색으로 채워 둔다.
+            .background(SheetBottomFiller())
     }
 }
 
@@ -80,12 +83,56 @@ private struct SheetDragDisabler: UIViewRepresentable {
     }
 }
 
+/// 시트 아래 바닥을 시트와 같은 색으로 채운다 — [SheetDragDisabler]가 막지 못하고 들렸을 때의 대비다.
+///
+/// 손잡이를 위로 끌면 시트가 들리면서 **시트와 화면 바닥 사이**가 드러난다. 거기는 시트 프레임
+/// 바깥이라 시트가 직접 그릴 수 없고(둥근 모서리 마스크에 잘린다), 뒤 화면이 그려 봐야 시스템
+/// 딤에 덮여 색이 안 맞는다. 그래서 **시트를 담고 있는 컨테이너**에 같은 색 띠를 깔고 시트보다
+/// 뒤(z)에 둔다 — 쉴 때는 시트에 완전히 가려지고, 끌어올린 만큼만 드러난다.
+private struct SheetBottomFiller: UIViewRepresentable {
+    /// 끌어올릴 수 있는 거리(고무줄)보다 넉넉히 — 더 길어도 평소엔 시트에 가려 보이지 않는다.
+    private static let height: CGFloat = 400
+    /// 같은 시트에 띠를 두 번 깔지 않으려고 붙여 두는 표식.
+    private static let tag = 0x52_56_42_46
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        // 자리만 차지하지 않으면 되는 빈 뷰다 — 터치는 뒤(시트 내용)로 흘려보낸다.
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        // 붙는 순간에는 프레젠테이션이 아직 안 끝나 컨테이너가 없다 — 한 턴 뒤에 찾는다.
+        DispatchQueue.main.async {
+            guard let sheet = uiView.presentedSheetView,
+                  let container = sheet.superview,
+                  container.viewWithTag(Self.tag) == nil else { return }
+
+            let filler = UIView()
+            filler.tag = Self.tag
+            filler.backgroundColor = UIColor(RunvealTheme.colors.surface.raised)
+            filler.isUserInteractionEnabled = false
+            filler.translatesAutoresizingMaskIntoConstraints = false
+            // 시트 **바로 뒤**에 넣는다 — 딤보다는 앞이라 색이 흐려지지 않고, 시트보다는 뒤라
+            // 쉴 때는 통째로 가려진다.
+            container.insertSubview(filler, belowSubview: sheet)
+            NSLayoutConstraint.activate([
+                filler.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+                filler.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+                filler.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+                filler.heightAnchor.constraint(equalToConstant: Self.height),
+            ])
+        }
+    }
+}
+
 private extension UIView {
-    /// 이 뷰가 올라타 있는 시트의 presented view — pan 제스처가 달려 있는 자리.
+    /// 이 뷰가 올라타 있는 시트의 presented view — 끌어올리면 이 뷰가 통째로 움직인다.
     ///
     /// 응답 체인을 타고 자기를 들고 있는 뷰 컨트롤러를 찾고(SwiftUI는 `UIHostingController`),
     /// 프레젠테이션의 주인은 그 컨트롤러의 맨 위 부모라 거기까지 올라간 뒤 물어본다.
-    /// 못 찾으면 nil — 못 끄더라도 시트는 그대로 뜬다(끌리기만 할 뿐).
+    /// 못 찾으면 nil — 띠를 못 깔 뿐 시트는 그대로 뜬다.
     var presentedSheetView: UIView? {
         let owner = sequence(first: self as UIResponder) { $0.next }
             .compactMap { $0 as? UIViewController }
