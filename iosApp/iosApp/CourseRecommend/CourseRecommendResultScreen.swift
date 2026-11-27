@@ -11,13 +11,22 @@ struct CourseRecommendResultScreen: View {
 
     @StateObject private var viewModel = CourseRecommendResultViewModel()
     @State private var dotMarkersOwner = UUID()
-    /// 지도 위에 얹히는 UI 높이 — 경로를 그 **안쪽**에 맞추려고 실제로 재서 쓴다.
-    ///
-    /// 위는 앱바 + 조건 칩 줄, 아래는 코스 카드 줄이다. 둘 다 내용에 따라 높이가 달라서(칩 개수,
-    /// 카드 글자 줄 수, 안전 영역) 상수로 박으면 기기마다 어긋난다. 처음엔 아직 못 재서 0 —
-    /// 측정되면 한 번 더 맞춘다(Android `CourseRecommendResultScreen`과 같은 방식).
-    @State private var topChromeHeight: CGFloat = 0
-    @State private var bottomCardsHeight: CGFloat = 0
+    /**
+     경로를 지도 위 UI **안쪽**에 맞추려고 재 두는 자리 — 셋 다 **화면 절대 좌표(`.global`)**다.
+
+     **크기(`geometry.size`)를 쓰면 안 된다.** 지도는 엣지투엣지(`RunvealMap().ignoresSafeArea()`)라
+     카메라 여백(`setVisibleCoordinateBounds(edgePadding:)`)이 **화면 가장자리** 기준인데, 이 화면의
+     뷰들은 안전 영역 **안쪽**에 놓인다. 그래서 뷰 크기를 그대로 넘기면 위는 상태바, 아래는 홈
+     인디케이터 높이만큼 덜 비켜서 경로가 칩 줄·카드 쪽으로 밀려 붙는다(실기에서 그렇게 보였다).
+
+     안전 영역 높이를 상수로 빼는 대신 **지도와 같은 원점(window)** 에서 잰 절대 좌표를 쓴다 —
+     그러면 인셋이 얼마인지 이 코드가 알 필요가 없다(Android도 `boundsInWindow()`로 같은 방식이다).
+
+     처음엔 아직 못 재서 0이고, 그동안은 카메라를 맞추지 않는다([focusSelected]).
+     */
+    @State private var topChromeBottom: CGFloat = 0
+    @State private var cardsTop: CGFloat = 0
+    @State private var mapViewportHeight: CGFloat = 0
 
     /// `RunvealCourseCard`의 고정 너비(240)와 맞춰야 캐러셀 가운데 정렬 계산이 들어맞는다.
     private static let cardWidth: CGFloat = 240
@@ -34,13 +43,7 @@ struct CourseRecommendResultScreen: View {
     var body: some View {
         ZStack(alignment: .top) {
             topBar
-                .background(
-                    GeometryReader { geometry in
-                        Color.clear
-                            .onAppear { topChromeHeight = geometry.size.height }
-                            .onChange(of: geometry.size.height) { _, height in topChromeHeight = height }
-                    }
-                )
+                .background(GlobalBoundsReader { topChromeBottom = $0.maxY })
 
             switch viewModel.state {
             case .loading:
@@ -65,15 +68,7 @@ struct CourseRecommendResultScreen: View {
                     VStack {
                         Spacer()
                         courseCarousel(ready: ready)
-                            .background(
-                                GeometryReader { geometry in
-                                    Color.clear
-                                        .onAppear { bottomCardsHeight = geometry.size.height }
-                                        .onChange(of: geometry.size.height) { _, height in
-                                            bottomCardsHeight = height
-                                        }
-                                }
-                            )
+                            .background(GlobalBoundsReader { cardsTop = $0.minY })
                     }
                 }
             }
@@ -98,12 +93,14 @@ struct CourseRecommendResultScreen: View {
                 filterSheet(draft: draft)
             }
         }
+        // 지도 뷰포트 높이 — 카메라 여백이 **화면 가장자리** 기준이라 안전 영역을 벗어난 전체
+        // 높이가 필요하다. 그래서 이 판만 `ignoresSafeArea`로 화면 끝까지 늘려 잰다.
+        .background(GlobalBoundsReader { mapViewportHeight = $0.maxY }.ignoresSafeArea())
         .runvealMapLayers(mapState, routeLayers)
         .runvealMapDotMarkers(mapState, courseMarkers, owner: dotMarkersOwner)
         // 선택된 코스가 바뀌면 그 코스가 전부 보이게 카메라를 맞춘다.
         .onChange(of: ready?.selectedRouteId) { _, _ in focusSelected() }
-        .onChange(of: topChromeHeight) { _, _ in focusSelected() }
-        .onChange(of: bottomCardsHeight) { _, _ in focusSelected() }
+        .onChange(of: measuredChrome) { _, _ in focusSelected() }
         .onAppear { focusSelected() }
     }
 
@@ -168,15 +165,32 @@ struct CourseRecommendResultScreen: View {
 
     private func focusSelected() {
         guard let selected = ready?.selectedRoute, selected.path.count >= 2 else { return }
+        // 아직 못 잰 동안(첫 프레임)은 맞추지 않는다 — 0으로 계산하면 엉뚱한 줌이 한 번 잡혔다가
+        // 튄다. 측정값이 들어오면 [measuredChrome]을 보고 다시 부른다.
+        guard topChromeBottom > 0, cardsTop > 0, mapViewportHeight > 0 else { return }
+
         // 시안(B1) 기준 — 경로는 조건 칩 줄 아래 16, 코스 카드 위 16, 좌우 16 안쪽에 들어와야 한다.
         let margin = RunvealLayout.marginScreen
+
+        // 잰 값은 **컨테이너** 좌표라 그 안의 투명한 패딩까지 들어 있다. 기준은 "보이는 끝"이므로
+        // 패딩만큼 되돌린다 — 안 그러면 위아래로 그 두께만큼 더 벌어진다.
+        //
+        // 여기서 칩 줄이 없는 경우는 없다 — 고를 코스가 있어야 이 함수가 돌고, 코스가 있으면
+        // 칩 줄도 떠 있다(`emptyMessage == nil`).
+        let chipsVisibleBottom = topChromeBottom - RunvealSpacing.space12
+        let cardsVisibleTop = cardsTop + RunvealSpacing.space16
+
         mapState.focusOnBounds(
             points: selected.path,
             horizontalPadding: margin,
-            topPadding: topChromeHeight + margin,
-            bottomPadding: bottomCardsHeight + margin
+            // 절대 좌표라 상태바 높이가 이미 들어 있다 — 따로 더하지 않는다.
+            topPadding: chipsVisibleBottom + margin,
+            bottomPadding: mapViewportHeight - cardsVisibleTop + margin
         )
     }
+
+    /// 측정값 묶음 — 하나라도 바뀌면 카메라를 다시 맞춘다(첫 측정이 들어오는 순간이 여기다).
+    private var measuredChrome: [CGFloat] { [topChromeBottom, cardsTop, mapViewportHeight] }
 
     // MARK: - 조각
 
@@ -242,6 +256,26 @@ struct CourseRecommendResultScreen: View {
             .frame(maxWidth: .infinity)
         }
         .frame(height: 170)
+    }
+}
+
+/**
+ `.background`에 깔아 그 뷰의 **화면 절대 좌표(`.global`)**를 알려 주는 투명 판.
+
+ 크기(`geometry.size`)가 아니라 좌표가 필요해서 따로 둔다 — 지도 카메라 여백은 화면 가장자리
+ 기준이고 이 화면의 뷰들은 안전 영역 안쪽에 놓여서, 둘을 같은 원점으로 맞춰야 한다
+ ([CourseRecommendResultScreen]의 측정 주석 참고).
+ */
+private struct GlobalBoundsReader: View {
+    let onBounds: (CGRect) -> Void
+
+    var body: some View {
+        GeometryReader { geometry in
+            let bounds = geometry.frame(in: .global)
+            Color.clear
+                .onAppear { onBounds(bounds) }
+                .onChange(of: bounds) { _, next in onBounds(next) }
+        }
     }
 }
 
