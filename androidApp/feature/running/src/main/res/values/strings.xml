@@ -36,6 +36,8 @@
     <string name="result_save_image_button">이미지 저장하기</string>
     <string name="result_close_content_description">닫기</string>
     <string name="result_map_content_description">이번 러닝 경로 지도</string>
+    <!-- 저장 이미지의 통계 라벨 — 화면용("경과 시간")과 달리 한 줄에 세 칸이라 짧게 쓴다(시안). -->
+    <string name="result_share_elapsed_label">시간</string>
     <!-- 저장 이미지에서 지나간 동이 여럿일 때 — 첫 동만 적고 나머지는 개수로 줄인다. -->
     <string name="result_share_more_dong_format">외 %1$d개 동</string>
     <!-- 결과 이미지 저장 안내 -->

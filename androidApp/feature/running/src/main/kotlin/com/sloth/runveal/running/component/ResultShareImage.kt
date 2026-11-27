@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.height
@@ -92,15 +93,20 @@ fun ResultShareImage(
         }
 
         Column(
+            // 아트보드 높이를 꽉 채운다 — 아래 경로 그림이 `weight`로 남는 높이를 가져가려면 세로가
+            // 정해져 있어야 한다.
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .padding(start = SIDE_MARGIN, end = SIDE_MARGIN, top = HERO_HEIGHT, bottom = SIDE_MARGIN),
             verticalArrangement = Arrangement.spacedBy(SIDE_MARGIN),
         ) {
+            // **경로 그림이 남는 높이를 흡수한다.** 시안 값(254.93)으로 고정하면 글자 쪽이 조금만
+            // 커져도(글꼴 메트릭, 동 이름 줄바꿈) 아래 통계가 아트보드 밖으로 밀려 잘린다 —
+            // 실제로 잘렸다. 글자는 필요한 만큼 가져가고 남는 걸 그림이 받는 쪽이 안전하다.
             RouteVectorMap(
                 routePaths = state.routePaths,
                 newRoadPaths = state.newRoadPaths,
-                modifier = Modifier.width(CONTENT_WIDTH).height(ROUTE_MAP_HEIGHT),
+                modifier = Modifier.width(CONTENT_WIDTH).weight(1f),
             )
 
             ExplorationSummary(newRoadLabel = state.newRoadLabel)
@@ -184,7 +190,7 @@ private fun Information(state: ResultState.Ready, modifier: Modifier = Modifier)
                 value = state.distanceLabel,
                 unit = stringResource(R.string.recording_distance_unit),
             )
-            ShareStat(label = stringResource(R.string.recording_elapsed_label), value = state.elapsedLabel)
+            ShareStat(label = stringResource(R.string.result_share_elapsed_label), value = state.elapsedLabel)
             ShareStat(label = stringResource(R.string.recording_pace_label), value = state.paceLabel)
         }
     }
@@ -238,9 +244,6 @@ private val HERO_HEIGHT = 136.dp
 /** 좌우 여백 24 — 본문 너비가 312가 되어 시안과 맞는다(360 - 24*2). */
 private val SIDE_MARGIN = 24.dp
 private val CONTENT_WIDTH = 312.dp
-
-/** 시안 값 그대로. 경로 그림은 아트보드에서 가장 큰 덩어리라 소수점까지 맞춘다. */
-private val ROUTE_MAP_HEIGHT = 254.93.dp
 
 /** 통계 세 칸 — 96 * 3 + 12 * 2 = 312로 본문 너비에 꼭 맞는다. */
 private val STAT_WIDTH = 96.dp
