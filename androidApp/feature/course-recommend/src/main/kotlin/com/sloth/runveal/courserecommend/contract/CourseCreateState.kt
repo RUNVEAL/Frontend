@@ -20,8 +20,8 @@ internal val FilterServerCodes = mapOf(
     "하천길 따라가기" to "RIVERSIDE",
 )
 
-/** 1km ~ 42km, 0.5km 단위. 인덱스 22 = "12" (휠 피커 기본값). */
-internal val CustomDistanceValues = (2..84).map { step ->
+/** 1km ~ 21km(하프), 0.5km 단위. 인덱스 22 = "12"(휠 피커 기본값) — 시작이 1km라 상한을 줄여도 그대로다. */
+internal val CustomDistanceValues = (2..42).map { step ->
     val km = step / 2.0
     if (km % 1.0 == 0.0) km.toInt().toString() else km.toString()
 }
