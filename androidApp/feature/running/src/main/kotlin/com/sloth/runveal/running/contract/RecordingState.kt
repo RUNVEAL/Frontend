@@ -18,6 +18,9 @@ data class RecordingState(
      * 달리 이미 가본 구간은 빠진다. 지도가 금색으로 칠하는 선과 같은 분류 결과를 쓴다
      * ([com.sloth.runveal.result.LiveNewRoadHolder]). */
     val newRoadLabel: String = "0.00",
+    /** GPS 신호가 약한지([com.sloth.runveal.recording.GpsSignalHolder]) — 지도 위에 안내를 띄운다.
+     * 일시정지 중에는 어차피 기록을 안 하므로 화면이 안내를 숨긴다. */
+    val isGpsWeak: Boolean = false,
     val selectedCoursePath: List<LatLon>? = null,
     /** 선택한 코스가 순환이면 출발·도착이 같은 자리라 도착 핀을 생략한다(코스 상세와 같은 규칙). */
     val selectedCourseIsLoop: Boolean = false,

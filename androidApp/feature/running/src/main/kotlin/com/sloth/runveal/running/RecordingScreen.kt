@@ -257,6 +257,15 @@ fun RecordingScreen(
                         description = stringResource(R.string.recording_paused_banner_description),
                     )
                 }
+                // 신호가 약하면 기록이 끊길 수 있다는 걸 알린다 — 나중에 결과에서 거리가 짧게 나왔을 때
+                // 이유를 알 수 있어야 한다. 일시정지 중에는 어차피 기록을 안 하므로 띄우지 않는다.
+                if (state.isGpsWeak && state.phase == RecordingPhase.RECORDING) {
+                    RunvealNavigationBanner(
+                        icon = RunvealIcons.Alert,
+                        instruction = stringResource(R.string.recording_weak_gps_banner_title),
+                        description = stringResource(R.string.recording_weak_gps_banner_description),
+                    )
+                }
                 NewRoadBadge(distanceLabel = state.newRoadLabel)
             }
         }
