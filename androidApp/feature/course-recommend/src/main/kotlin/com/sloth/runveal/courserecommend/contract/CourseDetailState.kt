@@ -44,5 +44,12 @@ sealed interface CourseDetailState : UiState {
         val isLoop: Boolean,
         /** [CourseDetailIntent.SaveCourse]로 로컬 `course` 테이블에 저장했는지 — 중복 저장 방지 + 버튼 문구에 쓴다. */
         val isSaved: Boolean = false,
+        /** 저장된 `course` 행의 id — "내 코스"에서 들어왔으면 그 행의 id, 추천 결과에서 들어와 이 화면에서
+         * 저장했으면 그때 만든 id다. 저장 전 추천 코스는 null — 적을 행이 아직 없다. 러닝을 시작할 때
+         * [com.sloth.runveal.result.SelectedCourseHolder]로 넘겨 "달림"을 적는 데 쓴다.
+         *
+         * 출처([CourseDetailSource])로는 이걸 알 수 없다 — 추천 결과에서 들어와 저장한 코스도 출처는
+         * 끝까지 `Recommended`라서, 상태가 직접 들고 있어야 한다. */
+        val savedCourseId: String? = null,
     ) : CourseDetailState
 }
