@@ -17,15 +17,6 @@ enum CourseDetailSource: Hashable {
         case .recommended(let id), .saved(let id): return id
         }
     }
-
-    /// 로컬 `course` 테이블에 **행이 있는** 코스의 id — 저장 전 추천 코스는 nil이다.
-    /// 러닝이 끝나 기록이 저장될 때 그 코스를 "달림"으로 적는 데 쓴다(Android와 같은 기준).
-    var savedId: String? {
-        switch self {
-        case .saved(let id): return id
-        case .recommended: return nil
-        }
-    }
 }
 
 enum CourseDetailIntent: UiIntent {
@@ -69,6 +60,14 @@ struct CourseDetailReady {
     let isLoop: Bool
     /// 로컬 `course` 테이블에 저장했는지 — 중복 저장 방지 + 버튼 문구에 쓴다.
     var isSaved = false
+    /**
+     로컬 `course` 테이블에 있는 이 코스의 id — 없으면(저장 전 추천 코스) nil.
+
+     "내 코스"에서 들어왔으면 들어올 때부터 있고, 추천 결과에서 **이 화면에서 저장하면** 그때
+     채워진다. 러닝이 끝나 기록이 저장될 때 이 코스를 "달림"으로 적는 데 쓴다 — 출처(`source`)로
+     가리면 "저장하고 바로 옆 시작 버튼"을 누른 경우를 놓친다.
+     */
+    var savedCourseId: String?
     /// 저장된 코스로 들어왔을 때의 제목. 있으면 [courseLabel] 대신 이걸 그대로 쓴다 —
     /// "코스 {이름}"으로 조합하면 "코스 코스 A"가 된다.
     var savedCourseName: String?
