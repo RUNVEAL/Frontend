@@ -20,13 +20,15 @@ CREATE TABLE course (
     tags                TEXT,                       -- "[\"PARK\",\"NEW_ROAD\"]"
     segment_ids         TEXT,                       -- "[1203,8812]"
     milestones          TEXT,                       -- MilestoneDto 리스트 JSON
+    -- 이 코스로 달려서 기록이 저장된 마지막 시각. NULL = 아직 안 달림("다음에 달려볼 코스" 기준).
+    last_run_at_epoch_ms INTEGER,
     FOREIGN KEY (source_track_id) REFERENCES track(id) ON DELETE SET NULL
 );
 
 CREATE INDEX course_created_at_idx ON course(created_at_epoch_ms DESC);
 
 selectAllCourses:
-SELECT id, name, distance_meters, coordinates, route_type, duration_sec, new_road_m, created_at_epoch_ms
+SELECT id, name, distance_meters, coordinates, route_type, duration_sec, new_road_m, created_at_epoch_ms, last_run_at_epoch_ms
 FROM course ORDER BY created_at_epoch_ms DESC;   -- "내 코스" 탭 목록 — 바로 시작/썸네일에 coordinates가 필요해서 같이 읽는다
 
 selectCourseById:
@@ -42,6 +44,10 @@ INSERT INTO course (
 
 renameCourse:
 UPDATE course SET name = ? WHERE id = ?;
+
+-- 이 코스로 달린 기록이 저장됐을 때. 기록을 저장하지 않은(너무 짧은) 러닝은 부르지 않는다.
+markCourseRun:
+UPDATE course SET last_run_at_epoch_ms = ? WHERE id = ?;
 
 deleteCourse:
 DELETE FROM course WHERE id = ?;
