@@ -11,6 +11,8 @@ struct CourseRecommendResultScreen: View {
 
     @StateObject private var viewModel = CourseRecommendResultViewModel()
     @State private var dotMarkersOwner = UUID()
+    /// 캐러셀 가운데에 와 있는 카드 — 선택 상태는 이 값이 정한다([courseCarousel]).
+    @State private var centeredRouteId: String?
 
     /// `RunvealCourseCard`의 고정 너비(240)와 맞춰야 캐러셀 가운데 정렬 계산이 들어맞는다.
     private static let cardWidth: CGFloat = 240
@@ -170,9 +172,12 @@ struct CourseRecommendResultScreen: View {
 
     /// 화면 가운데에 카드 하나가 오게 좌우 패딩을 "뷰포트 - 카드" 절반씩 준다.
     ///
-    /// Android는 "화면 가운데에 와 있는 카드"가 선택 상태를 정하지만(snapFling + 센터 감지), iOS는
-    /// `ScrollView`가 보이는 항목 위치를 알려주지 않아서 `scrollTargetBehavior(.viewAligned)`로
-    /// 스냅만 맞추고 선택은 **카드 탭**으로 정한다 — 가운데 카드를 다시 탭하면 상세로 들어간다.
+    /// **가운데에 와 있는 카드가 선택이다** — Android(snapFling + 센터 감지)와 같은 규칙이다.
+    /// `scrollTargetLayout()` + `scrollPosition(id:anchor: .center)`가 지금 가운데인 카드의 id를
+    /// 알려 주므로, 쓸어 넘기다 멈추면 탭하지 않아도 그 카드가 금색 테두리가 된다.
+    ///
+    /// 탭은 선택을 바꾸지 않는다 — 가운데 카드를 탭하면 상세로 들어가고, 옆 카드를 탭하면 그 카드를
+    /// 가운데로 굴린다(선택은 그 결과로 따라온다). Android `RouteCard`의 onClick과 같다.
     private func courseCarousel(ready: CourseRecommendResultReady) -> some View {
         GeometryReader { geometry in
             let sidePadding = max((geometry.size.width - Self.cardWidth) / 2, RunvealLayout.marginScreen)
@@ -192,11 +197,12 @@ struct CourseRecommendResultScreen: View {
                             newRoadUnit: route.newRoadUnit,
                             state: route.routeId == ready.selectedRouteId ? .selected : .default
                         ) {
-                            // 이미 선택된 카드를 또 탭하면 상세로, 아니면 선택만 바꾼다.
+                            // 가운데(선택된) 카드를 또 탭하면 상세로, 아니면 가운데로 굴리기만 한다
+                            // — 선택 자체는 센터 감지가 맡는다.
                             if route.routeId == ready.selectedRouteId {
                                 onCourseClick(route.routeId)
                             } else {
-                                viewModel.onIntent(.selectRoute(routeId: route.routeId))
+                                withAnimation { centeredRouteId = route.routeId }
                             }
                         }
                         .id(route.routeId)
@@ -207,9 +213,17 @@ struct CourseRecommendResultScreen: View {
                 .scrollTargetLayout()
             }
             .scrollTargetBehavior(.viewAligned)
+            // 가운데(anchor: .center)에 와 있는 카드의 id를 받아 둔다 — 스냅이 끝나면 그 카드다.
+            .scrollPosition(id: $centeredRouteId, anchor: .center)
             .frame(maxWidth: .infinity)
         }
         .frame(height: 170)
+        // 가운데가 바뀌면 그게 곧 선택이다. 지도 카메라는 선택이 바뀌는 걸 보고 알아서 따라간다
+        // (`onChange(of: ready?.selectedRouteId)`).
+        .onChange(of: centeredRouteId) { _, next in
+            guard let next, next != ready.selectedRouteId else { return }
+            viewModel.onIntent(.selectRoute(routeId: next))
+        }
     }
 }
 
