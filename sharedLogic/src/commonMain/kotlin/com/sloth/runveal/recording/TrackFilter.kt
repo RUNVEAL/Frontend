@@ -16,7 +16,9 @@ enum class DropReason { ACCURACY, SPEED, DISTANCE }
  * "받은 점을 쓸지 말지"만 판정하고, "얼마나 자주 받을지"는 안 건드린다.
  */
 object TrackFilter {
-    private const val MAX_ACCURACY_METERS = 20f
+    /** 이 정확도를 넘는 점은 버린다. [com.sloth.runveal.recording.GpsSignalHolder]가 "쓸 만한 점"을
+     * 가리는 데도 같은 값을 쓴다 — 기준이 갈라지면 기록은 버려지는데 안내는 안 뜨는 상태가 생긴다. */
+    const val MAX_ACCURACY_METERS = 20f
     private const val MAX_SPEED_MPS = 8f // ~29km/h
     private const val MIN_DISTANCE_METERS = 3.0
 

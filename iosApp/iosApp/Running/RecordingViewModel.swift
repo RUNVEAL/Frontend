@@ -8,6 +8,7 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
 
     private var recordingSubscription: FlowSubscription?
     private var newRoadSubscription: FlowSubscription?
+    private var gpsSignalSubscription: FlowSubscription?
 
     init() {
         // "이 코스로 러닝 시작"으로 넘어온 코스를 한 번만 꺼내 초기 상태에 담는다 — 홀더는 읽는 순간
@@ -27,12 +28,14 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
 
         observeRecording()
         observeNewRoad()
+        observeGpsSignal()
         startTicker()
     }
 
     deinit {
         recordingSubscription?.cancel()
         newRoadSubscription?.cancel()
+        gpsSignalSubscription?.cancel()
     }
 
     func onDisappear() {
@@ -40,6 +43,8 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
         recordingSubscription = nil
         newRoadSubscription?.cancel()
         newRoadSubscription = nil
+        gpsSignalSubscription?.cancel()
+        gpsSignalSubscription = nil
         cancelRunningTasks()
     }
 
@@ -110,6 +115,19 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
     /// "새로 탐험한 길"은 지도(홈 셸)가 1초마다 돌리는 분류 결과를 그대로 받아 쓴다 — 여기서 또
     /// 분류하면 전국 구간 인덱스를 매초 두 번 훑게 되고, 지도 금색 선과 배지 숫자가 서로 다른
     /// 계산을 근거로 삼게 된다.
+    /// 점이 아예 안 들어오는 동안에도 신호 약함을 알아채려면 시간으로 다시 봐야 한다 —
+    /// 판정 자체는 공용(`GpsSignalHolder`)이고 여기서는 구독만 한다(Android와 같다).
+    private func observeGpsSignal() {
+        gpsSignalSubscription = RunvealFlowWatchers.shared.watchGpsSignalWeak { [weak self] isWeak in
+            guard let self else { return }
+            self.setState { state in
+                var next = state
+                next.isGpsWeak = isWeak.boolValue
+                return next
+            }
+        }
+    }
+
     private func observeNewRoad() {
         newRoadSubscription = RunvealFlowWatchers.shared.watchLiveNewRoadMeters { [weak self] meters in
             guard let self else { return }
@@ -131,6 +149,7 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
                 guard let self else { return }
                 let snapshot = RunvealRecorder.shared.snapshot()
                 if snapshot.isRecordingOrPaused {
+                    GpsSignalHolder.shared.evaluate(nowEpochMs: Self.nowEpochMs)
                     let elapsedMs = RunvealRecorder.shared.elapsedMs(nowEpochMs: Self.nowEpochMs)
                     let distanceMeters = RunvealRecorder.shared.totalDistanceMeters()
                     self.setState { state in
