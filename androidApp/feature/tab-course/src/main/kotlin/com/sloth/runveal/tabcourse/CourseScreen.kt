@@ -26,9 +26,6 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -75,24 +72,11 @@ fun CourseScreen(
     val readyState = state as? CourseListState.Ready
     val courses = readyState?.courses ?: emptyList()
 
-    /**
-     * 목록에서 고른 코스 — 위 큰 카드가 이걸 띄운다. 아직 아무것도 안 골랐으면 ViewModel이 정한
-     * 기본값(가장 최근에 저장한 코스)을 쓴다.
-     *
-     * UiModel이 아니라 **ID로** 들고 있다. 목록은 이름을 바꾸거나 코스를 지울 때마다 다시
-     * 불러오면서([CourseListIntent.Load]) UiModel을 새로 만드는데, 객체를 들고 있으면 이름을 바꾼
-     * 뒤에도 카드에 옛 제목이 남는다. 고른 코스를 지웠으면 ID를 못 찾으니 기본값으로 돌아간다.
-     */
-    var selectedCourseId by rememberSaveable { mutableStateOf<String?>(null) }
-    val featured = selectedCourseId?.let { id -> courses.firstOrNull { it.id == id } }
-        ?: readyState?.featuredCourse
-
     CourseListContent(
         courses = courses,
-        featured = featured,
+        featured = readyState?.featuredCourse,
         isLoading = state is CourseListState.Loading,
         onCreateCourseClick = onCreateCourseClick,
-        onCourseSelect = { selectedCourseId = it.id },
         onCourseDetailClick = onCourseDetailClick,
         onStartCourse = onStartCourse,
         onDeleteCourseClick = { viewModel.onIntent(CourseListIntent.DeleteCourseClicked(it.id)) },
@@ -114,9 +98,7 @@ private fun CourseListContent(
     featured: SavedCourseUiModel?,
     isLoading: Boolean,
     onCreateCourseClick: () -> Unit,
-    /** 줄 전체를 눌렀다 — 위 큰 카드([featured])를 그 코스로 바꾼다. */
-    onCourseSelect: (SavedCourseUiModel) -> Unit,
-    /** 줄 오른쪽 아이콘을 눌렀다 — 코스 상세로 간다. */
+    /** 줄 전체 또는 위 큰 카드를 눌렀다 — 코스 상세로 간다. */
     onCourseDetailClick: (SavedCourseUiModel) -> Unit,
     onStartCourse: (SavedCourseUiModel) -> Unit,
     /** 더보기 메뉴에서 "삭제"를 골랐다 — 바로 지우지 않고 확인 다이얼로그를 띄운다. */
@@ -223,8 +205,8 @@ private fun CourseListContent(
                             runCountLabel = course.notRunLabel,
                             lastRunLabel = "",
                             moreMenu = moreMenuFor(course),
-                            onClick = { onCourseSelect(course) },
-                            onDetailClick = { onCourseDetailClick(course) },
+                            onClick = { onCourseDetailClick(course) },
+                            onStartClick = { onStartCourse(course) },
                             thumbnailRequest = course.snapshotRequest,
                         )
                     }
@@ -327,7 +309,6 @@ private fun CourseListContentPreview() {
     RunvealTheme {
         CourseListContent(
             featured = null,
-            onCourseSelect = {},
             onCourseDetailClick = {},
             courses = listOf(
                 SavedCourseUiModel(
@@ -364,7 +345,6 @@ private fun CourseListContentEmptyPreview() {
     RunvealTheme {
         CourseListContent(
             featured = null,
-            onCourseSelect = {},
             onCourseDetailClick = {},
             courses = emptyList(),
             isLoading = false,

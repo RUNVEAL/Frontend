@@ -36,14 +36,10 @@ fun SavedCourseListItem(
     lastRunLabel: String,
     /** 더보기(점 세 개) 메뉴 — null이면 아이콘 자체를 그리지 않는다([CourseMoreMenuIcon]). */
     moreMenu: CourseMoreMenuActions?,
-    /** 줄 전체를 눌렀을 때 — 위 큰 카드를 이 코스로 바꾼다. */
+    /** 줄 전체를 눌렀을 때 — 코스 상세로 간다. */
     onClick: () -> Unit,
-    /** 오른쪽 원형 아이콘을 눌렀을 때 — 코스 상세로 간다.
-     *
-     * 아이콘은 재생(▶) 그대로다. 줄에서 바로 달리기 시작하던 자리였는데, 줄 탭이 "위 카드 바꾸기"가
-     * 되면서 상세로 들어갈 자리가 필요해져 이쪽으로 옮겼다 — 달리기 시작은 위 큰 카드의 같은
-     * 아이콘([CourseRecommendationCard])이 맡는다. */
-    onDetailClick: () -> Unit,
+    /** 오른쪽 재생(▶) 아이콘을 눌렀을 때 — 이 코스로 바로 러닝을 시작한다. */
+    onStartClick: () -> Unit,
     modifier: Modifier = Modifier,
     thumbnailRequest: SnapshotRequest? = null,
 ) {
@@ -110,12 +106,12 @@ fun SavedCourseListItem(
                 .clip(RunvealTheme.shapes.full)
                 .background(colors.surface.default, RunvealTheme.shapes.full)
                 .border(1.dp, colors.accent.default, RunvealTheme.shapes.full)
-                .clickable(onClick = onDetailClick),
+                .clickable(onClick = onStartClick),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = RunvealIcons.Play,
-                contentDescription = "코스 상세",
+                contentDescription = "바로 시작",
                 tint = colors.accent.default,
                 modifier = Modifier.size(16.dp),
             )
@@ -136,7 +132,7 @@ private fun SavedCourseListItemPreview() {
             lastRunLabel = "최근 10.31",
             moreMenu = CourseMoreMenuActions(onRename = {}, onExportGpx = {}, onDelete = {}),
             onClick = {},
-            onDetailClick = {},
+            onStartClick = {},
         )
     }
 }
