@@ -184,7 +184,13 @@ fun CourseDetailScreen(
                                     // 코스 경로를 기록 화면에 넘기기만 한다 — 가이드/오버레이 적용은 보류.
                                     onPrimaryClick = {
                                         RunvealAnalyticsLogger.logCourseStart(fromRecommend = true)
-                                        SelectedCourseHolder.publish(current.path, current.isLoop)
+                                        // 저장된 코스일 때만 id를 같이 넘긴다 — 저장 전 추천 코스는
+                                        // course 행이 없어서 "달림"을 적을 데가 없다.
+                                        SelectedCourseHolder.publish(
+                                            path = current.path,
+                                            isLoop = current.isLoop,
+                                            courseId = (source as? CourseDetailSource.Saved)?.id,
+                                        )
                                         onStartRunning()
                                     },
                                 )

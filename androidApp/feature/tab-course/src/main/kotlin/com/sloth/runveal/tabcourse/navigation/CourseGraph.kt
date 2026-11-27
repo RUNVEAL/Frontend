@@ -19,7 +19,7 @@ fun NavGraphBuilder.courseGraph(navigator: RunVealNavigator) {
             // 핀을 그리는 데 쓴다. 순환 코스는 도착 핀을 생략해야 해서 isLoop도 같이 넘긴다.
             onStartCourse = { course ->
                 RunvealAnalyticsLogger.logCourseStart(fromRecommend = false)
-                SelectedCourseHolder.publish(course.path, course.isLoop)
+                SelectedCourseHolder.publish(course.path, course.isLoop, courseId = course.id)
                 navigator.navigate(RunVealRoute.HomeTab.Recording)
             },
         )

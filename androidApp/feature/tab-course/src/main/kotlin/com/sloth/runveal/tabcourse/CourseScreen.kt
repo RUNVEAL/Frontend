@@ -159,24 +159,40 @@ private fun CourseListContent(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            if (hasSavedCourses && featured != null) {
-                CourseRecommendationCard(
-                    badgeLabel = stringResource(R.string.tab_course_recommend_badge),
-                    title = featured.title,
-                    distanceLabel = featured.distanceLabel,
-                    durationLabel = featured.durationLabel,
-                    tag = featured.tagLabel,
-                    newRoadLabel = featured.newRoadLabel,
-                    notRunLabel = featured.notRunLabel,
-                    moreMenu = moreMenuFor(featured),
-                    onStartClick = { onStartCourse(featured) },
-                    // 카드를 누르면 코스 상세로 — 목록 줄의 오른쪽 아이콘과 같은 자리로 간다.
-                    onClick = { onCourseDetailClick(featured) },
-                    thumbnailRequest = featured.snapshotRequest,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = RunvealTheme.layout.marginScreen),
-                )
+            // 카드 조건과 목록 조건을 나눈다 — 전부 달려서 띄울 코스가 없을 때도(featured == null)
+            // 저장한 코스 목록 자체는 그대로 보여야 한다.
+            if (hasSavedCourses) {
+                if (featured != null) {
+                    CourseRecommendationCard(
+                        badgeLabel = stringResource(R.string.tab_course_recommend_badge),
+                        title = featured.title,
+                        distanceLabel = featured.distanceLabel,
+                        durationLabel = featured.durationLabel,
+                        tag = featured.tagLabel,
+                        newRoadLabel = featured.newRoadLabel,
+                        notRunLabel = featured.notRunLabel,
+                        moreMenu = moreMenuFor(featured),
+                        onStartClick = { onStartCourse(featured) },
+                        // 카드를 누르면 코스 상세로 — 목록 줄을 누른 것과 같은 자리로 간다.
+                        onClick = { onCourseDetailClick(featured) },
+                        thumbnailRequest = featured.snapshotRequest,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = RunvealTheme.layout.marginScreen),
+                    )
+                } else {
+                    // 저장한 코스를 다 달렸다 — 카드 자리에 새 코스를 만들라고 권한다.
+                    // TODO: 전용 시안이 나오면 교체한다. 지금은 빈 상태 컴포넌트를 그대로 쓴다.
+                    RunvealEmptyState(
+                        title = stringResource(R.string.tab_course_all_run_title),
+                        description = stringResource(R.string.tab_course_all_run_description),
+                        actionLabel = stringResource(R.string.tab_course_all_run_action),
+                        onActionClick = onCreateCourseClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = RunvealTheme.layout.marginScreen),
+                    )
+                }
 
                 SavedCourseSectionHeader(
                     title = stringResource(R.string.tab_course_section_title),
@@ -321,6 +337,7 @@ private fun CourseListContentPreview() {
                     tagLabel = "순환",
                     newRoadLabel = "새 길 1.3km",
                     notRunLabel = "아직 안달림",
+                    hasRun = false,
                     path = emptyList(),
                     isLoop = true,
                     snapshotRequest = null,
