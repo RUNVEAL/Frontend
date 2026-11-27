@@ -1,6 +1,7 @@
 package com.sloth.runveal.running
 
 import android.Manifest
+import android.graphics.BitmapFactory
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -54,7 +55,11 @@ import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBar
 import com.sloth.runveal.designsystem.component.navigation.RunvealTopAppBarLeading
 import com.sloth.runveal.designsystem.component.overlay.RunvealLoading
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.content.ContextCompat
+import com.sloth.runveal.core.map.CourseSnapshotRenderer
+import com.sloth.runveal.map.snapshot.SnapshotRequest
 import com.sloth.runveal.designsystem.component.overlay.RunvealToast
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.running.component.IMAGE_HEIGHT
@@ -67,10 +72,11 @@ import com.sloth.runveal.running.image.saveBitmapToGallery
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.sloth.runveal.feature.running.R
-import com.sloth.runveal.map.snapshot.SnapshotRequest
 import com.sloth.runveal.running.contract.ResultDongStat
 import com.sloth.runveal.running.contract.ResultState
 import com.sloth.runveal.ui.toast.NotReadyToastHost
@@ -119,6 +125,9 @@ fun ResultScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewModel: 
         if (isSavingImage) return
         isSavingImage = true
         scope.launch {
+            // 지도는 **캡처 전에** 다 그려 둔다 — 캡처는 한 프레임에 끝나서, 템플릿 안에서 비동기로
+            // 불러오면 지도 자리가 빈 채로 찍힌다(실제로 선만 나왔다).
+            val mapImage = renderShareMapImage(context, current.mapSnapshotRequest)
             val bitmap = captureComposable(
                 context = context,
                 width = IMAGE_WIDTH,
@@ -126,7 +135,7 @@ fun ResultScreen(onClose: () -> Unit, modifier: Modifier = Modifier, viewModel: 
                 scale = RESULT_IMAGE_SCALE,
             ) {
                 // 캡처용 컴포지션은 화면과 따로 돌아서 테마가 안 깔려 있다 — 여기서 다시 씌운다.
-                RunvealTheme { ResultShareImage(state = current) }
+                RunvealTheme { ResultShareImage(state = current, mapImage = mapImage) }
             }
             val saved = bitmap != null && saveBitmapToGallery(context, bitmap, shareImageFileName())
             // 1080x1920 ARGB는 8MB쯤 된다 — 저장이 끝나면 바로 놓아준다.
@@ -468,6 +477,25 @@ private const val SAVE_TOAST_DURATION_MILLIS = 3000L
 /** 저장 버튼 높이 + 여백 — 토스트를 그 위로 띄운다. */
 private val SAVE_TOAST_BUTTON_INSET = 72.dp
 
+/**
+ * 저장 이미지에 깔 지도 그림을 미리 그린다 — 화면 결과 카드와 **같은 스냅샷**이라 경로·새 길 색이
+ * 그대로다.
+ *
+ * 크기는 템플릿의 지도 자리를 내보낼 배율로 환산한 값이다. 캐시 파일명에 크기가 들어가서
+ * (`CourseSnapshotRenderer` 주석) 화면 카드용 캐시와 섞이지 않는다.
+ *
+ * 경로 점이 모자라거나(제자리 종료) 타일을 못 받으면 null — 그때는 템플릿이 선만 그린다.
+ */
+private suspend fun renderShareMapImage(context: Context, request: SnapshotRequest?): ImageBitmap? {
+    val snapshot = request ?: return null
+    val widthPx = (SHARE_MAP_WIDTH.value * RESULT_IMAGE_SCALE).toInt()
+    val heightPx = (SHARE_MAP_HEIGHT.value * RESULT_IMAGE_SCALE).toInt()
+    val file = CourseSnapshotRenderer(context).getOrRender(snapshot, widthPx, heightPx) ?: return null
+    return withContext(Dispatchers.IO) {
+        BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap()
+    }
+}
+
 /** 갤러리에서 언제 달린 기록인지 알아볼 수 있게 저장 시각을 파일 이름에 넣는다. */
 private fun shareImageFileName(): String {
     val stamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
@@ -478,3 +506,13 @@ private fun shareImageFileName(): String {
 private fun Context.hasWriteStoragePermission(): Boolean =
     ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
         PackageManager.PERMISSION_GRANTED
+
+/**
+ * 저장 이미지에 깔 지도 그림의 크기(dp) — 시안의 경로 자리 값이다.
+ *
+ * 템플릿의 실제 자리는 남는 높이를 받아 가변이라 이 값과 딱 맞지는 않는다. 그래서 그릴 때
+ * `ContentScale.Crop`으로 채운다 — 스냅샷은 경로 둘레에 여백을 두고 그려서, 조금 잘려도
+ * 경로 자체는 남는다.
+ */
+private val SHARE_MAP_WIDTH = 312.dp
+private val SHARE_MAP_HEIGHT = 255.dp

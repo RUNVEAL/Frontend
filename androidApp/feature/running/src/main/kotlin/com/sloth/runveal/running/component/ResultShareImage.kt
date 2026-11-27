@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -43,6 +44,14 @@ import com.sloth.runveal.running.contract.ResultState
 @Composable
 fun ResultShareImage(
     state: ResultState.Ready,
+    /**
+     * 미리 그려 둔 지도 그림(경로·새 길까지 들어 있다). 저장 직전에 렌더링해 넘긴다 —
+     * 캡처는 한 프레임에 끝나서, 여기서 비동기로 불러오면 빈 자리로 찍힌다.
+     *
+     * null이면 지도 없이 [RouteVectorMap]으로 선만 그린다. 타일을 못 받았을 때(오프라인 등)
+     * 네모만 비는 것보다는 경로 모양이라도 남는 편이 낫다.
+     */
+    mapImage: ImageBitmap? = null,
     modifier: Modifier = Modifier,
 ) {
     val colors = RunvealTheme.colors
@@ -103,11 +112,22 @@ fun ResultShareImage(
             // **경로 그림이 남는 높이를 흡수한다.** 시안 값(254.93)으로 고정하면 글자 쪽이 조금만
             // 커져도(글꼴 메트릭, 동 이름 줄바꿈) 아래 통계가 아트보드 밖으로 밀려 잘린다 —
             // 실제로 잘렸다. 글자는 필요한 만큼 가져가고 남는 걸 그림이 받는 쪽이 안전하다.
-            RouteVectorMap(
-                routePaths = state.routePaths,
-                newRoadPaths = state.newRoadPaths,
-                modifier = Modifier.width(CONTENT_WIDTH).weight(1f),
-            )
+            Box(modifier = Modifier.width(CONTENT_WIDTH).weight(1f)) {
+                if (mapImage != null) {
+                    Image(
+                        bitmap = mapImage,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    RouteVectorMap(
+                        routePaths = state.routePaths,
+                        newRoadPaths = state.newRoadPaths,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
 
             ExplorationSummary(newRoadLabel = state.newRoadLabel)
 
