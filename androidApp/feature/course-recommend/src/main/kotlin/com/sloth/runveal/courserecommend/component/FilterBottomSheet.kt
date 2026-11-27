@@ -4,7 +4,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -55,7 +60,11 @@ fun FilterBottomSheet(
             )
         },
         footer = {
-            RunvealButtonGroup {
+            RunvealButtonGroup(
+                // 버튼만 OS BottomNav inset만큼 띄운다 — 시트 배경은 그 뒤까지 채운다(호출부에서
+                // contentWindowInsets를 끈다).
+                modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
+            ) {
                 RunvealButtonGroupSingle(label = "코스 조건 적용하기", onClick = onApply)
             }
         },
