@@ -33,6 +33,12 @@ enum RunningStrings {
     static let resultElapsedLabel = "시간"
     static let resultDetailButton = "기록 상세보기"
     static let resultSaveImageButton = "이미지 저장하기"
+    // 저장 이미지에서 지나간 동이 여럿일 때 — 첫 동만 적고 나머지는 개수로 줄인다.
+    static func resultShareMoreDong(_ count: Int) -> String { "외 \(count)개 동" }
+    // 결과 이미지 저장 안내
+    static let resultSaveImageSuccess = "사진에 저장했어요"
+    static let resultSaveImageFailure = "저장하지 못했어요"
+    static let resultSaveImagePermissionDenied = "저장하려면 사진 추가 권한이 필요해요"
     static let resultCloseAccessibilityLabel = "닫기"
     static let resultMapAccessibilityLabel = "이번 러닝 경로 지도"
     /// 기록 상세·이미지 저장은 아직 없다 — Android도 같은 문구의 안내만 띄운다.
