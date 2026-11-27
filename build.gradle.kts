@@ -10,6 +10,7 @@ plugins {
     alias(libs.plugins.kotlinSerialization) apply false
     alias(libs.plugins.sqldelight) apply false
     alias(libs.plugins.googleServices) apply false
+    alias(libs.plugins.firebaseCrashlytics) apply false
 }
 
 // iOS(iosApp) 빌드에 필요한 생성물. Kotlin/Android 쪽 같은 생성기는 각 모듈 build.gradle.kts에서 적용한다.
