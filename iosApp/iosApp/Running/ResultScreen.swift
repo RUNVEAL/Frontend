@@ -118,7 +118,11 @@ struct ResultScreen: View {
      (`CourseSnapshotRenderer`) 화면 카드용 캐시와 섞이지 않는다.
 
      경로 점이 모자라거나(제자리 종료) 타일을 못 받으면 nil — 그때는 템플릿이 선만 그린다.
+
+     `CourseSnapshotRenderer`가 `@MainActor`라 이 함수도 메인에 묶어 둔다 — 격리 밖에서 `shared`를
+     건드리면 동시성 검사에 걸린다. 어차피 부르는 쪽도 메인(`saveImage`의 Task)이다.
      */
+    @MainActor
     private static func renderShareMapImage(request: SnapshotRequest?) async -> UIImage? {
         guard let request else { return nil }
         let widthPx = Int(ResultShareImage.mapWidth * ResultShareImage.scale)

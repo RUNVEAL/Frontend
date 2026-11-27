@@ -88,8 +88,11 @@ struct ResultShareImage: View {
                 // **경로 그림이 남는 높이를 흡수한다.** 시안 값으로 고정하면 글자 쪽이 조금만 커져도
                 // (글꼴 메트릭, 동 이름 줄바꿈) 아래 통계가 아트보드 밖으로 밀려 잘린다 — Android에서
                 // 실제로 잘렸다. 글자는 필요한 만큼 가져가고 남는 걸 그림이 받는 쪽이 안전하다.
+                // `frame`은 고정형(width:height:)과 가변형(maxWidth:maxHeight:)이 따로다 — 한 호출에
+                // 섞을 수 없어서 폭 고정과 높이 흡수를 **나눠서** 건다.
                 mapArea
-                    .frame(width: Self.contentWidth, maxHeight: .infinity)
+                    .frame(width: Self.contentWidth)
+                    .frame(maxHeight: .infinity)
 
                 ExplorationSummary(newRoadLabel: state.newRoadLabel)
 
