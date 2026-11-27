@@ -3,6 +3,7 @@ import SwiftUI
 
 /// B1 — `/api/v1/routes` 응답을 지도 위 오버레이로 보여주는 결과 화면. 지도(Map Shell)는 그대로 보이고
 /// 이 위에 앱바와 하단 코스 카드 리스트만 얹는다 — 배경을 깔지 않는다.
+/// 단 **추천 결과가 없을 때만** 한 장짜리 안내 화면이라 배경을 덮는다(시안 B1-1).
 /// Android `CourseRecommendResultScreen`에 해당한다.
 struct CourseRecommendResultScreen: View {
     @ObservedObject var mapState: RunvealMapState
@@ -17,17 +18,26 @@ struct CourseRecommendResultScreen: View {
     /// `RunvealCourseCard`의 고정 너비(240)와 맞춰야 캐러셀 가운데 정렬 계산이 들어맞는다.
     private static let cardWidth: CGFloat = 240
 
-    /// 결과 없음 안내가 시작하는 자리 — 앱바(56) + 조건 칩 행(40 + 위아래 12씩) + 24.
-    /// 칩 행은 결과가 없어도 그대로 떠 있어서 그만큼을 비켜야 겹치지 않는다.
-    private static let emptyResultTopInset: CGFloat = 56 + 64 + 24
+    /// 결과 없음 안내가 시작하는 자리 — 앱바 아래 24(시안 B1-1의 Contents y=188).
+    /// 결과가 없을 땐 조건 칩 행을 숨기므로 앱바 높이만 비키면 된다.
+    private static let emptyResultTopInset: CGFloat = RunvealLayout.sizeTopAppBar + RunvealSpacing.space24
 
     private var ready: CourseRecommendResultReady? {
         guard case .ready(let ready) = viewModel.state else { return nil }
         return ready
     }
 
+    /// 결과가 없을 때는 지도 위 오버레이가 아니라 **한 장짜리 안내 화면**이다(시안 B1-1).
+    private var isEmptyResult: Bool { ready?.emptyMessage != nil }
+
     var body: some View {
         ZStack(alignment: .top) {
+            // 뒤에 지도가 비치면 "코스를 못 찾았다"면서 지도만 덩그러니 보이게 되고, 이전에 그려 둔
+            // 경로선까지 안내 카드 위로 비친다 — 화면 배경색으로 덮는다(Android도 같다).
+            if isEmptyResult {
+                RunvealTheme.colors.bg.canvas.ignoresSafeArea()
+            }
+
             topBar
 
             switch viewModel.state {
@@ -154,11 +164,15 @@ struct CourseRecommendResultScreen: View {
         VStack(spacing: 0) {
             RunvealTopAppBar(
                 leading: .back,
-                style: .map,
+                // 지도 위에 얹힐 때만 글래스 원형 배경을 쓴다 — 결과가 없을 땐 불투명한 한 장짜리
+                // 화면이라 아이콘만 둔다(시안 B1-1).
+                style: isEmptyResult ? .default : .map,
                 title: CourseRecommendStrings.resultTitle,
                 onLeadingClick: onClose
             )
-            if let ready {
+            // 결과가 없을 땐 칩을 숨긴다(시안 B1-1) — 보여 줄 코스가 없는데 조건만 떠 있으면 설명과
+            // "조건 다시 설정하기" 버튼이 하는 말과 겹친다.
+            if let ready, ready.emptyMessage == nil {
                 SettingsSummaryRow(
                     settings: ready.settings,
                     onTap: { viewModel.onIntent(.openFilterSheet) }
@@ -168,6 +182,12 @@ struct CourseRecommendResultScreen: View {
             }
         }
         .frame(maxWidth: .infinity)
+        // 머리 영역만 한 톤 올린다 — 상태 바까지 올라가야 경계가 생기지 않는다.
+        .background {
+            if isEmptyResult {
+                RunvealTheme.colors.surface.raised.ignoresSafeArea(edges: .top)
+            }
+        }
     }
 
     /// 화면 가운데에 카드 하나가 오게 좌우 패딩을 "뷰포트 - 카드" 절반씩 준다.
