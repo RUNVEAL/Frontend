@@ -190,7 +190,10 @@ struct CourseRecommendResultScreen: View {
         }
     }
 
-    /// 화면 가운데에 카드 하나가 오게 좌우 패딩을 "뷰포트 - 카드" 절반씩 준다.
+    /// 좌우 여백은 화면 마진(16)이고, 스냅이 **가장 가까운 카드를 가운데로** 보낸다([CenteredCardSnap]).
+    ///
+    /// 그래서 가운데 카드는 좌우에 이웃이 걸쳐 보이고, **첫 카드는 좌측 16·마지막 카드는 우측 16에
+    /// 붙는다** — 양 끝에서는 더 스크롤할 데가 없어 가운데로 못 가고 잘리기 때문이다(시안).
     ///
     /// **가운데에 와 있는 카드가 선택이다** — Android(snapFling + 센터 감지)와 같은 규칙이다.
     /// `scrollTargetLayout()` + `scrollPosition(id:anchor: .center)`가 지금 가운데인 카드의 id를
@@ -199,44 +202,50 @@ struct CourseRecommendResultScreen: View {
     /// 탭은 선택을 바꾸지 않는다 — 가운데 카드를 탭하면 상세로 들어가고, 옆 카드를 탭하면 그 카드를
     /// 가운데로 굴린다(선택은 그 결과로 따라온다). Android `RouteCard`의 onClick과 같다.
     private func courseCarousel(ready: CourseRecommendResultReady) -> some View {
-        GeometryReader { geometry in
-            let sidePadding = max((geometry.size.width - Self.cardWidth) / 2, RunvealLayout.marginScreen)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: RunvealSpacing.space16) {
-                    ForEach(ready.routes) { route in
-                        RunvealCourseCard(
-                            name: CourseRecommendStrings.courseName(route.courseLabel),
-                            tags: route.tags.map(CourseRecommendStrings.tagLabel),
-                            distanceValue: route.distanceValue,
-                            distanceUnit: route.distanceUnit,
-                            timeValue: route.timeValue,
-                            timeUnit: route.timeUnit,
-                            elevationValue: route.elevationValue,
-                            elevationUnit: route.elevationUnit,
-                            newRoadValue: route.newRoadValue,
-                            newRoadUnit: route.newRoadUnit,
-                            state: route.routeId == ready.selectedRouteId ? .selected : .default
-                        ) {
-                            // 가운데(선택된) 카드를 또 탭하면 상세로, 아니면 가운데로 굴리기만 한다
-                            // — 선택 자체는 센터 감지가 맡는다.
-                            if route.routeId == ready.selectedRouteId {
-                                onCourseClick(route.routeId)
-                            } else {
-                                withAnimation { centeredRouteId = route.routeId }
-                            }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: RunvealSpacing.space16) {
+                ForEach(ready.routes) { route in
+                    RunvealCourseCard(
+                        name: CourseRecommendStrings.courseName(route.courseLabel),
+                        tags: route.tags.map(CourseRecommendStrings.tagLabel),
+                        distanceValue: route.distanceValue,
+                        distanceUnit: route.distanceUnit,
+                        timeValue: route.timeValue,
+                        timeUnit: route.timeUnit,
+                        elevationValue: route.elevationValue,
+                        elevationUnit: route.elevationUnit,
+                        newRoadValue: route.newRoadValue,
+                        newRoadUnit: route.newRoadUnit,
+                        state: route.routeId == ready.selectedRouteId ? .selected : .default
+                    ) {
+                        // 가운데(선택된) 카드를 또 탭하면 상세로, 아니면 가운데로 굴리기만 한다
+                        // — 선택 자체는 센터 감지가 맡는다.
+                        if route.routeId == ready.selectedRouteId {
+                            onCourseClick(route.routeId)
+                        } else {
+                            withAnimation { centeredRouteId = route.routeId }
                         }
-                        .id(route.routeId)
                     }
+                    .id(route.routeId)
                 }
-                .padding(.horizontal, sidePadding)
-                .padding(.vertical, RunvealSpacing.space16)
-                .scrollTargetLayout()
             }
-            .scrollTargetBehavior(.viewAligned)
-            // 가운데(anchor: .center)에 와 있는 카드의 id를 받아 둔다 — 스냅이 끝나면 그 카드다.
-            .scrollPosition(id: $centeredRouteId, anchor: .center)
-            .frame(maxWidth: .infinity)
+            // 좌우 여백은 화면 마진 그대로 — 가운데 정렬은 패딩이 아니라 스냅이 맡는다.
+            .padding(.horizontal, RunvealLayout.marginScreen)
+            .padding(.vertical, RunvealSpacing.space16)
+            .scrollTargetLayout()
         }
+        .scrollTargetBehavior(
+            CenteredCardSnap(
+                cardWidth: Self.cardWidth,
+                spacing: RunvealSpacing.space16,
+                leadingInset: RunvealLayout.marginScreen
+            )
+        )
+        // 가운데(anchor: .center)에 와 있는 카드의 id를 받아 둔다 — 스냅이 끝나면 그 카드다.
+        // 첫·마지막 카드처럼 가운데까지 못 가고 끝에 붙은 상태에서도 뷰포트 한가운데가 그 카드 안에
+        // 들어와서 같은 답이 나온다.
+        .scrollPosition(id: $centeredRouteId, anchor: .center)
+        .frame(maxWidth: .infinity)
         .frame(height: 170)
         // 가운데가 바뀌면 그게 곧 선택이다. 지도 카메라는 선택이 바뀌는 걸 보고 알아서 따라간다
         // (`onChange(of: ready?.selectedRouteId)`).
@@ -244,6 +253,39 @@ struct CourseRecommendResultScreen: View {
             guard let next, next != ready.selectedRouteId else { return }
             viewModel.onIntent(.selectRoute(routeId: next))
         }
+    }
+}
+
+/**
+ 가장 가까운 카드를 **뷰포트 가운데**로 맞추는 스냅.
+
+ `.viewAligned`를 그대로 쓰면 항목이 보이는 영역의 **선행(leading) 가장자리**에 붙는다. 예전에는
+ 좌우 패딩을 "뷰포트 − 카드"의 절반으로 줘서 결과적으로 가운데처럼 보였지만, 그러면 첫 카드 왼쪽과
+ 마지막 카드 오른쪽에 큰 공백이 남는다(시안과 다르다). 그래서 여백은 화면 마진으로 두고 목표 위치를
+ 직접 계산한다.
+
+ **양 끝은 자르기만 하면 시안이 그대로 나온다** — 첫 카드를 가운데로 보내려면 스크롤이 음수여야
+ 하는데 0에서 막혀 좌측 마진에 붙고, 마지막 카드는 최대 스크롤에서 막혀 우측 마진에 붙는다.
+ 자르는 건 시스템에 맡기지 않고 여기서 직접 한다(범위를 벗어난 목표를 넘기면 튕겼다 돌아오는
+ 모양이 될 수 있다).
+
+ 카드가 하나뿐이면 스크롤 범위가 0이라 좌측 마진에 붙는다 — 그게 맞는 모양이다.
+ */
+private struct CenteredCardSnap: ScrollTargetBehavior {
+    let cardWidth: CGFloat
+    let spacing: CGFloat
+    /// 콘텐츠 앞쪽 여백 — 카드 i의 왼쪽 끝이 `leadingInset + i * (cardWidth + spacing)`이다.
+    let leadingInset: CGFloat
+
+    func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
+        let step = cardWidth + spacing
+        guard step > 0, context.containerSize.width > 0 else { return }
+
+        // 카드 i가 뷰포트 한가운데 오는 스크롤 위치 = base + i * step.
+        let base = leadingInset + cardWidth / 2 - context.containerSize.width / 2
+        let index = ((target.rect.minX - base) / step).rounded()
+        let maxOffset = max(context.contentSize.width - context.containerSize.width, 0)
+        target.rect.origin.x = min(max(base + index * step, 0), maxOffset)
     }
 }
 
