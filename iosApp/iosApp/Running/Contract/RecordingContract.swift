@@ -48,6 +48,9 @@ struct RecordingScreenState: UiState {
     var selectedCoursePath: [LatLon]?
     /// 선택한 코스가 순환이면 출발·도착이 같은 자리라 도착 핀을 생략한다(코스 상세와 같은 규칙).
     var selectedCourseIsLoop: Bool = false
+    /// 저장된 코스로 시작한 경우 그 코스의 id — 기록이 저장될 때 "달림"으로 적는 데 쓴다.
+    /// 자유 러닝이나 저장 전 추천 코스는 nil이다.
+    var selectedCourseId: String?
 }
 
 /// 종료 확인 다이얼로그에 넘길 것 — [willSaveRecord]가 false면 100m/1분을 못 채워 **저장되지 않는**

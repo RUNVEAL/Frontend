@@ -17,6 +17,15 @@ enum CourseDetailSource: Hashable {
         case .recommended(let id), .saved(let id): return id
         }
     }
+
+    /// 로컬 `course` 테이블에 **행이 있는** 코스의 id — 저장 전 추천 코스는 nil이다.
+    /// 러닝이 끝나 기록이 저장될 때 그 코스를 "달림"으로 적는 데 쓴다(Android와 같은 기준).
+    var savedId: String? {
+        switch self {
+        case .saved(let id): return id
+        case .recommended: return nil
+        }
+    }
 }
 
 enum CourseDetailIntent: UiIntent {

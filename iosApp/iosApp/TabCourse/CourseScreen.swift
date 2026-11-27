@@ -26,6 +26,10 @@ enum TabCourseStrings {
     static let renameInputPlaceholder = "코스 이름을 입력하세요"
     static let renameCancel = "취소"
     static let renameConfirm = "저장"
+    // 저장한 코스를 다 달렸을 때 — "다음에 달려볼 코스" 카드 자리에 새 코스를 권한다.
+    static let allRunTitle = "저장한 코스를 모두 달렸어요"
+    static let allRunDescription = "새로운 길로 코스를 만들어볼까요?"
+    static let allRunAction = "코스 만들기"
     static let notReady = "아직 개발 중입니다"
 }
 
@@ -34,8 +38,8 @@ enum TabCourseStrings {
 /// 탭을 나갔다 들어올 때마다 다시 불러온다 — 그 사이 새로 저장한 코스가 반영돼야 한다.
 struct CourseScreen: View {
     let onCreateCourseClick: () -> Void
-    /// 줄 오른쪽 아이콘을 누르면 코스 상세로 — 값은 id만 넘기고 화면이 로컬 DB에서 다시 읽는다.
-    /// 줄 전체를 누르는 건 상세로 가지 않고 위 큰 카드를 그 코스로 바꾸는 동작이라, 화면 안에서 끝낸다.
+    /// 줄 전체를 누르면 코스 상세로 — 값은 id만 넘기고 화면이 로컬 DB에서 다시 읽는다.
+    /// 줄 오른쪽 아이콘은 그 코스로 **바로 시작**이라 화면 안에서 끝낸다([start]).
     let onCourseClick: (SavedCourseItem) -> Void
 
     @State private var courses: [SavedCourseItem] = []
@@ -47,8 +51,13 @@ struct CourseScreen: View {
     /// 떠 있는 더보기 메뉴 — 어느 코스의 어느 자리인지. nil이면 안 떠 있다.
     @State private var moreMenu: CourseMoreMenuTarget?
 
-    /// 위 큰 카드에 띄울 코스 — 가장 최근에 저장한 것(목록 첫 줄, `최근 저장순`).
-    private var featuredCourse: SavedCourseItem? { courses.first }
+    /**
+     "다음에 달려볼 코스" 카드에 띄울 코스 — **아직 안 달린** 코스 중 가장 최근에 저장한 것.
+
+     [courses]가 이미 저장 최신순이라 앞에서부터 처음 걸리는 안 달린 코스가 그 코스다. 전부
+     달렸으면 nil — 그때는 카드 자리에 새 코스를 만들라고 권하는 안내를 띄운다.
+     */
+    private var featuredCourse: SavedCourseItem? { courses.first { !$0.hasRun } }
 
     /// 더보기 아이콘 자리를 재는 기준 좌표 공간 — 화면 루트에 이름을 붙여 둔다.
     private static let menuSpace = "course-more-menu"
@@ -82,17 +91,32 @@ struct CourseScreen: View {
                         CourseTopBarActionButton(onClick: onCreateCourseClick)
                     }
 
-                    if let featured = featuredCourse {
-                        CourseRecommendationCard(
-                            badgeLabel: TabCourseStrings.recommendBadge,
-                            course: featured,
-                            menuSpace: Self.menuSpace,
-                            onMoreTap: { anchor in
-                                moreMenu = CourseMoreMenuTarget(course: featured, anchor: anchor)
-                            },
-                            onStartClick: { start(course: featured) }
-                        )
-                        .padding(.horizontal, RunvealLayout.marginScreen)
+                    // 카드 조건과 목록 조건을 **나눈다** — 전부 달려서 띄울 코스가 없을 때도
+                    // (featuredCourse == nil) 저장한 코스 목록 자체는 그대로 보여야 한다.
+                    if !courses.isEmpty {
+                        if let featured = featuredCourse {
+                            CourseRecommendationCard(
+                                badgeLabel: TabCourseStrings.recommendBadge,
+                                course: featured,
+                                menuSpace: Self.menuSpace,
+                                onMoreTap: { anchor in
+                                    moreMenu = CourseMoreMenuTarget(course: featured, anchor: anchor)
+                                },
+                                onStartClick: { start(course: featured) }
+                            )
+                            .padding(.horizontal, RunvealLayout.marginScreen)
+                        } else {
+                            // 저장한 코스를 다 달렸다 — 카드 자리에 새 코스를 만들라고 권한다.
+                            // TODO: 전용 시안이 나오면 교체한다. 지금은 빈 상태 컴포넌트를 그대로 쓴다.
+                            RunvealEmptyState(
+                                title: TabCourseStrings.allRunTitle,
+                                description: TabCourseStrings.allRunDescription,
+                                actionLabel: TabCourseStrings.allRunAction,
+                                onActionClick: onCreateCourseClick
+                            )
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, RunvealLayout.marginScreen)
+                        }
 
                         SavedCourseSectionHeader(
                             title: TabCourseStrings.sectionTitle,
@@ -271,7 +295,8 @@ struct CourseScreen: View {
     /// 그리는 데 쓴다. 순환 코스는 도착 핀을 생략해야 해서 isLoop도 같이 넘긴다.
     private func start(course: SavedCourseItem) {
         RunvealAnalyticsLogger.logCourseStart(fromRecommend: false)
-        SelectedCourseHolder.shared.publish(path: course.path, isLoop: course.isLoop)
+        // 저장된 코스라 id가 있다 — 러닝이 끝나 기록이 저장되면 이 코스를 "달림"으로 적는다.
+        SelectedCourseHolder.shared.publish(path: course.path, isLoop: course.isLoop, courseId: course.id)
         // 탭 화면에서는 기록 화면으로 직접 못 가므로, 홈 셸이 보는 홀더에 담아 두고 탭을 홈으로
         // 돌린 뒤 기록 흐름으로 들어간다 — Android는 탭 NavHost가 같은 그래프라 바로 navigate한다.
         RunvealPendingCourseRun.shared.request()
