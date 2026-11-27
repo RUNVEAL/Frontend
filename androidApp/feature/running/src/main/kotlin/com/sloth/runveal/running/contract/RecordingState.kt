@@ -21,6 +21,9 @@ data class RecordingState(
     val selectedCoursePath: List<LatLon>? = null,
     /** 선택한 코스가 순환이면 출발·도착이 같은 자리라 도착 핀을 생략한다(코스 상세와 같은 규칙). */
     val selectedCourseIsLoop: Boolean = false,
+    /** 저장된 코스로 시작한 경우 그 코스의 id — 기록이 저장될 때 "달림"으로 적는 데 쓴다.
+     * 자유 러닝이나 저장 전 추천 코스는 null이다. */
+    val selectedCourseId: String? = null,
     /** 종료 확인 다이얼로그 — 떠 있지 않으면 null. 종료는 되돌릴 수 없어서 한 번 더 묻는다
      * (일시정지 중에만 뜬다 — 종료 버튼 자체가 그때만 보인다). */
     val finishDialog: FinishDialog? = null,

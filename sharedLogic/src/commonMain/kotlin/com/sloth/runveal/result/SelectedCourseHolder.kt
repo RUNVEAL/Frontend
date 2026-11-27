@@ -6,7 +6,17 @@ import com.sloth.runveal.map.LatLon
  * "이 코스로 러닝 시작"으로 넘기는 코스. [isLoop]면 출발·도착이 같은 자리라 지도에 도착 핀을 따로
  * 띄우지 않는다 — 코스 상세/추천 결과 화면과 같은 규칙이다.
  */
-data class SelectedCourse(val path: List<LatLon>, val isLoop: Boolean)
+data class SelectedCourse(
+    val path: List<LatLon>,
+    val isLoop: Boolean,
+    /**
+     * 저장된 코스("내 코스")의 id — 러닝이 끝나 기록이 저장되면 그 코스를 "달림"으로 적는 데 쓴다.
+     *
+     * 추천 결과에서 **저장하지 않고** 바로 시작한 코스는 아직 행이 없어서 null이다. 그때는 적을
+     * 데가 없으니 달림 기록도 남지 않는다.
+     */
+    val courseId: String? = null,
+)
 
 /**
  * "이 코스로 러닝 시작"으로 넘기는 코스 — `feature:course-recommend`/`feature:tab-course`와
@@ -16,8 +26,8 @@ data class SelectedCourse(val path: List<LatLon>, val isLoop: Boolean)
 object SelectedCourseHolder {
     private var selected: SelectedCourse? = null
 
-    fun publish(path: List<LatLon>, isLoop: Boolean) {
-        selected = SelectedCourse(path = path, isLoop = isLoop)
+    fun publish(path: List<LatLon>, isLoop: Boolean, courseId: String? = null) {
+        selected = SelectedCourse(path = path, isLoop = isLoop, courseId = courseId)
     }
 
     /** 한 번 읽으면 비운다 — 다음 기록 시작에 지난 코스가 그대로 남아있지 않게. */

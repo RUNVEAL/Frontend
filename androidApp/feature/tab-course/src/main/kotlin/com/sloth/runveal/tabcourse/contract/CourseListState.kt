@@ -36,6 +36,8 @@ data class SavedCourseUiModel(
     val tagLabel: String,
     val newRoadLabel: String,
     val notRunLabel: String,
+    /** 이 코스로 달려서 기록이 저장된 적이 있는지 — "다음에 달려볼 코스" 카드가 안 달린 것만 고른다. */
+    val hasRun: Boolean,
     val path: List<LatLon>,
     /** 순환 코스면 출발·도착이 같은 자리 — 기록 화면이 도착 핀을 생략하는 데 쓴다. */
     val isLoop: Boolean,
@@ -53,9 +55,18 @@ sealed interface CourseListState : UiState {
         /** 이름 수정 시트를 띄워 둔 코스 — null이면 시트가 떠 있지 않다. */
         val pendingRenameCourseId: String? = null,
     ) : CourseListState {
-        /** 큰 카드에 띄울 코스 — 가장 최근에 저장한 코스. */
+        /**
+         * "다음에 달려볼 코스" 카드에 띄울 코스 — **아직 안 달린** 코스 중 가장 최근에 저장한 것.
+         *
+         * [courses]가 이미 저장 최신순이라 앞에서부터 처음 걸리는 안 달린 코스가 그 코스다.
+         * 전부 달렸으면 null — 그때는 화면이 새 코스를 만들라고 권하는 카드로 바꿔 띄운다.
+         */
         val featuredCourse: SavedCourseUiModel?
-            get() = courses.firstOrNull()
+            get() = courses.firstOrNull { !it.hasRun }
+
+        /** 저장한 코스는 있는데 전부 달린 상태 — 카드 자리에 "코스 만들기" 유도를 띄운다. */
+        val hasRunAllCourses: Boolean
+            get() = courses.isNotEmpty() && courses.all { it.hasRun }
 
         /** 이름 수정 시트에 지금 이름을 채워 넣을 코스. */
         val pendingRenameCourse: SavedCourseUiModel?
