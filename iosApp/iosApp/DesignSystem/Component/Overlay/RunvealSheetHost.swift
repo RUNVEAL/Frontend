@@ -45,7 +45,10 @@ private struct RunvealSheetHostModifier<SheetContent: View>: ViewModifier {
                         .transition(.move(edge: .bottom))
                 }
                 // 안전 영역은 그대로 둔다 — 시트 내용(버튼)이 홈 인디케이터 위에 남아야 한다.
-                // 그 아래 띠는 `RunvealBottomSheet`의 배경이 알아서 채운다.
+                //
+                // 그 아래 띠는 `RunvealBottomSheet`가 배경을 한 번 더 아래로 내보내 채운다. 여기서
+                // `ignoresSafeArea`로 오버레이 자체를 늘리면 안 된다 — 그러면 시트 **내용**까지
+                // 내려가 버튼이 제스처 바에 깔린다(배경은 끝까지, 버튼은 안전 영역 위로).
             }
         }
         .animation(.easeOut(duration: 0.25), value: isPresented)
