@@ -2,6 +2,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
+      광고 ID 권한. Firebase Analytics가 전이 의존으로 끌고 오는 play-services-ads-identifier가
+      매니페스트 머지로 **이미 넣고 있다**(머지된 release 매니페스트에서 확인했다) — 그래서 이
+      선언은 동작을 바꾸지 않는다.
+
+      그래도 적어 두는 이유: 앱이 광고 ID를 쓴다는 사실이 전이 의존 안에만 숨어 있으면 다음
+      사람이 놓친다. Play 데이터 보안 설문에서 "광고 ID 수집"을 '예'로 답해야 하는 근거가 이
+      한 줄이다. Analytics를 걷어내면 이 선언도 같이 지워야 한다.
+    -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+
+    <!--
       자동 백업(allowBackup)을 끈다. 켜 두면 앱을 지웠다 다시 깔아도 Android가 예전 데이터를
       그대로 복원하는데, 그때 **스키마가 옛 버전인 runveal.db까지 복원**돼서 앱이 시작하자마자
       죽는다(`no such table: explored_segment`). 이 프로젝트엔 SQLDelight 마이그레이션(.sqm)이
