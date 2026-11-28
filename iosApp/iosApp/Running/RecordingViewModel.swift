@@ -17,6 +17,7 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
         var initial = RecordingScreenState()
         initial.selectedCoursePath = selected?.path
         initial.selectedCourseIsLoop = selected?.isLoop ?? false
+        initial.selectedCourseId = selected?.courseId
         super.init(initialState: initial)
 
         // 러닝 기록 화면 진입 — 뷰모델이 만들어지는 이 시점이 곧 화면이 열린 시점이고, 들어온
@@ -69,14 +70,29 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
                 return next
             }
         case .stopClicked:
+            // 저장 여부는 여기서 한 번만 정해 트래커까지 그대로 넘긴다 — 트래커가 따로 다시 판단하면
+            // 그 사이 1분/100m 경계를 넘겨서 "홈으로 돌려보냈는데 기록은 저장됨" 같은 어긋남이 생긴다.
+            let saveRecord = Self.isRecordSavable()
             setState { state in
                 var next = state
                 next.finishDialog = nil
                 return next
             }
-            // 저장 여부는 여기서 한 번만 정해 트래커까지 그대로 넘긴다 — 트래커가 따로 다시 판단하면
-            // 그 사이 1분/100m 경계를 넘겨서 "홈으로 돌려보냈는데 기록은 저장됨" 같은 어긋남이 생긴다.
-            sendEffect(.stopTracking(saveRecord: Self.isRecordSavable()))
+            // 기록이 **저장될 때만** 그 코스를 달린 것으로 적는다 — 100m·1분을 못 채워 버려지는
+            // 러닝까지 세면 "달렸다"는 표시가 실제 기록과 어긋난다.
+            if saveRecord { markSelectedCourseRun() }
+            sendEffect(.stopTracking(saveRecord: saveRecord))
+        }
+    }
+
+    /// 저장된 코스로 달렸으면 그 코스에 마지막 달린 시각을 적는다 — "다음에 달려볼 코스" 카드가
+    /// 아직 안 달린 코스만 고르는 데 쓴다. 자유 러닝이면 적을 코스가 없어 그냥 지나간다
+    /// (Android `RecordingViewModel.markSelectedCourseRun`).
+    private func markSelectedCourseRun() {
+        guard let courseId = state.selectedCourseId else { return }
+        // DB 쓰기는 화면 밖에서 — 다른 코스 작업(`CourseScreen`)과 같은 방식이다.
+        Task.detached(priority: .userInitiated) {
+            IosCourseList.shared.markRun(courseId: courseId)
         }
     }
 
@@ -104,7 +120,8 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
                     // 전체 리셋을 쓰면 생성 시점에 미리 읽어 둔 값이 지워진다.
                     next = RecordingScreenState(
                         selectedCoursePath: state.selectedCoursePath,
-                        selectedCourseIsLoop: state.selectedCourseIsLoop
+                        selectedCourseIsLoop: state.selectedCourseIsLoop,
+                        selectedCourseId: state.selectedCourseId
                     )
                 }
                 return next

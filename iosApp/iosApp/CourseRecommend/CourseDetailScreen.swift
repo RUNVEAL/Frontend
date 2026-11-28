@@ -122,7 +122,14 @@ struct CourseDetailScreen: View {
                                 onPrimaryClick: {
                                     // 코스 경로를 기록 화면에 넘기기만 한다.
                                     RunvealAnalyticsLogger.logCourseStart(fromRecommend: true)
-                                    SelectedCourseHolder.shared.publish(path: ready.path, isLoop: ready.isLoop)
+                                    // 로컬에 행이 있는 코스일 때만 id를 같이 넘긴다 — 저장 전
+                                    // 추천 코스는 "달림"을 적을 데가 없다. 이 화면에서 방금
+                                    // 저장했다면 그 id가 들어 있다.
+                                    SelectedCourseHolder.shared.publish(
+                                        path: ready.path,
+                                        isLoop: ready.isLoop,
+                                        courseId: ready.savedCourseId
+                                    )
                                     onStartRunning()
                                 }
                             )

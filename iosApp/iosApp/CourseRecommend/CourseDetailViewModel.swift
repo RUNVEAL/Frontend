@@ -87,6 +87,7 @@ final class CourseDetailViewModel: MviViewModel<CourseDetailIntent, CourseDetail
             isLoop: detail.isLoop
         )
         ready.isSaved = true
+        ready.savedCourseId = courseId
         ready.savedCourseName = detail.name
         setState { _ in .ready(ready) }
     }
@@ -112,6 +113,9 @@ final class CourseDetailViewModel: MviViewModel<CourseDetailIntent, CourseDetail
         setState { state in
             guard case .ready(var next) = state else { return state }
             next.isSaved = true
+            // 방금 만든 행의 id를 들고 있는다 — 저장하고 바로 "러닝 시작"을 눌렀을 때 이 코스를
+            // "달림"으로 적으려면 id가 있어야 한다.
+            next.savedCourseId = courseId
             return .ready(next)
         }
     }
