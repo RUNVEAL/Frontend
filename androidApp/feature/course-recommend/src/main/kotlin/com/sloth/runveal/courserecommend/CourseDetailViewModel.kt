@@ -113,6 +113,7 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
                 path = decodeCoordinates(course.coordinates),
                 isLoop = course.route_type == "LOOP",
                 isSaved = true,
+                savedCourseId = courseId,
             )
         }
     }
@@ -192,7 +193,9 @@ class CourseDetailViewModel : MviViewModel<CourseDetailIntent, CourseDetailState
         prerenderThumbnail(courseId, ready.path, isLoop = route.type == "LOOP")
         // 위의 `if (ready.isSaved) return` 때문에 중복 탭으로는 두 번 오지 않는다.
         RunvealAnalyticsLogger.logCourseSave()
-        setState { if (this is CourseDetailState.Ready) copy(isSaved = true) else this }
+        // 방금 만든 행의 id를 상태에 남긴다 — 저장하고 바로 "러닝 시작"을 눌러도 그 코스를 "달림"으로
+        // 적을 수 있어야 한다(출처는 그대로 Recommended라 거기서는 id를 알 수 없다).
+        setState { if (this is CourseDetailState.Ready) copy(isSaved = true, savedCourseId = courseId) else this }
     }
 
     /** "내 코스" 탭 목록·추천 카드가 쓸 썸네일을 저장 시점에 같이 만들어 캐시해 둔다. 실패해도 코스

@@ -21,4 +21,8 @@
     <string name="tab_course_rename_input_placeholder">코스 이름을 입력하세요</string>
     <string name="tab_course_rename_cancel">취소</string>
     <string name="tab_course_rename_confirm">저장</string>
+    <!-- 저장한 코스를 다 달렸을 때 — "다음에 달려볼 코스" 카드 자리에 새 코스를 권한다. -->
+    <string name="tab_course_all_run_title">저장한 코스를 모두 달렸어요</string>
+    <string name="tab_course_all_run_description">새로운 길로 코스를 만들어볼까요?</string>
+    <string name="tab_course_all_run_action">코스 만들기</string>
 </resources>
