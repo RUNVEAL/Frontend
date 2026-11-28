@@ -3,6 +3,7 @@ package com.sloth.runveal.running
 import androidx.lifecycle.viewModelScope
 import com.sloth.runveal.analytics.RunvealAnalyticsLogger
 import com.sloth.runveal.data.local.RunvealDatabaseProvider
+import com.sloth.runveal.recording.GpsSignalHolder
 import com.sloth.runveal.recording.RecordingSavePolicy
 import com.sloth.runveal.recording.RecordingState as TrackRecordingState
 import com.sloth.runveal.recording.TrackRecorder
@@ -71,9 +72,14 @@ class RecordingViewModel : MviViewModel<RecordingIntent, RecordingState, Recordi
         // 갈아준다. 일시정지 중에도 돌긴 하지만 TrackRecorder.elapsedMs()가 멈춘 시점에 고정값을 주므로
         // 화면엔 숫자가 그대로 멈춰 보인다.
         viewModelScope.launch {
+            GpsSignalHolder.isWeak.collect { isWeak -> setState { copy(isGpsWeak = isWeak) } }
+        }
+        viewModelScope.launch {
             while (true) {
                 val recording = TrackRecorder.state.value
                 if (recording is TrackRecordingState.Recording || recording is TrackRecordingState.Paused) {
+                    // 점이 아예 안 들어오는 동안에도 신호 약함을 알아채려면 시간으로 다시 봐야 한다.
+                    GpsSignalHolder.evaluate(System.currentTimeMillis())
                     val elapsedMs = TrackRecorder.elapsedMs(System.currentTimeMillis())
                     val distanceMeters = TrackRecorder.totalDistanceMeters()
                     setState {

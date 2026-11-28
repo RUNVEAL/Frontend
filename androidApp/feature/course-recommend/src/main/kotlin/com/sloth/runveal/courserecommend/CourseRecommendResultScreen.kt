@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -33,13 +34,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -85,6 +93,7 @@ import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.courserecommend.R
 import com.sloth.runveal.map.MapConfig
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import com.sloth.runveal.designsystem.R as DesignSystemR
 
@@ -133,12 +142,56 @@ fun CourseRecommendResultScreen(
         )
     }
     MapDotMarkers(courseMarkers)
-    LaunchedEffect(readyState?.selectedRouteId, readyState?.routes) {
+
+    /**
+     * 경로를 칩 줄과 카드 줄 **사이**에 맞추려고 재는 값들 — 모두 window 기준 절대 좌표(px)다.
+     *
+     * 지도는 엣지투엣지라 뷰포트가 화면 전체이고 focusOnBounds의 여백도 화면 가장자리 기준이어서,
+     * 좌표계가 그대로 맞아떨어진다. inset을 **뺀** 값을 넘기면 그만큼 모자라 경로가 칩·카드에 닿는다 —
+     * 이전 구현이 그랬다(재는 지점이 windowInsetsPadding **안쪽**이라 상태바·내비바 높이가 빠졌다).
+     *
+     * 기준은 **보이는 UI의 끝**이다 — 칩이 그려지는 영역의 아래 끝, 카드가 그려지기 시작하는 위 끝.
+     * 투명한 패딩까지 피하면 그만큼 여백이 더 벌어져 위아래가 어긋난다.
+     */
+    var mapViewportHeightPx by remember { mutableIntStateOf(0) }
+    var chipsBottomPx by remember { mutableIntStateOf(0) }
+    var cardsRowTopPx by remember { mutableIntStateOf(0) }
+
+    // 시안(B1) 기준 — 경로는 칩 줄 아래 16, 카드 위 16, 좌우 16 안쪽에 들어와야 한다.
+    val density = LocalDensity.current
+    val routeMargin = RunvealTheme.layout.marginScreen
+    // 카드 줄 LazyRow가 contentPadding으로 두르는 위아래 여백 — 그 Box의 위 끝과 카드가 보이는 위
+    // 끝의 차이다. 아래 bottomPadding에서 이만큼 되돌려야 "카드에서 16"이 된다.
+    val cardsRowVerticalPadding = RunvealTheme.spacing.space16
+    LaunchedEffect(
+        readyState?.selectedRouteId,
+        readyState?.routes,
+        mapViewportHeightPx,
+        chipsBottomPx,
+        cardsRowTopPx,
+    ) {
         val selected = readyState?.routes?.firstOrNull { it.routeId == readyState.selectedRouteId } ?: return@LaunchedEffect
-        mapState.focusOnBounds(selected.path)
+        // 아직 한 번도 재지 못했으면 기다린다 — 0으로 맞추면 첫 프레임에 엉뚱한 줌이 잡히고,
+        // 측정이 들어오면 이 effect가 다시 돈다(값이 key에 있다).
+        if (mapViewportHeightPx == 0 || chipsBottomPx == 0 || cardsRowTopPx == 0) return@LaunchedEffect
+        mapState.focusOnBounds(
+            points = selected.path,
+            horizontalPadding = routeMargin,
+            // 칩이 보이는 아래 끝에서 16. chipsBottomPx가 이미 화면 최상단(상태바 포함) 기준이다.
+            topPadding = with(density) { chipsBottomPx.toDp() } + routeMargin,
+            // 카드가 보이는 위 끝에서 16 — 화면 아래 끝에서 카드 줄 Box까지 거리에서 contentPadding을
+            // 빼면 카드가 실제로 그려지는 선이 된다.
+            bottomPadding = with(density) { (mapViewportHeightPx - cardsRowTopPx).toDp() } -
+                cardsRowVerticalPadding + routeMargin,
+        )
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            // 지도 뷰포트 높이 — 이 Box는 insets를 소비하지 않아 화면 전체와 같다.
+            .onSizeChanged { mapViewportHeightPx = it.height },
+    ) {
         // 추천 결과가 없을 땐 한 장짜리 안내 화면이다(시안 B1-1) — 뒤에 지도가 비치면 "코스를 못
         // 찾았다"면서 지도만 덩그러니 보이게 돼서, 화면 배경색으로 덮는다.
         if (readyState?.emptyMessage != null) {
@@ -179,7 +232,11 @@ fun CourseRecommendResultScreen(
                 SettingsSummaryRow(
                     settings = readyState.settings,
                     onSettingsClick = { viewModel.onIntent(CourseRecommendResultIntent.OpenFilterSheet) },
-                    modifier = Modifier.padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space12),
+                    // 칩이 보이는 아래 끝을 잰다 — padding **뒤**에 달아야 투명한 여백이 아니라
+                    // 칩이 그려지는 영역의 끝이 나온다.
+                    modifier = Modifier
+                        .padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space12)
+                        .onGloballyPositioned { chipsBottomPx = it.boundsInWindow().bottom.roundToInt() },
                 )
             }
         }
@@ -201,13 +258,25 @@ fun CourseRecommendResultScreen(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
                             .fillMaxWidth()
-                            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
+                            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+                            // 카드 줄의 위 끝(window 기준). 카드가 보이는 위 끝은 여기서
+                            // contentPadding(space16)만큼 아래다 — 위 bottomPadding 계산이 그걸 뺀다.
+                            .onGloballyPositioned { cardsRowTopPx = it.boundsInWindow().top.roundToInt() },
                     ) {
-                        // 화면 가운데에 카드 하나가 오게 좌우 패딩을 "뷰포트 - 카드" 절반씩 준다. 화면이
-                        // 좁아 음수가 나오면 기본 마진으로 떨어진다.
-                        val sidePadding = ((maxWidth - COURSE_CARD_WIDTH) / 2).coerceAtLeast(RunvealTheme.layout.marginScreen)
+                        // 좌우 패딩은 화면 마진(16)만 준다 — 그래야 첫 카드는 왼쪽, 마지막 카드는 오른쪽 마진에
+                        // 붙는다. 스냅은 "가장 가까운 카드를 뷰포트 가운데로"인데, 양 끝에서는 스크롤이 0·최대에서
+                        // 막혀 가운데까지 못 가고 마진에 멈추기 때문이다 — 클램프가 요구사항을 그대로 만들어 준다.
                         val listState = rememberLazyListState()
                         val coroutineScope = rememberCoroutineScope()
+
+                        // 카드를 가운데로 보낼 때 그 카드가 가져야 할 스크롤 오프셋(px). SnapPosition.Center가
+                        // 쓰는 식과 같다 — (뷰포트 - 좌우패딩)/2 - 카드/2 = (뷰포트 - 카드)/2 - 마진. 탭 스크롤이
+                        // 스냅과 어긋나지 않게 같은 값을 쓴다. 화면이 좁아 음수가 되면 0으로 떨어진다.
+                        val centerOffsetPx = with(LocalDensity.current) {
+                            ((maxWidth - COURSE_CARD_WIDTH) / 2 - RunvealTheme.layout.marginScreen)
+                                .coerceAtLeast(0.dp)
+                                .roundToPx()
+                        }
 
                         // 탭이 아니라 "화면 가운데에 와 있는 카드"가 선택 상태를 정한다 — 스크롤이 멈추면
                         // snapFlingBehavior가 카드 하나를 정확히 가운데로 맞추고, 그 카드의 routeId를
@@ -227,9 +296,15 @@ fun CourseRecommendResultScreen(
 
                         LazyRow(
                             state = listState,
-                            flingBehavior = rememberSnapFlingBehavior(listState),
+                            // 가장 가까운 카드를 뷰포트 가운데로 맞춘다 — 위 선택 판정도 "가운데에 가장 가까운
+                            // 카드"라 기준이 같아야 한다. 이 오버로드의 기본값도 Center지만, 패딩을 마진까지
+                            // 줄인 뒤로는 이게 동작의 전제라 드러내 둔다.
+                            flingBehavior = rememberSnapFlingBehavior(listState, SnapPosition.Center),
                             modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = sidePadding, vertical = RunvealTheme.spacing.space16),
+                            contentPadding = PaddingValues(
+                                horizontal = RunvealTheme.layout.marginScreen,
+                                vertical = RunvealTheme.spacing.space16,
+                            ),
                             horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space16),
                         ) {
                             itemsIndexed(current.routes, key = { _, route -> route.routeId }) { index, route ->
@@ -242,7 +317,13 @@ fun CourseRecommendResultScreen(
                                         if (route.routeId == current.selectedRouteId) {
                                             onCourseClick(route.routeId)
                                         } else {
-                                            coroutineScope.launch { listState.animateScrollToItem(index) }
+                                            // 가운데로 보낸다 — animateScrollToItem은 기본이 좌측 정렬이라
+                                            // 스냅과 같은 오프셋을 음수로 줘야 가운데에 선다(양수는 더 끌어
+                                            // 당긴다). 첫·마지막 카드는 스크롤이 막혀 좌·우 마진에 붙은 채로
+                                            // 선택된다 — 그게 맞는 동작이다.
+                                            coroutineScope.launch {
+                                                listState.animateScrollToItem(index, scrollOffset = -centerOffsetPx)
+                                            }
                                         }
                                     },
                                 )
@@ -466,6 +547,9 @@ private fun FilterSheet(draft: CourseRecommendSettings, onIntent: (CourseRecomme
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Color.Transparent,
         dragHandle = null,
+        // 기본 inset을 끄고 시트 배경이 OS 내비게이션 바 뒤까지 그대로 채우게 한다 — inset은 시트 안
+        // 버튼에만 준다(RequireLocationPermission과 같은 컨벤션).
+        contentWindowInsets = { WindowInsets(0) },
     ) {
         FilterBottomSheet(
             distanceOptions = DistanceOptions,
