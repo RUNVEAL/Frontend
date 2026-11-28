@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sloth.runveal.analytics.RunvealAnalyticsLogger
+import com.sloth.runveal.core.map.BOUNDS_FOCUS_PADDING
 import com.sloth.runveal.core.map.LocalMapState
 import com.sloth.runveal.core.map.MapDotMarkers
 import com.sloth.runveal.core.map.MapLayerSpec
@@ -107,8 +108,9 @@ fun CourseDetailScreen(
     MapDotMarkers(courseMarkers)
     LaunchedEffect(readyState?.path, bottomSheetHeightPx) {
         val detail = readyState ?: return@LaunchedEffect
-        val extraBottomPadding = with(density) { bottomSheetHeightPx.toDp() }
-        mapState.focusOnBounds(detail.path, extraBottomPadding = extraBottomPadding)
+        // 바텀시트가 덮는 만큼 아래를 더 비운다 — 기본 여백은 그대로 두고 시트 높이만 더한다.
+        val sheetHeight = with(density) { bottomSheetHeightPx.toDp() }
+        mapState.focusOnBounds(detail.path, bottomPadding = BOUNDS_FOCUS_PADDING + sheetHeight)
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -184,7 +186,14 @@ fun CourseDetailScreen(
                                     // 코스 경로를 기록 화면에 넘기기만 한다 — 가이드/오버레이 적용은 보류.
                                     onPrimaryClick = {
                                         RunvealAnalyticsLogger.logCourseStart(fromRecommend = true)
-                                        SelectedCourseHolder.publish(current.path, current.isLoop)
+                                        // 저장된 코스면 id를 같이 넘긴다 — 이 화면에서 방금 저장한 코스도
+                                        // 포함한다(상태가 그때 만든 id를 들고 있다). 저장 전 추천 코스는
+                                        // course 행이 없어서 "달림"을 적을 데가 없다.
+                                        SelectedCourseHolder.publish(
+                                            path = current.path,
+                                            isLoop = current.isLoop,
+                                            courseId = current.savedCourseId,
+                                        )
                                         onStartRunning()
                                     },
                                 )

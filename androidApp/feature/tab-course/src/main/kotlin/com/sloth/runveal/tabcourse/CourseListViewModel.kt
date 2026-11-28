@@ -11,6 +11,7 @@ import com.sloth.runveal.tabcourse.contract.CourseListIntent
 import com.sloth.runveal.tabcourse.contract.CourseListState
 import com.sloth.runveal.tabcourse.contract.SavedCourseUiModel
 import com.sloth.runveal.ui.mvi.MviViewModel
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.ListSerializer
@@ -86,16 +87,21 @@ class CourseListViewModel : MviViewModel<CourseListIntent, CourseListState, Noth
         val path = decodeCoordinates(coordinates)
         return SavedCourseUiModel(
             id = id,
-            title = name,
+            // 카드·목록 모두 한 줄짜리 자리라 길면 뒤를 줄인다(시안: 최대 10글자).
+            title = name.take(MAX_TITLE_LENGTH),
             distanceLabel = "%.1fkm".format(distance_meters / 1000.0),
-            durationLabel = duration_sec?.let { "${it / 60}분" } ?: "",
+            // 서버가 준 duration_sec을 쓰지 않는다 — 추천 코스에만 있고 기록을 승격한 코스엔 없어서
+            // 어떤 코스는 시간이 비어 보였다. 거리에 기본 페이스를 곱해 **모든 코스에 같은 기준**으로
+            // 낸다(시안: 6분 30초/km, 분 단위 반올림).
+            durationLabel = "${(distance_meters / 1000.0 * DEFAULT_PACE_SEC_PER_KM / 60).roundToInt()}분",
             tagLabel = when (route_type) {
                 "LOOP" -> "순환"
                 "ONE_WAY" -> "편도"
                 else -> ""
             },
             newRoadLabel = new_road_m?.let { "새 길 %.1fkm".format(it / 1000.0) } ?: "",
-            notRunLabel = "아직 안달림",
+            notRunLabel = if (last_run_at_epoch_ms == null) "아직 안 달림" else "",
+            hasRun = last_run_at_epoch_ms != null,
             path = path,
             isLoop = route_type == "LOOP",
             // 코스 썸네일엔 출발·도착 점을 같이 찍는다 — 카드가 그림 한가운데에 점을 얹던 걸 대신한다.
@@ -115,3 +121,10 @@ class CourseListViewModel : MviViewModel<CourseListIntent, CourseListState, Noth
         json.decodeFromString(ListSerializer(ListSerializer(Double.serializer())), raw)
             .map { LatLon(lat = it[1], lon = it[0]) }
 }
+
+/** 코스명 표시 길이 상한(시안) — 넘으면 뒤를 자른다. */
+private const val MAX_TITLE_LENGTH = 10
+
+/** 예상 시간을 낼 때 쓰는 기본 페이스(초/km, 시안 6분 30초). 코스마다 실제 페이스를 알 수 없어
+ * 모두 같은 기준으로 환산한다. */
+private const val DEFAULT_PACE_SEC_PER_KM = 390.0

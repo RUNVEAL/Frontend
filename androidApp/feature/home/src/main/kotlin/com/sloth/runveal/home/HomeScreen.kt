@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
@@ -69,7 +70,6 @@ import com.sloth.runveal.designsystem.component.navigation.RunvealTabItemSpec
 import com.sloth.runveal.designsystem.component.overlay.RunvealLocationPermissionSettingsSheet
 import com.sloth.runveal.designsystem.component.overlay.RunvealLocationPermissionSheet
 import com.sloth.runveal.designsystem.component.overlay.RunvealLocationServicesSheet
-import com.sloth.runveal.designsystem.component.overlay.RunvealToast
 import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.devicestate.rememberLocationServicesState
 import com.sloth.runveal.dong.DongExploreRate
@@ -81,6 +81,7 @@ import com.sloth.runveal.map.snapshot.SnapshotRequest
 import com.sloth.runveal.map.snapshot.SnapshotVariant
 import com.sloth.runveal.map.snapshot.center
 import com.sloth.runveal.navigation.RunVealRoute
+import com.sloth.runveal.navigation.RunvealNavTransitions
 import com.sloth.runveal.navigation.rememberRunVealNavigator
 import com.sloth.runveal.network.dong.CurrentDongHolder
 import com.sloth.runveal.permission.LocationPermissionState
@@ -106,7 +107,6 @@ import kotlinx.coroutines.withContext
 private val HOME_BOTTOM_PANEL_INNER_INSET = 6.dp
 
 /** 토스트가 떠 있는 시간 — 디자인시스템 토스트 주석의 "3초"를 그대로 따른다. */
-private const val TOAST_DURATION_MS = 3000L
 
 /**
  * 줌인 오버레이의 하단 액션 줄이 하단 패널 배너(위치 안내·서버 데이터 안내) 때문에 더 높아진 패널과
@@ -203,25 +203,22 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
         !isRecordDetail &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() != true &&
         currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Result>() != true
-    // 지도가 보여야 하는 목적지인지. 지도는 항상 그려 두고(끄면 MapLibre가 매번 스타일을 다시
-    // 로드한다) 지도를 쓰지 않는 화면에서만 위를 덮는다 — 그래야 화면 전환 중 양쪽이 반투명해지는
-    // 구간에 뒤의 지도가 비치지 않는다. currentDestination이 아직 null인 첫 프레임은 시작 목적지가
-    // HomeMap이라 덮지 않는다.
-    val isMapDestination = currentDestination == null ||
-        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.HomeMap>() == true ||
-        isCourseFlowOverMap ||
-        currentDestination?.destination?.hasRoute<RunVealRoute.HomeTab.Recording>() == true
+    /**
+     * 지도가 보여야 하는 목적지인지. 지도는 항상 그려 두고(끄면 MapLibre가 매번 스타일을 다시
+     * 로드한다) 지도를 쓰지 않는 화면에서만 위를 덮는다 — 그래야 화면 전환 중 양쪽이 반투명해지는
+     * 구간에 뒤의 지도가 비치지 않는다.
+     *
+     * 기준이 `currentBackStackEntry`가 **아니라** `visibleEntries`다. 앞의 것은 뒤로가기를 누른
+     * 즉시 바뀌어서, 그걸로 덮개를 걷으면 **아직 사라지는 중인 화면** 뒤로 지도가 비친다 — MY에서
+     * 홈으로 돌아올 때 MY 본문과 홈 지도가 한 화면에 겹쳐 보이던 원인이다. `visibleEntries`는
+     * 전환이 끝날 때까지 나가는 화면도 들고 있어서, 그 화면이 다 사라진 뒤에야 덮개가 걷힌다.
+     *
+     * 비어 있는 첫 프레임은 시작 목적지가 HomeMap이라 덮지 않는다.
+     */
+    val visibleEntries by tabNavigator.navController.visibleEntries.collectAsStateWithLifecycle()
+    val isMapDestination = visibleEntries.isEmpty() ||
+        visibleEntries.all { it.destination.isMapDestination() }
     val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
-
-    // 너무 짧아 저장하지 않은 러닝처럼, 화면 전환만으로는 이유를 알 수 없는 경우에만 띄우는 안내.
-    // 토스트 자체는 타이머를 모르는 순수 컴포넌트라 사라지는 건 여기서 재운다.
-    val discardedToastMessage = stringResource(R.string.home_recording_discarded_toast)
-    var toastMessage by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(toastMessage) {
-        if (toastMessage == null) return@LaunchedEffect
-        delay(TOAST_DURATION_MS)
-        toastMessage = null
-    }
 
     // 지금 서 있는 동 — 조회는 홈 지도 오버레이가 하고(tab-home), 여기선 그 결과만 본다.
     val currentDong by CurrentDongHolder.state.collectAsStateWithLifecycle()
@@ -409,6 +406,13 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                 navController = tabNavigator.navController,
                 startDestination = RunVealRoute.HomeTab.Home,
                 modifier = Modifier.fillMaxSize(),
+                // 앱 최상위 NavHost와 같은 전환을 쓴다 — 이유는 [RunvealNavTransitions] 참고.
+                enterTransition = { RunvealNavTransitions.enter },
+                exitTransition = { RunvealNavTransitions.exit },
+                popEnterTransition = { RunvealNavTransitions.enter },
+                popExitTransition = { RunvealNavTransitions.exit },
+                predictivePopEnterTransition = { RunvealNavTransitions.enter },
+                predictivePopExitTransition = { RunvealNavTransitions.exit },
             ) {
                 navigation<RunVealRoute.HomeTab.Home>(startDestination = RunVealRoute.HomeTab.HomeMap) {
                     homeMapOverlay(
@@ -445,13 +449,13 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                                 popUpTo(RunVealRoute.HomeTab.Recording) { inclusive = true }
                             }
                         },
-                        // 저장하지 않은 러닝은 결과 화면이 없으니 홈 지도로 되돌리고, 왜 기록이 안
-                        // 남았는지 토스트로 알려준다.
+                        // 저장하지 않은 러닝은 결과 화면이 없으니 홈 지도로 되돌리기만 한다. 왜
+                        // 안 남았는지는 바로 앞의 종료 다이얼로그("러닝 기록이 너무 짧아요")가 이미
+                        // 알려 줘서, 돌아온 뒤에 토스트로 한 번 더 말하지 않는다.
                         onDiscarded = {
                             tabNavigator.navController.navigate(RunVealRoute.HomeTab.HomeMap) {
                                 popUpTo(RunVealRoute.HomeTab.Recording) { inclusive = true }
                             }
-                            toastMessage = discardedToastMessage
                         },
                     )
                     resultOverlay(onClose = tabNavigator::popBackStack)
@@ -497,22 +501,6 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                         tabNavigator.navController.popBackStack(RunVealRoute.HomeTab.My, inclusive = false)
                         onSelectTab(0)
                     },
-                )
-            }
-
-            toastMessage?.let { message ->
-                RunvealToast(
-                    message = message,
-                    // 시안(Overlay/Toast)은 하단 — 탭바 위 8에 띄운다.
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
-                        .padding(
-                            start = RunvealTheme.layout.marginScreen,
-                            end = RunvealTheme.layout.marginScreen,
-                            bottom = RunvealTheme.spacing.space8 + RunvealTheme.layout.sizeTabBar +
-                                RunvealTheme.spacing.space8,
-                        ),
                 )
             }
 
@@ -810,3 +798,15 @@ private data class HomePanelDong(
     val name: String,
     val isTopExplored: Boolean,
 )
+
+/**
+ * 이 목적지가 지도를 깔고 보여주는 화면인지 — 홈 지도, 지도 위에 올라가는 코스 흐름, 러닝 기록.
+ * 나머지(탭 목록, 약관, 기록 상세, 러닝 결과)는 지도를 쓰지 않으므로 그 위를 덮는다.
+ */
+private fun NavDestination.isMapDestination(): Boolean =
+    hasRoute<RunVealRoute.HomeTab.HomeMap>() ||
+        hasRoute<RunVealRoute.HomeTab.CourseRecommend>() ||
+        hasRoute<RunVealRoute.HomeTab.CourseRecommendResult>() ||
+        hasRoute<RunVealRoute.HomeTab.CourseDetail>() ||
+        hasRoute<RunVealRoute.HomeTab.SavedCourseDetail>() ||
+        hasRoute<RunVealRoute.HomeTab.Recording>()

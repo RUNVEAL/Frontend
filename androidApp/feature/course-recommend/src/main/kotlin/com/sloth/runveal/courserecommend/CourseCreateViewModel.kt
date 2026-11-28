@@ -129,8 +129,9 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
     }
 
     /**
-     * 탭한 자리의 행정동 이름을 받아 온다(`GET /api/v1/dong`). 못 받으면 상태를 건드리지 않아서
-     * 화면은 좌표를 그대로 보여준다 — 위치를 고르는 일 자체는 이름 없이도 되므로 오류로 다루지 않는다.
+     * 탭한 자리의 이름을 받아 온다(`GET /api/v1/dong`) — 도로명이 있으면 도로명, 없으면 동 이름이다
+     * ([DongResponse.roadOrDongName]). 못 받으면 상태를 건드리지 않아서 화면은 플레이스홀더를
+     * 그대로 둔다 — 위치를 고르는 일 자체는 이름 없이도 되므로 오류로 다루지 않는다.
      *
      * 지도를 연달아 탭하면 앞선 요청을 취소하고, 그래도 늦게 도착한 응답은 좌표가 그대로인지
      * 확인한 뒤에만 반영한다 — 취소가 응답 처리 직전에 걸리면 엉뚱한 자리의 이름이 박힌다.
@@ -140,7 +141,7 @@ class CourseCreateViewModel : MviViewModel<CourseCreateIntent, CourseCreateState
         placeNameJob = viewModelScope.launch {
             when (val result = dongApi.fetchDong(lat = location.lat, lon = location.lon)) {
                 is DongResult.Success -> setState {
-                    if (pickedLocation == location) copy(pickedPlaceName = result.dong.shortName) else this
+                    if (pickedLocation == location) copy(pickedPlaceName = result.dong.roadOrDongName) else this
                 }
 
                 DongResult.OutOfServiceArea -> Log.i(TAG, "서비스 지역 밖 — 좌표를 그대로 보여준다")

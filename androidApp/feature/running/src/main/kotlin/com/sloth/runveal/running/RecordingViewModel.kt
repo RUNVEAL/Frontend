@@ -2,6 +2,8 @@ package com.sloth.runveal.running
 
 import androidx.lifecycle.viewModelScope
 import com.sloth.runveal.analytics.RunvealAnalyticsLogger
+import com.sloth.runveal.data.local.RunvealDatabaseProvider
+import com.sloth.runveal.recording.GpsSignalHolder
 import com.sloth.runveal.recording.RecordingSavePolicy
 import com.sloth.runveal.recording.RecordingState as TrackRecordingState
 import com.sloth.runveal.recording.TrackRecorder
@@ -14,6 +16,7 @@ import com.sloth.runveal.running.contract.RecordingPhase
 import com.sloth.runveal.running.contract.RecordingState
 import com.sloth.runveal.ui.mvi.MviViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 private const val TICKER_INTERVAL_MS = 1000L
@@ -25,6 +28,7 @@ private fun initialRecordingState(): RecordingState {
     return RecordingState(
         selectedCoursePath = selected?.path,
         selectedCourseIsLoop = selected?.isLoop == true,
+        selectedCourseId = selected?.courseId,
     )
 }
 
@@ -68,9 +72,14 @@ class RecordingViewModel : MviViewModel<RecordingIntent, RecordingState, Recordi
         // 갈아준다. 일시정지 중에도 돌긴 하지만 TrackRecorder.elapsedMs()가 멈춘 시점에 고정값을 주므로
         // 화면엔 숫자가 그대로 멈춰 보인다.
         viewModelScope.launch {
+            GpsSignalHolder.isWeak.collect { isWeak -> setState { copy(isGpsWeak = isWeak) } }
+        }
+        viewModelScope.launch {
             while (true) {
                 val recording = TrackRecorder.state.value
                 if (recording is TrackRecordingState.Recording || recording is TrackRecordingState.Paused) {
+                    // 점이 아예 안 들어오는 동안에도 신호 약함을 알아채려면 시간으로 다시 봐야 한다.
+                    GpsSignalHolder.evaluate(System.currentTimeMillis())
                     val elapsedMs = TrackRecorder.elapsedMs(System.currentTimeMillis())
                     val distanceMeters = TrackRecorder.totalDistanceMeters()
                     setState {
@@ -98,9 +107,23 @@ class RecordingViewModel : MviViewModel<RecordingIntent, RecordingState, Recordi
             // 저장 여부는 여기서 한 번만 정해 서비스까지 그대로 넘긴다 — 서비스가 따로 다시 판단하면
             // 그 사이 1분/100m 경계를 넘겨서 "홈으로 돌려보냈는데 기록은 저장됨" 같은 어긋남이 생긴다.
             RecordingIntent.StopClicked -> {
+                val saveRecord = isRecordSavable()
                 setState { copy(finishDialog = null) }
-                sendEffect(RecordingEffect.StopTrackingService(saveRecord = isRecordSavable()))
+                // 기록이 **저장될 때만** 그 코스를 달린 것으로 적는다 — 100m·1분을 못 채워 버려지는
+                // 러닝까지 세면 "달렸다"는 표시가 실제 기록과 어긋난다.
+                if (saveRecord) markSelectedCourseRun()
+                sendEffect(RecordingEffect.StopTrackingService(saveRecord = saveRecord))
             }
+        }
+    }
+
+    /** 저장된 코스로 달렸으면 그 코스에 마지막 달린 시각을 적는다 — "다음에 달려볼 코스" 카드가
+     * 아직 안 달린 코스만 고르는 데 쓴다. 자유 러닝이면 적을 코스가 없어 그냥 지나간다. */
+    private fun markSelectedCourseRun() {
+        val courseId = currentState.selectedCourseId ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            RunvealDatabaseProvider.database.courseQueries
+                .markCourseRun(System.currentTimeMillis(), courseId)
         }
     }
 

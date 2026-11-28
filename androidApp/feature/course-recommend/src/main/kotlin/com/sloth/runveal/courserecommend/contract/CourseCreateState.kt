@@ -20,8 +20,8 @@ internal val FilterServerCodes = mapOf(
     "하천길 따라가기" to "RIVERSIDE",
 )
 
-/** 1km ~ 42km, 0.5km 단위. 인덱스 22 = "12" (휠 피커 기본값). */
-internal val CustomDistanceValues = (2..84).map { step ->
+/** 1km ~ 21km(하프), 0.5km 단위. 인덱스 22 = "12"(휠 피커 기본값) — 시작이 1km라 상한을 줄여도 그대로다. */
+internal val CustomDistanceValues = (2..42).map { step ->
     val km = step / 2.0
     if (km % 1.0 == 0.0) km.toInt().toString() else km.toString()
 }
@@ -46,8 +46,9 @@ data class CourseCreateState(
     val pickedLocation: LatLon? = null,
     val startLatLon: LatLon? = null,
     val endLatLon: LatLon? = null,
-    /** [pickedLocation]이 속한 행정동 이름(`GET /api/v1/dong`) — 아직 못 받았거나 조회가 실패하면
-     * null이고, 그때는 [selectedPlaceName]이 플레이스홀더를 보여준다. */
+    /** [pickedLocation]의 도로명, 없으면 행정동 이름(`GET /api/v1/dong`의
+     * [com.sloth.runveal.network.dong.DongResponse.roadOrDongName]) — 아직 못 받았거나 조회가
+     * 실패하면 null이고, 그때는 [selectedPlaceName]이 플레이스홀더를 보여준다. */
     val pickedPlaceName: String? = null,
     /** 화면이 받아 둔 현재 위치 — [selectedPlaceDistance]를 재는 기준점이다. 권한이 없거나 위치가
      * 꺼져 있으면 null이고, 그때는 거리를 안 보여준다. */
@@ -66,7 +67,7 @@ data class CourseCreateState(
         get() = if (isCustomDistanceSelected) "${customDistanceValues[customDistanceIndex]}km" else selectedDistance
 
     /**
-     * 탭한 자리의 행정동 이름([pickedPlaceName], 예: "중구 명동").
+     * 탭한 자리의 이름([pickedPlaceName]) — 도로명이 있으면 "한보라2로", 없으면 "중구 명동".
      *
      * 조회 중이거나 실패했으면 [PLACE_NAME_PLACEHOLDER]를 둔다 — 예전에는 좌표를 그대로 보여줬지만
      * "37.5665, 126.9780"은 읽는 사람에게 아무 뜻이 없어서 이름이 들어올 자리라는 것만 알린다.

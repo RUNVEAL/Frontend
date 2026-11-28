@@ -1,6 +1,7 @@
 package com.sloth.runveal.tabcourse.component
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +40,9 @@ fun CourseRecommendationCard(
     /** 더보기(점 세 개) 메뉴 — null이면 아이콘 자체를 그리지 않는다([CourseMoreMenuIcon]). */
     moreMenu: CourseMoreMenuActions?,
     onStartClick: () -> Unit,
+    /** 카드(버튼 바깥)를 눌렀을 때 — 코스 상세로 간다. 안쪽 아이콘 버튼이 먼저 이벤트를 받으므로
+     * 더보기·바로 시작을 눌러도 여기가 같이 불리지 않는다. */
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
     thumbnailRequest: SnapshotRequest? = null,
 ) {
@@ -50,7 +54,9 @@ fun CourseRecommendationCard(
             .fillMaxWidth()
             .clip(cardShape)
             .background(colors.surface.default, cardShape)
-            .border(1.dp, colors.border.default, cardShape),
+            .border(1.dp, colors.border.default, cardShape)
+            // 배경·테두리 뒤에 둬야 누름 효과가 그 위에 보인다. 앞의 clip이 모양대로 잘라 준다.
+            .clickable(onClick = onClick),
     ) {
         Box(
             modifier = Modifier
@@ -142,6 +148,7 @@ private fun CourseRecommendationCardPreview() {
             notRunLabel = "아직 안달림",
             moreMenu = CourseMoreMenuActions(onRename = {}, onExportGpx = {}, onDelete = {}),
             onStartClick = {},
+            onClick = {},
         )
     }
 }

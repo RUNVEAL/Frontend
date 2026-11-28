@@ -50,6 +50,8 @@ object TrackRecorder {
         dropCounts.clear()
         pausedDurationMs = 0
         pausedAtEpochMs = null
+        // 첫 측위를 기다리는 동안 안내가 뜨지 않게 시작 시각을 기준으로 잡아 둔다.
+        GpsSignalHolder.start(startedAtEpochMs)
         _state.value = RecordingState.Recording(id, startedAtEpochMs)
     }
 
@@ -72,6 +74,7 @@ object TrackRecorder {
     fun addRawPoint(point: TrackPoint): DropReason? {
         if (_state.value !is RecordingState.Recording) return null
         rawPoints.add(point)
+        GpsSignalHolder.onRawPoint(point)
         val reason = TrackFilter.evaluate(point, filteredPoints.lastOrNull())
         if (reason == null) {
             filteredPoints.add(point)
@@ -117,6 +120,8 @@ object TrackRecorder {
     }
 
     fun reset() {
+        // 러닝이 끝나면 안내도 같이 내린다 — 안 내리면 다음 화면까지 따라간다.
+        GpsSignalHolder.clear()
         _state.value = RecordingState.Idle
     }
 }
