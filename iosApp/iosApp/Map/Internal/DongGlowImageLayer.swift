@@ -105,7 +105,7 @@ final class DongGlowImageLayer {
         layer.rasterResamplingMode = NSExpression(forConstantValue: "linear")
         layer.rasterFadeDuration = NSExpression(forConstantValue: 0)
         layer.minimumZoomLevel = Float(RunvealMapConfig.sigunguSwitchZoom)
-        layer.maximumZoomLevel = Float(RunvealMapConfig.zoomInThreshold)
+        // 줌 상한 없음(v2) — 동 경계와 같이 켜지고 꺼져야 해서 홈 토글만이 가린다.
         // 레이어 순서: dong-fill 위, dong-line 아래.
         if let dongLine = style.layer(withIdentifier: RunvealMapConfig.layerDongLine) {
             style.insertLayer(layer, below: dongLine)

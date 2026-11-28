@@ -7,8 +7,10 @@ enum TabHomeStrings {
     static let tagMyDong = "내 동네"
     static let tagCurrentLocation = "현위치"
     static let headline = "오늘도 새로운 길을\n밝혀볼까요?"
-    static let toggleExplored = "탐험한 길"
-    static let toggleUnexplored = "안 가본 길"
+    /// 홈 지도 토글 — 지도에 **길이 보이냐 동네가 보이냐**를 고른다(v2). 예전의 "탐험한 길 /
+    /// 안 가본 길"을 대신한다. Android와 문구가 같아야 한다.
+    static let toggleScaleRoad = "길 단위"
+    static let toggleScaleDong = "동네 단위"
     static let exploredSuffix = "탐험했어요"
     static let createCourse = "코스 만들기"
     static let myLocation = "내 위치"
@@ -25,7 +27,10 @@ enum TabHomeStrings {
 }
 
 /// 보기 전환 토글에서 "안 가본 길"의 인덱스 — 아래 옵션 목록 순서와 짝이다.
-private let toggleIndexUnexplored = 1
+/// 토글 순서 — 0: 길 단위, 1: 동네 단위. **기본은 동네 단위**다: 앱을 열면 탐험률이 높은 동으로
+/// 포커스하는 기존 흐름이 동네 단위 보기라, 길 단위를 기본으로 하면 첫 화면이 바뀐다.
+private let toggleIndexRoad = 0
+private let toggleIndexDong = 1
 
 /// 홈 지도 오버레이. 지도 자체와 위치 권한 요청은 Map Shell([RunvealHomeShell])이 맡고,
 /// 여기서는 줌 레벨을 읽어 그 위에 얹는 UI만 그린다. Android `HomeMapOverlayScreen`에 해당한다.
@@ -50,15 +55,14 @@ struct HomeMapOverlayScreen: View {
     /// Swift는 호출 인자 순서가 선언을 따라야 해서, 콜백들을 모으고 이 값을 맨 뒤에 둔다.
     var retryToken: Int = 0
 
-    @State private var selectedToggleIndex = 0
+    @State private var selectedToggleIndex = toggleIndexDong
 
     /// 현재 위치의 행정동 — 서버에 한 번 물어 둔다(`IosCurrentDong`). 못 받으면 nil이고 화면은
     /// 대체 문구를 쓴다.
     @State private var currentDong: CurrentDong?
 
-    /// 지도 가운데 보이는 행정동 — 카메라가 멈출 때마다 다시 받는다. **줌인·줌아웃 두 패널이
-    /// 모두 이 값을 쓴다**(이름·탐험률·거리). 지도를 끌어 다른 동네를 둘러보는 게 목적이라,
-    /// 어느 줌에서든 화면에 보이는 곳의 이름이 맞다.
+    /// 지도 가운데 보이는 행정동 — 카메라가 멈출 때마다 다시 받는다(이름·탐험률·거리).
+    /// 지도를 끌어 다른 동네를 둘러보는 게 목적이라, 어느 줌에서든 화면에 보이는 곳의 이름이 맞다.
     @State private var centerDong: CurrentDong?
 
     /// 마지막으로 중심 동을 물어본 자리 — 여기서 [centerDongRefreshDistanceM]을 넘게 움직였을
@@ -123,26 +127,23 @@ struct HomeMapOverlayScreen: View {
     }
 
     var body: some View {
-        Group {
-            if mapState.isZoomedIn {
-                // TODO: 동 상세 진입은 아직 — Android도 `onDongClick = {}`으로 비워 둔 상태다.
-                ZoomedInMapOverlay(
-                    dongName: centerDong?.name ?? TabHomeStrings.currentLocation,
-                    tagLabel: dongTagLabel,
-                    ratePercent: ratePercent,
-                    exploredKm: exploredKm,
-                    totalKm: totalKm,
-                    selectedToggleIndex: selectedToggleIndex,
-                    onToggleSelect: { selectedToggleIndex = $0 },
-                    onDongClick: {},
-                    onCreateCourseClick: onCreateCourseClick,
-                    onRunStartClick: onRunStartClick,
-                    onMyLocationClick: { mapState.recenterToCurrentLocation() }
-                )
-            } else {
-                HomeMapOverlay(locationName: centerDong?.name ?? TabHomeStrings.currentLocation)
-            }
-        }
+        // 패널은 **줌과 무관하게 하나**다(v2) — 예전의 줌아웃 전용 오버레이([HomeMapOverlay])로
+        // 갈라지지 않는다.
+        //
+        // TODO: 동 상세 진입은 아직 — Android도 `onDongClick = {}`으로 비워 둔 상태다.
+        ZoomedInMapOverlay(
+            dongName: centerDong?.name ?? TabHomeStrings.currentLocation,
+            tagLabel: dongTagLabel,
+            ratePercent: ratePercent,
+            exploredKm: exploredKm,
+            totalKm: totalKm,
+            selectedToggleIndex: selectedToggleIndex,
+            onToggleSelect: { selectedToggleIndex = $0 },
+            onDongClick: {},
+            onCreateCourseClick: onCreateCourseClick,
+            onRunStartClick: onRunStartClick,
+            onMyLocationClick: { mapState.recenterToCurrentLocation() }
+        )
         // retryToken이 바뀌면 다시 돈다 — 셸의 "다시 시도" 버튼이 그 값을 올린다.
         .task(id: retryToken) {
             // 위치를 못 받으면(권한 없음·위치 꺼짐) 동 조회를 건너뛴다 — 흔한 상황이라 오류가 아니다.
@@ -159,8 +160,7 @@ struct HomeMapOverlayScreen: View {
             onDongLoadFailedChange(result.loadFailed)
         }
         // 카메라가 멈출 때마다 지도 가운데 동을 다시 묻는다 — `currentCenter`는 멈출 때만 바뀌므로
-        // (regionDidChangeAnimated) 끌고 있는 동안에는 요청이 나가지 않는다. 줌인·줌아웃 두 패널이
-        // 모두 이 값을 쓰므로 줌 상태를 가리지 않는다.
+        // (regionDidChangeAnimated) 끌고 있는 동안에는 요청이 나가지 않는다.
         .task(id: centerKey) { await loadCenterDong(mapState.currentCenter) }
         // 지도 라벨도 같은 동을 "메인"으로 크게 그린다 — 패널 이름과 지도에서 도드라지는 동이
         // 달라지면 어디를 보고 있는지 헷갈린다.
@@ -174,13 +174,11 @@ struct HomeMapOverlayScreen: View {
         // 빈 채로 남는다.
         .onChange(of: summary, initial: true) { _, new in onSummaryChange(new) }
         .onDisappear { mapState.mainDongCode = nil }
-        // "안 가본 길"을 고른 동안만 베이스 지도 도로를 강조한다 — 줌 아웃되거나 이 화면을 벗어나면
-        // 원래대로.
-        .onChange(of: unexploredRoadFocus) { _, focus in
-            mapState.unexploredRoadFocus = focus
+        // 토글이 정한 보기 단위를 지도에 알린다 — 줌은 더 이상 이걸 정하지 않는다(v2).
+        // 셸이 이 값으로 동 경계 묶음과 가본 길 소스를 가른다.
+        .onChange(of: selectedToggleIndex, initial: true) { _, index in
+            mapState.homeMapScale = index == toggleIndexRoad ? .road : .dong
         }
-        .onAppear { mapState.unexploredRoadFocus = unexploredRoadFocus }
-        .onDisappear { mapState.unexploredRoadFocus = false }
     }
 
     // 탐험률·거리는 지도 빛과 **같은 집계**에서 꺼낸다 — 다른 데서 계산하면 헤더는 8%인데 지도는
@@ -229,12 +227,12 @@ struct HomeMapOverlayScreen: View {
         centerDong = dong
     }
 
-    private var unexploredRoadFocus: Bool {
-        mapState.isZoomedIn && selectedToggleIndex == toggleIndexUnexplored
-    }
 }
 
 /// 줌아웃 상태 오버레이 — 상단 배경 + 빛 이미지 + 현재 위치 라벨 + 헤드라인.
+///
+/// **v2에서 쓰이지 않는다** — 패널을 줌인 모양 하나로 통일하면서 띄울 자리가 없어졌다. 지우지 않고
+/// 두는 건 줌아웃 전용 화면이 되살아날 여지가 남아서다.
 private struct HomeMapOverlay: View {
     let locationName: String
 
@@ -329,7 +327,7 @@ private struct ZoomedInMapOverlay: View {
                     onClick: onDongClick
                 )
                 RunvealSegmentedToggle(
-                    options: [TabHomeStrings.toggleExplored, TabHomeStrings.toggleUnexplored],
+                    options: [TabHomeStrings.toggleScaleRoad, TabHomeStrings.toggleScaleDong],
                     selectedIndex: selectedToggleIndex,
                     onSelect: onToggleSelect
                 )

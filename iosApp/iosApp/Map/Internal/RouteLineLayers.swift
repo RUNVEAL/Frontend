@@ -5,8 +5,10 @@ import MapLibre
 /// 새 구간)이 서로 다른 소스·레이어를 쓰게 한다 — 레이어 ID는 소스 ID에서 그대로 파생시킨다.
 ///
 /// 블러·두께·줌 보간 값은 토큰에 없는 지도 SDK 전용 튜닝이라 Android와 같은 숫자를 여기 상수로 둔다.
-/// `ZOOM_IN_THRESHOLD`보다 축소하면 숨긴다 — 그보다 축소된 뷰는 동/시군구/시도 탐험률 테두리를
-/// 보여주는 용도라 길 하나하나가 겹쳐 지저분해 보인다.
+///
+/// [minimumZoom]보다 축소하면 숨긴다. **홈의 누적 가본 길은 그 하한을 쓰지 않는다**(v2) — 길이
+/// 보이냐 동네가 보이냐를 이제 홈 토글이 정해서, 줌으로도 가리면 "토글로만"이 깨진다. 러닝 중
+/// 실시간 선은 기본값을 그대로 둔다.
 enum VisitedRoadLayer {
     private static let glowWidth: Double = 16
     private static let glowOpacity: Double = 0.45
@@ -24,7 +26,8 @@ enum VisitedRoadLayer {
         sourceId: String,
         geoJson: String?,
         coreColor: UIColor,
-        glowColor: UIColor? = nil
+        glowColor: UIColor? = nil,
+        minimumZoom: Double? = RunvealMapConfig.zoomInThreshold
     ) {
         MapSourceSupport.upsertShapeSource(style: style, sourceId: sourceId, geoJson: geoJson) { source in
             if let glowColor {
@@ -35,7 +38,8 @@ enum VisitedRoadLayer {
                     color: glowColor,
                     width: glowWidth,
                     opacity: glowOpacity,
-                    blur: glowBlur
+                    blur: glowBlur,
+                    minimumZoom: minimumZoom
                 )
                 addLineLayer(
                     style: style,
@@ -44,7 +48,8 @@ enum VisitedRoadLayer {
                     color: glowColor,
                     width: glowWidth / 2,
                     opacity: glowOpacity,
-                    blur: glowBlur / 2
+                    blur: glowBlur / 2,
+                    minimumZoom: minimumZoom
                 )
             }
             addLineLayer(
@@ -54,7 +59,8 @@ enum VisitedRoadLayer {
                 color: coreColor,
                 width: coreWidth,
                 opacity: coreOpacity,
-                blur: 0
+                blur: 0,
+                minimumZoom: minimumZoom
             )
         }
     }
@@ -66,7 +72,8 @@ enum VisitedRoadLayer {
         color: UIColor,
         width: Double,
         opacity: Double,
-        blur: Double
+        blur: Double,
+        minimumZoom: Double?
     ) {
         guard style.layer(withIdentifier: layerId) == nil else { return }
         let layer = MLNLineStyleLayer(identifier: layerId, source: source)
@@ -86,7 +93,7 @@ enum VisitedRoadLayer {
             zoomBase: zoomBase,
             smallScale: smallScale
         )
-        layer.minimumZoomLevel = Float(RunvealMapConfig.zoomInThreshold)
+        if let minimumZoom { layer.minimumZoomLevel = Float(minimumZoom) }
         style.addLayer(layer)
     }
 }

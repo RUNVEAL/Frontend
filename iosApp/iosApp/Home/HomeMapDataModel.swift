@@ -51,6 +51,17 @@ final class HomeMapDataModel: ObservableObject {
         (isRecordingOrPaused || hideRegionOverlays) ? nil : overlay
     }
 
+    /// 홈 토글이 "동네 단위"면 누적 "가본 길" 선을 숨긴다 — 동 경계와 길을 같이 깔면 서로를 덮는다.
+    ///
+    /// 레이어를 지우는 게 아니라 **소스를 비운다**([visibleOverlay]와 같은 방식) — 줌 레벨로 가리던
+    /// 걸 대신하는 자리라, 켜고 끄는 비용이 싸고 러닝 중 실시간 선에는 영향이 없다.
+    func visibleLayers(hideVisitedRoad: Bool) -> [String: String] {
+        guard hideVisitedRoad else { return layers }
+        var next = layers
+        next[RunvealMapConfig.sourceVisitedRoad] = IosHomeMapData.shared.emptyGeoJson
+        return next
+    }
+
     /// 서버에서 동 경계·탐험률을 다시 받아 오버레이를 새로 만든다 — 홈의 "다시 시도" 배너가 부른다.
     ///
     /// 지금 묶음이 반영하고 있던 기록([latestTrackId])을 그대로 넘긴다 — 다른 값을 넣으면

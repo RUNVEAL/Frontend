@@ -10,7 +10,9 @@ private let labelFontNames = ["Noto Sans Regular"]
 /// 색으로 보인다. 테두리는 반대로 단계별 색을 그대로 써서, 빛 이미지가 뜨기 전에도 테두리만으로
 /// 단계를 알 수 있게 한다.
 ///
-/// `SIGUNGU_SWITCH_ZOOM`~`ZOOM_IN_THRESHOLD` 사이에서만 보인다.
+/// `SIGUNGU_SWITCH_ZOOM`부터 보인다 — **줌 상한은 없다**(v2). 예전에는 `ZOOM_IN_THRESHOLD`보다
+/// 확대하면 숨겨서 가본 길에 자리를 내줬지만, 이제 길이냐 동네냐는 홈 토글이 정한다. 상한을 남겨
+/// 두면 "동네 단위"로 두고 확대했을 때 경계가 사라져 "토글로만"이 깨진다.
 enum DongOverlayLayer {
     private static let lineWidth: Double = 1.2
     private static let labelSize: Double = 11
@@ -24,7 +26,6 @@ enum DongOverlayLayer {
             let layer = MLNFillStyleLayer(identifier: RunvealMapConfig.layerDongFill, source: source)
             layer.fillColor = NSExpression(forConstantValue: UIColor(RunvealDong.style(level: 0).fill))
             layer.minimumZoomLevel = Float(RunvealMapConfig.sigunguSwitchZoom)
-            layer.maximumZoomLevel = Float(RunvealMapConfig.zoomInThreshold)
             style.addLayer(layer)
         }
 
@@ -41,7 +42,6 @@ enum DongOverlayLayer {
             }
             layer.lineWidth = NSExpression(forConstantValue: lineWidth)
             layer.minimumZoomLevel = Float(RunvealMapConfig.sigunguSwitchZoom)
-            layer.maximumZoomLevel = Float(RunvealMapConfig.zoomInThreshold)
             style.addLayer(layer)
         }
 
@@ -58,7 +58,6 @@ enum DongOverlayLayer {
             // 겹쳐서 하나만 남을 때 탐험률 높은 동을 살린다.
             layer.symbolSortKey = MapExpressions.labelSortKeyByPercent
             layer.minimumZoomLevel = Float(RunvealMapConfig.sigunguSwitchZoom)
-            layer.maximumZoomLevel = Float(RunvealMapConfig.zoomInThreshold)
             style.addLayer(layer)
         }
     }

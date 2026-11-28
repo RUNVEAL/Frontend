@@ -116,10 +116,14 @@ struct RunvealHomeShell: View {
         ZStack {
             RunvealMap(
                 state: mapState,
-                overlay: mapData.visibleOverlay(hideRegionOverlays: isCourseRecommendFlow)
+                // 동·시군구·시도 경계는 홈 토글이 "동네 단위"일 때만 — 코스 추천 흐름에서는 그대로 숨긴다.
+                overlay: mapData.visibleOverlay(
+                    hideRegionOverlays: isCourseRecommendFlow || mapState.homeMapScale == .road
+                )
             )
             .ignoresSafeArea()
-            .runvealMapLayers(mapState, mapData.layers)
+            // 누적 "가본 길"은 반대로 "길 단위"일 때만 — 둘 중 하나만 보이는 게 토글의 뜻이다.
+            .runvealMapLayers(mapState, mapData.visibleLayers(hideVisitedRoad: mapState.homeMapScale == .dong))
 
             content
 
@@ -277,25 +281,16 @@ struct RunvealHomeShell: View {
 
     // MARK: - 하단 패널/탭바
 
+    /// 하단 패널 — **줌과 무관하게 줌인 모양 하나로 통일했다**(v2).
+    ///
+    /// 예전에는 줌아웃일 때 요약 카드가 들어간 패널 전체를 띄웠지만, 이제 그 분기는 없다. 남는 건
+    /// 위치 배너가 있느냐뿐이다 — 있으면 배너를 탭바 위에 얹고, 없으면 탭바만 홀로 띄운다.
     @ViewBuilder
     private var bottomBar: some View {
         let banner = locationOffBanner
-        let isZoomedIn = mapState.isZoomedIn
 
-        if navigator.selectedTab == .home && !isZoomedIn {
-            // 홈 탭 · 줌아웃: 패널 전체(배너? + 요약 카드 + 탭바).
-            RunvealHomeBottomPanel(
-                banner: banner,
-                summary: AnyView(summaryCard),
-                onMyLocationClick: { mapState.recenterToCurrentLocation() }
-            ) {
-                tabBar(container: .embedded)
-            }
-            .padding(.horizontal, RunvealLayout.marginScreen)
-            .padding(.top, RunvealSpacing.space8)
-            .padding(.bottom, RunvealSpacing.space8 - Self.panelInnerInset)
-        } else if navigator.selectedTab == .home && isZoomedIn && banner != nil {
-            // 홈 탭 · 줌인 + 위치 꺼짐: 요약 카드는 생략하고 배너만 탭바 위에 얹는다.
+        if navigator.selectedTab == .home && banner != nil {
+            // 홈 탭 · 위치 꺼짐: 배너만 탭바 위에 얹는다.
             RunvealHomeBottomPanel(banner: banner) {
                 tabBar(container: .embedded)
             }
@@ -303,7 +298,7 @@ struct RunvealHomeShell: View {
             .padding(.top, RunvealSpacing.space8)
             .padding(.bottom, RunvealSpacing.space8 - Self.panelInnerInset)
         } else {
-            // 그 외(줌인 + 위치 정상, 다른 탭): 탭바만 홀로 띄운다.
+            // 그 외(위치 정상, 다른 탭): 탭바만 홀로 띄운다.
             tabBar(container: .floating)
                 .padding(.horizontal, RunvealLayout.marginScreen + Self.panelInnerInset)
                 .padding(.vertical, RunvealSpacing.space8)
@@ -371,6 +366,8 @@ struct RunvealHomeShell: View {
     }
 
     @ViewBuilder
+    /// **v2에서 쓰이지 않는다** — 줌아웃 전용 하단 패널이 사라지면서 띄울 자리가 없어졌다.
+    /// 지우지 않고 두는 건 줌아웃 패널이 되살아날 여지가 남아서다([bottomBar] 주석).
     private var summaryCard: some View {
         let summary = dongSummary
         // `>`는 **카드가 가리키는 동**을 가운데 두고 줌인한다 — 지도를 어디로 끌어 뒀든 상관없다

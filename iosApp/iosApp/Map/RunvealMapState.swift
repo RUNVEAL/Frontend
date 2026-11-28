@@ -129,8 +129,21 @@ final class RunvealMapState: ObservableObject {
         self.currentCenter = initialCenter
     }
 
-    /// 줌인(러닝 포커스) 상태인지 — 탭바·오버레이 전환 기준.
+    /// 줌인(러닝 포커스) 상태인지.
+    ///
+    /// **지금은 아무도 쓰지 않는다**(v2) — 패널은 줌과 무관하게 줌인 모양 하나로 통일됐고, 지도에
+    /// 길이 보이냐 동네가 보이냐는 [homeMapScale]이 정한다. 지우지 않고 두는 건 줌으로 갈리는
+    /// 화면이 되살아날 여지가 남아서다.
     var isZoomedIn: Bool { currentZoom >= RunvealMapConfig.zoomInThreshold }
+
+    /**
+     홈 지도가 무엇을 보여줄지 — 홈 상단 토글("길 단위" / "동네 단위")이 정한다.
+
+     **줌 레벨과 완전히 무관하다**(v2). 예전에는 줌아웃이면 동·시군구·시도 경계, 줌인이면 가본 길
+     선이었는데, 이제 토글만이 그걸 가른다 — 길 단위면 줌아웃에서도 가본 길이 보이고, 동네 단위면
+     줌인에서도 동 경계가 보인다.
+     */
+    @Published var homeMapScale: HomeMapScale = .dong
 
     func setLayer(id: String, geoJson: String) {
         layers[id] = geoJson
@@ -226,6 +239,14 @@ final class RunvealMapState: ObservableObject {
         boundsFocusBottomPadding = bottomPadding
         boundsFocusRequestId += 1
     }
+}
+
+/// 홈 지도가 보여줄 단위 — 홈 상단 토글이 고른다([RunvealMapState.homeMapScale]).
+enum HomeMapScale {
+    /// 가본 길 선을 보여주고 동·시군구·시도 경계는 숨긴다.
+    case road
+    /// 동·시군구·시도 경계를 보여주고 가본 길 선은 숨긴다.
+    case dong
 }
 
 /// Map Shell이 지도 위에 떠 있는 하단 패널(탭바 등)에 얹은 높이 — 줌인 오버레이의 하단 액션 줄처럼

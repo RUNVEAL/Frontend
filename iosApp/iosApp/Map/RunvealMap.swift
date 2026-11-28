@@ -279,7 +279,9 @@ private struct MapLibreMapViewRepresentable: UIViewRepresentable {
                 sourceId: RunvealMapConfig.sourceVisitedRoad,
                 geoJson: layers[RunvealMapConfig.sourceVisitedRoad],
                 coreColor: colors.visitedRoadCore,
-                glowColor: colors.visitedRoadGlow
+                glowColor: colors.visitedRoadGlow,
+                // 줌으로 가리지 않는다 — 홈 토글("길 단위")만이 이 선을 켜고 끈다(v2).
+                minimumZoom: nil
             )
             VisitedRoadLayer.apply(
                 style: style,
