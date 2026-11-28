@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -203,11 +205,20 @@ fun CourseRecommendResultScreen(
                             .fillMaxWidth()
                             .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
                     ) {
-                        // 화면 가운데에 카드 하나가 오게 좌우 패딩을 "뷰포트 - 카드" 절반씩 준다. 화면이
-                        // 좁아 음수가 나오면 기본 마진으로 떨어진다.
-                        val sidePadding = ((maxWidth - COURSE_CARD_WIDTH) / 2).coerceAtLeast(RunvealTheme.layout.marginScreen)
+                        // 좌우 패딩은 화면 마진(16)만 준다 — 그래야 첫 카드는 왼쪽, 마지막 카드는 오른쪽 마진에
+                        // 붙는다. 스냅은 "가장 가까운 카드를 뷰포트 가운데로"인데, 양 끝에서는 스크롤이 0·최대에서
+                        // 막혀 가운데까지 못 가고 마진에 멈추기 때문이다 — 클램프가 요구사항을 그대로 만들어 준다.
                         val listState = rememberLazyListState()
                         val coroutineScope = rememberCoroutineScope()
+
+                        // 카드를 가운데로 보낼 때 그 카드가 가져야 할 스크롤 오프셋(px). SnapPosition.Center가
+                        // 쓰는 식과 같다 — (뷰포트 - 좌우패딩)/2 - 카드/2 = (뷰포트 - 카드)/2 - 마진. 탭 스크롤이
+                        // 스냅과 어긋나지 않게 같은 값을 쓴다. 화면이 좁아 음수가 되면 0으로 떨어진다.
+                        val centerOffsetPx = with(LocalDensity.current) {
+                            ((maxWidth - COURSE_CARD_WIDTH) / 2 - RunvealTheme.layout.marginScreen)
+                                .coerceAtLeast(0.dp)
+                                .roundToPx()
+                        }
 
                         // 탭이 아니라 "화면 가운데에 와 있는 카드"가 선택 상태를 정한다 — 스크롤이 멈추면
                         // snapFlingBehavior가 카드 하나를 정확히 가운데로 맞추고, 그 카드의 routeId를
@@ -227,9 +238,15 @@ fun CourseRecommendResultScreen(
 
                         LazyRow(
                             state = listState,
-                            flingBehavior = rememberSnapFlingBehavior(listState),
+                            // 가장 가까운 카드를 뷰포트 가운데로 맞춘다 — 위 선택 판정도 "가운데에 가장 가까운
+                            // 카드"라 기준이 같아야 한다. 이 오버로드의 기본값도 Center지만, 패딩을 마진까지
+                            // 줄인 뒤로는 이게 동작의 전제라 드러내 둔다.
+                            flingBehavior = rememberSnapFlingBehavior(listState, SnapPosition.Center),
                             modifier = Modifier.fillMaxWidth(),
-                            contentPadding = PaddingValues(horizontal = sidePadding, vertical = RunvealTheme.spacing.space16),
+                            contentPadding = PaddingValues(
+                                horizontal = RunvealTheme.layout.marginScreen,
+                                vertical = RunvealTheme.spacing.space16,
+                            ),
                             horizontalArrangement = Arrangement.spacedBy(RunvealTheme.spacing.space16),
                         ) {
                             itemsIndexed(current.routes, key = { _, route -> route.routeId }) { index, route ->
@@ -242,7 +259,13 @@ fun CourseRecommendResultScreen(
                                         if (route.routeId == current.selectedRouteId) {
                                             onCourseClick(route.routeId)
                                         } else {
-                                            coroutineScope.launch { listState.animateScrollToItem(index) }
+                                            // 가운데로 보낸다 — animateScrollToItem은 기본이 좌측 정렬이라
+                                            // 스냅과 같은 오프셋을 음수로 줘야 가운데에 선다(양수는 더 끌어
+                                            // 당긴다). 첫·마지막 카드는 스크롤이 막혀 좌·우 마진에 붙은 채로
+                                            // 선택된다 — 그게 맞는 동작이다.
+                                            coroutineScope.launch {
+                                                listState.animateScrollToItem(index, scrollOffset = -centerOffsetPx)
+                                            }
                                         }
                                     },
                                 )
