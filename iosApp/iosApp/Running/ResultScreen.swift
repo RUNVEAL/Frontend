@@ -1,5 +1,6 @@
 import SharedLogic
 import SwiftUI
+import UIKit
 
 /// 러닝 결과 화면 — 기록 종료 직후 들어오지만, 동별 탐험률 변화는 최종 매칭(§6)이 끝나야 나와서
 /// 그때까지는 로딩만 보여준다.
@@ -7,10 +8,15 @@ struct ResultScreen: View {
     let onClose: () -> Void
 
     @StateObject private var viewModel = ResultViewModel()
-    @State private var isNotReadyToastVisible = false
+    /// 떠 있는 안내 문구 — nil이면 안 떠 있다. "개발 중"과 이미지 저장 결과가 같은 자리를 쓴다.
+    @State private var toastMessage: String?
+    /// 저장은 큰 비트맵을 만들고 보관함까지 쓴다 — 끝나기 전에 또 누르면 같은 그림을 두 장 만든다.
+    @State private var isSavingImage = false
 
     private static let glowWidth: CGFloat = 480
     private static let glowHeight: CGFloat = 320
+    /// 하단 버튼 그룹 높이 + 여백 — 토스트를 그 **위로** 띄운다. 버튼을 가리면 눌린 건지 알 수 없다.
+    private static let toastButtonInset: CGFloat = 72
 
     var body: some View {
         let colors = RunvealTheme.colors
@@ -33,7 +39,11 @@ struct ResultScreen: View {
                         .tint(colors.accent.default)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 case .ready(let ready):
-                    ResultContent(state: ready) { isNotReadyToastVisible = true }
+                    ResultContent(
+                        state: ready,
+                        onNotReadyClick: { toastMessage = RunningStrings.notReady },
+                        onSaveImageClick: { saveImage(state: ready) }
+                    )
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -52,29 +62,85 @@ struct ResultScreen: View {
                     .allowsHitTesting(false)
             }
 
-            if isNotReadyToastVisible {
+            if let toastMessage {
+                // 시안은 토스트를 **하단**에 둔다(`Overlay/Toast`: "하단 GNB(또는 하단 버튼) 위 8").
+                // 이 화면은 하단이 버튼 그룹이라 그 높이만큼 더 띄운다(Android도 같다).
                 VStack {
-                    RunvealToast(message: RunningStrings.notReady)
-                        .padding(.horizontal, RunvealLayout.marginScreen)
-                        .padding(.vertical, RunvealSpacing.space16)
                     Spacer()
+                    RunvealToast(message: toastMessage)
+                        .padding(.horizontal, RunvealLayout.marginScreen)
+                        .padding(.bottom, RunvealSpacing.space8 + Self.toastButtonInset)
                 }
             }
         }
         .onDisappear { viewModel.onDisappear() }
         // 토스트는 타이머를 모르는 순수 컴포넌트라 사라지는 건 여기서 재운다(다른 화면과 같은 규칙).
-        .task(id: isNotReadyToastVisible) {
-            guard isNotReadyToastVisible else { return }
+        .task(id: toastMessage) {
+            guard toastMessage != nil else { return }
             try? await Task.sleep(for: .seconds(3))
-            isNotReadyToastVisible = false
+            toastMessage = nil
         }
+    }
+
+    /// "이미지 저장하기" — 템플릿을 그려 사진 보관함에 넣고 결과를 토스트로 알린다.
+    ///
+    /// 그리기(`ImageRenderer`)와 상태 갱신은 메인에서만 돌아야 해서 Task에 `@MainActor`를 박는다.
+    private func saveImage(state: ResultReady) {
+        guard !isSavingImage else { return }
+        isSavingImage = true
+        Task { @MainActor in
+            // 지도는 **캡처 전에** 다 그려 둔다 — 캡처는 한 프레임에 끝나서, 템플릿 안에서 비동기로
+            // 불러오면 지도 자리가 빈 채로 찍힌다(Android에서 실제로 선만 나왔다).
+            let mapImage = await Self.renderShareMapImage(request: state.mapSnapshotRequest)
+            let rendered = ResultImageSaver.render(
+                ResultShareImage(state: state, mapImage: mapImage),
+                scale: ResultShareImage.scale
+            )
+            guard let rendered else {
+                toastMessage = RunningStrings.resultSaveImageFailure
+                isSavingImage = false
+                return
+            }
+            switch await ResultImageSaver.save(rendered) {
+            case .saved: toastMessage = RunningStrings.resultSaveImageSuccess
+            case .failed: toastMessage = RunningStrings.resultSaveImageFailure
+            case .permissionDenied: toastMessage = RunningStrings.resultSaveImagePermissionDenied
+            }
+            isSavingImage = false
+        }
+    }
+
+    /**
+     저장 이미지에 깔 지도 그림을 미리 그린다 — 화면 결과 카드와 **같은 스냅샷**이라 경로·새 길 색이
+     그대로다.
+
+     크기는 템플릿의 지도 자리를 내보낼 배율로 환산한 값이다. 캐시 파일명에 크기가 들어가서
+     (`CourseSnapshotRenderer`) 화면 카드용 캐시와 섞이지 않는다.
+
+     경로 점이 모자라거나(제자리 종료) 타일을 못 받으면 nil — 그때는 템플릿이 선만 그린다.
+
+     `CourseSnapshotRenderer`가 `@MainActor`라 이 함수도 메인에 묶어 둔다 — 격리 밖에서 `shared`를
+     건드리면 동시성 검사에 걸린다. 어차피 부르는 쪽도 메인(`saveImage`의 Task)이다.
+     */
+    @MainActor
+    private static func renderShareMapImage(request: SnapshotRequest?) async -> UIImage? {
+        guard let request else { return nil }
+        let widthPx = Int(ResultShareImage.mapWidth * ResultShareImage.scale)
+        let heightPx = Int(ResultShareImage.mapHeight * ResultShareImage.scale)
+        guard let url = await CourseSnapshotRenderer.shared.imageURL(
+            request: request,
+            widthPx: widthPx,
+            heightPx: heightPx
+        ) else { return nil }
+        return UIImage(contentsOfFile: url.path)
     }
 }
 
 private struct ResultContent: View {
     let state: ResultReady
-    /// 기록 상세·이미지 저장이 아직 없어서 누르면 안내만 띄운다(Android와 같다).
+    /// 기록 상세가 아직 없어서 누르면 안내만 띄운다(Android와 같다).
     let onNotReadyClick: () -> Void
+    let onSaveImageClick: () -> Void
 
     private static let mapCardHeight: CGFloat = 268
     /// 디자인 값 40 — spacing 스케일에 없어 그대로 하드코딩.
@@ -118,13 +184,12 @@ private struct ResultContent: View {
             }
 
             // TODO: 기록 상세 화면으로 이동 — 기록 탭의 상세를 재사용한다.
-            // TODO: 결과 카드를 이미지로 저장(공유) — 지도 스냅샷과 통계를 한 장으로 렌더링해야 한다.
-            //  둘 다 붙기 전까지는 "개발 중" 안내만 띄운다(Android도 같은 상태다).
+            //  붙기 전까지는 "개발 중" 안내만 띄운다(Android도 같은 상태다).
             RunvealButtonGroupEqual(
                 firstLabel: RunningStrings.resultDetailButton,
                 onFirstClick: onNotReadyClick,
                 secondLabel: RunningStrings.resultSaveImageButton,
-                onSecondClick: onNotReadyClick
+                onSecondClick: onSaveImageClick
             )
             .padding(.horizontal, RunvealLayout.marginScreen)
             .padding(.vertical, RunvealSpacing.space8)

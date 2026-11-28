@@ -33,6 +33,12 @@ enum RunningStrings {
     static let resultElapsedLabel = "시간"
     static let resultDetailButton = "기록 상세보기"
     static let resultSaveImageButton = "이미지 저장하기"
+    // 저장 이미지에서 지나간 동이 여럿일 때 — 첫 동만 적고 나머지는 개수로 줄인다.
+    static func resultShareMoreDong(_ count: Int) -> String { "외 \(count)개 동" }
+    // 결과 이미지 저장 안내
+    static let resultSaveImageSuccess = "사진에 저장했어요"
+    static let resultSaveImageFailure = "저장하지 못했어요"
+    static let resultSaveImagePermissionDenied = "저장하려면 사진 추가 권한이 필요해요"
     static let resultCloseAccessibilityLabel = "닫기"
     static let resultMapAccessibilityLabel = "이번 러닝 경로 지도"
     /// 기록 상세·이미지 저장은 아직 없다 — Android도 같은 문구의 안내만 띄운다.
@@ -41,6 +47,9 @@ enum RunningStrings {
     // 일시정지 배너 — 지도 위에 띄워 기록이 멈춘 걸 알린다(시안 C0-1).
     static let pausedBannerTitle = "일시정지 중"
     static let pausedBannerDescription = "러닝 기록이 멈췄어요"
+    // GPS 신호 약함 안내 — 기록이 끊길 수 있다는 걸 러닝 중에 알린다.
+    static let weakGpsBannerTitle = "GPS 신호가 약해요"
+    static let weakGpsBannerDescription = "일부 구간이 기록되지 않을 수 있어요."
 }
 
 /// 경과 시간·페이스 포맷 — 기록 화면과 결과 화면, 기록 탭이 같은 공식을 써야 한다

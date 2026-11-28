@@ -15,7 +15,6 @@ enum HomeStrings {
     static let serverDataErrorBannerMessageDong = "현재 위치 정보를 받지 못했어요"
     static let serverDataErrorBannerMessageRetrying = "데이터를 다시 받고 있어요"
     static let serverDataErrorBannerAction = "다시 시도"
-    static let recordingDiscardedToast = "100m·1분을 넘겨야 기록으로 저장돼요"
 
     static let tabHome = "홈"
     static let tabCourse = "내 코스"

@@ -80,11 +80,13 @@ struct RecordDetailScreen: View {
             }
 
             if isNotReadyToastVisible {
+                // 시안은 토스트를 **하단**에 둔다(`Overlay/Toast`: "하단 GNB(또는 하단 버튼) 위 8").
+                // 전체 화면이라 탭바가 없다 — 추가로 띄울 높이가 없다.
                 VStack {
+                    Spacer()
                     RunvealToast(message: TabRecordStrings.notReady)
                         .padding(.horizontal, RunvealLayout.marginScreen)
-                        .padding(.vertical, RunvealSpacing.space16)
-                    Spacer()
+                        .padding(.bottom, RunvealSpacing.space8)
                 }
             }
 

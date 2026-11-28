@@ -42,12 +42,18 @@ struct RecordingScreenState: UiState {
     /// 이번 러닝에서 처음 가보는 길만 합친 거리(km, 단위 없이 숫자만) — 총 거리와 달리 이미 가본
     /// 구간은 빠진다. 지도가 금색으로 칠하는 선과 같은 분류 결과를 쓴다(`LiveNewRoadHolder`).
     var newRoadLabel: String = "0.00"
+    /// GPS 신호가 약한지(`GpsSignalHolder`) — 지도 위에 안내를 띄운다. 일시정지 중에는 어차피
+    /// 기록을 안 하므로 화면이 안내를 숨긴다.
+    var isGpsWeak: Bool = false
     /// 떠 있는 종료 확인 다이얼로그. nil이면 안 떠 있다.
     var finishDialog: RecordingFinishDialog?
     /// "이 코스로 러닝 시작"으로 넘어온 코스 경로.
     var selectedCoursePath: [LatLon]?
     /// 선택한 코스가 순환이면 출발·도착이 같은 자리라 도착 핀을 생략한다(코스 상세와 같은 규칙).
     var selectedCourseIsLoop: Bool = false
+    /// 저장된 코스로 시작한 경우 그 코스의 id — 기록이 저장될 때 "달림"으로 적는 데 쓴다.
+    /// 자유 러닝이나 저장 전 추천 코스는 nil이다.
+    var selectedCourseId: String?
 }
 
 /// 종료 확인 다이얼로그에 넘길 것 — [willSaveRecord]가 false면 100m/1분을 못 채워 **저장되지 않는**

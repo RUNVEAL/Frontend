@@ -8,6 +8,7 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
 
     private var recordingSubscription: FlowSubscription?
     private var newRoadSubscription: FlowSubscription?
+    private var gpsSignalSubscription: FlowSubscription?
 
     init() {
         // "이 코스로 러닝 시작"으로 넘어온 코스를 한 번만 꺼내 초기 상태에 담는다 — 홀더는 읽는 순간
@@ -16,6 +17,7 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
         var initial = RecordingScreenState()
         initial.selectedCoursePath = selected?.path
         initial.selectedCourseIsLoop = selected?.isLoop ?? false
+        initial.selectedCourseId = selected?.courseId
         super.init(initialState: initial)
 
         // 러닝 기록 화면 진입 — 뷰모델이 만들어지는 이 시점이 곧 화면이 열린 시점이고, 들어온
@@ -27,12 +29,14 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
 
         observeRecording()
         observeNewRoad()
+        observeGpsSignal()
         startTicker()
     }
 
     deinit {
         recordingSubscription?.cancel()
         newRoadSubscription?.cancel()
+        gpsSignalSubscription?.cancel()
     }
 
     func onDisappear() {
@@ -40,6 +44,8 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
         recordingSubscription = nil
         newRoadSubscription?.cancel()
         newRoadSubscription = nil
+        gpsSignalSubscription?.cancel()
+        gpsSignalSubscription = nil
         cancelRunningTasks()
     }
 
@@ -64,14 +70,29 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
                 return next
             }
         case .stopClicked:
+            // 저장 여부는 여기서 한 번만 정해 트래커까지 그대로 넘긴다 — 트래커가 따로 다시 판단하면
+            // 그 사이 1분/100m 경계를 넘겨서 "홈으로 돌려보냈는데 기록은 저장됨" 같은 어긋남이 생긴다.
+            let saveRecord = Self.isRecordSavable()
             setState { state in
                 var next = state
                 next.finishDialog = nil
                 return next
             }
-            // 저장 여부는 여기서 한 번만 정해 트래커까지 그대로 넘긴다 — 트래커가 따로 다시 판단하면
-            // 그 사이 1분/100m 경계를 넘겨서 "홈으로 돌려보냈는데 기록은 저장됨" 같은 어긋남이 생긴다.
-            sendEffect(.stopTracking(saveRecord: Self.isRecordSavable()))
+            // 기록이 **저장될 때만** 그 코스를 달린 것으로 적는다 — 100m·1분을 못 채워 버려지는
+            // 러닝까지 세면 "달렸다"는 표시가 실제 기록과 어긋난다.
+            if saveRecord { markSelectedCourseRun() }
+            sendEffect(.stopTracking(saveRecord: saveRecord))
+        }
+    }
+
+    /// 저장된 코스로 달렸으면 그 코스에 마지막 달린 시각을 적는다 — "다음에 달려볼 코스" 카드가
+    /// 아직 안 달린 코스만 고르는 데 쓴다. 자유 러닝이면 적을 코스가 없어 그냥 지나간다
+    /// (Android `RecordingViewModel.markSelectedCourseRun`).
+    private func markSelectedCourseRun() {
+        guard let courseId = state.selectedCourseId else { return }
+        // DB 쓰기는 화면 밖에서 — 다른 코스 작업(`CourseScreen`)과 같은 방식이다.
+        Task.detached(priority: .userInitiated) {
+            IosCourseList.shared.markRun(courseId: courseId)
         }
     }
 
@@ -99,7 +120,8 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
                     // 전체 리셋을 쓰면 생성 시점에 미리 읽어 둔 값이 지워진다.
                     next = RecordingScreenState(
                         selectedCoursePath: state.selectedCoursePath,
-                        selectedCourseIsLoop: state.selectedCourseIsLoop
+                        selectedCourseIsLoop: state.selectedCourseIsLoop,
+                        selectedCourseId: state.selectedCourseId
                     )
                 }
                 return next
@@ -110,6 +132,19 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
     /// "새로 탐험한 길"은 지도(홈 셸)가 1초마다 돌리는 분류 결과를 그대로 받아 쓴다 — 여기서 또
     /// 분류하면 전국 구간 인덱스를 매초 두 번 훑게 되고, 지도 금색 선과 배지 숫자가 서로 다른
     /// 계산을 근거로 삼게 된다.
+    /// 점이 아예 안 들어오는 동안에도 신호 약함을 알아채려면 시간으로 다시 봐야 한다 —
+    /// 판정 자체는 공용(`GpsSignalHolder`)이고 여기서는 구독만 한다(Android와 같다).
+    private func observeGpsSignal() {
+        gpsSignalSubscription = RunvealFlowWatchers.shared.watchGpsSignalWeak { [weak self] isWeak in
+            guard let self else { return }
+            self.setState { state in
+                var next = state
+                next.isGpsWeak = isWeak.boolValue
+                return next
+            }
+        }
+    }
+
     private func observeNewRoad() {
         newRoadSubscription = RunvealFlowWatchers.shared.watchLiveNewRoadMeters { [weak self] meters in
             guard let self else { return }
@@ -131,6 +166,7 @@ final class RecordingViewModel: MviViewModel<RecordingIntent, RecordingScreenSta
                 guard let self else { return }
                 let snapshot = RunvealRecorder.shared.snapshot()
                 if snapshot.isRecordingOrPaused {
+                    GpsSignalHolder.shared.evaluate(nowEpochMs: Self.nowEpochMs)
                     let elapsedMs = RunvealRecorder.shared.elapsedMs(nowEpochMs: Self.nowEpochMs)
                     let distanceMeters = RunvealRecorder.shared.totalDistanceMeters()
                     self.setState { state in

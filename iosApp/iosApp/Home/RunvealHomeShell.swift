@@ -9,7 +9,6 @@ struct RunvealHomeShell: View {
     private static let panelInnerInset: CGFloat = 6
 
     /// 토스트가 떠 있는 시간 — 디자인시스템 토스트 주석의 "3초"를 그대로 따른다.
-    private static let toastDuration: Duration = .seconds(3)
 
     /// 줌인 오버레이의 하단 액션 줄이 위치 안내 배너 때문에 더 높아진 패널과 안 겹치게 추가로 띄워야
     /// 하는 높이. 배너(40) + 패널 안쪽 top padding(12) + 배너·탭바 사이 gap(4) - 패널이 대신하는
@@ -22,7 +21,6 @@ struct RunvealHomeShell: View {
     @StateObject private var permissionState = RunvealLocationPermissionState()
     @ObservedObject private var pendingCourseRun = RunvealPendingCourseRun.shared
 
-    @State private var toastMessage: String?
 
     /// 서버에서 동 이름을 못 받았는지 — 조회는 홈 지도 오버레이가 하고 그 결과만 올려 준다.
     @State private var isDongLoadFailed = false
@@ -125,15 +123,6 @@ struct RunvealHomeShell: View {
 
             content
 
-            if let toastMessage {
-                VStack {
-                    RunvealToast(message: toastMessage)
-                        .padding(.horizontal, RunvealLayout.marginScreen)
-                        .padding(.vertical, RunvealSpacing.space16)
-                    Spacer()
-                }
-            }
-
             if showTabBar {
                 VStack {
                     Spacer()
@@ -161,12 +150,6 @@ struct RunvealHomeShell: View {
         .onChange(of: pendingCourseRun.requestId) { _, newValue in
             guard newValue > 0 else { return }
             navigator.replaceStack(with: .recording)
-        }
-        // 토스트 자체는 타이머를 모르는 순수 컴포넌트라 사라지는 건 여기서 재운다.
-        .task(id: toastMessage) {
-            guard toastMessage != nil else { return }
-            try? await Task.sleep(for: Self.toastDuration)
-            toastMessage = nil
         }
         // 러닝 시작을 눌렀는데 위치가 준비 안 된 경우 — 무엇이 모자란지에 맞는 시트를 띄운다.
         // 권한을 먼저 보고, 권한이 있으면 위치 서비스를 본다(둘 중 하나만 꺼져도 좌표를 못 받는다).
@@ -278,12 +261,10 @@ struct RunvealHomeShell: View {
                 mapState: mapState,
                 // 기록 화면을 스택에서 빼야 결과에서 닫으면 홈이 된다.
                 onFinished: { navigator.replaceStack(with: .result) },
-                // 저장하지 않은 러닝은 결과 화면이 없으니 홈 지도로 되돌리고, 왜 기록이 안 남았는지
-                // 토스트로 알려 준다.
-                onDiscarded: {
-                    navigator.popToTab()
-                    toastMessage = HomeStrings.recordingDiscardedToast
-                }
+                // 저장하지 않은 러닝은 결과 화면이 없으니 홈 지도로 되돌리기만 한다. 왜 안 남았는지는
+                // 바로 앞의 종료 다이얼로그("러닝 기록이 너무 짧아요")가 이미 알려 줘서, 돌아온 뒤에
+                // 토스트로 한 번 더 말하지 않는다(Android도 같다).
+                onDiscarded: { navigator.popToTab() }
             )
         case .result:
             ResultScreen(onClose: { navigator.popToTab() })
