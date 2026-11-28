@@ -34,10 +34,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -87,6 +93,7 @@ import com.sloth.runveal.designsystem.theme.RunvealTheme
 import com.sloth.runveal.feature.courserecommend.R
 import com.sloth.runveal.map.MapConfig
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import com.sloth.runveal.designsystem.R as DesignSystemR
 
@@ -135,12 +142,56 @@ fun CourseRecommendResultScreen(
         )
     }
     MapDotMarkers(courseMarkers)
-    LaunchedEffect(readyState?.selectedRouteId, readyState?.routes) {
+
+    /**
+     * 경로를 칩 줄과 카드 줄 **사이**에 맞추려고 재는 값들 — 모두 window 기준 절대 좌표(px)다.
+     *
+     * 지도는 엣지투엣지라 뷰포트가 화면 전체이고 focusOnBounds의 여백도 화면 가장자리 기준이어서,
+     * 좌표계가 그대로 맞아떨어진다. inset을 **뺀** 값을 넘기면 그만큼 모자라 경로가 칩·카드에 닿는다 —
+     * 이전 구현이 그랬다(재는 지점이 windowInsetsPadding **안쪽**이라 상태바·내비바 높이가 빠졌다).
+     *
+     * 기준은 **보이는 UI의 끝**이다 — 칩이 그려지는 영역의 아래 끝, 카드가 그려지기 시작하는 위 끝.
+     * 투명한 패딩까지 피하면 그만큼 여백이 더 벌어져 위아래가 어긋난다.
+     */
+    var mapViewportHeightPx by remember { mutableIntStateOf(0) }
+    var chipsBottomPx by remember { mutableIntStateOf(0) }
+    var cardsRowTopPx by remember { mutableIntStateOf(0) }
+
+    // 시안(B1) 기준 — 경로는 칩 줄 아래 16, 카드 위 16, 좌우 16 안쪽에 들어와야 한다.
+    val density = LocalDensity.current
+    val routeMargin = RunvealTheme.layout.marginScreen
+    // 카드 줄 LazyRow가 contentPadding으로 두르는 위아래 여백 — 그 Box의 위 끝과 카드가 보이는 위
+    // 끝의 차이다. 아래 bottomPadding에서 이만큼 되돌려야 "카드에서 16"이 된다.
+    val cardsRowVerticalPadding = RunvealTheme.spacing.space16
+    LaunchedEffect(
+        readyState?.selectedRouteId,
+        readyState?.routes,
+        mapViewportHeightPx,
+        chipsBottomPx,
+        cardsRowTopPx,
+    ) {
         val selected = readyState?.routes?.firstOrNull { it.routeId == readyState.selectedRouteId } ?: return@LaunchedEffect
-        mapState.focusOnBounds(selected.path)
+        // 아직 한 번도 재지 못했으면 기다린다 — 0으로 맞추면 첫 프레임에 엉뚱한 줌이 잡히고,
+        // 측정이 들어오면 이 effect가 다시 돈다(값이 key에 있다).
+        if (mapViewportHeightPx == 0 || chipsBottomPx == 0 || cardsRowTopPx == 0) return@LaunchedEffect
+        mapState.focusOnBounds(
+            points = selected.path,
+            horizontalPadding = routeMargin,
+            // 칩이 보이는 아래 끝에서 16. chipsBottomPx가 이미 화면 최상단(상태바 포함) 기준이다.
+            topPadding = with(density) { chipsBottomPx.toDp() } + routeMargin,
+            // 카드가 보이는 위 끝에서 16 — 화면 아래 끝에서 카드 줄 Box까지 거리에서 contentPadding을
+            // 빼면 카드가 실제로 그려지는 선이 된다.
+            bottomPadding = with(density) { (mapViewportHeightPx - cardsRowTopPx).toDp() } -
+                cardsRowVerticalPadding + routeMargin,
+        )
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            // 지도 뷰포트 높이 — 이 Box는 insets를 소비하지 않아 화면 전체와 같다.
+            .onSizeChanged { mapViewportHeightPx = it.height },
+    ) {
         // 추천 결과가 없을 땐 한 장짜리 안내 화면이다(시안 B1-1) — 뒤에 지도가 비치면 "코스를 못
         // 찾았다"면서 지도만 덩그러니 보이게 돼서, 화면 배경색으로 덮는다.
         if (readyState?.emptyMessage != null) {
@@ -181,7 +232,11 @@ fun CourseRecommendResultScreen(
                 SettingsSummaryRow(
                     settings = readyState.settings,
                     onSettingsClick = { viewModel.onIntent(CourseRecommendResultIntent.OpenFilterSheet) },
-                    modifier = Modifier.padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space12),
+                    // 칩이 보이는 아래 끝을 잰다 — padding **뒤**에 달아야 투명한 여백이 아니라
+                    // 칩이 그려지는 영역의 끝이 나온다.
+                    modifier = Modifier
+                        .padding(horizontal = RunvealTheme.layout.marginScreen, vertical = RunvealTheme.spacing.space12)
+                        .onGloballyPositioned { chipsBottomPx = it.boundsInWindow().bottom.roundToInt() },
                 )
             }
         }
@@ -203,7 +258,10 @@ fun CourseRecommendResultScreen(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
                             .fillMaxWidth()
-                            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom)),
+                            .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+                            // 카드 줄의 위 끝(window 기준). 카드가 보이는 위 끝은 여기서
+                            // contentPadding(space16)만큼 아래다 — 위 bottomPadding 계산이 그걸 뺀다.
+                            .onGloballyPositioned { cardsRowTopPx = it.boundsInWindow().top.roundToInt() },
                     ) {
                         // 좌우 패딩은 화면 마진(16)만 준다 — 그래야 첫 카드는 왼쪽, 마지막 카드는 오른쪽 마진에
                         // 붙는다. 스냅은 "가장 가까운 카드를 뷰포트 가운데로"인데, 양 끝에서는 스크롤이 0·최대에서
