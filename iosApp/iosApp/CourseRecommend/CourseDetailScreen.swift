@@ -76,7 +76,11 @@ struct CourseDetailScreen: View {
 
     private func focusCourse() {
         guard let ready, ready.path.count >= 2 else { return }
-        mapState.focusOnBounds(points: ready.path, extraBottomPadding: sheetHeight)
+        // 바텀시트가 덮는 만큼 아래를 더 비운다 — 기본 여백은 그대로 두고 시트 높이만 더한다.
+        mapState.focusOnBounds(
+            points: ready.path,
+            bottomPadding: RunvealMapState.boundsFocusPadding + sheetHeight
+        )
     }
 
     // MARK: - 바텀시트
