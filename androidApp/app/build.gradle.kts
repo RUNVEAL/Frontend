@@ -26,6 +26,13 @@ fun buildSecret(key: String): String? =
  */
 if (file("google-services.json").exists()) {
     apply(plugin = libs.plugins.googleServices.get().pluginId)
+    // Crashlytics 플러그인도 같은 조건 안에 둔다 — google-services 플러그인이 만들어 주는 Firebase
+    // 앱 정보를 전제로 하므로, 밖으로 빼면 google-services.json 없는 사람·CI에서 빌드가 깨진다.
+    //
+    // 이 플러그인이 하는 일은 release의 R8 매핑 파일을 Crashlytics에 올려 주는 것이다(기본 켜짐).
+    // 난독화된 스택트레이스를 읽을 수 있게 만드는 쪽이라 Crashlytics를 넣는 의미의 절반이 여기 있다 —
+    // 대신 릴리즈 빌드에 매핑 업로드 네트워크 단계가 하나 붙는다.
+    apply(plugin = libs.plugins.firebaseCrashlytics.get().pluginId)
 }
 
 dependencies {
@@ -53,6 +60,16 @@ dependencies {
     // 코드가 컴파일되는지는 파일 유무와 무관해야 하기 때문이다.
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
+
+    // Crashlytics. 수집은 Analytics와 달리 **모든 빌드에서** 켜 둔다(SDK 기본값) — 그래서
+    // `firebase_crashlytics_collection_enabled` 스위치를 따로 두지 않는다. iOS도 Crashlytics는
+    // 빌드 구분 없이 켜 둬서 두 플랫폼이 같은 걸 보고하고, 위에서 Analytics를 릴리즈로 묶은 이유
+    // (개발 중 이벤트가 사용자 수·세션을 부풀린다)는 크래시엔 적용되지 않는다 — 개발 중 크래시도
+    // 봐야 하는 쪽이다.
+    //
+    // MapLibre가 들고 오는 네이티브 라이브러리의 크래시는 심볼 없이 올라간다 —
+    // firebase-crashlytics-ndk는 NDK 설치와 unstripped 라이브러리 경로 설정까지 끌고 와서 범위 밖.
+    implementation(libs.firebase.crashlytics)
 }
 
 android {

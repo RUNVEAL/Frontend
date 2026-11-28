@@ -1937,7 +1937,11 @@
         "contentGap": "{primitive.space.12}",
         "titleGap": "{primitive.space.8}",
         "tagGap": "{primitive.space.4}",
-        "statsGap": "{primitive.space.12}"
+        "statsGap": "{primitive.space.12}",
+        "statsWidth": 178,
+        "statsHeight": "34 (축소 시 32)",
+        "statsFit": "Stat 4개 왼쪽 정렬, 각각 Hug — 남는 공간은 오른쪽. Stat 너비 합 + 36 > 178이면 축소: 간격 12→8, 값만 num/s→12/14(자간 -1%)·unit/s→10/12, 라벨은 그대로. 안드로이드는 178을 박지 않고 실제 가용 폭과 비교한다.",
+        "textLines": "카드 안 모든 텍스트 1줄 고정(줄바꿈 없음)"
       },
       "styles": {
         "default": {
@@ -2294,6 +2298,7 @@
         ]
       },
       "layout": {
+        "width": "화면 너비 - 좌우 {layout.margin.screen}",
         "paddingVertical": "{primitive.space.12}",
         "paddingHorizontal": "{primitive.space.16}",
         "gap": "{primitive.space.12}",
