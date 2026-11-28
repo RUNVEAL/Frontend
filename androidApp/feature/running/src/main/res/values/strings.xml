@@ -15,6 +15,9 @@
     <string name="recording_new_distance_format">+%1$skm</string>
     <string name="recording_paused_banner_title">일시정지 중</string>
     <string name="recording_paused_banner_description">러닝 기록이 멈췄어요</string>
+    <!-- GPS 신호 약함 안내 — 기록이 끊길 수 있다는 걸 러닝 중에 알린다. -->
+    <string name="recording_weak_gps_banner_title">GPS 신호가 약해요</string>
+    <string name="recording_weak_gps_banner_description">일부 구간이 기록되지 않을 수 있어요.</string>
     <string name="recording_finish_dialog_title">러닝을 끝낼까요?</string>
     <string name="recording_finish_dialog_description">지금까지 달린 기록이 저장되고
 탐험 지도에 반영돼요.</string>
@@ -36,7 +39,12 @@
     <string name="result_save_image_button">이미지 저장하기</string>
     <string name="result_close_content_description">닫기</string>
     <string name="result_map_content_description">이번 러닝 경로 지도</string>
-    <!-- GPS 신호 약함 안내 — 기록이 끊길 수 있다는 걸 러닝 중에 알린다. -->
-    <string name="recording_weak_gps_banner_title">GPS 신호가 약해요</string>
-    <string name="recording_weak_gps_banner_description">일부 구간이 기록되지 않을 수 있어요.</string>
+    <!-- 저장 이미지의 통계 라벨 — 화면용("경과 시간")과 달리 한 줄에 세 칸이라 짧게 쓴다(시안). -->
+    <string name="result_share_elapsed_label">시간</string>
+    <!-- 저장 이미지에서 지나간 동이 여럿일 때 — 첫 동만 적고 나머지는 개수로 줄인다. -->
+    <string name="result_share_more_dong_format">외 %1$d개 동</string>
+    <!-- 결과 이미지 저장 안내 -->
+    <string name="result_save_image_success">사진에 저장했어요</string>
+    <string name="result_save_image_failure">저장하지 못했어요</string>
+    <string name="result_save_image_permission_denied">저장하려면 저장 공간 권한이 필요해요</string>
 </resources>
