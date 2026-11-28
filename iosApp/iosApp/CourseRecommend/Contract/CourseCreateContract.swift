@@ -42,8 +42,8 @@ enum CourseCreateOptions {
     static let defaultDistance = "5km"
     static let filterOptions = ["신호/횡단보도 적은 길", "완만한 길", "공원 지나가기", "하천길 따라가기"]
 
-    /// 1km ~ 42km, 0.5km 단위. 인덱스 22 = "12" (휠 피커 기본값).
-    static let customDistanceValues: [String] = (2...84).map { step in
+    /// 1km ~ 21km, 0.5km 단위. 인덱스 22 = "12" (휠 피커 기본값).
+    static let customDistanceValues: [String] = (2...42).map { step in
         let km = Double(step) / 2
         return km == km.rounded() ? "\(Int(km))" : "\(km)"
     }

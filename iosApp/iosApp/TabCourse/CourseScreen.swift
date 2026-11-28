@@ -49,6 +49,10 @@ struct CourseScreen: View {
     @State private var isNotReadyToastVisible = false
     /// 떠 있는 더보기 메뉴 — 어느 코스의 어느 자리인지. nil이면 안 떠 있다.
     @State private var moreMenu: CourseMoreMenuTarget?
+    /// 메뉴를 띄울 좌표 공간의 높이. 아래로 띄우면 탭바에 가리는지 재는 기준이다.
+    @State private var menuSpaceHeight: CGFloat = 0
+    /// 떠 있는 메뉴의 높이. 항목 수에 따라 달라져서 그릴 때 재 둔다.
+    @State private var menuHeight: CGFloat = 0
 
     /**
      위 큰 카드에 띄울 코스 — 목록에서 고른 것, 아직 아무것도 안 골랐으면 가장 최근에 저장한
@@ -67,8 +71,10 @@ struct CourseScreen: View {
 
     /// 더보기 아이콘 자리를 재는 기준 좌표 공간 — 화면 루트에 이름을 붙여 둔다.
     private static let menuSpace = "course-more-menu"
-    /// 아이콘과 메뉴 사이 간격. 아이콘을 가리지 않게 **아래로** 띄운다.
+    /// 아이콘과 메뉴 사이 간격. 아이콘을 가리지 않게 띄운다.
     private static let menuGap: CGFloat = 4
+    /// 하단 플로팅 탭바가 덮는 높이 — 목록이 탭바를 피할 때 쓰는 값과 같다. 메뉴도 여기까지만 내려간다.
+    private static let tabBarInset: CGFloat = RunvealLayout.sizeTabBar + RunvealSpacing.space24
 
     var body: some View {
         let colors = RunvealTheme.colors
@@ -135,7 +141,7 @@ struct CourseScreen: View {
                 }
                 .frame(maxWidth: .infinity)
                 // 하단 플로팅 탭바에 가리지 않게 — 탭바 높이 + 위아래 여백만큼 띄운다.
-                .padding(.bottom, RunvealLayout.sizeTabBar + RunvealSpacing.space24)
+                .padding(.bottom, Self.tabBarInset)
             }
 
             if courses.isEmpty && !isLoading {
@@ -168,6 +174,14 @@ struct CourseScreen: View {
         }
         // 더보기 아이콘이 자기 자리를 재는 기준 — 메뉴를 띄우는 자리와 같은 공간이어야 한다.
         .coordinateSpace(name: Self.menuSpace)
+        // 그 공간이 얼마나 높은지도 같이 재 둔다 — 메뉴를 위로 뒤집을지 여기서 갈린다.
+        .background(
+            GeometryReader { geometry in
+                Color.clear
+                    .onAppear { menuSpaceHeight = geometry.size.height }
+                    .onChange(of: geometry.size.height) { _, next in menuSpaceHeight = next }
+            }
+        )
         .task { await reload() }
         // 토스트 자체는 타이머를 모르는 순수 컴포넌트라 사라지는 건 여기서 재운다.
         .task(id: isNotReadyToastVisible) {
@@ -220,7 +234,8 @@ struct CourseScreen: View {
     /// 카드 안에서 그리면 `clipShape`에 잘리고 러닝 시작 버튼이 위를 덮는다. 여기서 그리면 둘 다
     /// 없어지고, 바깥을 눌러 닫는 것도 같이 붙는다(Android `DropdownMenu`와 같은 동작).
     ///
-    /// 자리는 아이콘 **바로 아래**다 — 아이콘을 가리지 않아야 어느 줄의 메뉴인지 보인다.
+    /// 자리는 아이콘 **바로 아래**다 — 아이콘을 가리지 않아야 어느 줄의 메뉴인지 보인다. 다만
+    /// 목록 끝 줄처럼 아래로 띄우면 하단 플로팅 탭바에 덮이는 자리에서는 위로 뒤집는다([menuTop]).
     @ViewBuilder
     private var moreMenuOverlay: some View {
         if let target = moreMenu {
@@ -249,12 +264,35 @@ struct CourseScreen: View {
                         deleteTarget = target.course
                     }
                 )
-                // 오른쪽 끝을 아이콘에 맞추고, 아이콘 아래로 내린다. 가로는 메뉴 폭만큼 되돌려야
-                // 오른쪽 정렬이 된다.
+                // 항목 수에 따라 높이가 달라져서 그릴 때 재 둔다 — 위로 뒤집을지 이 높이로 가린다.
+                .background(
+                    GeometryReader { geometry in
+                        Color.clear
+                            .onAppear { menuHeight = geometry.size.height }
+                            .onChange(of: geometry.size.height) { _, next in menuHeight = next }
+                    }
+                )
+                // 재기 전 한 프레임은 자리를 모른다 — 아래에 잠깐 떴다가 올라가는 게 보이지 않게 숨긴다.
+                .opacity(menuHeight > 0 ? 1 : 0)
+                // 오른쪽 끝을 아이콘에 맞춘다. 가로는 메뉴 폭만큼 되돌려야 오른쪽 정렬이 된다.
                 .alignmentGuide(.leading) { dimension in -(target.anchor.maxX - dimension.width) }
-                .alignmentGuide(.top) { _ in -(target.anchor.maxY + Self.menuGap) }
+                .alignmentGuide(.top) { _ in -menuTop(anchor: target.anchor) }
             }
         }
+    }
+
+    /// 메뉴 위쪽 모서리가 놓일 자리(좌표 공간 기준).
+    ///
+    /// 기본은 아이콘 **바로 아래**다. 거기로 내리면 하단 플로팅 탭바에 덮이는 줄 — 목록 끝 쪽 —
+    /// 에서만 아이콘 **위로** 뒤집는다(Android `MenuBelowAnchorPositionProvider`와 같은 규칙).
+    private func menuTop(anchor: CGRect) -> CGFloat {
+        let below = anchor.maxY + Self.menuGap
+        // 아직 못 잰 동안은 기본 자리 — 어차피 `menuHeight`가 0이면 메뉴를 숨겨 둔다.
+        guard menuHeight > 0, menuSpaceHeight > 0 else { return below }
+        guard below + menuHeight > menuSpaceHeight - Self.tabBarInset else { return below }
+        let above = anchor.minY - Self.menuGap - menuHeight
+        // 위로도 자리가 모자라면(화면이 아주 짧은 경우) 아래 그대로 둔다 — 잘려 나가는 것보단 낫다.
+        return above >= 0 ? above : below
     }
 
     private func reload() async {

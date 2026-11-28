@@ -41,6 +41,9 @@ enum RunningStrings {
     // 일시정지 배너 — 지도 위에 띄워 기록이 멈춘 걸 알린다(시안 C0-1).
     static let pausedBannerTitle = "일시정지 중"
     static let pausedBannerDescription = "러닝 기록이 멈췄어요"
+    // GPS 신호 약함 안내 — 기록이 끊길 수 있다는 걸 러닝 중에 알린다.
+    static let weakGpsBannerTitle = "GPS 신호가 약해요"
+    static let weakGpsBannerDescription = "일부 구간이 기록되지 않을 수 있어요."
 }
 
 /// 경과 시간·페이스 포맷 — 기록 화면과 결과 화면, 기록 탭이 같은 공식을 써야 한다

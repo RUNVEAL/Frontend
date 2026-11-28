@@ -39,6 +39,15 @@ struct RecordingScreen: View {
                             description: RunningStrings.pausedBannerDescription
                         )
                     }
+                    // 신호가 약하면 기록이 끊길 수 있다는 걸 알린다 — 나중에 결과에서 거리가 짧게
+                    // 나왔을 때 이유를 알 수 있어야 한다. 일시정지 중에는 기록을 안 하므로 띄우지 않는다.
+                    if viewModel.state.isGpsWeak, viewModel.state.phase == .recording {
+                        RunvealNavigationBanner(
+                            icon: RunvealIcons.alert,
+                            instruction: RunningStrings.weakGpsBannerTitle,
+                            description: RunningStrings.weakGpsBannerDescription
+                        )
+                    }
                     NewRoadBadge(distanceLabel: viewModel.state.newRoadLabel)
                 }
                 .padding(.horizontal, RunvealLayout.marginScreen)

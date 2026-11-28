@@ -9,6 +9,7 @@ import com.sloth.runveal.recording.TrackRecorder
 import com.sloth.runveal.result.LiveMatchHolder
 import com.sloth.runveal.result.LiveNewRoadHolder
 import com.sloth.runveal.result.TrackResult
+import com.sloth.runveal.recording.GpsSignalHolder
 import com.sloth.runveal.result.TrackResultHolder
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -55,6 +56,10 @@ object RunvealFlowWatchers {
 
     fun watchLiveNewRoadMeters(onEach: (Double) -> Unit): FlowSubscription =
         LiveNewRoadHolder.state.watch(onEach)
+
+    /** 러닝 중 GPS 신호가 약한지([GpsSignalHolder]) — 화면이 안내 배너를 띄울지 정한다. */
+    fun watchGpsSignalWeak(onEach: (Boolean) -> Unit): FlowSubscription =
+        GpsSignalHolder.isWeak.watch(onEach)
 
     fun watchAuthState(viewModel: AuthViewModel, onEach: (AuthState) -> Unit): FlowSubscription =
         viewModel.state.watch(onEach)
