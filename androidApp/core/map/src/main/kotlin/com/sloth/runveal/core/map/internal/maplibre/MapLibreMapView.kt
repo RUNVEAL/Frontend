@@ -220,10 +220,24 @@ internal fun MapLibreMapView(
         val focusColor = if (unexploredRoadFocus) mapColors.roadUnexploredFocus else null
         style?.let { baseStyleRoadFocus.apply(it, focusColor) }
     }
+    // 홈 토글이 정한 보기 단위 — 길/동네 전용 레이어의 가시성이 여기에 달려 있다. 홈이 아닌
+    // 화면에서는 null이라 각 레이어가 예전처럼 줌으로 판단한다.
+    val overlayLevel = state.overlayLevel
+    // 베이스 POI 라벨은 스타일이 로드될 때 한 번 올리지만, 보기 단위가 바뀌면 줌 범위를 다시 맞춰야 한다.
+    LaunchedEffect(style, overlayLevel, mapColors) {
+        style?.let { BaseStylePoiLabels.show(it, mapColors, overlayLevel) }
+    }
     val visitedRoadGeoJson = state.layers[MapConfig.SOURCE_VISITED_ROAD]
-    LaunchedEffect(style, visitedRoadGeoJson, mapColors) {
+    LaunchedEffect(style, visitedRoadGeoJson, mapColors, overlayLevel) {
         style?.let {
-            VisitedRoadLayer.apply(it, MapConfig.SOURCE_VISITED_ROAD, visitedRoadGeoJson, mapColors.visitedRoadCore, mapColors.visitedRoadGlow)
+            VisitedRoadLayer.apply(
+                it,
+                MapConfig.SOURCE_VISITED_ROAD,
+                visitedRoadGeoJson,
+                mapColors.visitedRoadCore,
+                mapColors.visitedRoadGlow,
+                overlayLevel = overlayLevel,
+            )
         }
     }
     val liveRunOldGeoJson = state.layers[MapConfig.SOURCE_LIVE_RUN_OLD]
@@ -249,12 +263,21 @@ internal fun MapLibreMapView(
         style?.let { CourseGuideLayer.apply(it, MapConfig.SOURCE_RECORDING_COURSE_GUIDE, courseGuideGeoJson, mapColors) }
     }
     // 메인 동이 바뀌면 라벨 크기가 옮겨가야 하므로 key에 넣는다.
-    LaunchedEffect(style, dongOverlay, mapColors, state.mainDongCode) {
-        style?.let { DongOverlayLayer.apply(it, dongOverlay, mapColors, state.mainDongCode) }
+    LaunchedEffect(style, dongOverlay, mapColors, state.mainDongCode, overlayLevel) {
+        style?.let { DongOverlayLayer.apply(it, dongOverlay, mapColors, state.mainDongCode, overlayLevel) }
     }
     // 동 빛 이미지. dongOverlay(단계 변경)·카메라 멈춤(화면 범위 변경)·생성 완료 중 하나라도 바뀌면
     // 다시 계산한다(docs/DONG_GLOW_ON_DEVICE.md Step 4).
-    LaunchedEffect(style, liveMap, dongOverlay, dongGlowPolygonParts, dongBoundarySourceKey, cameraIdleTick, glowAssetReadyTick) {
+    LaunchedEffect(
+        style,
+        liveMap,
+        dongOverlay,
+        dongGlowPolygonParts,
+        dongBoundarySourceKey,
+        cameraIdleTick,
+        glowAssetReadyTick,
+        overlayLevel,
+    ) {
         val currentStyle = style ?: return@LaunchedEffect
         val currentMap = liveMap ?: return@LaunchedEffect
         dongGlowImageLayer.refresh(
@@ -263,6 +286,7 @@ internal fun MapLibreMapView(
             dongOverlay?.fillGeoJson,
             dongGlowPolygonParts,
             dongBoundarySourceKey,
+            overlayLevel = overlayLevel,
         )
     }
     LaunchedEffect(style, sigunguOverlay, mapColors) {

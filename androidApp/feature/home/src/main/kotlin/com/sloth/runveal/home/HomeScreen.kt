@@ -47,6 +47,7 @@ import com.sloth.runveal.core.map.LocalMapOverlayBottomInset
 import com.sloth.runveal.core.map.LocalMapState
 import com.sloth.runveal.core.map.MapLayerSpec
 import com.sloth.runveal.core.map.MapLayers
+import com.sloth.runveal.core.map.MapOverlayLevel
 import com.sloth.runveal.core.map.MapState
 import com.sloth.runveal.core.map.RunvealMap
 import com.sloth.runveal.core.map.buildVisitedRoadGeoJson
@@ -218,7 +219,6 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
     val visibleEntries by tabNavigator.navController.visibleEntries.collectAsStateWithLifecycle()
     val isMapDestination = visibleEntries.isEmpty() ||
         visibleEntries.all { it.destination.isMapDestination() }
-    val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
 
     // 지금 서 있는 동 — 조회는 홈 지도 오버레이가 하고(tab-home), 여기선 그 결과만 본다.
     val currentDong by CurrentDongHolder.state.collectAsStateWithLifecycle()
@@ -297,6 +297,11 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
      *
      * 이름은 번들에서 꺼낸다([DongOverlayBundle.dongNames]) — 지도 라벨과 같은 이름이고, 좌표로
      * `/api/v1/dong`을 또 부르지 않아도 된다. 둘 다 없으면 null이라 카드가 대체 문구를 쓴다.
+     *
+     * **지금은 아무도 읽지 않는다.** 패널을 줌인 모양 하나로 통일하면서(v2) 줌아웃 요약 카드를 더
+     * 그리지 않기 때문이다. 이 블록(panelDong·panelDongCenter·dongThumbnailRequest)과
+     * RunvealSummaryCard·CourseSnapshotImage import는 카드를 되살릴 수 있게 남겨 뒀다 — v2가
+     * 확정되면 되살릴지 정하고, 안 되살리면 같이 지운다.
      */
     val panelDong = remember(topExploredDongCode, overlayBundle?.dongNames, currentDong) {
         val topCode = topExploredDongCode
@@ -571,58 +576,9 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                     )
 
                 when {
-                    // 홈 탭 · 줌아웃: 패널 전체(배너? + 요약 카드 + 탭바).
-                    selectedIndex == 0 && !isZoomedIn -> {
-                        RunvealHomeBottomPanel(
-                            banner = locationOffBanner,
-                            summary = {
-                                // 동 이름 옆에 "내 동네" 꼬리표가 붙으므로 이름은 행정동만 쓴다.
-                                // 아직 못 받았으면(위치 권한 없음·서비스 지역 밖) 꼬리표 없이
-                                // "내 동네"만 — 꼬리표까지 붙이면 "내 동네 내 동네"가 된다.
-                                RunvealSummaryCard(
-                                    dongName = panelDong?.name
-                                        ?: stringResource(R.string.home_summary_my_dong),
-                                    ratePercent = panelDong?.code
-                                        ?.let { overlayBundle?.dongPercents?.get(it) }
-                                        ?: 0,
-                                    onClick = {},
-                                    // `>`를 누르면 이 카드의 동을 가운데 두고 줌인한다 — 거기서부터
-                                    // 도로와 가본 길이 또렷하게 보인다.
-                                    onChevronClick = panelDongCenter?.let { center ->
-                                        { mapState.moveTo(center, MapConfig.HOME_ZOOM_IN) }
-                                    },
-                                    // 기록이 있어 탐험률 최고 동을 가리키면 "내 동네", 기록이 없어
-                                    // 지금 서 있는 동을 가리키면 "현위치".
-                                    tagLabel = when {
-                                        panelDong == null -> null
-                                        panelDong.isTopExplored ->
-                                            stringResource(R.string.home_summary_tag_my_dong)
-                                        else -> stringResource(R.string.home_summary_tag_current_location)
-                                    },
-                                ) {
-                                    // 요청이 아직 없으면(동/가본 길/경계 중 하나라도 미도착) 빈
-                                    // 프레임만 보인다 — CourseSnapshotImage가 placeholder를 그린다.
-                                    CourseSnapshotImage(
-                                        request = dongThumbnailRequest,
-                                        contentDescription = null,
-                                        modifier = Modifier.matchParentSize(),
-                                    )
-                                }
-                            },
-                            tabBar = {
-                                RunvealTabBar(
-                                    items = tabItems,
-                                    selectedIndex = selectedIndex,
-                                    onSelect = onSelectTab,
-                                    container = RunvealTabBarContainer.Embedded,
-                                )
-                            },
-                            onMyLocationClick = mapState::recenterToCurrentLocation,
-                            modifier = panelModifier,
-                        )
-                    }
-                    // 홈 탭 · 줌인 + 위치 꺼짐: 요약 카드는 생략하고 배너만 탭바 위에 얹는다.
-                    selectedIndex == 0 && isZoomedIn && locationOffBanner != null -> {
+                    // 홈 탭 · 위치 꺼짐: 배너만 탭바 위에 얹는다. 패널은 줌과 무관하게 이 모양 하나다 —
+                    // 줌아웃에서 보여 주던 요약 카드 패널은 더 쓰지 않는다.
+                    selectedIndex == 0 && locationOffBanner != null -> {
                         RunvealHomeBottomPanel(
                             banner = locationOffBanner,
                             tabBar = {
@@ -636,7 +592,7 @@ internal fun HomeScreen(onLoggedOut: () -> Unit, modifier: Modifier = Modifier) 
                             modifier = panelModifier,
                         )
                     }
-                    // 그 외(줌인 + 위치 정상, 다른 탭): 탭바만 홀로 띄운다.
+                    // 그 외(위치 정상, 다른 탭): 탭바만 홀로 띄운다.
                     else -> {
                         RunvealTabBar(
                             items = tabItems,
@@ -779,7 +735,9 @@ private fun HomeMapLayer(
             sigunguOverlay = if (hideOverlays) null else overlayBundle?.sigunguOverlay,
             sidoOverlay = if (hideOverlays) null else overlayBundle?.sidoOverlay,
             locationPermissionGranted = locationPermissionState.isGranted,
-            keepZoomedInStyle = hideOverlays,
+            // 길 단위로 보는 동안도 줌아웃해도 "줌인 상태" 밝기로 둔다 — 동 경계를 안 띄우니 흐리게
+            // 할 이유가 없고, 어두워지면 길이 안 보인다(hideOverlays와 같은 이유).
+            keepZoomedInStyle = hideOverlays || mapState.overlayLevel == MapOverlayLevel.Road,
         )
     }
 }

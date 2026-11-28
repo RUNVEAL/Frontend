@@ -1,5 +1,6 @@
 package com.sloth.runveal.core.map.internal.maplibre
 
+import com.sloth.runveal.core.map.MapOverlayLevel
 import com.sloth.runveal.map.MapConfig
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
@@ -31,7 +32,15 @@ internal object VisitedRoadLayer {
 
     private val EMPTY_FEATURE_COLLECTION_JSON = FeatureCollection.fromFeatures(emptyList()).toJson()
 
-    fun apply(style: Style, sourceId: String, geoJson: String?, coreColor: Int, glowColor: Int? = null) {
+    fun apply(
+        style: Style,
+        sourceId: String,
+        geoJson: String?,
+        coreColor: Int,
+        glowColor: Int? = null,
+        /** null이면 줌이 가시성을 정한다(홈 밖 화면) — [MapOverlayLevel] 참고. */
+        overlayLevel: MapOverlayLevel? = null,
+    ) {
         var source = style.getSourceAs<GeoJsonSource>(sourceId)
         if (source == null) {
             source = GeoJsonSource(sourceId)
@@ -39,6 +48,15 @@ internal object VisitedRoadLayer {
             ensureLayers(style, sourceId, coreColor, glowColor)
         }
         source.setGeoJson(geoJson ?: EMPTY_FEATURE_COLLECTION_JSON)
+        // 레이어는 처음 한 번만 만들어지므로(ensureLayers), 보기 단위가 바뀔 때는 줌 범위만 다시 맞춘다.
+        updateZoomRange(style, sourceId, overlayLevel)
+    }
+
+    private fun updateZoomRange(style: Style, sourceId: String, overlayLevel: MapOverlayLevel?) {
+        val minZoom = roadLayerMinZoom(overlayLevel)
+        listOf("$sourceId-glow-outer", "$sourceId-glow-mid", "$sourceId-line").forEach { layerId ->
+            style.getLayerAs<LineLayer>(layerId)?.minZoom = minZoom
+        }
     }
 
     private fun ensureLayers(style: Style, sourceId: String, coreColor: Int, glowColor: Int?) {

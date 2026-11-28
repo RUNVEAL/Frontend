@@ -30,6 +30,10 @@ import com.sloth.runveal.feature.tabhome.R
 private val HEADER_TOP_GAP = 37.dp
 
 @Composable
+/**
+ * **지금 이 컴포저블을 부르는 곳은 없다.** 패널을 줌인 모양 하나로 통일하면서(v2) 줌아웃 전용
+ * 패널이 필요 없어졌다 — 되살릴 수 있게 지우지 않고 남겨 뒀다.
+ */
 fun HomeMapOverlay(locationName: String, modifier: Modifier = Modifier) {
     val lightImageFade = Brush.verticalGradient(
         0f to Color.Transparent,

@@ -15,12 +15,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.sloth.runveal.core.map.DongOverlayHolder
 import com.sloth.runveal.core.map.LocalMapState
+import com.sloth.runveal.core.map.MapOverlayLevel
 import com.sloth.runveal.dong.DongExploreRate
-import com.sloth.runveal.map.MapConfig
 import com.sloth.runveal.network.dong.CurrentDongHolder
 import com.sloth.runveal.feature.tabhome.R
-import com.sloth.runveal.tabhome.component.HomeMapOverlay
-import com.sloth.runveal.tabhome.component.TOGGLE_INDEX_UNEXPLORED
+import com.sloth.runveal.tabhome.component.TOGGLE_INDEX_DONG
+import com.sloth.runveal.tabhome.component.TOGGLE_INDEX_ROAD
 import com.sloth.runveal.tabhome.component.ZoomedInMapOverlay
 
 /**
@@ -43,34 +43,41 @@ internal fun HomeMapOverlayScreen(
     // 바뀌면서 여기로 돌아온다(배너는 다른 모듈이라 이 ViewModel을 직접 못 부른다).
     val retryRequests by CurrentDongHolder.retryRequests.collectAsStateWithLifecycle()
     LaunchedEffect(retryRequests) { viewModel.loadCurrentDong(context) }
-    val isZoomedIn = mapState.currentZoom >= MapConfig.ZOOM_IN_THRESHOLD
-    var selectedToggleIndex by remember { mutableIntStateOf(0) }
+    // 패널은 줌과 무관하게 한 가지(줌인 모양)다 — 줌으로 갈리던 분기를 없앴다.
+    //
+    // 기본값은 동네 단위 — 앱을 열면 탐험률이 가장 높은 동으로 포커스하는 기존 흐름이 동 단위
+    // 보기라, 길 단위로 시작하면 첫 화면이 달라진다.
+    var selectedToggleIndex by remember { mutableIntStateOf(TOGGLE_INDEX_DONG) }
 
     // 카메라가 멈출 때마다 지도 가운데 동을 다시 묻는다 — mapState.currentCenter는 멈출 때만
-    // 바뀌므로(OnCameraIdle) 끌고 있는 동안에는 요청이 나가지 않는다. 줌인·줌아웃 두 패널이 모두
-    // 이 값을 쓰므로 줌 상태를 가리지 않는다.
+    // 바뀌므로(OnCameraIdle) 끌고 있는 동안에는 요청이 나가지 않는다.
     LaunchedEffect(mapState.currentCenter) {
         viewModel.loadCenterDong(mapState.currentCenter)
     }
 
     // 지도 라벨도 같은 동을 "메인"으로 크게 그린다 — 패널 이름과 지도에서 도드라지는 동이 달라지면
-    // 어디를 보고 있는지 헷갈린다. 줌인에서는 동 라벨 자체가 안 보이므로 비워 둔다.
+    // 어디를 보고 있는지 헷갈린다. 길 단위로 보는 동안은 동 라벨 자체가 안 보여서 쓰이지 않는다.
     DisposableEffect(state.centerDongCode) {
         mapState.mainDongCode = state.centerDongCode
         onDispose { mapState.mainDongCode = null }
     }
 
-    // "안 가본 길"을 고른 동안만 베이스 지도 도로를 강조한다 — 줌 아웃되거나 이 화면을 벗어나면 원래대로.
-    val unexploredRoadFocus = isZoomedIn && selectedToggleIndex == TOGGLE_INDEX_UNEXPLORED
-    DisposableEffect(unexploredRoadFocus) {
-        mapState.unexploredRoadFocus = unexploredRoadFocus
-        onDispose { mapState.unexploredRoadFocus = false }
+    // 토글이 지도 보기 단위를 정한다 — 줌은 더 이상 관여하지 않는다. 이 화면을 벗어나면 null로
+    // 되돌려서 다른 지도 화면(러닝·코스 추천)이 예전처럼 줌으로 판단하게 둔다.
+    //
+    // 예전 "안 가본 길" 강조(mapState.unexploredRoadFocus)는 토글이 교체되면서 켤 자리가 없어졌다 —
+    // MapState의 플래그와 그걸 쓰는 BaseStyleRoadFocus는 **남겨 두고 연결만 끊는다**(다른 자리에서
+    // 되살릴 수 있다).
+    val overlayLevel = if (selectedToggleIndex == TOGGLE_INDEX_ROAD) MapOverlayLevel.Road else MapOverlayLevel.Dong
+    DisposableEffect(overlayLevel) {
+        mapState.overlayLevel = overlayLevel
+        onDispose { mapState.overlayLevel = null }
     }
 
     // 시군구 없이 행정동만 — 지도 위 한 줄짜리 자리라 짧은 쪽이 읽기 좋다.
     // 아직 못 받았으면(위치 권한 없음·서비스 지역 밖·일시 오류) 대체 문구를 쓴다.
     //
-    // 줌인·줌아웃 둘 다 **지도 가운데 보이는 동**([HomeMapOverlayState.centerDongName])을 쓴다 —
+    // 보기 단위와 무관하게 **지도 가운데 보이는 동**([HomeMapOverlayState.centerDongName])을 쓴다 —
     // 지도를 끌어 다른 동네를 둘러보는 게 목적이라, 어느 줌에서든 화면에 보이는 곳의 이름이 맞다.
     // 내가 서 있는 동은 이제 꼬리표가 "현위치"인지 가리는 데만 쓴다([HomeMapOverlayState.dongCode]).
     val centerLocationName = state.centerDongName ?: stringResource(R.string.home_map_current_location)
@@ -86,30 +93,29 @@ internal fun HomeMapOverlayScreen(
     val exploredKm = dongCode?.let { overlayBundle?.walkedLengthsByDong?.get(it) }?.div(1000.0) ?: 0.0
     val totalKm = dongCode?.let { overlayBundle?.totalLengthsByDong?.get(it) }?.div(1000.0) ?: 0.0
 
-    if (!isZoomedIn) {
-        HomeMapOverlay(locationName = centerLocationName, modifier = modifier.fillMaxSize())
-    } else {
-        // TODO: 동 상세 진입(onDongClick) 추가 예정.
-        ZoomedInMapOverlay(
-            dongName = centerLocationName,
-            // 줌아웃 요약 카드와 같은 기준 — 지도 가운데 동이 탐험률 최고면 "내 동네", 지금 서 있는
-            // 동이면 "현위치", 그 밖(끌어서 둘러보는 동네)이면 안 붙인다.
-            tagLabel = when (state.centerDongCode) {
-                null -> null
-                topExploredDongCode -> stringResource(R.string.home_zoomed_in_tag_my_dong)
-                state.dongCode -> stringResource(R.string.home_zoomed_in_tag_current_location)
-                else -> null
-            },
-            ratePercent = ratePercent,
-            exploredKm = exploredKm,
-            totalKm = totalKm,
-            selectedToggleIndex = selectedToggleIndex,
-            onToggleSelect = { selectedToggleIndex = it },
-            onDongClick = {},
-            onCreateCourseClick = onCreateCourseClick,
-            onRunStartClick = onRunStartClick,
-            onMyLocationClick = mapState::recenterToCurrentLocation,
-            modifier = modifier.fillMaxSize(),
-        )
-    }
+    // 줌아웃 전용 패널(HomeMapOverlay)은 더 쓰지 않는다 — 패널을 줌인 모양 하나로 통일했다.
+    // 그 컴포저블은 지우지 않고 남겨 뒀다(호출만 끊었다).
+    //
+    // TODO: 동 상세 진입(onDongClick) 추가 예정.
+    ZoomedInMapOverlay(
+        dongName = centerLocationName,
+        // 줌아웃 요약 카드와 같은 기준 — 지도 가운데 동이 탐험률 최고면 "내 동네", 지금 서 있는
+        // 동이면 "현위치", 그 밖(끌어서 둘러보는 동네)이면 안 붙인다.
+        tagLabel = when (state.centerDongCode) {
+            null -> null
+            topExploredDongCode -> stringResource(R.string.home_zoomed_in_tag_my_dong)
+            state.dongCode -> stringResource(R.string.home_zoomed_in_tag_current_location)
+            else -> null
+        },
+        ratePercent = ratePercent,
+        exploredKm = exploredKm,
+        totalKm = totalKm,
+        selectedToggleIndex = selectedToggleIndex,
+        onToggleSelect = { selectedToggleIndex = it },
+        onDongClick = {},
+        onCreateCourseClick = onCreateCourseClick,
+        onRunStartClick = onRunStartClick,
+        onMyLocationClick = mapState::recenterToCurrentLocation,
+        modifier = modifier.fillMaxSize(),
+    )
 }

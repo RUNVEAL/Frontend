@@ -17,6 +17,16 @@ import com.sloth.runveal.designsystem.component.map.RunvealMapMarkerType
 import com.sloth.runveal.map.LatLon
 import com.sloth.runveal.map.MapConfig
 
+/**
+ * 지도 오버레이를 **무엇 단위로** 보여줄지. 홈의 "길 단위 / 동네 단위" 토글이 정하고, 줌 레벨은
+ * 더 이상 이걸 가르지 않는다 — 길 단위면 줌아웃에서도 가본 길이 보이고, 동네 단위면 줌인에서도
+ * 행정동 경계가 보인다.
+ *
+ * [MapState.overlayLevel]이 null이면 예전처럼 줌이 정한다 — 홈이 아닌 화면(러닝·코스 추천)은
+ * 이 값을 건드리지 않아 그대로 돈다.
+ */
+enum class MapOverlayLevel { Road, Dong }
+
 /** 지도 위에 떠 있는 마커 하나(출발/도착 등 위치 + 종류). */
 data class MapPin(val location: LatLon, val type: RunvealMapMarkerType)
 
@@ -78,10 +88,22 @@ class MapState(
      * 용도지만 Pin 스타일로 그린다. [pin](선택 중 임시 핀)과도 별개. */
     var pinMarkers: List<MapPin> by mutableStateOf(emptyList())
 
-    /** 홈 줌인 뷰에서 "안 가본 길" 보기를 고른 동안만 true — 켜면 베이스 지도의 도로를
-     * `map.roadUnexploredFocus` 색으로 덮어 아직 안 가본 길이 어디로 이어지는지 보이게 한다
-     * ([BaseStyleRoadFocus]). 가본 길(금색 선)은 그대로 둔다. */
+    /**
+     * 켜면 베이스 지도의 도로를 `map.roadUnexploredFocus` 색으로 덮어 아직 안 가본 길이 어디로
+     * 이어지는지 보이게 한다([BaseStyleRoadFocus]). 가본 길(금색 선)은 그대로 둔다.
+     *
+     * **지금 이걸 켜는 곳은 없다.** 홈 토글이 "탐험한 길 / 안 가본 길"에서 "길 단위 / 동네 단위"로
+     * 바뀌면서(v2) 켤 자리가 없어졌다 — 다른 자리에서 되살릴 수 있게 플래그와 레이어 코드를 남겨 뒀다.
+     */
     var unexploredRoadFocus: Boolean by mutableStateOf(false)
+
+    /**
+     * 오버레이 보기 단위([MapOverlayLevel]) — 홈 토글이 넣고, 홈을 벗어나면 null로 되돌린다.
+     *
+     * null이면 각 레이어가 예전처럼 [MapConfig.ZOOM_IN_THRESHOLD]를 기준으로 스스로 보이거나
+     * 숨는다. 값이 있으면 줌과 무관하게 이 단위가 가시성을 정한다.
+     */
+    var overlayLevel: MapOverlayLevel? by mutableStateOf(null)
 
     /**
      * 현재 위치 마커에 "지금 바라보는 방향" 화살표를 띄울지(러닝 중). 기기 나침반(지자기 센서)을

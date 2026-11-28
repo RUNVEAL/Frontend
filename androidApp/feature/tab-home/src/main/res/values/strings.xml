@@ -4,4 +4,7 @@
     <!-- 줌인 헤더에서 동 이름 앞에 붙는 꼬리표 — 탐험률 최고 동이면 "내 동네", 지금 서 있는 동이면 "현위치". -->
     <string name="home_zoomed_in_tag_my_dong">내 동네</string>
     <string name="home_zoomed_in_tag_current_location">현위치</string>
+    <!-- 지도 보기 단위 토글 — 줌과 무관하게 이 토글만으로 가본 길(길 단위)과 행정동 경계(동네 단위)를 가른다. -->
+    <string name="home_overlay_level_road">길 단위</string>
+    <string name="home_overlay_level_dong">동네 단위</string>
 </resources>

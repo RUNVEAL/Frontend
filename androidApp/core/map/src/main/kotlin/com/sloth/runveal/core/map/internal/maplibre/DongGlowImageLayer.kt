@@ -1,5 +1,6 @@
 package com.sloth.runveal.core.map.internal.maplibre
 
+import com.sloth.runveal.core.map.MapOverlayLevel
 import com.sloth.runveal.core.map.internal.glow.DongGlowProvider
 import com.sloth.runveal.dong.DongPolygonPart
 import com.sloth.runveal.map.LatLon
@@ -39,6 +40,8 @@ internal class DongGlowImageLayer(private val provider: DongGlowProvider) {
         overlayFillGeoJson: String?,
         polygonPartsByAdmCd2: Map<String, List<DongPolygonPart>>,
         boundarySourceKey: String,
+        /** null이면 줌이 가시성을 정한다(홈 밖 화면) — [MapOverlayLevel] 참고. */
+        overlayLevel: MapOverlayLevel? = null,
     ) {
         // 러닝 기록 중·코스 추천 중처럼 동 오버레이를 숨길 때는 parts/overlay가 비어서 들어온다. 그냥
         // 돌아가면 테두리·라벨만 사라지고 **이미 올라간 빛 이미지는 지도에 그대로 남는다** — 올라가 있던
@@ -79,12 +82,18 @@ internal class DongGlowImageLayer(private val provider: DongGlowProvider) {
         for ((admCd2, level, _) in candidates) {
             val parts = polygonPartsByAdmCd2.getValue(admCd2)
             val asset = provider.request(admCd2, level, parts, boundarySourceKey) ?: continue
-            addOrUpdateDong(style, admCd2, asset.corners, asset.bitmap)
+            addOrUpdateDong(style, admCd2, asset.corners, asset.bitmap, overlayLevel)
             activeAdmCd2.add(admCd2)
         }
     }
 
-    private fun addOrUpdateDong(style: Style, admCd2: String, corners: List<LatLon>, bitmap: android.graphics.Bitmap) {
+    private fun addOrUpdateDong(
+        style: Style,
+        admCd2: String,
+        corners: List<LatLon>,
+        bitmap: android.graphics.Bitmap,
+        overlayLevel: MapOverlayLevel?,
+    ) {
         val quad = LatLngQuad(corners[0].toLatLng(), corners[1].toLatLng(), corners[2].toLatLng(), corners[3].toLatLng())
         val sourceId = sourceId(admCd2)
         val existingSource = style.getSourceAs<ImageSource>(sourceId)
@@ -102,13 +111,16 @@ internal class DongGlowImageLayer(private val provider: DongGlowProvider) {
                 PropertyFactory.rasterFadeDuration(0f),
             )
             layer.minZoom = MapConfig.SIGUNGU_SWITCH_ZOOM.toFloat()
-            layer.maxZoom = MapConfig.ZOOM_IN_THRESHOLD.toFloat()
+            layer.maxZoom = dongLayerMaxZoom(overlayLevel)
             // 3장 레이어 순서: dong-fill 위, dong-line 아래.
             if (style.getLayer(MapConfig.LAYER_DONG_LINE) != null) {
                 style.addLayerBelow(layer, MapConfig.LAYER_DONG_LINE)
             } else {
                 style.addLayer(layer)
             }
+        } else {
+            // 이미 올라가 있으면 보기 단위만 다시 반영한다.
+            style.getLayer(layerId)?.maxZoom = dongLayerMaxZoom(overlayLevel)
         }
     }
 

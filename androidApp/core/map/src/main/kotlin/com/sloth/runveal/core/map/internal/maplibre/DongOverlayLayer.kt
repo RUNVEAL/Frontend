@@ -2,6 +2,7 @@ package com.sloth.runveal.core.map.internal.maplibre
 
 import androidx.compose.ui.graphics.toArgb
 import com.sloth.runveal.core.map.DongOverlayGeoJson
+import com.sloth.runveal.core.map.MapOverlayLevel
 import com.sloth.runveal.designsystem.map.RunvealDong
 import com.sloth.runveal.map.MapConfig
 import org.maplibre.android.maps.Style
@@ -54,12 +55,31 @@ internal object DongOverlayLayer {
 
     private val EMPTY_FEATURE_COLLECTION_JSON = FeatureCollection.fromFeatures(emptyList()).toJson()
 
-    fun apply(style: Style, overlay: DongOverlayGeoJson?, colors: MapColors, mainDongCode: String?) {
+    fun apply(
+        style: Style,
+        overlay: DongOverlayGeoJson?,
+        colors: MapColors,
+        mainDongCode: String?,
+        /** null이면 줌이 가시성을 정한다(홈 밖 화면) — [MapOverlayLevel] 참고. */
+        overlayLevel: MapOverlayLevel? = null,
+    ) {
         ensureSource(style, MapConfig.SOURCE_DONG_FILL, overlay?.fillGeoJson)
         ensureSource(style, MapConfig.SOURCE_DONG_LINE, overlay?.lineGeoJson)
         ensureSource(style, MapConfig.SOURCE_DONG_LABEL, overlay?.labelGeoJson)
         ensureLayers(style, colors)
         applyMainDong(style, mainDongCode)
+        updateZoomRange(style, overlayLevel)
+    }
+
+    /** 레이어는 처음 한 번만 만들어지므로(ensureLayers), 보기 단위가 바뀔 때는 줌 상한만 다시 맞춘다. */
+    private fun updateZoomRange(style: Style, overlayLevel: MapOverlayLevel?) {
+        val maxZoom = dongLayerMaxZoom(overlayLevel)
+        listOf(
+            MapConfig.LAYER_DONG_FILL,
+            MapConfig.LAYER_DONG_LINE,
+            MapConfig.LAYER_DONG_LABEL,
+            MapConfig.LAYER_DONG_LABEL_MAIN,
+        ).forEach { layerId -> style.getLayer(layerId)?.maxZoom = maxZoom }
     }
 
     /**

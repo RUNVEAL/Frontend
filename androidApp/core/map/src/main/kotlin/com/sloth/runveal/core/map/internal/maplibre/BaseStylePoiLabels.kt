@@ -1,5 +1,6 @@
 package com.sloth.runveal.core.map.internal.maplibre
 
+import com.sloth.runveal.core.map.MapOverlayLevel
 import com.sloth.runveal.map.MapConfig
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
@@ -26,8 +27,14 @@ internal object BaseStylePoiLabels {
 
     private val LABEL_FONT = arrayOf("Noto Sans Regular")
 
-    fun show(style: Style, colors: MapColors) {
-        if (style.getLayer(MapConfig.LAYER_BASE_POI_LABEL) != null) return
+    fun show(style: Style, colors: MapColors, overlayLevel: MapOverlayLevel? = null) {
+        val existing = style.getLayer(MapConfig.LAYER_BASE_POI_LABEL)
+        if (existing != null) {
+            // 이미 만들어 뒀으면 보기 단위만 다시 반영한다 — 토글이 바뀔 때마다 레이어를 다시
+            // 만들지 않는다.
+            existing.minZoom = roadLayerMinZoom(overlayLevel)
+            return
+        }
 
         val layer = SymbolLayer(MapConfig.LAYER_BASE_POI_LABEL, MapConfig.SOURCE_BASE_STYLE).withProperties(
             PropertyFactory.textField(Expression.get("name")),
@@ -42,7 +49,7 @@ internal object BaseStylePoiLabels {
         )
         layer.setSourceLayer(MapConfig.SOURCE_LAYER_BASE_POI)
         layer.setFilter(subclassFilter())
-        layer.minZoom = MapConfig.ZOOM_IN_THRESHOLD.toFloat()
+        layer.minZoom = roadLayerMinZoom(overlayLevel)
         style.addLayer(layer)
     }
 

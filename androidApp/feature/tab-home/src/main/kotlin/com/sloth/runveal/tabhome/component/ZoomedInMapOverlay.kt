@@ -28,6 +28,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -41,6 +42,7 @@ import com.sloth.runveal.designsystem.component.button.RunvealIconButton
 import com.sloth.runveal.designsystem.component.button.RunvealRunStartButton
 import com.sloth.runveal.designsystem.component.navigation.RunvealSegmentedToggle
 import com.sloth.runveal.designsystem.theme.RunvealTheme
+import com.sloth.runveal.feature.tabhome.R
 
 /** 헤더의 보조 글자(내 동네, 누적·전체 거리)에 거는 투명도 — 시안은 색 토큰 대신 블록 투명도를 쓴다. */
 private const val HEADER_SUB_TEXT_ALPHA = 0.8f
@@ -57,8 +59,12 @@ private fun AnnotatedString.Builder.appendDistanceLine(label: String, km: Double
     }
 }
 
-/** 보기 전환 토글에서 "안 가본 길"의 인덱스 — 아래 옵션 목록 순서와 짝이다. */
-internal const val TOGGLE_INDEX_UNEXPLORED = 1
+/**
+ * 보기 단위 토글의 인덱스 — 아래 옵션 목록 순서와 짝이다. 지도에 가본 길을 보여줄지(길 단위)
+ * 행정동 경계를 보여줄지(동네 단위)를 이 선택만으로 정한다(줌은 관여하지 않는다).
+ */
+internal const val TOGGLE_INDEX_ROAD = 0
+internal const val TOGGLE_INDEX_DONG = 1
 
 /** A3-4(줌 인) 오버레이. 지도/탭바는 제외, 요약 카드 + 하단 액션 줄만 담당. */
 @Composable
@@ -94,7 +100,10 @@ fun ZoomedInMapOverlay(
                 modifier = Modifier.fillMaxWidth(),
             )
             RunvealSegmentedToggle(
-                options = listOf("탐험한 길", "안 가본 길"),
+                options = listOf(
+                    stringResource(R.string.home_overlay_level_road),
+                    stringResource(R.string.home_overlay_level_dong),
+                ),
                 selectedIndex = selectedToggleIndex,
                 onSelect = onToggleSelect,
                 modifier = Modifier.padding(start = RunvealTheme.layout.marginScreen),
